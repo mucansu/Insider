@@ -51,6 +51,9 @@ Fable incelemesiyle: Faz 0'a GodotSteam × 4.7.2 uyumluluk kontrolü (IS-004); F
 ### KR-016 — Fable tasarım değerlendirmeleri (2026-10-01, kullanıcı)
 tasarim ajanı (Fable) belirli noktalarda (faz kapanışı, fazın oynanabilir dilimi sonrası, oyun testi sonrası) oyunun gidişatını değerlendirir; oyun zevkini/mekaniği tam karşılamayan noktaları önerileriyle, temel yapı kurulduktan sonra (Faz 2 kapanışından itibaren) yeni özellik ve geliştirme önerilerini raporlar. Öneriler bağlayıcı değil; ON kaydına girer, faz plan mesajında kullanıcıya sorulur. Süreç: surec.md §5a, kayıt: surec/oneriler.md.
 
+### KR-017 — Animasyon ve karakter stili (2026-10-01, kullanıcı + koordinatör)
+Kullanıcı: ne retro/klasik platform oyunu gibi ne gerçekçi; anime oyunlarının tatlılığı ve zarafeti, kendine has akıcılık, sert/itici değil. Koordinatör uygulaması: sanatçısız **prosedürel "kukla" karakterler** — birkaç yumuşak parçadan (iri baş + yüz/gözler, rol siluetini veren şapka/kapüşon, küçük gövde, eller, atkı/palto ucu) oluşan şirin oranlı (chibi'ye yakın) figürler; tüm animasyon kodla: yumuşatma (lineer hareket yok), yay/aşma (spring/overshoot), hazırlık ve devam (anticipation/follow-through), ezilme-esneme, yürüyüşte sekme + harekete eğilme, sızmada çömelme, koşuda uzama + toz, nefes alma, göz kırpma ve bakış yönü, tepki balonları ("?" "!") pop animasyonu, atkı/palto ucu için ikincil hareket (verlet). Ton noir kalır (KR-005): koyu dünya + zarif, okunur karakterler. Görsel katman durum okur, mantığa dokunmaz (KR-003); 3D'ye geçilirse aynı ilke toon/cel shading ile sürer. GDD §14'e IS-007'de işlenir; uygulama Faz 2 "karakter kuklası v0" kalemi.
+
 ## Günlük
 - 2026-10-01 (US-002): Seviyeler ASCII .txt'den üretilir; S4'e ekleme: `Tiles` düğümü, kapı işareti dönüş kuralı, `BackroomDoor` işareti, üretim kuralı (mimari.md S4). Kasa yalnız tezgâh arkasından boşaltılır (US-005 AC2). LEVEL_* token'ları IS-008'e.
 - 2026-10-01: Süreç ve ajan dosyaları kuruldu (IS-001).
