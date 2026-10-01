@@ -1,0 +1,28 @@
+; test_arena — boş 20×15 karo oda (US-002 AC4). Lejant: levels/level_layout.gd.
+; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa) burada yalıtık denenir.
+@ F FrontDoor .
+@ B BackDoor .
+@ R Register .
+@ C Counter .
+@ K ClerkSpot .
+@ V BackroomSafe .
+@ E Exit .
+@ 1 Spawn1 .
+@ 2 Spawn2 .
+@ 3 Spawn3 .
+@ 4 Spawn4 .
+####################
+#..................#
+#.V................#
+#..................#
+#.........B........#
+#..................#
+#..............CR..#
+#...............K..#
+#..................#
+#.........F........#
+#..................#
+#..................#
+#.1234...........E.#
+#..................#
+####################

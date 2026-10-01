@@ -1,0 +1,240 @@
+[gd_scene format=3 uid="uid://dxuom62r2b1ry"]
+
+[ext_resource type="Script" uid="uid://bq8f51puc1q8q" path="res://levels/level_layout.gd" id="1_ikrv3"]
+
+[sub_resource type="RectangleShape2D" id="Bound_1"]
+size = Vector2(960, 32)
+
+[sub_resource type="RectangleShape2D" id="Bound_2"]
+size = Vector2(32, 608)
+
+[sub_resource type="RectangleShape2D" id="Bound_3"]
+size = Vector2(32, 608)
+
+[sub_resource type="RectangleShape2D" id="Bound_4"]
+size = Vector2(896, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_1"]
+size = Vector2(608, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_2"]
+size = Vector2(64, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_3"]
+size = Vector2(32, 352)
+
+[sub_resource type="RectangleShape2D" id="Wall_4"]
+size = Vector2(32, 160)
+
+[sub_resource type="RectangleShape2D" id="Wall_5"]
+size = Vector2(32, 192)
+
+[sub_resource type="RectangleShape2D" id="Wall_6"]
+size = Vector2(128, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_7"]
+size = Vector2(64, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_8"]
+size = Vector2(32, 96)
+
+[sub_resource type="RectangleShape2D" id="Wall_9"]
+size = Vector2(32, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_10"]
+size = Vector2(32, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_11"]
+size = Vector2(32, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_12"]
+size = Vector2(160, 32)
+
+[sub_resource type="RectangleShape2D" id="Window_1"]
+size = Vector2(32, 64)
+
+[sub_resource type="RectangleShape2D" id="Window_2"]
+size = Vector2(224, 32)
+
+[sub_resource type="RectangleShape2D" id="Window_3"]
+size = Vector2(128, 32)
+
+[sub_resource type="RectangleShape2D" id="Shelf_1"]
+size = Vector2(252, 28)
+
+[sub_resource type="RectangleShape2D" id="Shelf_2"]
+size = Vector2(28, 188)
+
+[sub_resource type="RectangleShape2D" id="Shelf_3"]
+size = Vector2(188, 28)
+
+[sub_resource type="RectangleShape2D" id="Shelf_4"]
+size = Vector2(60, 60)
+
+[sub_resource type="RectangleShape2D" id="Shelf_5"]
+size = Vector2(188, 28)
+
+[sub_resource type="RectangleShape2D" id="Shelf_6"]
+size = Vector2(188, 28)
+
+[sub_resource type="RectangleShape2D" id="Counter_1"]
+size = Vector2(28, 92)
+
+[node name="StoreA" type="Node2D" unique_id=828043450]
+
+[node name="Tiles" type="Node2D" parent="." unique_id=1683819684]
+script = ExtResource("1_ikrv3")
+rows = PackedStringArray("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%###################+##,,____%", "%#..SSSSSSSS..#:::::::#,,____%", "%#............#:::::::#,,____%", "%#S.SSSSSS....#:SS::::#,,____%", "%#S...........#:SS::::#,,____%", "%#S.SSSSSS....#####+###,,____%", "%#S..............T....#,,____%", "%#S.SSSSSS.......T....w,,____%", "%#S..............T....w,,____%", "%#....................#,,____%", "%#....................#,,____%", "%##wwwwwww#+#wwww######,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%____________________________%", "%____________________________%", "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
+[node name="Walls" type="StaticBody2D" parent="." unique_id=1587230003]
+collision_mask = 0
+
+[node name="Bound1" type="CollisionShape2D" parent="Walls" unique_id=223118815]
+position = Vector2(480, 16)
+shape = SubResource("Bound_1")
+
+[node name="Bound2" type="CollisionShape2D" parent="Walls" unique_id=1189984753]
+position = Vector2(16, 336)
+shape = SubResource("Bound_2")
+
+[node name="Bound3" type="CollisionShape2D" parent="Walls" unique_id=411155617]
+position = Vector2(944, 336)
+shape = SubResource("Bound_3")
+
+[node name="Bound4" type="CollisionShape2D" parent="Walls" unique_id=1407133430]
+position = Vector2(480, 624)
+shape = SubResource("Bound_4")
+
+[node name="Wall1" type="CollisionShape2D" parent="Walls" unique_id=1389849978]
+position = Vector2(336, 112)
+shape = SubResource("Wall_1")
+
+[node name="Wall2" type="CollisionShape2D" parent="Walls" unique_id=2061744365]
+position = Vector2(704, 112)
+shape = SubResource("Wall_2")
+
+[node name="Wall3" type="CollisionShape2D" parent="Walls" unique_id=296650308]
+position = Vector2(48, 304)
+shape = SubResource("Wall_3")
+
+[node name="Wall4" type="CollisionShape2D" parent="Walls" unique_id=520231518]
+position = Vector2(464, 208)
+shape = SubResource("Wall_4")
+
+[node name="Wall5" type="CollisionShape2D" parent="Walls" unique_id=328291179]
+position = Vector2(720, 224)
+shape = SubResource("Wall_5")
+
+[node name="Wall6" type="CollisionShape2D" parent="Walls" unique_id=1753272822]
+position = Vector2(544, 272)
+shape = SubResource("Wall_6")
+
+[node name="Wall7" type="CollisionShape2D" parent="Walls" unique_id=1039823787]
+position = Vector2(672, 272)
+shape = SubResource("Wall_7")
+
+[node name="Wall8" type="CollisionShape2D" parent="Walls" unique_id=1673712294]
+position = Vector2(720, 432)
+shape = SubResource("Wall_8")
+
+[node name="Wall9" type="CollisionShape2D" parent="Walls" unique_id=776932594]
+position = Vector2(80, 464)
+shape = SubResource("Wall_9")
+
+[node name="Wall10" type="CollisionShape2D" parent="Walls" unique_id=1772694593]
+position = Vector2(336, 464)
+shape = SubResource("Wall_10")
+
+[node name="Wall11" type="CollisionShape2D" parent="Walls" unique_id=1836009623]
+position = Vector2(400, 464)
+shape = SubResource("Wall_11")
+
+[node name="Wall12" type="CollisionShape2D" parent="Walls" unique_id=215186613]
+position = Vector2(624, 464)
+shape = SubResource("Wall_12")
+
+[node name="Window1" type="CollisionShape2D" parent="Walls" unique_id=1449001097]
+position = Vector2(720, 352)
+shape = SubResource("Window_1")
+
+[node name="Window2" type="CollisionShape2D" parent="Walls" unique_id=714015095]
+position = Vector2(208, 464)
+shape = SubResource("Window_2")
+
+[node name="Window3" type="CollisionShape2D" parent="Walls" unique_id=1339980993]
+position = Vector2(480, 464)
+shape = SubResource("Window_3")
+
+[node name="Shelf1" type="CollisionShape2D" parent="Walls" unique_id=1525504214]
+position = Vector2(256, 144)
+shape = SubResource("Shelf_1")
+
+[node name="Shelf2" type="CollisionShape2D" parent="Walls" unique_id=201400746]
+position = Vector2(80, 288)
+shape = SubResource("Shelf_2")
+
+[node name="Shelf3" type="CollisionShape2D" parent="Walls" unique_id=1513273052]
+position = Vector2(224, 208)
+shape = SubResource("Shelf_3")
+
+[node name="Shelf4" type="CollisionShape2D" parent="Walls" unique_id=1399581908]
+position = Vector2(544, 224)
+shape = SubResource("Shelf_4")
+
+[node name="Shelf5" type="CollisionShape2D" parent="Walls" unique_id=606540231]
+position = Vector2(224, 272)
+shape = SubResource("Shelf_5")
+
+[node name="Shelf6" type="CollisionShape2D" parent="Walls" unique_id=2053787137]
+position = Vector2(224, 336)
+shape = SubResource("Shelf_6")
+
+[node name="Counter1" type="CollisionShape2D" parent="Walls" unique_id=1796622432]
+position = Vector2(560, 336)
+shape = SubResource("Counter_1")
+
+[node name="SpawnPoints" type="Node2D" parent="." unique_id=1953500109]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints" unique_id=1190014855]
+position = Vector2(112, 528)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints" unique_id=1401320193]
+position = Vector2(144, 528)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints" unique_id=721719124]
+position = Vector2(176, 528)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints" unique_id=1874385770]
+position = Vector2(208, 528)
+
+[node name="Players" type="Node2D" parent="." unique_id=1476309782]
+
+[node name="Props" type="Node2D" parent="." unique_id=1684154542]
+
+[node name="NPCs" type="Node2D" parent="." unique_id=1842885990]
+
+[node name="Markers" type="Node2D" parent="." unique_id=1450769003]
+
+[node name="FrontDoor" type="Marker2D" parent="Markers" unique_id=461715061]
+position = Vector2(368, 464)
+
+[node name="BackDoor" type="Marker2D" parent="Markers" unique_id=1664057019]
+position = Vector2(656, 112)
+
+[node name="BackroomDoor" type="Marker2D" parent="Markers" unique_id=1752858359]
+position = Vector2(624, 272)
+
+[node name="Register" type="Marker2D" parent="Markers" unique_id=718066531]
+position = Vector2(560, 368)
+
+[node name="Counter" type="Marker2D" parent="Markers" unique_id=829594414]
+position = Vector2(560, 336)
+
+[node name="ClerkSpot" type="Marker2D" parent="Markers" unique_id=1629512364]
+position = Vector2(592, 368)
+
+[node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1849289487]
+position = Vector2(496, 144)
+
+[node name="Exit" type="Marker2D" parent="Markers" unique_id=1482802281]
+position = Vector2(880, 592)

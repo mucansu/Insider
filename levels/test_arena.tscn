@@ -1,0 +1,83 @@
+[gd_scene format=3 uid="uid://ctejrsgut1daq"]
+
+[ext_resource type="Script" uid="uid://bq8f51puc1q8q" path="res://levels/level_layout.gd" id="1_goyld"]
+
+[sub_resource type="RectangleShape2D" id="Wall_1"]
+size = Vector2(640, 32)
+
+[sub_resource type="RectangleShape2D" id="Wall_2"]
+size = Vector2(32, 448)
+
+[sub_resource type="RectangleShape2D" id="Wall_3"]
+size = Vector2(32, 448)
+
+[sub_resource type="RectangleShape2D" id="Wall_4"]
+size = Vector2(576, 32)
+
+[node name="TestArena" type="Node2D" unique_id=801292675]
+
+[node name="Tiles" type="Node2D" parent="." unique_id=977517180]
+script = ExtResource("1_goyld")
+rows = PackedStringArray("####################", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "#..................#", "####################")
+
+[node name="Walls" type="StaticBody2D" parent="." unique_id=2064437736]
+collision_mask = 0
+
+[node name="Wall1" type="CollisionShape2D" parent="Walls" unique_id=969277132]
+position = Vector2(320, 16)
+shape = SubResource("Wall_1")
+
+[node name="Wall2" type="CollisionShape2D" parent="Walls" unique_id=467423964]
+position = Vector2(16, 256)
+shape = SubResource("Wall_2")
+
+[node name="Wall3" type="CollisionShape2D" parent="Walls" unique_id=1540909555]
+position = Vector2(624, 256)
+shape = SubResource("Wall_3")
+
+[node name="Wall4" type="CollisionShape2D" parent="Walls" unique_id=434301265]
+position = Vector2(320, 464)
+shape = SubResource("Wall_4")
+
+[node name="SpawnPoints" type="Node2D" parent="." unique_id=1878129602]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints" unique_id=1641678886]
+position = Vector2(80, 400)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints" unique_id=1436215113]
+position = Vector2(112, 400)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints" unique_id=1352054445]
+position = Vector2(144, 400)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints" unique_id=290681624]
+position = Vector2(176, 400)
+
+[node name="Players" type="Node2D" parent="." unique_id=1275263248]
+
+[node name="Props" type="Node2D" parent="." unique_id=2054277541]
+
+[node name="NPCs" type="Node2D" parent="." unique_id=1307481756]
+
+[node name="Markers" type="Node2D" parent="." unique_id=954155613]
+
+[node name="FrontDoor" type="Marker2D" parent="Markers" unique_id=1737345302]
+position = Vector2(336, 304)
+
+[node name="BackDoor" type="Marker2D" parent="Markers" unique_id=613827250]
+position = Vector2(336, 144)
+
+[node name="Register" type="Marker2D" parent="Markers" unique_id=629910542]
+position = Vector2(528, 208)
+
+[node name="Counter" type="Marker2D" parent="Markers" unique_id=1695640943]
+position = Vector2(496, 208)
+
+[node name="ClerkSpot" type="Marker2D" parent="Markers" unique_id=1697694358]
+position = Vector2(528, 240)
+
+[node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1037032414]
+position = Vector2(80, 80)
+
+[node name="Exit" type="Marker2D" parent="Markers" unique_id=1300956725]
+position = Vector2(560, 400)
