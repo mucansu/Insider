@@ -66,7 +66,7 @@ const DEFAULT_LEVEL := "res://levels/store_a.tscn"
 const HUD_SCENE := "res://ui/hud.tscn"
 var player_scene: PackedScene             # varsayılan res://entities/player/player.tscn; testler değiştirebilir
 func set_local_name(player_name: String) -> void   # bağlanınca host'a bildirilir
-func players() -> Dictionary              # peer_id -> {"name": String, "color": Color}
+func players() -> Dictionary              # peer_id -> {"name": String, "slot": int}  (KR-018: renk yok; görsel taraf slot → ThemeTokens.PLAYER_COLORS[slot])
 func local_player() -> Node               # yerel oyuncu düğümü ya da null
 func start_level(level_path: String) -> void   # yalnız host; herkese yükletir
 func current_level() -> Node
@@ -83,7 +83,7 @@ func collect_dump() -> Dictionary
 - Ekip nakdi host'ta tutulur, değişince herkese RPC ile yayınlanır.
 
 ### S4 — Seviye sahnesi düzeni (`levels/*.tscn`)
-Kök `Node2D`; zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `SpawnPoints` (en az 4 `Marker2D`: `Spawn1..4`), `Players` (boş `Node2D`), `Props` (etkileşimli nesneler), `NPCs` (siviller), `Markers` (yerleşim işaretleri: `Register`, `BackDoor`, `FrontDoor`, `Counter`, `Exit` vb.; içerik ekleyen ajan bunları kullanır). Faz 2'de `NavigationRegion2D` ve `EscapeZone` eklenir. Ölçek: 1 karo = 32 px; karakter çapı ~24 px.
+Kök `Level` (`levels/level.gd`, `class_name Level extends Node2D`, build_levels köke atar; KR-018) ve API'si: `players_root() -> Node2D`, `props_root() -> Node2D`, `npcs_root() -> Node2D`, `spawn_count() -> int`, `spawn_position(index: int) -> Vector2`, `marker(marker_name: StringName) -> Node2D` (yoksa null). Çekirdek ve diğer sistemler seviye düğümlerine **yalnız bu API ile** erişir, ad dizesiyle gezmez. Zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `SpawnPoints` (en az 4 `Marker2D`: `Spawn1..4`), `Players` (boş `Node2D`), `Props` (etkileşimli nesneler), `NPCs` (siviller), `Markers` (yerleşim işaretleri: `Register`, `BackDoor`, `FrontDoor`, `Counter`, `Exit` vb.; içerik ekleyen ajan bunları kullanır). Faz 2'de `NavigationRegion2D` ve `EscapeZone` eklenir. Ölçek: 1 karo = 32 px; karakter çapı ~24 px.
 - **Üretim kuralı (US-002):** seviyeler `levels/layouts/<ad>.txt` ASCII düzeninden `levels/tools/build_levels.gd` ile üretilir (`$GODOT --headless --path . -s res://levels/tools/build_levels.gd`); `.tscn`'nin `Walls`/`Tiles`/`SpawnPoints`/`Markers` kısmı elle düzenlenmez, düzen değişikliği .txt'de yapılıp yeniden üretilir. `Players`, `Props`, `NPCs` altına eklenen düğümler yeniden üretimde korunur.
 - Ek düğüm `Tiles` (`LevelLayout`, `levels/level_layout.gd`): zemin/duvar çizimi ve ızgara bilgisi.
 - Kapı işaretleri (`FrontDoor`, `BackDoor`, `BackroomDoor` …): konum = 1 karoluk boşluğun merkezi; dönüş 0° → yatay duvarda, 90° → dikey duvarda.
@@ -100,8 +100,9 @@ Kök `Node2D`; zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `S
 - Ağ duman testi: `python3 tools/net_smoke.py tests/net/<senaryo>.json [--latency-ms 150]`. Senaryo: `{"level":..., "clients":2, "duration":12, "bots":{"host":"...","c1":"..."}, "expect":[{"all_equal":"team_cash"}, {"eq":["host.team_cash", 150]}, {"near":["host.players.2.pos","c1.players.2.pos", 8]}]}`. Gecikme `tools/latency_proxy.py` ile (UDP röle, yön başına RTT/2 gecikme + isteğe bağlı jitter/kayıp).
 
 ### S7 — Etkileşim protokolü
-- Taban sınıf `Interactable` (`entities/props/interactable.gd`, `class_name Interactable`): `@export var action_key: String` (i18n anahtarı), `@export var hold_time: float`, `@export var interact_range: float = 40.0`, `@export var enabled: bool = true`; host'ta `can_interact(peer_id: int) -> bool` ve `_on_complete(peer_id: int)` sanal; çoğaltılan alanlar `busy_by: int` (0 = boş) ve `progress: float`.
-- Akış: oyuncu yakındaki en yakın `Interactable`'ı yerelde bulur ve istem gösterir → `interact` basılınca host'a istek (S2 RPC) → host doğrular (S2 toleransı), `busy_by` atar, süreyi sayar → oyuncu bırakırsa ya da menzilden çıkarsa iptal isteği → süre dolunca host `_on_complete` çağırır ve sonucu herkese yayınlar.
+- **Bileşen modeli (KR-018):** `Interactable` bir prop'un kökü değil, **alt bileşenidir** (`entities/props/interactable.gd`, `class_name Interactable extends Area2D`, katman interactables). Alanlar: `@export var action_key: String` (i18n anahtarı), `@export var hold_time: float`, `@export var interact_range: float = 40.0`, `@export var enabled: bool = true`, `@export var requirement: InteractionRequirement` (opsiyonel Resource: gereken etiket + kademe + taraf kısıtı, ör. "yalnız tezgâh arkasından"); sinyaller `completed(peer_id: int)` ve `cancelled(peer_id: int)` (yalnız host'ta yayılır). RPC'ler, doğrulama ve çoğaltılan `busy_by: int` (0 = boş) / `progress: float` bileşendedir.
+- Prop (`register.gd`, `door.gd` …) yalnız kendi durumunu tutar, bileşenin `completed`'ine bağlanıp sonucu uygular ve durumunu `MultiplayerSynchronizer` (host yetkili) ile yayar. Bir prop birden çok Interactable taşıyabilir (kapı: aç/kapa, maymuncuk, ileride tekme). Yeni nesne = sahne + kısa betik; yeni yöntem = sahneye bir Interactable düğümü. Menzil/tolerans/meşguliyet/gereksinim kuralları `core/interaction_rules.gd`'de düğümsüz.
+- Akış: oyuncu yakındaki en yakın uygun `Interactable`'ı yerelde bulur ve istem gösterir → `interact` basılınca host'a istek (S2 RPC) → host doğrular (S2 toleransı + requirement), `busy_by` atar, süreyi sayar → oyuncu bırakırsa ya da menzilden çıkarsa iptal → süre dolunca host `completed` yayar, prop sonucu uygular ve herkese yayınlar.
 - Oyuncu sinyalleri (HUD sözleşmesi): `interaction_target_changed(action_key: String)` (yakındaki etkileşilebilir hedef değişti; boş dize = hedef yok; HUD "[E] <eylem>" istemi gösterir), `interaction_started(action_key: String, duration: float)`, `interaction_finished(success: bool)`; yalnız yerel oyuncuda yayılır.
 - Arayüz sahneleri (`ui/*.tscn`) autoload'larda `preload` edilmez, çalışma anında `load()` ile yüklenir (UI betikleri autoload adlarına derlemede bağlı).
 
@@ -113,6 +114,16 @@ Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakış�
 - Oyuncuya görünen **her metin** `tr("ANAHTAR")` ile; anahtarlar `i18n/texts.csv` (kolonlar `keys,tr,en`). Sabit dize UI'da yasak.
 - Seviye çizimi renkleri ton paletinden okur: karo dolgu/kenarları `ThemeTokens.tone().level_*`, harita kenarı dolgusu `bg_color`, cam dolgusu/tarama/bordür çizgileri `wall_color` (IS-008); noir'in `LEVEL_*` değerleri MUTED'dan bağımsız sabitlerdir (arayüz kontrast ayarı dünya renklerini kaydırmaz).
 - Renk ve yazı tipleri yalnız tema token'larından (`ui/theme/tokens.gd`, `class_name ThemeTokens`) ve `ui/theme/noir.tres` temasından okunur. Oyun için anlamlı renkler (kart rengi, uyarı rengi) her tonda aynı kalır ve `ThemeTokens.GAMEPLAY_*` adını taşır.
+
+### S10 — İçerik verisi (KR-018)
+- Katalog içeriği (eşya, perk, prop tanımı, modifikatör, iş şablonu …) `data/<tür>/<id>.tres` dosyalarıdır; tür başına `class_name <X>Def extends Resource`; **id = dosya adı** (StringName). Katalog dizin taramasıyla yüklenir.
+- Ağda yalnız id gider, Resource nesnesi gitmez; host her isteği id + yetenek kapısıyla doğrular.
+- Etkiler küçük tipli Resource alt sınıflarıdır (`StatModifier`, `GrantTag` …); sayılar tek bir düğümsüz çözücüde hesaplanır (`core/stats.gd`: `resolve(base, loadout, perks) -> StatBlock`, Faz 4). Yeni eşya = 1 `.tres` + i18n satırı, kod değişmez; yeni etki türü = 1 küçük Resource + çözücüde 1 `match` kolu.
+- Karakter/rol ayrı sınıf değildir: tek `player.tscn`; rol = loadout + perk verisi + kozmetik (KR-017 kukla parametreleri).
+- Ayar dosyaları (ör. `data/player_tuning.tres`) katalog değildir; aynı `class_name … extends Resource` kalıbını kullanır.
+
+### S11 — NPC bileşenleri (Faz 2, KR-018)
+Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc/components/` altında `Perception` (koni + görüş hattı → görünürlük), `Suspicion` (oyuncu başına 0-100, `threshold_reached(peer_id, level)` sinyali), `Hearing` (`noise_listener`, S8), `Patrol`. Davranış `core/fsm.gd` (küçük durum makinesi) + NPC türü başına bir "beyin" betiği (`brain_guard.gd`, `brain_civilian.gd`); kamera = hareketsiz NPC sahnesi. Bileşenler yalnız host'ta işler; senkronlanan durum (yön, kademe) istemcide çizilir. Yeni NPC = sahne + beyin betiği; algı kodu değişmez.
 
 ## 4. Fizik katmanları (project.godot)
 1 `world` (duvar, kapalı kapı) · 2 `players` · 3 `npcs` · 4 `interactables` · 5 `triggers` (bölge alanları) · 6 `vision_block` (görüşü kesen ama yürünebilen; Faz 2).
@@ -126,7 +137,12 @@ Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakış�
 ## 7. İleri uyumluluk notları (bugün uygulanmaz, kapı kapatılmaz)
 - **Alternatif giriş ve kasa erişimi (GB-02):** seviye düzenine ileride yeni karo türleri eklenecek: havalandırma kanalı (yalnız sürünme kipinde geçilir, görüşü keser), zayıf duvar (yıkılabilir parça), kat geçişi (delik/merdiven). Bu yüzden `build_levels.gd` birleştirdiği duvar dikdörtgenlerinde türleri ayrı tutar (zaten `Wall*`/`Window*`/`Shelf*` ayrımı var); yıkılabilir duvar ayrı düğüm olacağı için birleştirmeye girmez. Çok katlı seviye: her kat ayrı katman/alt sahne, oyuncunun bulunduğu kat çoğaltılan bir alan; S4'e o kalemde ekleme yapılır.
 
-## 6. Stil
+## 6. Stil ve tasarım kuralları (KR-018)
+- **Bağımlılık yönü:** `core/` → hiçbir proje dizini (yalnız Vector2/float/StringName gibi değerler; Node2D/Node3D bilmez — 3D'ye taşınabilirlik); `autoload/` → core, data; `entities/` → core, autoload, data; `levels/` → core, data; `ui/` → autoload sözleşmeleri. `autoload/` ve `core/` `ui/`'yi içe almaz. İstisna: görsel düğümler (entity görselleri, seviye çizimi) `ThemeTokens` okuyabilir; Game'in HUD'u `load()` ile yol dizesinden eklemesi bilinçli istisnadır (derleme bağımlılığı yok).
+- **Bileşim > kalıtım:** kalıtım derinliği en fazla Godot sınıfı → proje sınıfı → +1 (Npc→Guard→ArmedGuard yok, Item→Weapon→Pistol yok). Davranış küçük bileşen düğümleri, veri Resource, olay sinyal.
+- **Çatı yok:** ECS çatısı, genel olay otobüsü (`session_event` dışında), servis bulucu/DI kabı, ifade dili, sistem başına "Manager" autoload yok; autoload yalnız süreç geneli servis (Net, Args, Game, NoiseBus; ileride en fazla bir katalog). Soyut taban taklidi (`assert(false)` dolu sınıf) yok; ajan sınırlarında duck typing + `has_method/has_signal`.
+- **Kapsülleme:** `_` önekli üyeler sınıf dışından erişilmez; ui/ için `test_ui_fakes` bunu otomatik denetler, entities/ için eşdeğer tarama testi IS-005'te eklenir.
+- **Sadelik ölçüsü:** bir ajan bir örnek dosya + bu belgede bir paragraf okuyarak yeni prop/NPC/eşya ekleyebilmeli; dosya ≲ 400 satır (aşan dosya bölünme adayıdır; `game.gd` Faz 4 ekonomi ayrımında bölünür); bir kavram için tek `match`.
 - Dosya ve düğüm adları `snake_case` (dosya) / `PascalCase` (düğüm, class_name). Sinyaller geçmiş zaman (`interaction_started`).
 - Autoload'lar arası çağrı yalnız S1/S3/S8 arayüzleriyle; başka ajanın dosyasındaki özel metoda erişim yok.
 - `print` yerine `push_warning`/`push_error`; tekrar eden ağ log'u yok.
