@@ -61,8 +61,8 @@ tasarim ajanı (Fable) oyunun gidişatını belirli noktalarda değerlendirir; s
 - **Karar:** öneriler faz plan mesajında "Fable önerileri" başlığıyla, numarayla sorulur; kabul edilen kaleme dönüşür, diğerleri Ertelendi/Reddedildi. Uygulamak zorunlu değildir.
 
 ## 6. Paralellik ve worktree
-- Varsayılan sıralı, ana çalışma ağacında (`/home/user/insiders`, dev).
-- Paralel paket: kalem başına worktree `git worktree add /home/user/insiders-wt/<kalem> -b wt/<kalem> dev`; ajan yalnız o yolda çalışır; denetci aynı worktree'de denetler; PASS sonrası koordinatör worktree'de kimlik önekli commit'i atar, dev'e `git merge --no-ff wt/<kalem>` (dosya kümeleri ayrık olduğu için çakışmasız), worktree ve branch silinir.
+- Varsayılan sıralı, ana çalışma ağacında (repo kökü, dev).
+- Paralel paket: kalem başına worktree `git worktree add ../insiders-wt/<kalem> -b wt/<kalem> dev`; ajan yalnız o yolda çalışır; denetci aynı worktree'de denetler; PASS sonrası koordinatör worktree'de kimlik önekli commit'i atar, dev'e `git merge --no-ff wt/<kalem>` (dosya kümeleri ayrık olduğu için çakışmasız), worktree ve branch silinir.
 - `project.godot`'u değiştiren iki paket aynı anda çalışmaz.
 
 ## 7. Faz plan / kapanış mesajı
@@ -99,7 +99,7 @@ Devam onayı: "devam" dersen Faz N+1 başlar.
 
 ## Ek 1 — Görev paketi gövdesi
 ```
-Sen Insiders projesinin <ajan> ajanısın. Önce /home/user/insiders/.claude/agents/<ajan>.md dosyasını oku ve uy; Takip projesinin kuralları bu işte geçmez.
+Sen Insiders projesinin <ajan> ajanısın. Önce <repo kökü>/.claude/agents/<ajan>.md dosyasını oku ve uy; Takip projesinin kuralları bu işte geçmez.
 Kalem: US-nnn — <ad>. Bölüm: docs/surec/backlog.md. Çalışma yolu: <ana ağaç ya da worktree>.
 Kapsam / Dokunulacak / Dokunulmayacak / Sözleşme (S-n) / AC1..n / Test beklentisi / Karar gereken (ön)
 Bağlam: <ilgili KR'ler, paralel paketlerin dosya kümeleri: dokunma>
