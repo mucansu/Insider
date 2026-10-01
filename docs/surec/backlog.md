@@ -25,8 +25,8 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Bitti | bc49aef |
 | US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Bitti | d8ab983 |
 | US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Bitti | 7b34286 |
-| IS-010 | OOP/genişletilebilirlik (A) uygulaması: Level API, slot, bağımlılık yönü | 1 | cekirdek | P1 | S | US-001 | Sürüyor (2026-10-01) | |
-| US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Hazır | |
+| IS-010 | OOP/genişletilebilirlik (A) uygulaması: Level API, slot, bağımlılık yönü | 1 | cekirdek | P1 | S | US-001 | Bitti | f6bd55c |
+| US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Sürüyor (2026-10-01) | |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Backlog | |
 | IS-005 | Faz 1 çıkış testi + Windows/Linux build | 1 | altyapi | P1 | M | US-003, US-005 | Backlog | |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005 | Backlog | |
@@ -136,7 +136,7 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 
 ### IS-005 — Faz 1 çıkış testi + Windows/Linux build
 EP-01 · P1 · M · Sahip: altyapi · Bağımlılık: US-003, US-005
-**Kabul:** (1) `tests/net/faz1_full.json`: host + 2 istemci store_a'da; biri arka kapıyı açar, biri kasayı boşaltır; tüm peer'larda team_cash 150; 0 ve 150 ms; ayrıca GDD §12 "sert ağ" profili (150 ms + 30 ms jitter + %1 kayıp) gerçek oyuncu sahnesiyle `store_walk` ve `faz1_full` için koşulur (KR günlüğü US-001). (2) `tools/soak.sh`: host + 2 bot 10 dk dolaşır, log'da hata/uyarı yok. (3) `export_presets.cfg` (Windows Desktop, Linux) + `tools/export.sh` export şablonlarını indirip `build/`'e iki platform çıktısı üretir; CI `main` push'unda build'leri artifact olarak yükler. (4) `tools/test_latency_proxy.py` ci_local ve ci.yml'a eklenir (US-001 adayı); entities/ için kapsülleme tarama testi (başka sınıfın `_` üyesine erişim yok; test_ui_fakes deseni; KR-018). (5) README'ye "Arkadaşla internet üzerinden (Tailscale)" ve "Build'i çalıştırma" bölümleri; renderer seçimi (Forward+ / Compatibility) arkadaş makineleri için değerlendirilir. (6) `tools/ci_local.sh` tüm senaryolarla yeşil.
+**Kabul:** (1) `tests/net/faz1_full.json`: host + 2 istemci store_a'da; biri arka kapıyı açar, biri kasayı boşaltır; tüm peer'larda team_cash 150; 0 ve 150 ms; ayrıca GDD §12 "sert ağ" profili (150 ms + 30 ms jitter + %1 kayıp) gerçek oyuncu sahnesiyle `store_walk` ve `faz1_full` için koşulur (KR günlüğü US-001). (2) `tools/soak.sh`: host + 2 bot 10 dk dolaşır, log'da hata/uyarı yok. (3) `export_presets.cfg` (Windows Desktop, Linux) + `tools/export.sh` export şablonlarını indirip `build/`'e iki platform çıktısı üretir; CI `main` push'unda build'leri artifact olarak yükler. (4) `tools/test_latency_proxy.py` ci_local ve ci.yml'a eklenir (US-001 adayı); entities/ için kapsülleme tarama testi (başka sınıfın `_` üyesine erişim yok; test_ui_fakes deseni; KR-018); S4 Level API imzaları (tipleriyle) test_smoke CONTRACTS'a; test_deps `uid://` ile ui başvurusunu da yakalar (IS-010 denetci nit'leri). (5) README'ye "Arkadaşla internet üzerinden (Tailscale)" ve "Build'i çalıştırma" bölümleri; renderer seçimi (Forward+ / Compatibility) arkadaş makineleri için değerlendirilir. (6) `tools/ci_local.sh` tüm senaryolarla yeşil.
 **Dokunulacak:** tests/net/faz1_full.json, tests/net/bots/**, tools/{soak,export}.sh, export_presets.cfg, .github/workflows/**, README.md, tools/ci_local.sh
 **Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**
 
