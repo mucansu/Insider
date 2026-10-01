@@ -1,0 +1,222 @@
+[gd_scene format=3 uid="uid://dmd3bsntnd37c"]
+
+[ext_resource type="Script" uid="uid://cc4adbdgqjrag" path="res://ui/main_menu.gd" id="1_menu"]
+[ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
+
+[node name="MainMenu" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_menu")
+
+[node name="Background" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"BackgroundPanel"
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Column" type="VBoxContainer" parent="Center"]
+custom_minimum_size = Vector2(760, 0)
+layout_mode = 2
+theme_type_variation = &"LooseVBox"
+
+[node name="Header" type="VBoxContainer" parent="Center/Column"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column/Header"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "GAME_TITLE"
+horizontal_alignment = 1
+uppercase = true
+language = "en"
+
+[node name="Rule" type="HSeparator" parent="Center/Column/Header"]
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"AccentSeparator"
+
+[node name="Tagline" type="Label" parent="Center/Column/Header"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "MENU_TAGLINE"
+horizontal_alignment = 1
+
+[node name="Form" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"LooseVBox"
+
+[node name="NameRow" type="HBoxContainer" parent="Center/Column/Form"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="Center/Column/Form/NameRow"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "MENU_NAME_LABEL"
+
+[node name="NameEdit" type="LineEdit" parent="Center/Column/Form/NameRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "MENU_NAME_PLACEHOLDER"
+max_length = 16
+
+[node name="Cards" type="HBoxContainer" parent="Center/Column/Form"]
+layout_mode = 2
+theme_type_variation = &"LooseHBox"
+
+[node name="HostCard" type="PanelContainer" parent="Center/Column/Form/Cards"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CardPanel"
+
+[node name="Box" type="VBoxContainer" parent="Center/Column/Form/Cards/HostCard"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column/Form/Cards/HostCard/Box"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "MENU_HOST_TITLE"
+
+[node name="Hint" type="Label" parent="Center/Column/Form/Cards/HostCard/Box"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "MENU_HOST_HINT"
+autowrap_mode = 3
+
+[node name="Grid" type="GridContainer" parent="Center/Column/Form/Cards/HostCard/Box"]
+layout_mode = 2
+columns = 2
+
+[node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "MENU_PORT_LABEL"
+
+[node name="HostPortEdit" type="LineEdit" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_length = 5
+
+[node name="Spacer" type="Control" parent="Center/Column/Form/Cards/HostCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="HostButton" type="Button" parent="Center/Column/Form/Cards/HostCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "MENU_HOST_BUTTON"
+
+[node name="JoinCard" type="PanelContainer" parent="Center/Column/Form/Cards"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_type_variation = &"CardPanel"
+
+[node name="Box" type="VBoxContainer" parent="Center/Column/Form/Cards/JoinCard"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box"]
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+text = "MENU_JOIN_TITLE"
+
+[node name="Hint" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box"]
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "MENU_JOIN_HINT"
+autowrap_mode = 3
+
+[node name="Grid" type="GridContainer" parent="Center/Column/Form/Cards/JoinCard/Box"]
+layout_mode = 2
+columns = 2
+
+[node name="AddressLabel" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "MENU_ADDRESS_LABEL"
+
+[node name="JoinAddressEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "MENU_ADDRESS_PLACEHOLDER"
+max_length = 253
+
+[node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "MENU_PORT_LABEL"
+
+[node name="JoinPortEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+max_length = 5
+
+[node name="Spacer" type="Control" parent="Center/Column/Form/Cards/JoinCard/Box"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="JoinButton" type="Button" parent="Center/Column/Form/Cards/JoinCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "MENU_JOIN_BUTTON"
+
+[node name="QuitButton" type="Button" parent="Center/Column/Form"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "MENU_QUIT_BUTTON"
+
+[node name="Connecting" type="VBoxContainer" parent="Center/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"LooseVBox"
+
+[node name="ConnectingLabel" type="Label" parent="Center/Column/Connecting"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+horizontal_alignment = 1
+autowrap_mode = 3
+
+[node name="CancelButton" type="Button" parent="Center/Column/Connecting"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+text = "MENU_CANCEL_BUTTON"
+
+[node name="ErrorPanel" type="PanelContainer" parent="Center/Column"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"AlertPanel"
+
+[node name="ErrorLabel" type="Label" parent="Center/Column/ErrorPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+autowrap_mode = 3
