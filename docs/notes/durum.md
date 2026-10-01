@@ -4,9 +4,9 @@
 Faz 0 — Kurulum (EP-00). Hedef: süreç, tasarım, Godot iskeleti, test ve CI hazır; Steam riski ölçülmüş.
 
 ## Kalemler
-- Sürüyor: IS-001 süreç ve ajan altyapısı (koordinatör, 2026-10-01)
-- Denetimde: IS-002 GDD v0.1 (tasarim; koordinatör okuması)
-- Hazır (sırayla): IS-003 iskelet (altyapi) → IS-004 GodotSteam kontrolü (cekirdek) ∥ US-001 ağ çekirdeği (cekirdek) / US-002 bakkal (seviye) / US-003 menü+HUD (arayuz)
+- Bitti: IS-001 süreç ve ajan altyapısı · IS-002 GDD v0.1
+- Sürüyor: IS-003 iskelet (altyapi, 2026-10-01)
+- Hazır (sırayla): IS-004 GodotSteam kontrolü (cekirdek) ∥ US-001 ağ çekirdeği (cekirdek) / US-002 bakkal (seviye) / US-003 menü+HUD (arayuz)
 
 ## Kullanıcıdan bekleyen
 - GitHub'da `insiders` reposunu açması (Claude entegrasyonu repo oluşturamadı, 403). Açılana kadar iş yerelde: /home/user/insiders.

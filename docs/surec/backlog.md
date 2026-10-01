@@ -18,9 +18,9 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 ## 2. Faz 0 ve Faz 1 kalemleri
 | ID | Başlık | Faz | Sahip | Ö | B | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
-| IS-001 | Süreç ve ajan altyapısı | 0 | koordinatör | P1 | S | — | Sürüyor | |
-| IS-002 | Oyun tasarım belgesi v0.1 | 0 | tasarim | P1 | M | — | Denetimde | |
-| IS-003 | Godot proje iskeleti, test koşucusu, CI | 0 | altyapi | P1 | M | IS-001 | Hazır | |
+| IS-001 | Süreç ve ajan altyapısı | 0 | koordinatör | P1 | S | — | Bitti | |
+| IS-002 | Oyun tasarım belgesi v0.1 | 0 | tasarim | P1 | M | — | Bitti | |
+| IS-003 | Godot proje iskeleti, test koşucusu, CI | 0 | altyapi | P1 | M | IS-001 | Sürüyor (2026-10-01) | |
 | IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | IS-003 | Hazır | |
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Hazır | |
 | US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Hazır | |
