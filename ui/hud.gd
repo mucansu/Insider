@@ -174,7 +174,9 @@ func refresh_players() -> void:
 		swatch.custom_minimum_size = SWATCH_SIZE
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		swatch.color = info.get("color", ThemeTokens.PLAYER_COLORS[i % ThemeTokens.PLAYER_COLORS.size()])
+		# S3: Game renk değil katılım yuvası (slot) yayınlar; renk slot'tan (slot yoksa liste sırası).
+		var slot: int = int(info["slot"]) if typeof(info.get("slot")) == TYPE_INT else i
+		swatch.color = ThemeTokens.PLAYER_COLORS[posmod(slot, ThemeTokens.PLAYER_COLORS.size())]
 		var label := Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
 		var player_name: String = str(info.get("name", "")).strip_edges().left(MainMenu.MAX_NAME_LENGTH)

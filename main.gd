@@ -171,8 +171,8 @@ func _process(_delta: float) -> void:
 	if slot == _last_slot:
 		return
 	_last_slot = slot
-	var level: Node = Game.current_level()
-	var root: Node = level.get_node_or_null("Players") if level != null else null
+	var level: Level = Game.current_level() as Level
+	var root: Node2D = level.players_root() if level != null else null
 	if root == null:
 		return
 	var positions: Dictionary = {}

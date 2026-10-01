@@ -17,6 +17,8 @@ const ORDER: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Players", "Props
 const GENERATED: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Markers"]
 const WORLD_LAYER := 1  # mimari.md §4: katman 1 `world`
 const LAYOUT_SCRIPT := preload("res://levels/level_layout.gd")
+## Kök betik (S4 Level API'si, KR-018).
+const LEVEL_SCRIPT := preload("res://levels/level.gd")
 const SOLID_ORDER: Array[LevelLayout.Kind] = [
 	LevelLayout.Kind.BOUND, LevelLayout.Kind.WALL, LevelLayout.Kind.WINDOW,
 	LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER,
@@ -206,17 +208,21 @@ static func _prune(parent: Node, keep: Dictionary) -> void:
 			child.free()
 
 
+## Kök her zaman LEVEL_SCRIPT taşır (eski sahnenin kökü de bu betiğe geçer).
 static func _open_root(scene_path: String, root_name: String) -> Node2D:
+	var root: Node2D = null
 	if ResourceLoader.exists(scene_path):
 		var existing: PackedScene = ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
 		if existing != null:
 			# Düzenleme kipi: alt sahne örnekleri yalnız değiştirilmiş değerleriyle yeniden paketlenir (editör gibi).
-			var inst: Node2D = existing.instantiate(PackedScene.GEN_EDIT_STATE_MAIN) as Node2D
-			if inst != null:
-				return inst
-		push_warning("build_levels: %s açılamadı, sıfırdan kuruluyor" % scene_path)
-	var root := Node2D.new()
-	root.name = root_name
+			root = existing.instantiate(PackedScene.GEN_EDIT_STATE_MAIN) as Node2D
+		if root == null:
+			push_warning("build_levels: %s açılamadı, sıfırdan kuruluyor" % scene_path)
+	if root == null:
+		root = Node2D.new()
+		root.name = root_name
+	if root.get_script() != LEVEL_SCRIPT:
+		root.set_script(LEVEL_SCRIPT)
 	return root
 
 

@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://dxuom62r2b1ry"]
 
 [ext_resource type="Script" uid="uid://bq8f51puc1q8q" path="res://levels/level_layout.gd" id="1_ikrv3"]
+[ext_resource type="Script" uid="uid://bm8f3xbwpi5uq" path="res://levels/level.gd" id="1_m731q"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -81,6 +82,7 @@ size = Vector2(188, 28)
 size = Vector2(28, 92)
 
 [node name="StoreA" type="Node2D" unique_id=828043450]
+script = ExtResource("1_m731q")
 
 [node name="Tiles" type="Node2D" parent="." unique_id=1683819684]
 script = ExtResource("1_ikrv3")

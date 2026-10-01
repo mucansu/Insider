@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://ctejrsgut1daq"]
 
 [ext_resource type="Script" uid="uid://bq8f51puc1q8q" path="res://levels/level_layout.gd" id="1_goyld"]
+[ext_resource type="Script" uid="uid://bm8f3xbwpi5uq" path="res://levels/level.gd" id="1_qdrqe"]
 
 [sub_resource type="RectangleShape2D" id="Wall_1"]
 size = Vector2(640, 32)
@@ -15,6 +16,7 @@ size = Vector2(32, 448)
 size = Vector2(576, 32)
 
 [node name="TestArena" type="Node2D" unique_id=801292675]
+script = ExtResource("1_qdrqe")
 
 [node name="Tiles" type="Node2D" parent="." unique_id=977517180]
 script = ExtResource("1_goyld")

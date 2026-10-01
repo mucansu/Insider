@@ -4,6 +4,7 @@ extends TestCase
 ## İstemci/geç katılma davranışı çok süreçli: tests/net/*.json.
 
 const LEVEL := "res://tests/fixtures/empty_level.tscn"
+const LEVEL_B := "res://tests/fixtures/empty_level_b.tscn"
 const PLAYER := "res://tests/fixtures/dummy_player.tscn"
 
 var _cash_values: Array[int] = []
@@ -117,8 +118,7 @@ func test_host_session_flow() -> void:
 	Game.set_local_name("  Birim ")
 	var players: Dictionary = Game.players()
 	eq(players.keys(), [1])
-	eq(players[1]["name"], "Birim")
-	eq(players[1]["color"], ThemeTokens.PLAYER_COLORS[0])
+	eq(players[1], {"name": "Birim", "slot": 0}, "S3: ad ve katılım yuvası (renk yok)")
 	# players() kopya döner.
 	(players[1] as Dictionary)["name"] = "değişti"
 	eq(Game.players()[1]["name"], "Birim")
@@ -140,9 +140,11 @@ func test_host_session_flow() -> void:
 		return
 	eq(_levels, 1)
 	eq(str(level.get_path()), "/root/Game/World/Level")
+	is_true(level is Level, "seviye kökü Level (S4)")
 	var spawner: MultiplayerSpawner = level.get_node_or_null("PlayerSpawner") as MultiplayerSpawner
 	if is_true(spawner != null, "PlayerSpawner kurulmalı"):
 		eq(spawner.spawn_path, NodePath("../Players"))
+		is_true(spawner.get_node_or_null(spawner.spawn_path) == (level as Level).players_root())
 	var me: Node2D = level.get_node_or_null("Players/1") as Node2D
 	if is_true(me != null, "host oyuncusu Players/1"):
 		eq(me.get_multiplayer_authority(), 1)
@@ -163,7 +165,8 @@ func test_host_session_flow() -> void:
 	eq(dump["player_nodes"], [1])
 	eq(dump["players"]["1"]["name"], "Birim")
 	eq(dump["players"]["1"]["pos"], [160.0, 160.0])
-	eq(dump["players"]["1"]["color"], "#" + ThemeTokens.PLAYER_COLORS[0].to_html(true))
+	eq(dump["players"]["1"]["slot"], 0)
+	is_false((dump["players"]["1"] as Dictionary).has("color"), "dökümde renk yok (KR-018)")
 	eq(dump["events"], [
 		{"kind": "police_called", "data": {"at": [3.0, 4.0]}},
 		{"kind": "alarm", "data": {}},
@@ -278,11 +281,82 @@ func test_leave_during_handshake_cleans_up() -> void:
 	await tree().process_frame
 
 
+func test_player_slots_reuse_freed_slot() -> void:
+	# KR-018: players() yalnız {"name", "slot"} taşır; host boştaki en küçük yuvayı verir.
+	eq(Net.host(free_udp_port()), OK)
+	await tree().process_frame  # oturum Game'in karesinde açılır (host = yuva 0)
+	Game._add_player(5, "b")
+	Game._add_player(6, "c")
+	var players: Dictionary = Game.players()
+	eq(players.keys(), [1, 5, 6])
+	eq([players[1]["slot"], players[5]["slot"], players[6]["slot"]], [0, 1, 2])
+	eq(players[5], {"name": "b", "slot": 1})
+	Game._players.erase(5)
+	Game._add_player(7, "d")
+	eq(Game.players()[7], {"name": "d", "slot": 1}, "ayrılanın yuvası yeniden kullanılır")
+	Net.leave()
+	await tree().process_frame
+	eq(Game.players(), {})
+
+
+func test_players_rpc_sanitizes_slot() -> void:
+	# İstemci tarafı: host'tan gelen liste yalnız ad + negatif olmayan int slot olarak saklanır.
+	Game._rpc_players({
+		1: {"name": " A ", "slot": 2}, 2: {"name": "B", "slot": "x"}, 3: {"name": "C", "color": Color.RED},
+		4: {"name": "D", "slot": -3}, "bozuk": {"name": "E", "slot": 1}, 5: "bozuk",
+	})
+	eq(Game.players(), {
+		1: {"name": "A", "slot": 2}, 2: {"name": "B", "slot": 0}, 3: {"name": "C", "slot": 0},
+		4: {"name": "D", "slot": 0},
+	})
+	Game._rpc_players({})
+	eq(Game.players(), {})
+
+
+func test_spawn_uses_level_api() -> void:
+	# Doğma noktası Level.spawn_position'dan (SpawnPoints kaydırılmış fikstür: Spawn1 = (200, 120) + (400, 0)).
+	var previous_scene: PackedScene = Game.player_scene
+	Game.player_scene = load(PLAYER) as PackedScene
+	eq(Net.host(free_udp_port()), OK)
+	Game.start_level(LEVEL_B)
+	var level: Level = Game.current_level() as Level
+	if is_true(level != null, "seviye Level olarak yüklenmeli"):
+		var me: Node2D = level.players_root().get_node_or_null("1") as Node2D
+		if is_true(me != null, "host oyuncusu üretilmeli"):
+			eq(me.position, Vector2(600, 120))
+			eq(me.position, level.spawn_position(0))
+	Net.leave()
+	await tree().process_frame
+	await tree().process_frame
+	Game.player_scene = previous_scene
+
+
+func test_rejects_level_without_level_root() -> void:
+	# S4: kök Level değilse ya da Players yoksa seviye yüklenmez; Game düğüm adıyla Players kurmaz.
+	allow_errors()
+	var bare := Node2D.new()  # Players var, kök Level değil
+	var players := Node2D.new()
+	players.name = "Players"
+	bare.add_child(players)
+	players.owner = bare
+	var no_players: Level = Level.new()  # kök Level, Players yok
+	var roots: Array[Node2D] = [bare, no_players]
+	for i: int in roots.size():
+		var path: String = "user://test_game_bad_level_%d.tscn" % i  # ayrı yol: yükleme önbelleği karışmasın
+		var packed := PackedScene.new()
+		eq(packed.pack(roots[i]), OK)
+		eq(ResourceSaver.save(packed, path), OK)
+		is_false(Game._load_level_local(path), "%d. sahne reddedilmeli" % i)
+		is_true(Game.current_level() == null)
+		roots[i].free()
+		DirAccess.remove_absolute(path)
+
+
 func test_offline_start_level_has_no_players() -> void:
 	Game.start_level(LEVEL)
-	var level: Node = Game.current_level()
+	var level: Level = Game.current_level() as Level
 	if is_true(level != null):
-		eq(level.get_node("Players").get_child_count(), 0, "oturum yokken oyuncu üretilmez")
+		eq(level.players_root().get_child_count(), 0, "oturum yokken oyuncu üretilmez")
 	Game._unload_level()
 	is_true(Game.current_level() == null)
 

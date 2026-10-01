@@ -1,6 +1,9 @@
 [gd_scene format=3 uid="uid://dr5hs2quke6h4"]
 
+[ext_resource type="Script" uid="uid://bm8f3xbwpi5uq" path="res://levels/level.gd" id="1_level"]
+
 [node name="EmptyLevel" type="Node2D" unique_id=1233450421]
+script = ExtResource("1_level")
 
 [node name="Walls" type="Node2D" parent="." unique_id=120793882]
 

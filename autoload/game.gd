@@ -10,9 +10,10 @@ extends Node
 ## korunur, host→herkes durum RPC'leri "authority". Arayüz sahneleri preload edilmez, load() ile yüklenir.
 ##
 ## Seviye ve oyuncu sırası (geç katılan için "node not found" tuzağı):
-## - Seviyeler her peer'da `/root/Game/World/Level` yoluna elle yüklenir; altında `PlayerSpawner`
-##   (MultiplayerSpawner, spawn_path = ../Players, özel spawn_function: player_scene örneği, ad str(peer_id),
-##   yetki peer_id) kurulur.
+## - Seviyeler her peer'da `/root/Game/World/Level` yoluna elle yüklenir; kökü `Level` olmalıdır (S4) ve seviye
+##   düğümlerine yalnız Level API'siyle erişilir (ad dizesiyle gezinti yok, KR-018). Kökün altına `PlayerSpawner`
+##   (MultiplayerSpawner, spawn_path = Level.players_root(), özel spawn_function: player_scene örneği,
+##   ad str(peer_id), yetki peer_id) kurulur.
 ## - Bağlanan istemci, oturuma kabul edilmeden önce SceneMultiplayer el sıkışmasında (auth) host'tan geçerli
 ##   seviye yolunu alır ve seviyeyi eşzamanlı yükler; ancak sonra kabul edilir. Kabulde host'un çoğaltıcısı
 ##   mevcut oyuncuları gönderdiğinde seviye ve PlayerSpawner istemcide zaten vardır.
@@ -65,13 +66,12 @@ const _SYNCED_META := &"_game_synced"
 var player_scene: PackedScene
 
 var _world: Node
-var _level: Node = null
+var _level: Level = null
 var _level_path: String = ""
 var _spawner: MultiplayerSpawner = null
-## peer_id -> {"name": String, "color": Color}
+## peer_id -> {"name": String, "slot": int}; slot = katılım yuvası (doğma noktası sırası; görsel taraf rengi
+## slot'tan seçer, Game renk bilmez — mimari.md §6). Host atar, ayrılanın yuvası yeniden kullanılır.
 var _players: Dictionary = {}
-## Host: peer_id -> katılım yuvası (renk ve doğma noktası sırası).
-var _slots: Dictionary = {}
 ## Oturumdaki uzak peer'lar (Net sinyallerinden).
 var _peer_ids: Array[int] = []
 var _local_name: String = ""
@@ -133,7 +133,7 @@ func set_local_name(player_name: String) -> void:
 		_rpc_set_name.rpc_id(1, _local_name)
 
 
-## peer_id -> {"name": String, "color": Color}
+## peer_id -> {"name": String, "slot": int}
 func players() -> Dictionary:
 	return _players.duplicate(true)
 
@@ -282,7 +282,6 @@ func _begin_session() -> void:
 		_events.clear()
 		_set_team_cash(0)
 		_players.clear()
-		_slots.clear()
 		_add_player(1, _local_name)
 		players_changed.emit()
 
@@ -294,7 +293,6 @@ func _end_session() -> void:
 	_catchup.clear()
 	_unload_level()
 	_players.clear()
-	_slots.clear()
 	_peer_ids.clear()
 	_auth_names.clear()
 	_events.clear()
@@ -389,7 +387,6 @@ func _on_peer_disconnected(peer_id: int) -> void:
 func _host_drop_peer(peer_id: int) -> void:
 	if not Net.is_host() or _peer_ids.has(peer_id):
 		return
-	_slots.erase(peer_id)
 	_catchup.erase(peer_id)
 	if _players.erase(peer_id):
 		_broadcast_players()
@@ -465,8 +462,8 @@ func _rpc_players(data: Dictionary) -> void:
 		if typeof(key) != TYPE_INT or typeof(entry) != TYPE_DICTIONARY:
 			continue
 		var e: Dictionary = entry
-		var color: Color = e["color"] if typeof(e.get("color")) == TYPE_COLOR else Color.WHITE
-		clean[key] = {"name": _sanitize_name(e.get("name", "")), "color": color}
+		var slot: int = maxi(0, int(e["slot"])) if typeof(e.get("slot")) == TYPE_INT else 0
+		clean[key] = {"name": _sanitize_name(e.get("name", "")), "slot": slot}
 	_players = clean
 	players_changed.emit()
 
@@ -509,9 +506,10 @@ func _rpc_load_level(level_path: String) -> void:
 ## Seviye değişimi öncesi: istemci kendi yetkisindeki eşitleyicilerin yayınını kapatır ve onaylar.
 @rpc("authority", "call_remote", "reliable")
 func _rpc_freeze_players() -> void:
-	if _level != null:
+	var root: Node2D = _players_root()
+	if root != null:
 		var me: int = Net.local_peer_id()
-		for node: Node in _level.find_children("*", "MultiplayerSynchronizer", true, false):
+		for node: Node in root.find_children("*", "MultiplayerSynchronizer", true, false):
 			var sync: MultiplayerSynchronizer = node as MultiplayerSynchronizer
 			if sync.get_multiplayer_authority() == me:
 				sync.public_visibility = false
@@ -540,13 +538,15 @@ func _rpc_set_name(player_name: String) -> void:
 
 # --- oyuncular ---
 
+## Boştaki en küçük yuvayı verir.
 func _add_player(peer_id: int, player_name: String) -> void:
+	var used: Array[int] = []
+	for entry: Dictionary in _players.values():
+		used.append(int(entry["slot"]))
 	var slot: int = 0
-	while _slots.values().has(slot):
+	while used.has(slot):
 		slot += 1
-	_slots[peer_id] = slot
-	var colors: Array[Color] = ThemeTokens.PLAYER_COLORS
-	_players[peer_id] = {"name": player_name, "color": colors[slot % colors.size()]}
+	_players[peer_id] = {"name": player_name, "slot": slot}
 
 
 func _broadcast_players() -> void:
@@ -585,7 +585,8 @@ func _spawn_player(peer_id: int) -> void:
 	var root: Node = _players_root()
 	if root == null or root.has_node(NodePath(str(peer_id))):
 		return
-	_spawner.spawn({"id": peer_id, "pos": _spawn_position(int(_slots.get(peer_id, 0)))})
+	var slot: int = int((_players.get(peer_id, {}) as Dictionary).get("slot", 0))
+	_spawner.spawn({"id": peer_id, "pos": _spawn_position(slot)})
 
 
 ## PlayerSpawner.spawn_function: host'ta spawn() içinde, istemcilerde spawn paketi gelince çalışır.
@@ -634,17 +635,11 @@ func _has_remote_players() -> bool:
 	return false
 
 
+## Yuvanın doğma noktası (Players koordinatında); seviyede doğma noktası yoksa yan yana dizer.
 func _spawn_position(slot: int) -> Vector2:
-	var root: Node2D = _players_root() as Node2D
-	var points: Node = _level.get_node_or_null("SpawnPoints") if _level != null else null
-	var markers: Array[Node2D] = []
-	if points != null:
-		for child: Node in points.get_children():
-			if child is Node2D:
-				markers.append(child as Node2D)
-	if markers.is_empty() or root == null:
+	if _level == null or _level.spawn_count() == 0:
 		return Vector2(32.0 * slot, 0.0)
-	return root.to_local(markers[slot % markers.size()].global_position)
+	return _level.spawn_position(slot)
 
 
 func _player_positions() -> Dictionary:
@@ -657,8 +652,8 @@ func _player_positions() -> Dictionary:
 	return out
 
 
-func _players_root() -> Node:
-	return _level.get_node_or_null("Players") if _level != null else null
+func _players_root() -> Node2D:
+	return _level.players_root() if _level != null else null
 
 
 func _on_player_node_added(node: Node) -> void:
@@ -730,19 +725,20 @@ func _load_level_local(level_path: String) -> bool:
 	if scene == null:
 		push_error("Game: seviye yüklenemedi: " + level_path)
 		return false
-	var level: Node = scene.instantiate()
-	level.name = LEVEL_NODE_NAME
-	var players_root: Node = level.get_node_or_null("Players")
+	var node: Node = scene.instantiate()
+	var level: Level = node as Level
+	var players_root: Node2D = level.players_root() if level != null else null
 	if players_root == null:
-		push_warning("Game: seviyede Players düğümü yok (S4); ekleniyor: " + level_path)
-		players_root = Node2D.new()
-		players_root.name = "Players"
-		level.add_child(players_root)
+		push_error("Game: seviye kökü Level değil ya da Players yok (S4): " + level_path)
+		if node != null:
+			node.free()
+		return false
+	level.name = LEVEL_NODE_NAME
 	var spawner: MultiplayerSpawner = MultiplayerSpawner.new()
 	spawner.name = SPAWNER_NODE_NAME
 	spawner.spawn_function = _spawn_player_node
-	spawner.spawn_path = NodePath("../Players")
 	level.add_child(spawner)
+	spawner.spawn_path = spawner.get_path_to(players_root)
 	players_root.child_entered_tree.connect(_on_player_node_added)
 	players_root.child_exiting_tree.connect(_on_player_node_removed)
 	_world.add_child(level)
@@ -804,7 +800,7 @@ func _dump_players() -> Dictionary:
 		var node: Node2D = root.get_node_or_null(NodePath(str(peer_id))) as Node2D if root != null else null
 		if node != null:
 			pos = [node.position.x, node.position.y]
-		out[str(peer_id)] = {"name": entry["name"], "color": to_json_value(entry["color"]), "pos": pos}
+		out[str(peer_id)] = {"name": entry["name"], "slot": entry["slot"], "pos": pos}
 	return out
 
 

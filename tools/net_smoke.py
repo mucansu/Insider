@@ -35,7 +35,7 @@ Bilinmeyen anahtar içeren senaryo reddedilir (FAIL).
 Yol ifadesi: "<süreç>.<anahtar>.<anahtar>..." — süreç host | c1..cN | * (her süreç için ayrı ayrı);
 anahtarlar sözlük anahtarı ya da liste indisi; "$host", "$c1"... o sürecin peer_id'si ile değiştirilir
 (peer kimlikleri rastgeledir). Dökümlere net_smoke "exit_code" ekler. Döküm alanları: main.gd ve
-Game.collect_dump() (peer_id, is_host, peers, players{name,color,pos}, team_cash, level, player_nodes,
+Game.collect_dump() (peer_id, is_host, peers, players{name,slot,pos}, team_cash, level, player_nodes,
 events, host_lost, ping_ms, exit_reason, samples).
 Beklentiler:
     {"eq": [yol, değer]}            {"ne": [yol, değer]}
@@ -51,6 +51,9 @@ Beklentiler:
         konum farkı < max_px; oyuncunun önceki ortak dilime göre move_px'ten fazla yer değiştirdiği
         en az min_moving karşılaştırma bulunmalı (hareket sırasında ölçüldüğünün kanıtı). Geçersiz konum ya da
         bir sürecin örneklerinde hiç görünmeyen oyuncu da başarısızlıktır.
+        Eşik: fikstür oyuncuyla (tests/fixtures/dummy_player.tscn) max_px 40 — fikstürde ara değerleme yok ve
+        istemciler arası konum host üzerinden iki bacak gider (150 ms'de 35 px görüldü; IS-010 t1). Gerçek oyuncu
+        sahnesiyle (US-004) max_px 32.
 Değerlendirilemeyen beklenti (bozuk argüman, eksik alan) istisna fırlatmaz, FAIL sayılır.
 """
 

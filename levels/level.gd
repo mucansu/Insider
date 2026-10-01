@@ -1,0 +1,73 @@
+class_name Level
+extends Node2D
+## Seviye kökü (mimari.md S4, KR-018). `levels/tools/build_levels.gd` her üretilen sahnenin köküne atar.
+## Çekirdek ve diğer sistemler seviye düğümlerine yalnız bu API ile erişir, ad dizesiyle gezmez; düğüm adları
+## (S4 zorunlu çocukları) yalnız burada ve üreticide geçer. Sorgular ağaç dışında da çalışır (Game seviyeyi
+## ağaca eklemeden önce kurar). Zorunlu çocuk yoksa ilgili kök null döner, doğma noktası sayısı 0 olur.
+
+const _PLAYERS := ^"Players"
+const _PROPS := ^"Props"
+const _NPCS := ^"NPCs"
+const _SPAWN_POINTS := ^"SpawnPoints"
+const _MARKERS := ^"Markers"
+
+
+## Oyuncu düğümlerinin kabı (Game üretir; düğüm adı peer kimliği).
+func players_root() -> Node2D:
+	return get_node_or_null(_PLAYERS) as Node2D
+
+
+## Etkileşimli nesnelerin kabı.
+func props_root() -> Node2D:
+	return get_node_or_null(_PROPS) as Node2D
+
+
+## NPC'lerin kabı.
+func npcs_root() -> Node2D:
+	return get_node_or_null(_NPCS) as Node2D
+
+
+## `SpawnPoints` altındaki doğma noktası sayısı (sahne sırasıyla Spawn1..N).
+func spawn_count() -> int:
+	return _spawn_points().size()
+
+
+## `index`. doğma noktası (index doğma noktası sayısına göre çevrilir), `players_root()` koordinatında: oyuncu
+## düğümünün `position`'ı olarak doğrudan kullanılır. Doğma noktası ya da Players yoksa Vector2.ZERO.
+func spawn_position(index: int) -> Vector2:
+	var points: Array[Node2D] = _spawn_points()
+	var players: Node2D = players_root()
+	if points.is_empty() or players == null:
+		return Vector2.ZERO
+	var at: Vector2 = _to_level(points[posmod(index, points.size())]).origin
+	return _to_level(players).affine_inverse() * at
+
+
+## `Markers` altındaki adlı yerleşim işareti (ör. &"Register", &"BackDoor"); yoksa null.
+func marker(marker_name: StringName) -> Node2D:
+	var text: String = String(marker_name)
+	var markers: Node = get_node_or_null(_MARKERS)
+	if markers == null or text.is_empty() or text.validate_node_name() != text:
+		return null  # yol parçası içeren ad ("../Players" gibi) işaret değildir
+	return markers.get_node_or_null(NodePath(text)) as Node2D
+
+
+func _spawn_points() -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	var points: Node = get_node_or_null(_SPAWN_POINTS)
+	if points != null:
+		for child: Node in points.get_children():
+			if child is Node2D:
+				out.append(child as Node2D)
+	return out
+
+
+## Düğümün bu köke göre dönüşümü (ağaç dışında da; global_transform ağaç ister).
+func _to_level(node: Node2D) -> Transform2D:
+	var xform: Transform2D = node.transform
+	var parent: Node = node.get_parent()
+	while parent != null and parent != self:
+		if parent is Node2D:
+			xform = (parent as Node2D).transform * xform
+		parent = parent.get_parent()
+	return xform

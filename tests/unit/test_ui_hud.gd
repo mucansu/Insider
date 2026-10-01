@@ -119,15 +119,19 @@ func test_players_list_follows_signal() -> void:
 	await _open()
 	eq(_player_rows(), [] as Array[String])
 	net.my_peer_id = 2
+	# S3: players() renk değil slot taşır; peer 7 3. sırada ama 4. yuvada (ayrılanın yuvası boş kalmış).
 	game.roster = {
-		2: {"name": "Bo", "color": ThemeTokens.PLAYER_COLORS[1]},
-		1: {"name": "Ayşe", "color": ThemeTokens.PLAYER_COLORS[0]},
-		7: {"name": "", "color": ThemeTokens.PLAYER_COLORS[2]},
+		2: {"name": "Bo", "slot": 1},
+		1: {"name": "Ayşe", "slot": 0},
+		7: {"name": "", "slot": 3},
 	}
 	game.players_changed.emit()
 	eq(_player_rows(), ["Ayşe", tr("HUD_PLAYER_YOU") % "Bo", tr("HUD_PLAYER_UNNAMED") % 7] as Array[String], "peer sırasıyla, yerel işaretli")
-	var first_swatch: ColorRect = _node("PlayerList").get_child(0).get_child(0) as ColorRect
-	eq(first_swatch.color, ThemeTokens.PLAYER_COLORS[0])
+	var swatches: Array[Color] = []
+	for row: Node in _node("PlayerList").get_children():
+		swatches.append((row.get_child(0) as ColorRect).color)
+	var colors: Array[Color] = ThemeTokens.PLAYER_COLORS
+	eq(swatches, [colors[0], colors[1], colors[3]] as Array[Color], "renk slot'tan: PLAYER_COLORS[slot]")
 	game.roster.erase(7)
 	game.players_changed.emit()
 	eq(_player_rows().size(), 2, "ayrılan oyuncu listeden düşer")

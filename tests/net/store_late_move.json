@@ -1,5 +1,5 @@
 {
-  "_doc": "US-001 t2 (denetçi bulgusu 1, inceleme 8): store_a'da c2 host hazır olduktan 2 sn sonra katılır ve hareket eder; host ile c1 de hareket ediyor. Geç katılanın hareketi herkese ulaşmalı (son konum farkı < 8 px). Geç katılan diğerlerini doğma noktasında ya da donmuş görmemeli (host kabulde ve eşitleme başlayana dek konum yetiştirir): hareket sırasında örnek farkı < 32 px. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-001 t2 (denetçi bulgusu 1, inceleme 8): store_a'da c2 host hazır olduktan 2 sn sonra katılır ve hareket eder; host ile c1 de hareket ediyor. Geç katılanın hareketi herkese ulaşmalı (son konum farkı < 8 px). Geç katılan diğerlerini doğma noktasında ya da donmuş görmemeli (host kabulde ve eşitleme başlayana dek konum yetiştirir): hareket sırasında örnek farkı < 40 px (fikstür eşiği, net_smoke docstring). Biçim: tools/net_smoke.py docstring.",
   "level": "res://levels/store_a.tscn",
   "player_scene": "res://tests/fixtures/dummy_player.tscn",
   "clients": 2,
@@ -13,7 +13,7 @@
   "expect": [
     {"len": ["*.player_nodes", 3]},
     {"all_equal": "player_nodes"},
-    {"samples_near": {"max_px": 32, "min_moving": 20, "move_px": 1.0}},
+    {"samples_near": {"max_px": 40, "min_moving": 20, "move_px": 1.0}},
     {"near": ["*.players.$host.pos", "host.players.$host.pos", 8]},
     {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
     {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]}

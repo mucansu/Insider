@@ -84,6 +84,7 @@ class FakeGame extends Node:
 
 	var journal: CallLog = CallLog.new()
 	var cash: int = 0
+	## players() dönüşü, S3 biçiminde: peer_id -> {"name": String, "slot": int} (renk yok; HUD slot'tan seçer).
 	var roster: Dictionary = {}
 	var local: Node = null
 

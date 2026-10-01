@@ -53,7 +53,7 @@ func test_hud_fits() -> void:
 		var net: Fakes.FakeNet = ctx["net"]
 		var roster: Dictionary = {}
 		for i: int in 4:
-			roster[i + 1] = {"name": LONG_NAME, "color": ThemeTokens.PLAYER_COLORS[i]}
+			roster[i + 1] = {"name": LONG_NAME, "slot": i}
 		game.roster = roster
 		net.my_peer_id = 3
 		game.players_changed.emit()
