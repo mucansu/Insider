@@ -1,0 +1,8 @@
+{
+  "_doc": "move_sync.json c1 botu: çapraz, sonra sağ, dur.",
+  "steps": [
+    {"t": 0.5, "move": [0.7071, 0.7071]},
+    {"t": 2.0, "move": [1, 0]},
+    {"t": 4.0, "move": [0, 0]}
+  ]
+}

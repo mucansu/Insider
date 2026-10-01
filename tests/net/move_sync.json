@@ -1,0 +1,19 @@
+{
+  "_doc": "US-001 AC3: bot girdisiyle hareket eden fikstür oyuncuları; hareket sırasında aynı zaman diliminde örneklenen konum farkı tüm peer'larda < 32 px, son konum farkı < 8 px. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 8,
+  "bots": {
+    "host": "res://tests/net/bots/move_host.json",
+    "c1": "res://tests/net/bots/move_c1.json",
+    "c2": "res://tests/net/bots/move_c2.json"
+  },
+  "expect": [
+    {"samples_near": {"max_px": 32, "min_moving": 20, "move_px": 1.0}},
+    {"near": ["*.players.$host.pos", "host.players.$host.pos", 8]},
+    {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]},
+    {"near": ["host.players.$host.pos", [210, 260], 6]}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "_doc": "US-001 AC2: host seviyeyi yükler; c1 hemen, c2 host hazır olduktan 2 sn sonra katılır (host ve c1 bu sırada hareket ediyor). Hepsinde aynı seviye ve her peer için Players/<peer_id> düğümü; geç katılanda log hatası (node not found) olmamalı ve geç katılan hareket edenleri doğma noktasında görmemeli (örnek farkı < 32 px). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 8,
+  "start_delay": {"c2": 2.0},
+  "bots": {
+    "host": "res://tests/net/bots/wander.json",
+    "c1": "res://tests/net/bots/wander.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/empty_level.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"all_equal": "player_nodes"},
+    {"has": ["*.player_nodes", 1]},
+    {"has": ["*.player_nodes", "$c1"]},
+    {"has": ["*.player_nodes", "$c2"]},
+    {"len": ["*.players", 3]},
+    {"samples_near": {"max_px": 32, "min_moving": 10, "move_px": 1.0}},
+    {"eq": ["*.players.$c2.name", "c2"]},
+    {"near": ["*.players.$host.pos", "host.players.$host.pos", 8]},
+    {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]}
+  ]
+}

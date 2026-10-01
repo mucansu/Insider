@@ -1,0 +1,9 @@
+{
+  "_doc": "session_events.json host botu. 'game' adımları yalnız tests/fixtures/dummy_player.gd fikstürünündür (Game çağrısı).",
+  "steps": [
+    {"t": 3.0, "game": "add_team_cash", "args": [100]},
+    {"t": 3.5, "game": "add_team_cash", "args": [50]},
+    {"t": 4.0, "game": "raise_session_event", "args": ["police_called", {"by": "host", "level": 2}]},
+    {"t": 8.0, "game": "raise_session_event", "args": ["alarm", {"zone": "back"}]}
+  ]
+}

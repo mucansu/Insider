@@ -1,0 +1,11 @@
+{
+  "_doc": "late_join.json / level_change.json botu: geç katılma ve seviye değişimi sırasında hareket eden yetkili oyuncu (eşitleyici yol önbelleği tuzağını sınar).",
+  "steps": [
+    {"t": 0.2, "move": [1, 0]},
+    {"t": 1.2, "move": [0, 1]},
+    {"t": 2.2, "move": [-1, 0]},
+    {"t": 3.2, "move": [0, -1]},
+    {"t": 4.2, "move": [1, 0]},
+    {"t": 5.2, "move": [0, 0]}
+  ]
+}

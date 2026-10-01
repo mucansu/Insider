@@ -1,0 +1,7 @@
+{
+  "_doc": "session_events.json c1 botu: istemcinin host'a özgü çağrıları reddedilmeli (uyarı, etkisiz).",
+  "steps": [
+    {"t": 3.2, "game": "add_team_cash", "args": [999]},
+    {"t": 3.4, "game": "raise_session_event", "args": ["fake", {}]}
+  ]
+}

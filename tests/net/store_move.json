@@ -1,0 +1,21 @@
+{
+  "_doc": "US-001 t2 (denetçi bulgusu 1): gerçek bakkal seviyesinde (store_a) fikstür oyuncularıyla hareket eşitlemesi. ENet paket kısma (throttle) güvenilmez eşitleme paketlerini düşürürse örnek farkı büyür. Hareket sırasında aynı dilimde fark < 32 px, son konum farkı < 8 px. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 8,
+  "bots": {
+    "host": "res://tests/net/bots/move_host.json",
+    "c1": "res://tests/net/bots/move_c1.json",
+    "c2": "res://tests/net/bots/move_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"samples_near": {"max_px": 32, "min_moving": 20, "move_px": 1.0}},
+    {"near": ["*.players.$host.pos", "host.players.$host.pos", 8]},
+    {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]},
+    {"near": ["host.players.$host.pos", [162, 628], 6]}
+  ]
+}
