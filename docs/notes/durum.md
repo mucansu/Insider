@@ -4,7 +4,7 @@
 Faz 1 — İki kişi bakkalda (EP-01). Hedef: online his — bağlan, yürü, kasayı boşalt. Faz 0 Bitti (IS-001..004).
 
 ## Kalemler
-- Denetimde: US-001 ağ çekirdeği (cekirdek, t1, wt)
+- Sürüyor: US-001 ağ çekirdeği (cekirdek, t2, wt: denetci FAIL t1 ENet kısma + inceleme bulguları)
 - Bitti: US-003 menü+HUD+tema (denetci PASS t1, 7b34286)
 - Bitti: IS-008 LEVEL_* token'ları (denetci PASS, f0f027f)
 - Bitti: IS-009 girdi + nit'ler (denetci PASS t2, 332fb08)
