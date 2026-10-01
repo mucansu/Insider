@@ -1,0 +1,170 @@
+[gd_scene format=3 uid="uid://dsjumteh50w5y"]
+
+[ext_resource type="Script" uid="uid://dxw7mqg811r3j" path="res://ui/hud.gd" id="1_hud"]
+[ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
+[ext_resource type="PackedScene" uid="uid://b4gyl0km8eqxx" path="res://ui/pause_menu.tscn" id="3_pause"]
+
+[node name="Hud" type="CanvasLayer"]
+layer = 10
+script = ExtResource("1_hud")
+
+[node name="Root" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme = ExtResource("2_theme")
+
+[node name="Frame" type="MarginContainer" parent="Root"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_type_variation = &"HudFrame"
+
+[node name="Layout" type="VBoxContainer" parent="Root/Frame"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Top" type="HBoxContainer" parent="Root/Frame/Layout"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CashPanel" type="PanelContainer" parent="Root/Frame/Layout/Top"]
+custom_minimum_size = Vector2(170, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Box" type="VBoxContainer" parent="Root/Frame/Layout/Top/CashPanel"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CashCaption" type="Label" parent="Root/Frame/Layout/Top/CashPanel/Box"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "HUD_CASH_LABEL"
+
+[node name="CashValue" type="Label" parent="Root/Frame/Layout/Top/CashPanel/Box"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"CashLabel"
+
+[node name="TopSpacer" type="Control" parent="Root/Frame/Layout/Top"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="Right" type="VBoxContainer" parent="Root/Frame/Layout/Top"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="PingPanel" type="PanelContainer" parent="Root/Frame/Layout/Top/Right"]
+layout_mode = 2
+size_flags_horizontal = 8
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="PingLabel" type="Label" parent="Root/Frame/Layout/Top/Right/PingPanel"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 2
+
+[node name="PlayersPanel" type="PanelContainer" parent="Root/Frame/Layout/Top/Right"]
+layout_mode = 2
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Box" type="VBoxContainer" parent="Root/Frame/Layout/Top/Right/PlayersPanel"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PlayersCaption" type="Label" parent="Root/Frame/Layout/Top/Right/PlayersPanel/Box"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "HUD_PLAYERS_LABEL"
+
+[node name="PlayerList" type="VBoxContainer" parent="Root/Frame/Layout/Top/Right/PlayersPanel/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Spacer" type="Control" parent="Root/Frame/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="Prompt" type="PanelContainer" parent="Root/Frame/Layout"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="PromptLabel" type="Label" parent="Root/Frame/Layout/Prompt"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="Interaction" type="PanelContainer" parent="Root/Frame/Layout"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(360, 0)
+layout_mode = 2
+size_flags_horizontal = 4
+mouse_filter = 2
+theme_type_variation = &"HudPanel"
+
+[node name="Box" type="VBoxContainer" parent="Root/Frame/Layout/Interaction"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="InteractionLabel" type="Label" parent="Root/Frame/Layout/Interaction/Box"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="InteractionBar" type="ProgressBar" parent="Root/Frame/Layout/Interaction/Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+mouse_filter = 2
+max_value = 1.0
+step = 0.001
+show_percentage = false
+
+[node name="BottomGap" type="Control" parent="Root/Frame/Layout"]
+custom_minimum_size = Vector2(0, 40)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Toasts" type="VBoxContainer" parent="Root/Frame"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="PauseMenu" parent="Root" instance=ExtResource("3_pause")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="PingTimer" type="Timer" parent="."]
+unique_name_in_owner = true

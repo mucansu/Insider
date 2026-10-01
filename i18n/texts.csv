@@ -1,3 +1,45 @@
 keys,tr,en
 GAME_TITLE,Insiders,Insiders
 COMMON_LOADING,Yükleniyor…,Loading…
+TONE_NOIR,Noir,Noir
+MENU_TAGLINE,Plan bozulana kadar her şey yolunda.,Everything goes to plan. Until it doesn't.
+MENU_NAME_LABEL,OYUNCU ADI,PLAYER NAME
+MENU_NAME_PLACEHOLDER,Ekipte görünecek adın,Your name on the crew
+MENU_HOST_TITLE,Oturumu sen aç,Run the session
+MENU_HOST_HINT,Arkadaşların senin adresine bağlanır.,Your friends connect to your address.
+MENU_JOIN_TITLE,Bir oturuma katıl,Join a session
+MENU_JOIN_HINT,Host'un adresini ve portunu gir.,Enter the host's address and port.
+MENU_ADDRESS_LABEL,ADRES,ADDRESS
+MENU_ADDRESS_PLACEHOLDER,ör. 100.64.0.2,e.g. 100.64.0.2
+MENU_PORT_LABEL,PORT,PORT
+MENU_HOST_BUTTON,Host ol,Host
+MENU_JOIN_BUTTON,Katıl,Join
+MENU_QUIT_BUTTON,Çıkış,Quit
+MENU_CANCEL_BUTTON,Vazgeç,Cancel
+MENU_CONNECTING,%s:%d adresine bağlanılıyor…,Connecting to %s:%d…
+MENU_CONNECTED,Bağlandı. Seviye yükleniyor…,Connected. Loading the level…
+MENU_STARTING,Oturum açıldı. Seviye yükleniyor…,Session open. Loading the level…
+MENU_ERROR_NAME_EMPTY,Önce bir ad yaz.,Enter a name first.
+MENU_ERROR_PORT_INVALID,Port 1024 ile 65535 arasında bir sayı olmalı.,Port must be a number between 1024 and 65535.
+MENU_ERROR_ADDRESS_EMPTY,Bağlanılacak adresi yaz.,Enter the address to connect to.
+MENU_ERROR_HOST_FAILED,%d portunda oturum açılamadı; port kullanımda olabilir.,Could not open a session on port %d; it may be in use.
+MENU_ERROR_JOIN_FAILED,Bu adrese bağlantı başlatılamadı.,Could not start a connection to this address.
+MENU_ERROR_CONNECTION_FAILED,Bağlantı kurulamadı. Adresi ve portu kontrol et.,Could not connect. Check the address and port.
+MENU_ERROR_HOST_DISCONNECTED,Host ile bağlantı koptu.,Lost the connection to the host.
+HUD_CASH_LABEL,EKİP NAKDİ,CREW CASH
+HUD_CASH_VALUE,$%s,$%s
+NUMBER_GROUP_SEPARATOR,.,","
+HUD_PING_MS,%d ms,%d ms
+HUD_PING_HOST,Host,Host
+HUD_PING_UNKNOWN,— ms,— ms
+HUD_PLAYERS_LABEL,EKİP,CREW
+HUD_PLAYER_YOU,%s (sen),%s (you)
+HUD_PLAYER_UNNAMED,Oyuncu %d,Player %d
+HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
+HUD_PROMPT,[%s] %s,[%s] %s
+EVENT_GENERIC,Olay: %s,Event: %s
+EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
+PAUSE_TITLE,Menü,Menu
+PAUSE_NOTE,Oyun arkada sürüyor; ekip seni bekliyor olabilir.,The game keeps running; your crew may be waiting.
+PAUSE_RESUME,Devam,Resume
+PAUSE_LEAVE,Oturumdan ayrıl,Leave session
