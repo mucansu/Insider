@@ -14,7 +14,7 @@ Tasarımın kaynağı `docs/tasarim/oyun-tasarimi.md`; bu dosya **nasıl yapıld
 ```
 project.godot            ayarlar, autoload'lar, girdi haritası, katmanlar (altyapi)
 main.tscn / main.gd      açılış: argümanlara göre menü ya da doğrudan host/katıl (cekirdek)
-autoload/                Net, Args, Game (cekirdek); Noise (oynanis)
+autoload/                Net, Args, Game (cekirdek); NoiseBus (oynanis)
 core/                    düğümsüz kurallar (RefCounted): gürültü hesabı, etkileşim kuralları, ileride uyarı/ekonomi
 entities/player/         oyuncu sahnesi ve girdi (oynanis)
 entities/props/          etkileşimli nesneler: Interactable tabanı, kasa, kapı, kilit (oynanis)
@@ -97,7 +97,8 @@ Kök `Node2D`; zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `S
 - Akış: oyuncu yakındaki en yakın `Interactable`'ı yerelde bulur ve istem gösterir → `interact` basılınca host'a istek (S2 RPC) → host doğrular (S2 toleransı), `busy_by` atar, süreyi sayar → oyuncu bırakırsa ya da menzilden çıkarsa iptal isteği → süre dolunca host `_on_complete` çağırır ve sonucu herkese yayınlar.
 - Oyuncu sinyalleri (HUD sözleşmesi): `interaction_started(action_key: String, duration: float)`, `interaction_finished(success: bool)`; yalnız yerel oyuncuda yayılır.
 
-### S8 — Gürültü (autoload `Noise`, `autoload/noise.gd`)
+### S8 — Gürültü (autoload `NoiseBus`, `autoload/noise.gd`)
+Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakışır (KR günlüğü 2026-10-01).
 `func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void` — istemciden çağrılırsa host'a iletilir; host `noise_listener` grubundaki düğümlerin `hear_noise(pos: Vector2, radius: float, kind: StringName) -> void` metodunu çağırır ve herkese görsel halka olayı yollar. Yarıçaplar `data/noise_profile.tres` içinde (yürüme 0, sızma 0, koşma 120, kapı 160, kasa boşaltma 90, sindirme 140 — başlangıç değerleri). Hesap kuralları `core/` altında, düğümsüz test edilir.
 
 ### S9 — Metin ve tema (ton altyapısı, KR-005)

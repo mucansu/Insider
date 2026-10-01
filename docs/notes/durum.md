@@ -5,7 +5,7 @@ Faz 0 — Kurulum (EP-00). Hedef: süreç, tasarım, Godot iskeleti, test ve CI 
 
 ## Kalemler
 - Bitti: IS-001 süreç ve ajan altyapısı · IS-002 GDD v0.1 · IS-004 GodotSteam 4.22.1 × 4.7.2 uyumlu
-- Sürüyor: IS-003 iskelet (altyapi, 2026-10-01)
+- Bitti: IS-003 iskelet (denetci PASS t1)
 - Hazır (sırayla): US-001 ağ çekirdeği (cekirdek) / US-002 bakkal (seviye) / US-003 menü+HUD (arayuz)
 
 ## Kullanıcıdan bekleyen

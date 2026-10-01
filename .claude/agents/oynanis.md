@@ -1,6 +1,6 @@
 ---
 name: oynanis
-description: "Oyun kuralları ve varlıklar uzmanı (Godot 4, GDScript): oyuncu karakteri ve PlayerInput (klavye/gamepad/bot), istemci yetkili hareket + senkron + ara değerleme, Interactable tabanı ve etkileşimli nesneler (kasa, kapı, kilit), gürültü sistemi (Noise autoload, core/), siviller, ileride muhafız yapay zekâsı, görüş, şüphe/uyarı, ganimet ve ekonomi kuralları. Oynanış kuralı ya da varlık davranışı gerektiren her kalem için PROACTIVELY kullan. Ağ çekirdeği, seviye düzeni, arayüz ve CI işlerinde KULLANMA."
+description: "Oyun kuralları ve varlıklar uzmanı (Godot 4, GDScript): oyuncu karakteri ve PlayerInput (klavye/gamepad/bot), istemci yetkili hareket + senkron + ara değerleme, Interactable tabanı ve etkileşimli nesneler (kasa, kapı, kilit), gürültü sistemi (NoiseBus autoload, core/), siviller, ileride muhafız yapay zekâsı, görüş, şüphe/uyarı, ganimet ve ekonomi kuralları. Oynanış kuralı ya da varlık davranışı gerektiren her kalem için PROACTIVELY kullan. Ağ çekirdeği, seviye düzeni, arayüz ve CI işlerinde KULLANMA."
 model: inherit
 ---
 

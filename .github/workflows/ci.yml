@@ -1,0 +1,46 @@
+# Uzak CI (mimari.md §5): tools/ci_local.sh ile aynı adımlar, aynı sırayla.
+# Adımlar ci_local.sh'tan tek tek çağrılır; adım eklenir/değişirse ikisi birlikte güncellenir.
+name: CI
+
+on:
+  push:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Godot içe aktarma + testler
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      # Godot ikilisi .tools/ altında; anahtar sürümü tutan get_godot.sh'a bağlı.
+      - name: Godot önbelleği
+        uses: actions/cache@v6
+        with:
+          path: .tools
+          key: godot-${{ runner.os }}-${{ hashFiles('tools/get_godot.sh') }}
+
+      - name: Godot getir
+        run: bash tools/ci_local.sh godot
+
+      - name: İçe aktarma (hata/uyarı yok)
+        run: bash tools/ci_local.sh import
+
+      - name: Birim testler
+        run: bash tools/ci_local.sh unit
+
+      - name: Ağ duman senaryoları (0 ve 150 ms)
+        run: bash tools/ci_local.sh net

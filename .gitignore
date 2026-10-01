@@ -1,0 +1,11 @@
+# Godot önbelleği (içe aktarma ile yeniden üretilir)
+.godot/
+# CSV'den içe aktarmada üretilen ikili çeviriler (Godot belgesi: VCS'e girmez)
+*.translation
+# tools/get_godot.sh indirmeleri
+.tools/
+# export çıktıları
+build/
+*.tmp
+# Python
+__pycache__/

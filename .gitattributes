@@ -1,0 +1,33 @@
+# Godot önerisi: Git'in metin saydığı tüm dosyalarda satır sonu LF (Windows'ta .sh/.gd/.tscn bozulmasın).
+* text=auto eol=lf
+
+# İkili dosyalar: satır sonu dönüşümü ve metin diff'i yok.
+# Godot ikili kaynakları
+*.res binary
+*.scn binary
+*.translation binary
+*.pck binary
+# Görsel
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.bmp binary
+*.tga binary
+*.exr binary
+*.hdr binary
+*.ico binary
+*.icns binary
+# Ses
+*.wav binary
+*.ogg binary
+*.mp3 binary
+# Yazı tipi
+*.ttf binary
+*.otf binary
+*.woff binary
+*.woff2 binary
+# 3B / arşiv
+*.glb binary
+*.blend binary
+*.zip binary
