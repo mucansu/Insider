@@ -1,0 +1,10 @@
+{
+  "_doc": "store_walk.json c2 botu (US-004): aşağı caddeye (sınır durdurur), sağa yürü, yukarı dükkânın duvarına kadar (duvar durdurur), dur; durunca koşu tuşu basılı (kip senkronu, hareketsiz).",
+  "steps": [
+    {"t": 0.3, "move": [0, 1]},
+    {"t": 1.3, "move": [1, 0]},
+    {"t": 4.3, "move": [0, -1]},
+    {"t": 5.8, "move": [0, 0]},
+    {"t": 6.0, "hold": "sprint"}
+  ]
+}

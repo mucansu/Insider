@@ -1,0 +1,36 @@
+{
+  "_doc": "US-004 AC5: store_a'da gerçek oyuncu sahnesi (entities/player/player.tscn), host + 2 istemci bot rotasıyla yürür/sızar; uzak kopyalar ~100 ms ara değerleme tamponuyla çizilir. Hareket sırasında aynı örnek diliminde konum farkı host↔istemci çiftlerinde < 32 px; istemci↔istemci (eşitleme host üzerinden iki bacak gider) dahil bütün süreçlerde < 48 px (150 ms'de beklenen ~140 px/sn × (150 + 100 + ~30 ms) ≈ 40 px). Rotalarda koşu hareketi yok: 150 ms'de tek bacakta bile 220 px/sn × ~0,2 sn ≈ 44 px (koşu hızı birim testte, koşu kipi senkronu c2'de hareketsiz). Son konum farkı < 8 px; duvar/raf/sınır durdurur (son konumlar deterministik; c2 1 sn geç başlar ki yuva sırası sabit olsun, c1 c2'nin eşitlemesi başladıktan sonra yürür: geç katılanın yetiştirme evresi store_late_move'da ölçülür); hiçbir süreçte hiçbir kopya duvar içinde değil (player_states.wall_frames); kip ve yön her süreçte aynı. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 11,
+  "start_delay": {"c2": 1.0},
+  "bots": {
+    "host": "res://tests/net/bots/walk_host.json",
+    "c1": "res://tests/net/bots/walk_c1.json",
+    "c2": "res://tests/net/bots/walk_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"all_equal": "player_nodes"},
+    {"samples_near": {"max_px": 32, "min_moving": 20, "move_px": 1.0, "procs": ["host", "c1"]}},
+    {"samples_near": {"max_px": 32, "min_moving": 20, "move_px": 1.0, "procs": ["host", "c2"]}},
+    {"samples_near": {"max_px": 48, "min_moving": 20, "move_px": 1.0}},
+    {"near": ["*.players.$host.pos", "host.players.$host.pos", 8]},
+    {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]},
+    {"near": ["host.players.$host.pos", [302.4, 170.08], 2]},
+    {"near": ["c1.players.$c1.pos", [196.34, 527.59], 2]},
+    {"near": ["c2.players.$c2.pos", [601.21, 492.08], 2]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]},
+    {"eq": ["*.player_states.$host.mode", 0]},
+    {"eq": ["*.player_states.$c1.mode", 1]},
+    {"eq": ["*.player_states.$c2.mode", 2]},
+    {"near": ["*.player_states.$host.facing", [-1, 0], 0.01]},
+    {"near": ["*.player_states.$c1.facing", [0, -1], 0.01]},
+    {"near": ["*.player_states.$c2.facing", [0, -1], 0.01]}
+  ]
+}
