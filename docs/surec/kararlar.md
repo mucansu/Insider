@@ -52,6 +52,7 @@ Fable incelemesiyle: Faz 0'a GodotSteam × 4.7.2 uyumluluk kontrolü (IS-004); F
 tasarim ajanı (Fable) belirli noktalarda (faz kapanışı, fazın oynanabilir dilimi sonrası, oyun testi sonrası) oyunun gidişatını değerlendirir; oyun zevkini/mekaniği tam karşılamayan noktaları önerileriyle, temel yapı kurulduktan sonra (Faz 2 kapanışından itibaren) yeni özellik ve geliştirme önerilerini raporlar. Öneriler bağlayıcı değil; ON kaydına girer, faz plan mesajında kullanıcıya sorulur. Süreç: surec.md §5a, kayıt: surec/oneriler.md.
 
 ## Günlük
+- 2026-10-01 (US-002): Seviyeler ASCII .txt'den üretilir; S4'e ekleme: `Tiles` düğümü, kapı işareti dönüş kuralı, `BackroomDoor` işareti, üretim kuralı (mimari.md S4). Kasa yalnız tezgâh arkasından boşaltılır (US-005 AC2). LEVEL_* token'ları IS-008'e.
 - 2026-10-01: Süreç ve ajan dosyaları kuruldu (IS-001).
 - 2026-10-01: GDD v0.1 yazıldı (IS-002, tasarim); faz planı KR-015 ile düzeltildi.
 - 2026-10-01 (IS-004): GodotSteam GDExtension 4.22.1 (SDK 1.65, compatibility_minimum 4.4) Godot 4.7.2'de yükleniyor; `Steam` tekili ve yerleşik `SteamMultiplayerPeer` var, ayrı SMP eklentisi (expressobits) kullanılmayacak (çift kayıt hatası). 4.7.2 kilidi değişmiyor. Resmî kaynak doğrulaması ve CI çift-import önlemi Faz 5'e kalem olarak yazıldı.
