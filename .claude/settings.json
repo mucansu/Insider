@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git push origin dev)",
+      "Bash(git push origin main)",
+      "Bash(git push origin main --tags)",
+      "Bash(git checkout main)",
+      "Bash(git checkout dev)",
+      "Bash(git merge --ff-only dev)",
+      "Bash(tools/ci_local.sh)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)"
+    ]
+  }
+}

@@ -1,0 +1,54 @@
+# Kararlar
+
+Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında toplu sorulur (surec.md §8).
+
+## Bekleyen
+| KR | Soru | Seçenekler (öneri) | Etkilenen | Varsayılanla ilerlenebilir mi |
+|---|---|---|---|---|
+| KR-013 | Oyunun kalıcı adı | "Insiders" çalışma adı olarak kalsın, mağaza sayfasından (Faz 5) önce karar [öneri] / şimdi başka ad | Faz 5 Steam sayfası | Evet (çalışma adı) |
+| KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
+
+## Verilen
+### KR-001 — Oyun konsepti (2026-09-30, kullanıcı)
+Fable danışmanlığında çıkan seçeneklerden kullanıcı co-op soygun (Insiders) fikrini seçti ve genişletti: kalıcı karakter, Minecraft Dungeons tarzı yavaş gelişim, silah/ekipman parayla satın alınır, yetenekler, bakkaldan merkez bankasına senaryo merdiveni. Kaynak: docs/tasarim/oyun-tasarimi.md.
+
+### KR-002 — Platform ve oyuncu sayısı (2026-09-30, kullanıcı)
+Steam üzerinden arkadaşlarla online; merkez 3 kişi (2 ve 4 de çalışır). Oyunculardan ikisi İsveç'te, biri Türkiye'de (~50-90 ms RTT): host İsveç'ten, gecikme toleranslı tasarım (mimari.md S2).
+
+### KR-003 — Görünüm (2026-10-01, kullanıcı)
+2D üstten başla; oyun sevilir ve ilerlerse 3D sonra zorlanabilir. Sonuç: oyun mantığı görselden ayrı (mimari.md §1).
+
+### KR-004 — Keşif fazı (2026-10-01, kullanıcı + koordinatör)
+Bir oyuncu soyulacak yere müşteri gibi girip gözlem yapar; gördükleri haritaya/krokiye otomatik işlenmez, ekibe hafızadan aktarılır; ileri kademelerde gizli önlemler. Koordinatör eklemeleri (kullanıcı onayladı): üç paralel keşif rolü, keşfin bedeli (oyalanma şüphesi, yüz tanınma), görüş hattı/sis, değerli bilginin zamansal olması, keşif ekipmanları, hazır duvarlı kroki, keşif-soygun arası ara sıra değişiklik. Kırmızı çizgi: surec.md §9.
+
+### KR-005 — Ton (2026-10-01, kullanıcı)
+Noir / kuru soygun komedisi ile başla; ileride ton seçimi oyuncuya bırakılabilir, yalnız kozmetik katman (palet, müzik/SFX, metin setleri, UI teması), kurallar değişmez, online'da host seçer. Altyapı baştan: metin anahtarları + tema token'ları (mimari.md S9). İkinci ton MVP sonrası.
+
+### KR-006 — Çatışma kapsamı (2026-10-01, kullanıcı)
+İlk sürümde minimal: gizlilik varsayılan, gürültü = baskı altında kaçış + kısa koridor tutma; silahlar az, ölümcül olanlar yüksek bedelli. Sonraki sürümlerde artabilir; can/hasar/silah veri güdümlü, muhafız davranışı genişletilebilir yazılır.
+
+### KR-007 — Motor ve dil (2026-10-01, kullanıcı + koordinatör)
+Kullanıcı Godot'yu seçti. Koordinatör: Godot 4.7.2-stable (oturumdaki en yeni kararlı), GDScript katı statik tipleme; GodotSteam Faz 5'te (GDExtension ileri uyumlu; gerekirse ayrı IS ile sürüm hizası).
+
+### KR-008 — Ağ modeli (2026-10-01, koordinatör)
+Host yetkili + istemci yetkili kendi hareketi; Godot yüksek seviye multiplayer (MultiplayerSpawner/Synchronizer + RPC); Faz 1-4 ENet, Faz 5 SteamMultiplayerPeer aynı Net arayüzünün arkasında. Deterministik lockstep yok. Ayrıntı mimari.md S1-S3.
+
+### KR-009 — Test yöntemi (2026-10-01, koordinatör)
+Bağımlılıksız kendi birim test koşucumuz (tests/run_tests.gd) + çok süreçli headless ağ duman testi (tools/net_smoke.py, senaryo JSON'ları) + Python UDP gecikme proxy'si (0 ve 150 ms RTT). Gerekçe: eklenti bakım yükü yok, AI ajanın okuyup yazması kolay, ağ davranışı gerçek süreçlerle sınanır.
+
+### KR-010 — Süreç (2026-10-01, kullanıcı + koordinatör)
+Takip düzeni uyarlandı: faz = durma noktası, kalem = iş birimi, denetci PASS olmadan Bitti yok, ajanlar commit atmaz; faz sonunda dev → main ff + `faz-N` etiketi; paralel paketler ayrı worktree'de. Farklar ajanlar.md sonunda.
+
+### KR-011 — Repo (2026-10-01, koordinatör)
+Repo adı `insiders`, private. Branch'ler: `dev` (çalışma), `main` (faz sonu oynanabilir sürüm).
+
+### KR-012 — Görsel yer tutucular (2026-10-01, koordinatör)
+Faz 1-2'de görseller geometrik yer tutucu (Polygon2D/ColorRect, tema token renkleri); CC0 asset (Kenney vb.) entegrasyonu ayrı kalem, lisans kaydı docs/notes/assetler.md.
+
+### KR-015 — MVP faz planı (2026-10-01, koordinatör; tasarim danışmanlığı)
+Fable incelemesiyle: Faz 0'a GodotSteam × 4.7.2 uyumluluk kontrolü (IS-004); Faz 1 kesildi (sivil/sindirme, T1 kilit, gürültü v0 → Faz 2), Faz 1'e Windows/Linux build eklendi (arkadaş testi editörsüz olmalı); Faz 2'ye kamera = statik muhafız, Steam spike, kopma davranışı, replay, temel SFX, ucuz keşif ön testi; tohum/rastgeleleştirme Faz 4'ten Faz 3'e. Faz başına ölçülebilir çıkış kriterleri backlog.md §1'de.
+
+## Günlük
+- 2026-10-01: Süreç ve ajan dosyaları kuruldu (IS-001).
+- 2026-10-01: GDD v0.1 yazıldı (IS-002, tasarim); faz planı KR-015 ile düzeltildi.
+- 2026-10-01: GitHub entegrasyonu repo oluşturamadı (403); repo kullanıcı tarafından açılacak, iş yerelde sürüyor.
