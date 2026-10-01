@@ -43,6 +43,8 @@ ID + başlık · hikâye (US) ya da tek cümle (IS) · AC1..n · Sahip · Büyü
 6. `tools/ci_local.sh` yeşil; `US-nnn: …` commit'i dev'e push; `git add` yalnız kart dosyaları + test + doküman.
 7. backlog satırı Bitti + commit hash; durum.md güncel.
 
+Not: repoya dosya eklemeyen araştırma/ölçüm kalemleri (ör. IS-004) ve tasarım belgesi kalemleri denetci yerine koordinatör okumasıyla kapanır; bulgular kararlar.md günlüğüne ve ilgili kaleme işlenir.
+
 ## 5. Faz kapanışı ve yayın
 - Faz, çıkış kriterlerinin hepsi sağlanınca ya da kalan maddeler kullanıcı onayıyla sonraki faza devredilince kapanır.
 - Yayın zinciri: `git checkout main && git merge --ff-only dev && git tag faz-N && git push origin main --tags && git checkout dev`. main her zaman oynanabilir son faz sürümüdür.

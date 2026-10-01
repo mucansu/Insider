@@ -21,7 +21,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-001 | Süreç ve ajan altyapısı | 0 | koordinatör | P1 | S | — | Bitti | |
 | IS-002 | Oyun tasarım belgesi v0.1 | 0 | tasarim | P1 | M | — | Bitti | |
 | IS-003 | Godot proje iskeleti, test koşucusu, CI | 0 | altyapi | P1 | M | IS-001 | Sürüyor (2026-10-01) | |
-| IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | IS-003 | Hazır | |
+| IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | — (yalnız /tmp; IS-003'le paralel) | Bitti (araştırma; koordinatör okuması) | — |
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Hazır | |
 | US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Hazır | |
 | US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Hazır | |
@@ -55,7 +55,7 @@ EP-00 · P1 · M · Sahip: altyapi · Sözleşme: mimari.md §1, §2, §4, §5, 
 **Oku:** mimari.md tamamı · **Test beklentisi:** AC komutları raporda · **Karar gereken (ön):** —
 
 ### IS-004 — GodotSteam × 4.7.2 uyumluluk kontrolü
-EP-00 · P1 · S · Sahip: cekirdek · Bağımlılık: IS-003
+EP-00 · P1 · S · Sahip: cekirdek · Bağımlılık: — (depo dosyasına dokunmadığı için IS-003 ile paralel)
 **Kabul:** GodotSteam GDExtension'ın (ve varsa SteamMultiplayerPeer'in) 4.7.2 ile uyumlu en yeni sürümü belirlenir, geçici bir kopyada (`/tmp`, repo dışı) headless yüklenir: `ClassDB.class_exists("Steam")` ve `SteamMultiplayerPeer` sınıfının varlığı raporlanır; app 480 ile `steamInitEx` denenir (Steam istemcisi olmadığından beklenen hata kodu kaydedilir). Sonuç ve önerilen sürüm/indirme adresi raporda; repoya dosya eklenmez.
 **Dokunulacak:** yok (yalnız /tmp) · **Dokunulmayacak:** depo dosyalarının hepsi · **Oku:** mimari.md §1, S1
 
@@ -144,7 +144,7 @@ EP-01 · P1 · S · Sahip: kullanıcı · Bağımlılık: IS-005
 **Faz 2 — Gizlilik:** muhafız durum makinesi + devriye + NavigationRegion2D · görüş konisi + şüphe ölçeri (0-100, eşikler 30/60/100) + oyuncu lehine 0,2 sn · kamera = statik muhafız (aynı algı kodu) · küresel uyarı kademeleri · oyuncu görüş hattı/sis · gürültü v0 (Noise, S8) · tezgâhtar sivil + sindirme · T1 kilit (arka kapı) · ganimet çantası + kaçış bölgesi + iş sonu ekranı (ödeme + derece) · bağlantı kopması (avatar donar) · girdi günlüğü/replay · 5-6 temel SFX · ucuz keşif ön testi (60 sn izle → krokiye ikon) · Steam spike (480 lobisi + davet + SteamMultiplayerPeer, 2 kişi; kullanıcı cihazı) · Faz 2 kullanıcı oyun testi.
 **Faz 3 — Keşif ve plan:** keşif fazı (müşteri rolü, dış gözlemci, oyalanma şüphesi, yüz tanınma, otomatik işaretleme yok) · plan masası (hazır duvarlı kroki, ikon + rota, ortak gerçek zamanlı) · soygunda plan katmanı · tohum/rastgeleleştirme v0 (kamera konumu, tezgâhtar, polis periyodu) · iş sonu "plan doğruluğu" göstergesi (GDD açık soru 3) · Faz 3 oyun testi.
 **Faz 4 — Sığınak ve ikinci kademe:** para + ısı v0 · dükkân (3-4 eşya, yetenek kapısı) · benzinlik şablonu (kamera, DVR, sessiz alarm, sahte kamera) · kayıt (host kampanya + kişisel profil, JSON) · perk ağacı v0 · ton altyapısı iskeleti (ikinci tema yok) · CC0 asset geçişi (assetler.md).
-**Faz 5 — Steam ve MVP:** GodotSteam lobi/davet UI + SteamMultiplayerPeer (ENet yedek) · Steam Cloud profil · Windows/Linux paket · itch gizli build · arkadaş oyun testi turu · KR-013 ad, KR-014 Steamworks.
+**Faz 5 — Steam ve MVP:** GodotSteam GDExtension 4.22.1'i resmî kaynaktan (codeberg) indirip IS-004 sha256'larıyla doğrulama (bu konteynerde codeberg kapalı: ağ izni ya da kullanıcı indirir) · temiz import'ta GDExtension ilk-yükleme çöküşüne karşı CI'da çift import (altyapi) · S1'e Steam katılım imzası (lobby_id/steam_id) · GodotSteam lobi/davet UI + SteamMultiplayerPeer (ENet yedek) · Steam Cloud profil · Windows/Linux paket · itch gizli build · arkadaş oyun testi turu · KR-013 ad, KR-014 Steamworks.
 
 ## 4. Fikir havuzu
 İkinci ton (retro/neon, absürt) · 3D geçişi (Faz 5 sonrası değerlendirme) · çatışma genişletmesi (koridor tutma ötesi) · bot yoldaş · kılık/sosyal mühendislik rolü · insider pazarı · günlük tohum + lider tablosu.

@@ -51,4 +51,6 @@ Fable incelemesiyle: Faz 0'a GodotSteam × 4.7.2 uyumluluk kontrolü (IS-004); F
 ## Günlük
 - 2026-10-01: Süreç ve ajan dosyaları kuruldu (IS-001).
 - 2026-10-01: GDD v0.1 yazıldı (IS-002, tasarim); faz planı KR-015 ile düzeltildi.
+- 2026-10-01 (IS-004): GodotSteam GDExtension 4.22.1 (SDK 1.65, compatibility_minimum 4.4) Godot 4.7.2'de yükleniyor; `Steam` tekili ve yerleşik `SteamMultiplayerPeer` var, ayrı SMP eklentisi (expressobits) kullanılmayacak (çift kayıt hatası). 4.7.2 kilidi değişmiyor. Resmî kaynak doğrulaması ve CI çift-import önlemi Faz 5'e kalem olarak yazıldı.
+- 2026-10-01: Araştırma/ölçüm kalemleri (repoya dosya eklemeyen) denetci yerine koordinatör okumasıyla kapanır (surec.md §4 notu).
 - 2026-10-01: GitHub entegrasyonu repo oluşturamadı (403); repo kullanıcı tarafından açılacak, iş yerelde sürüyor.
