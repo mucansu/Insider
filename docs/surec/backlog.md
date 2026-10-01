@@ -23,7 +23,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-003 | Godot proje iskeleti, test koşucusu, CI | 0 | altyapi | P1 | M | IS-001 | Bitti | (bkz. git log --grep=IS-003) |
 | IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | — (yalnız /tmp; IS-003'le paralel) | Bitti (araştırma; koordinatör okuması) | — |
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Sürüyor (2026-10-01, wt) | |
-| US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Denetimde (t1, wt) | |
+| US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Sürüyor (t2, wt) | |
 | US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Sürüyor (2026-10-01, wt) | |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002 | Backlog | |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Backlog | |
