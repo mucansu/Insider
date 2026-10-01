@@ -88,7 +88,8 @@ Kök `Node2D`; zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `S
 - Çarpışma şekil adları: `Bound*`, `Wall*`, `Window*` (Faz 2'de görüşü geçirir), `Shelf*`, `Counter*`.
 
 ### S5 — Girdi eylemleri (project.godot, altyapi tanımlar)
-`move_up/down/left/right` (WASD + oklar + sol çubuk) · `sprint` (Shift) · `sneak` (Ctrl) · `interact` (E; basılı tut) · `intimidate` (Q) · `toggle_debug` (F3) · `ui_*` varsayılanlar. Gamepad eşlemeleri aynı eylemlere eklenir. Oyuncu girdisi doğrudan `Input` değil **`PlayerInput`** soyutlamasından okunur (S6 bot girdisi için).
+`move_up/down/left/right` (WASD + oklar + sol çubuk) · `sprint` (Shift) · `sneak` (Ctrl) · `interact` (E; basılı tut) · `intimidate` (Q) · `pause` (Esc + Start; IS-009) · `toggle_debug` (F3) · `ui_*` varsayılanlar (`ui_accept` + gamepad A, `ui_cancel` + gamepad B; IS-009). Gamepad eşlemeleri aynı eylemlere eklenir. Oyuncu girdisi doğrudan `Input` değil **`PlayerInput`** soyutlamasından okunur (S6 bot girdisi için).
+- Oyun içi menü/odaklı arayüz açıkken oyun girdisi okunmaz: `PlayerInput` her karede `UiInput.is_gameplay_input_blocked() -> bool` (statik, `ui/ui_input.gd`, arayuz) sorgular; bot girdisi bundan etkilenmez.
 
 ### S6 — Komut satırı, bot girdisi ve test dökümü
 - Kullanıcı argümanları `--` sonrasında (autoload `Args`, `autoload/args.gd`): `--host` · `--join=ADDR` · `--port=N` · `--name=AD` · `--level=res://...` · `--bot=PATH.json` · `--dump=PATH.json` · `--quit-after=SN` · `--player-scene=res://...` (yalnız test).
@@ -99,7 +100,8 @@ Kök `Node2D`; zorunlu çocuklar: `Walls` (duvarlar; fizik katmanı `world`), `S
 ### S7 — Etkileşim protokolü
 - Taban sınıf `Interactable` (`entities/props/interactable.gd`, `class_name Interactable`): `@export var action_key: String` (i18n anahtarı), `@export var hold_time: float`, `@export var interact_range: float = 40.0`, `@export var enabled: bool = true`; host'ta `can_interact(peer_id: int) -> bool` ve `_on_complete(peer_id: int)` sanal; çoğaltılan alanlar `busy_by: int` (0 = boş) ve `progress: float`.
 - Akış: oyuncu yakındaki en yakın `Interactable`'ı yerelde bulur ve istem gösterir → `interact` basılınca host'a istek (S2 RPC) → host doğrular (S2 toleransı), `busy_by` atar, süreyi sayar → oyuncu bırakırsa ya da menzilden çıkarsa iptal isteği → süre dolunca host `_on_complete` çağırır ve sonucu herkese yayınlar.
-- Oyuncu sinyalleri (HUD sözleşmesi): `interaction_started(action_key: String, duration: float)`, `interaction_finished(success: bool)`; yalnız yerel oyuncuda yayılır.
+- Oyuncu sinyalleri (HUD sözleşmesi): `interaction_target_changed(action_key: String)` (yakındaki etkileşilebilir hedef değişti; boş dize = hedef yok; HUD "[E] <eylem>" istemi gösterir), `interaction_started(action_key: String, duration: float)`, `interaction_finished(success: bool)`; yalnız yerel oyuncuda yayılır.
+- Arayüz sahneleri (`ui/*.tscn`) autoload'larda `preload` edilmez, çalışma anında `load()` ile yüklenir (UI betikleri autoload adlarına derlemede bağlı).
 
 ### S8 — Gürültü (autoload `NoiseBus`, `autoload/noise.gd`)
 Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakışır (KR günlüğü 2026-10-01).

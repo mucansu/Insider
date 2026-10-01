@@ -24,13 +24,14 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | — (yalnız /tmp; IS-003'le paralel) | Bitti (araştırma; koordinatör okuması) | — |
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Sürüyor (2026-10-01, wt) | |
 | US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Bitti | d8ab983 |
-| US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Sürüyor (2026-10-01, wt) | |
+| US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Sürüyor (t1 ek: S7 istem + girdi engeli, wt) | |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002 | Backlog | |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Backlog | |
 | IS-005 | Faz 1 çıkış testi + Windows/Linux build | 1 | altyapi | P1 | M | US-003, US-005 | Backlog | |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | IS-005 | Backlog | |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Backlog | |
+| IS-009 | Girdi haritası: `pause` eylemi + ui_accept/ui_cancel gamepad | 1 | altyapi | P1 | XS | US-003 | Backlog | |
 
 ### IS-001 — Süreç ve ajan altyapısı
 EP-00 · P1 · S · Sahip: koordinatör
@@ -109,7 +110,7 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S5, S6 · Bağımlılık: 
 **Kabul kriterleri:**
 - AC1 `entities/player/player.tscn`: CharacterBody2D (katman players; world ve npcs ile çarpışır), yer tutucu görsel (oyuncu renginde daire + yön göstergesi + ad etiketi), Camera2D yalnız yerel oyuncuda etkin.
 - AC2 Hız: yürüme 140, sızma 70, koşma 220 px/sn (`data/player_tuning.tres`); 8 yön + analog; duvardan geçmez.
-- AC3 `PlayerInput`: klavye/gamepad (S5) ve bot zaman çizelgesi (S6); yalnız yerel oyuncuda girdi okunur.
+- AC3 `PlayerInput`: klavye/gamepad (S5) ve bot zaman çizelgesi (S6); yalnız yerel oyuncuda girdi okunur; `UiInput.is_gameplay_input_blocked()` true iken oyun girdisi okunmaz (duraklat menüsü açıkken karakter yürümez).
 - AC4 Ağ: istemci yetkili konum/yön/kip senkronu 20 Hz; uzak kopyalar ara değerleme (~100 ms tampon) ile çizilir.
 - AC5 `tests/net/store_walk.json`: store_a'da host + 2 istemci bot rotası yürür; hareket sırasında örneklenen konum farkı < 32 px, son konum farkı < 8 px, kimse duvar içinde değil; 0 ve 150 ms.
 - AC6 Birim testler: ayar okuma, kipe göre hız, bot zaman çizelgesi ayrıştırma.
@@ -121,7 +122,7 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S5, S6 · Bağımlılık: 
 EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-004
 **Hikâye:** Oyuncu olarak kasaya yaklaşıp basılı tutarak boşaltmak ve kapıları açıp kapatmak istiyorum; arkadaşlarım sonucu aynı anda görmeli.
 **Kabul kriterleri:**
-- AC1 `Interactable` tabanı (S7) + oyuncunun yakındaki en yakın nesneyi bulması + `interaction_started`/`interaction_finished` sinyalleri.
+- AC1 `Interactable` tabanı (S7) + oyuncunun yakındaki en yakın nesneyi bulması + `interaction_target_changed`/`interaction_started`/`interaction_finished` sinyalleri (HUD istemi ve ilerleme çubuğu bunlarla çalışır).
 - AC2 Yazar kasa: basılı tut 3 sn → host ekip nakdine +150 (`data/props.tres`), kasa boş durumuna geçer ve bir daha etkileşilmez; yarıda bırakılırsa ilerleme sıfırlanır. Kasa yalnız tezgâh arkasından (personel tarafı) boşaltılabilir: müşteri tarafından istek menzil içinde olsa da reddedilir (koordinatör kararı 2026-10-01).
 - AC3 Kapı: anında aç/kapa; kapalıyken world katmanında engel; durum tüm peer'larda aynı.
 - AC4 Yetki: aynı nesneye aynı anda iki oyuncu → yalnız biri (`busy_by`); menzil dışı (tolerans +24 px üstü) istek reddedilir; istemci kendi başına sonuç üretemez.
@@ -147,12 +148,17 @@ EP-01 · P2 · XS · Sahip: seviye · Bağımlılık: US-002, US-003
 **Kabul:** US-002'de `levels/level_layout.gd` başında duran seviye renk oranları `ThemeTokens`'a `LEVEL_FLOOR, LEVEL_BACKROOM, LEVEL_SIDEWALK, LEVEL_STREET, LEVEL_WALL, LEVEL_WALL_EDGE, LEVEL_GLASS, LEVEL_SHELF, LEVEL_COUNTER` olarak eklenir (ekleme; arayuz'un mevcut token'larına dokunulmaz) ve seviye bunları okur; test_levels yeşil.
 **Dokunulacak:** ui/theme/tokens.gd (yalnız ekleme), levels/level_layout.gd, tests/unit/test_levels.gd
 
+### IS-009 — Girdi haritası: pause + ui_accept/ui_cancel gamepad
+EP-01 · P1 · XS · Sahip: altyapi · Bağımlılık: US-003
+**Kabul:** project.godot'a `pause` eylemi (Esc + gamepad Start) ve `ui_accept` (+A), `ui_cancel` (+B) gamepad olayları eklenir (S5); `test_smoke` bunları denetler; US-003'teki çalışma anı geçici çözümü (`UiInput.ensure_gamepad_ui()`) kaldırılır ve duraklatma `pause` eylemini okur; ui testleri yeşil.
+**Dokunulacak:** project.godot, tests/unit/test_smoke.gd, ui/ui_input.gd, ui/hud.gd, ui/pause_menu.gd ve ilgili ui testleri (yalnız bu değişiklik için; arayuz alanına istisna)
+
 ### IS-007 — Faz 1 tasarım değerlendirmesi (Fable)
 EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: IS-005 (faz kapanışından önce)
 **Kabul:** KR-017 animasyon/karakter stilini GDD §14'e (referans ilkeler, zamanlama aralıkları, okunabilirlik kuralları) ve GB-02'yi (havalandırma girişi, duvar patlatma, alttan kasa düşürme; ileri kademe + ekipman/yetenek kapılı) GDD §7/§9/§10'a işler: hangi kademede açıldığı, gereken ekipman/perk, gürültü ve zamanlama bedeli, keşifte nasıl fark edildiği. `docs/tasarim/degerlendirmeler/faz-1.md` surec.md §5a biçiminde yazılır (Faz 1 temel yapı olduğu için ağırlık: hareket hızları, etkileşim süreleri, bakkal yerleşimi ve online hissin GDD'ye uyumu; Faz 2-3 için erken uyarılar). Koordinatör önerileri oneriler.md'ye işler. Koordinatör okumasıyla kapanır.
 
 ## 3. Sonraki fazların kalemleri (Backlog; faz başında ayrıntılanır)
-**Faz 2 — Gizlilik:** (ara tasarım değerlendirmesi: muhafız + şüphe + kaçış oynanabilir olunca; kapanışta tam değerlendirme + ilk yeni özellik önerileri) muhafız durum makinesi + devriye + NavigationRegion2D · görüş konisi + şüphe ölçeri (0-100, eşikler 30/60/100) + oyuncu lehine 0,2 sn · kamera = statik muhafız (aynı algı kodu) · küresel uyarı kademeleri · oyuncu görüş hattı/sis · gürültü v0 (NoiseBus, S8) · görüş: `Window*` şekilleri görüşü geçirir, rafların görüşü kesip kesmeyeceği kararı · tezgâhtar sivil + sindirme · T1 kilit (arka kapı) · ganimet çantası + kaçış bölgesi + iş sonu ekranı (ödeme + derece) · bağlantı kopması (avatar donar) · girdi günlüğü/replay · 5-6 temel SFX · ucuz keşif ön testi (60 sn izle → krokiye ikon) · Steam spike (480 lobisi + davet + SteamMultiplayerPeer, 2 kişi; kullanıcı cihazı) · Faz 2 kullanıcı oyun testi · **karakter kuklası v0 (KR-017):** oyuncu, tezgâhtar ve muhafız için prosedürel animasyonlu kukla (yürü/sız/koş/bekle/etkileşim/tepki), parametreler data/*.tres'te, görsel katman yalnız durumu okur; sahibi Faz 2 planında (seviye ya da yeni görsel ajanı) · **otomatik oyun testi (GB-01):** kural tabanlı bot oyuncular (yol bul, saklan, kasaya git, kaç) headless yüzlerce soygun koşar; yakalanma oranı, süre, ödeme istatistiği Fable değerlendirmesine girer · Xvfb ekran görüntüsüyle okunabilirlik kontrolü.
+**Faz 2 — Gizlilik:** (ekran görüntüsü aracı: Xvfb ile sahne/arayüz görüntüsü alan tools betiği — US-003 kalem adayı) (ara tasarım değerlendirmesi: muhafız + şüphe + kaçış oynanabilir olunca; kapanışta tam değerlendirme + ilk yeni özellik önerileri) muhafız durum makinesi + devriye + NavigationRegion2D · görüş konisi + şüphe ölçeri (0-100, eşikler 30/60/100) + oyuncu lehine 0,2 sn · kamera = statik muhafız (aynı algı kodu) · küresel uyarı kademeleri · oyuncu görüş hattı/sis · gürültü v0 (NoiseBus, S8) · görüş: `Window*` şekilleri görüşü geçirir, rafların görüşü kesip kesmeyeceği kararı · tezgâhtar sivil + sindirme · T1 kilit (arka kapı) · ganimet çantası + kaçış bölgesi + iş sonu ekranı (ödeme + derece) · bağlantı kopması (avatar donar) · girdi günlüğü/replay · 5-6 temel SFX · ucuz keşif ön testi (60 sn izle → krokiye ikon) · Steam spike (480 lobisi + davet + SteamMultiplayerPeer, 2 kişi; kullanıcı cihazı) · Faz 2 kullanıcı oyun testi · **karakter kuklası v0 (KR-017):** oyuncu, tezgâhtar ve muhafız için prosedürel animasyonlu kukla (yürü/sız/koş/bekle/etkileşim/tepki), parametreler data/*.tres'te, görsel katman yalnız durumu okur; sahibi Faz 2 planında (seviye ya da yeni görsel ajanı) · **otomatik oyun testi (GB-01):** kural tabanlı bot oyuncular (yol bul, saklan, kasaya git, kaç) headless yüzlerce soygun koşar; yakalanma oranı, süre, ödeme istatistiği Fable değerlendirmesine girer · Xvfb ekran görüntüsüyle okunabilirlik kontrolü.
 **Faz 3 — Keşif ve plan:** (ara değerlendirme: keşif → plan akışı oynanabilir olunca) keşif fazı (müşteri rolü, dış gözlemci, oyalanma şüphesi, yüz tanınma, otomatik işaretleme yok) · plan masası (hazır duvarlı kroki, ikon + rota, ortak gerçek zamanlı) · soygunda plan katmanı · tohum/rastgeleleştirme v0 (kamera konumu, tezgâhtar, polis periyodu) · iş sonu "plan doğruluğu" göstergesi (GDD açık soru 3) · Faz 3 oyun testi · **ajan oyun testi düzeneği (GB-01):** oyun adım kipinde durur, her oyuncu için "gördüğü" durum JSON'u verir, eylem alır (git, etkileşim, bekle, sohbet); 3 Claude ajanı keşif → plan (yazılı sohbetle, hafızadan) → soygun oynar, raporlarını Fable değerlendirir.
 **Faz 4 — Sığınak ve ikinci kademe:** para + ısı v0 · dükkân (3-4 eşya, yetenek kapısı) · benzinlik şablonu (kamera, DVR, sessiz alarm, sahte kamera) · kayıt (host kampanya + kişisel profil, JSON) · perk ağacı v0 · ton altyapısı iskeleti (ikinci tema yok) · CC0 asset geçişi (assetler.md).
 **Faz 5 — Steam ve MVP:** GodotSteam GDExtension 4.22.1'i resmî kaynaktan (codeberg) indirip IS-004 sha256'larıyla doğrulama (bu konteynerde codeberg kapalı: ağ izni ya da kullanıcı indirir) · temiz import'ta GDExtension ilk-yükleme çöküşüne karşı CI'da çift import (altyapi) · S1'e Steam katılım imzası (lobby_id/steam_id) · GodotSteam lobi/davet UI + SteamMultiplayerPeer (ENet yedek) · Steam Cloud profil · Windows/Linux paket · itch gizli build · arkadaş oyun testi turu · KR-013 ad, KR-014 Steamworks.
