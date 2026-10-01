@@ -5,7 +5,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Hedef: online his — bağlan, yürü, ka
 
 ## Kalemler
 - Sürüyor (paralel, worktree /home/user/insiders-wt/<kalem>): US-001 ağ çekirdeği (cekirdek) · US-003 menü+HUD+tema (arayuz) — 2026-10-01
-- Sürüyor: US-002 bakkal v0 (seviye, t2: denetci FAIL t1 — Props koruma)
+- Bitti: US-002 bakkal v0 (denetci PASS t2, d8ab983)
 - Sırada: US-004 oyuncu (oynanis; US-001+US-002 sonrası) → US-005 etkileşim (oynanis) → IS-005 çıkış testi + build (altyapi) → IS-006 kullanıcı doğrulaması
 
 ## Kullanıcıdan bekleyen
