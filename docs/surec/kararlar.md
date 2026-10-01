@@ -48,6 +48,9 @@ Faz 1-2'de görseller geometrik yer tutucu (Polygon2D/ColorRect, tema token renk
 ### KR-015 — MVP faz planı (2026-10-01, koordinatör; tasarim danışmanlığı)
 Fable incelemesiyle: Faz 0'a GodotSteam × 4.7.2 uyumluluk kontrolü (IS-004); Faz 1 kesildi (sivil/sindirme, T1 kilit, gürültü v0 → Faz 2), Faz 1'e Windows/Linux build eklendi (arkadaş testi editörsüz olmalı); Faz 2'ye kamera = statik muhafız, Steam spike, kopma davranışı, replay, temel SFX, ucuz keşif ön testi; tohum/rastgeleleştirme Faz 4'ten Faz 3'e. Faz başına ölçülebilir çıkış kriterleri backlog.md §1'de.
 
+### KR-016 — Fable tasarım değerlendirmeleri (2026-10-01, kullanıcı)
+tasarim ajanı (Fable) belirli noktalarda (faz kapanışı, fazın oynanabilir dilimi sonrası, oyun testi sonrası) oyunun gidişatını değerlendirir; oyun zevkini/mekaniği tam karşılamayan noktaları önerileriyle, temel yapı kurulduktan sonra (Faz 2 kapanışından itibaren) yeni özellik ve geliştirme önerilerini raporlar. Öneriler bağlayıcı değil; ON kaydına girer, faz plan mesajında kullanıcıya sorulur. Süreç: surec.md §5a, kayıt: surec/oneriler.md.
+
 ## Günlük
 - 2026-10-01: Süreç ve ajan dosyaları kuruldu (IS-001).
 - 2026-10-01: GDD v0.1 yazıldı (IS-002, tasarim); faz planı KR-015 ile düzeltildi.

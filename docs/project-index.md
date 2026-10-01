@@ -15,6 +15,8 @@ Steam'de arkadaş davetiyle oynanan, 3 kişilik (2-4) online co-op, 2D üstten s
 | surec/kararlar.md | Karar vermeden önce (verilmiş mi?), kullanıcıya soru göndermeden önce (Bekleyen) |
 | surec/gecmis.md | Faz kapanışı, ölçütler, retro |
 | surec/geri-bildirim.md | Kullanıcı/oyun testi geri bildirimi geldiğinde |
+| surec/oneriler.md | Fable tasarım önerileri (ON); faz planı hazırlarken |
+| tasarim/degerlendirmeler/ | Fable'ın faz değerlendirme raporları |
 | notes/assetler.md | (Faz 4'te açılır) dış asset kaynakları ve lisansları |
 
 ## Ortak kararlar (ayrıntı kararlar.md)

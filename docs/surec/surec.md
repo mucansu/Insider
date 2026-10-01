@@ -11,6 +11,8 @@ Tek kullanıcı + koordinatör (Claude Code ana oturumu) + uzman ajanlar için h
 | surec/gecmis.md | Faz kapanışları, yayınlar, ölçütler, retro | koordinatör |
 | surec/geri-bildirim.md | Kullanıcı ve oyun testi geri bildirimleri (GB) | koordinatör |
 | tasarim/oyun-tasarimi.md | Oyun tasarımı (GDD) | tasarim ajanı + koordinatör |
+| surec/oneriler.md | Fable tasarım önerileri (ON) ve durumları | koordinatör |
+| tasarim/degerlendirmeler/ | Fable değerlendirme raporları | tasarim ajanı |
 | notes/mimari.md | Teknik mimari ve sözleşmeler S1..S9 | koordinatör |
 
 Bir olgu tek dosyada yaşar; başka yerde bağlantı verilir.
@@ -48,7 +50,15 @@ Not: repoya dosya eklemeyen araştırma/ölçüm kalemleri (ör. IS-004) ve tasa
 ## 5. Faz kapanışı ve yayın
 - Faz, çıkış kriterlerinin hepsi sağlanınca ya da kalan maddeler kullanıcı onayıyla sonraki faza devredilince kapanır.
 - Yayın zinciri: `git checkout main && git merge --ff-only dev && git tag faz-N && git push origin main --tags && git checkout dev`. main her zaman oynanabilir son faz sürümüdür.
+- Kapanıştan önce tasarım değerlendirmesi (§5a).
 - Kapanış: gecmis.md'ye satır (biten kalemler, ölçütler, retro 1-3 satır), durum.md baştan yazılır, kullanıcıya kapanış + sonraki faz planı mesajı (§7). **Kullanıcı "devam" demeden sonraki faz başlamaz** (durma noktası).
+
+## 5a. Tasarım değerlendirmesi (KR-016)
+tasarim ajanı (Fable) oyunun gidişatını belirli noktalarda değerlendirir; sonuç bağlayıcı değildir, kullanıcıya öneri olarak gider.
+- **Ne zaman:** (1) her faz kapanışında, kapanış mesajından önce (zorunlu); (2) fazın "oynanabilir dilim" kaleminden sonra ara değerlendirme (backlog faz satırında işaretli; Faz 1'de yok, temel yapı); (3) oyun testi geri bildirimleri (GB) geldikten sonra.
+- **Girdi:** GDD, faz kalemleri ve commit'leri, kod ve ayar değerleri (`data/*.tres`), test/senaryo çıktıları ve dökümler, GB kayıtları. Fable oyunu oynayamaz; "his" yargısını sayılara, akışa ve oyun testi notlarına dayandırır.
+- **Çıktı:** `docs/tasarim/degerlendirmeler/faz-N[-ara].md` (Fable yazar): uyum özeti · sapmalar (oyun zevkini/mekaniği tam karşılamayan) + öneri · mekanik iyileştirmeleri · Faz 2 kapanışından itibaren yeni özellik ve geliştirme önerileri · riskler. Koordinatör önerileri `docs/surec/oneriler.md`'ye `ON-nn` olarak işler.
+- **Karar:** öneriler faz plan mesajında "Fable önerileri" başlığıyla, numarayla sorulur; kabul edilen kaleme dönüşür, diğerleri Ertelendi/Reddedildi. Uygulamak zorunlu değildir.
 
 ## 6. Paralellik ve worktree
 - Varsayılan sıralı, ana çalışma ağacında (`/home/user/insiders`, dev).
@@ -60,6 +70,7 @@ Not: repoya dosya eklemeyen araştırma/ölçüm kalemleri (ör. IS-004) ve tasa
 Faz N — <ad>: kapanış + Faz N+1 planı
 Biten: US-… · IS-… (denetci PASS) · Devreden: … (gerekçe)
 Oynanabilir: <ne deneyebilirsin, nasıl çalıştırılır>
+Fable değerlendirmesi: <1-2 satır özet> · Öneriler: ON-nn (a) … ON-nn (b) … (hangileri alınsın?)
 Faz N+1 hedefi: <tek cümle> · Kapsam (sırayla): …
 Kararlar (numara/harf; "sonra" olur): KR-… (a) … [öneri] (b) …
 Sizden gereken (cihaz/hesap): …

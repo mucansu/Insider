@@ -11,7 +11,7 @@ Kullanıcı yalnızca koordinatörle muhatap olur. Koordinatör = Claude Code an
 | arayuz | Oyuncu arayüzü: `ui/**` (menü, bağlantı/lobi ekranı, HUD, ileride plan masası ve sığınak ekranları), tema token'ları ve ton altyapısı, `i18n/texts.csv` bakımı | inherit |
 | altyapi | Proje iskeleti ve teslim: `project.godot` (ayar, autoload kaydı, girdi haritası, katmanlar), `tests/{run_tests,t}.gd`, `tools/{get_godot,ci_local}.sh`, `.github/workflows/**`, `.gitignore`, export ön ayarları ve build; faz çıkış testleri | inherit |
 | denetci | Salt okunur bağımsız doğrulayıcı: kalemin AC'lerini sıfırdan tekrarlar, sınır/sözleşme denetimi, PASS/FAIL | inherit |
-| tasarim | Tasarım danışmanı (Fable): oyun tasarımı soruları, denge, kapsam; yalnız koordinatör isterse `docs/tasarim/**` yazar | fable |
+| tasarim | Tasarım danışmanı (Fable): oyun tasarımı soruları, denge, kapsam; belirli noktalarda gidişat değerlendirmesi ve öneri raporu (surec.md §5a); yalnız koordinatör isterse `docs/tasarim/**` yazar | fable |
 
 Ortak yüzeyler: `project.godot` yalnız altyapi'nin (başka ajanın ihtiyacı → "Karar gereken" ya da kalem); `i18n/texts.csv` satır ekleme herkese serbest, mevcut satırı değiştirmek arayuz'un; `data/` dosyası onu tanımlayan ajanın; seviyeye nesne yerleştirme kalemin Dokunulacak listesinde açıkça yazıyorsa içerik sahibi ajan yapabilir. Testler modül sahibine aittir. `docs/**` koordinatörün (tasarim/ hariç).
 
@@ -32,7 +32,8 @@ Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda 
 2. **Bağımsız denetim (denetci):** raporu okumadan AC'leri sıfırdan tekrarlar, testleri ve yerel CI'ı koşar, diff'i Dokunulacak listesine ve sözleşmelere karşı denetler, bulgularını önce kendisi çürütmeye çalışır. Ekran/his gerektiren kabul (pencere görüntüsü, oynanış hissi, gerçek internet) için headless eşdeğerini koşar ve kullanıcı adımlarını listeler (doğrulama kalemi).
 3. **Koordinatör diff okuması:** her kalemde tek geçiş (doğruluk, sözleşme sadakati, sadelik); M kalemde ve ağ/yetki kodunda ayrıca çürütmeli inceleme (ayrı ajan, salt okunur).
 4. **CI kapısı:** `tools/ci_local.sh` push öncesi zorunlu; uzak CI dev ve main push'unda.
-5. **Oyun testi:** her faz sonunda kullanıcı + arkadaşlar gerçek oyun testi (doğrulama kalemi); bulgular `docs/surec/geri-bildirim.md`'ye GB olarak.
+5. **Tasarım değerlendirmesi (tasarim / Fable):** faz kapanışında ve ara noktalarda oyunun tasarıma ve oyun zevkine uyumu; öneriler ON kaydına, karar kullanıcıda (surec.md §5a).
+6. **Oyun testi:** her faz sonunda kullanıcı + arkadaşlar gerçek oyun testi (doğrulama kalemi); bulgular `docs/surec/geri-bildirim.md`'ye GB olarak.
 
 ## Karar yetkisi
 Koordinatör sormadan karara bağlar: teknik tercihler (motor ayarı, mimari, ağ modeli ayrıntısı, test yöntemi), dosya/isimlendirme, ajan bulgularının önceliği, sıra ve paralellik, sözleşmeler, `docs/tasarim/oyun-tasarimi.md`'de zaten kararlaştırılmış her şey. Tasarım belgesinin sustuğu oynanış ayrıntısında önce tasarim ajanına danışır, sonra karar verir; kararı `kararlar.md` günlüğüne tek satır yazar.
