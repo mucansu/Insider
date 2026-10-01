@@ -1,20 +1,19 @@
 # Durum (2026-10-01)
 
 ## Aktif faz
-Faz 0 — Kurulum (EP-00). Hedef: süreç, tasarım, Godot iskeleti, test ve CI hazır; Steam riski ölçülmüş.
+Faz 1 — İki kişi bakkalda (EP-01). Hedef: online his — bağlan, yürü, kasayı boşalt. Faz 0 Bitti (IS-001..004).
 
 ## Kalemler
-- Bitti: IS-001 süreç ve ajan altyapısı · IS-002 GDD v0.1 · IS-004 GodotSteam 4.22.1 × 4.7.2 uyumlu
-- Bitti: IS-003 iskelet (denetci PASS t1)
-- Hazır (sırayla): US-001 ağ çekirdeği (cekirdek) / US-002 bakkal (seviye) / US-003 menü+HUD (arayuz)
+- Sürüyor (paralel, worktree /home/user/insiders-wt/<kalem>): US-001 ağ çekirdeği (cekirdek) · US-002 bakkal v0 (seviye) · US-003 menü+HUD+tema (arayuz) — 2026-10-01
+- Sırada: US-004 oyuncu (oynanis; US-001+US-002 sonrası) → US-005 etkileşim (oynanis) → IS-005 çıkış testi + build (altyapi) → IS-006 kullanıcı doğrulaması
 
 ## Kullanıcıdan bekleyen
 - GitHub'da `insiders` reposunu açması (Claude entegrasyonu repo oluşturamadı, 403). Açılana kadar iş yerelde: /home/user/insiders.
 - KR-013 (oyun adı), KR-014 (Steamworks) — Faz 5'te sorulacak.
 
 ## Ortam
-- Godot 4.7.2 headless: /home/user/tools/godot (bu konteyner); repo içinde tools/get_godot.sh (IS-003).
-- Repo yerelde: main (ilk commit) + dev.
+- Godot 4.7.2 headless: /home/user/tools/godot (bu konteyner) ya da tools/get_godot.sh → .tools/godot.
+- Branch: dev (çalışma), main (faz sonu). Paralel paketler wt/<kalem> branch'lerinde.
 
 ## Son kapanış
-—
+Faz 0 — 2026-10-01: IS-001..IS-004 Bitti; ci_local yeşil (11 sn).
