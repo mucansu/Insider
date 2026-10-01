@@ -118,6 +118,9 @@ Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakış�
 - **İçe aktarma temizliği:** `godot --headless --path . --import` hata/uyarı-hata vermez.
 - **Yerel CI:** `tools/ci_local.sh` = Godot indir (yoksa) → import → birim → tüm `tests/net/*.json` (0 ve 150 ms). Push öncesi koordinatör çalıştırır. Uzak CI `.github/workflows/ci.yml` aynısını dev ve main push'unda çalıştırır.
 
+## 7. İleri uyumluluk notları (bugün uygulanmaz, kapı kapatılmaz)
+- **Alternatif giriş ve kasa erişimi (GB-02):** seviye düzenine ileride yeni karo türleri eklenecek: havalandırma kanalı (yalnız sürünme kipinde geçilir, görüşü keser), zayıf duvar (yıkılabilir parça), kat geçişi (delik/merdiven). Bu yüzden `build_levels.gd` birleştirdiği duvar dikdörtgenlerinde türleri ayrı tutar (zaten `Wall*`/`Window*`/`Shelf*` ayrımı var); yıkılabilir duvar ayrı düğüm olacağı için birleştirmeye girmez. Çok katlı seviye: her kat ayrı katman/alt sahne, oyuncunun bulunduğu kat çoğaltılan bir alan; S4'e o kalemde ekleme yapılır.
+
 ## 6. Stil
 - Dosya ve düğüm adları `snake_case` (dosya) / `PascalCase` (düğüm, class_name). Sinyaller geçmiş zaman (`interaction_started`).
 - Autoload'lar arası çağrı yalnız S1/S3/S8 arayüzleriyle; başka ajanın dosyasındaki özel metoda erişim yok.
