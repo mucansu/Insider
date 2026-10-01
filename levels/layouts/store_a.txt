@@ -1,0 +1,38 @@
+; store_a — T1 köşe bakkalı (GDD §9), 30×20 karo. Lejant: levels/level_layout.gd.
+; Üret: $GODOT --headless --path . -s res://levels/tools/build_levels.gd
+; Kuzey: arka ara sokak (arka kapı B) · güney: kaldırım + cadde (ön kapı F) · doğu: yan sokak.
+; Satış alanı rafları yatay koridorlar; tezgâh (C) ve kasa (R) ön kapıya bakar; tezgâhtar (K) arkada.
+; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
+; İşaret satırı: @ <harf> <Marker adı> <zemin karakteri>; Spawn* adları SpawnPoints'e, diğerleri Markers'a gider.
+@ F FrontDoor +
+@ B BackDoor +
+@ D BackroomDoor +
+@ R Register T
+@ C Counter T
+@ K ClerkSpot .
+@ V BackroomSafe :
+@ E Exit _
+@ 1 Spawn1 ,
+@ 2 Spawn2 ,
+@ 3 Spawn3 ,
+@ 4 Spawn4 ,
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%,,,,,,,,,,,,,,,,,,,,,,,,____%
+%,,,,,,,,,,,,,,,,,,,,,,,,____%
+%###################B##,,____%
+%#..SSSSSSSS..#V::::::#,,____%
+%#............#:::::::#,,____%
+%#S.SSSSSS....#:SS::::#,,____%
+%#S...........#:SS::::#,,____%
+%#S.SSSSSS....#####D###,,____%
+%#S..............T....#,,____%
+%#S.SSSSSS.......C....w,,____%
+%#S..............RK...w,,____%
+%#....................#,,____%
+%#....................#,,____%
+%##wwwwwww#F#wwww######,,____%
+%,,,,,,,,,,,,,,,,,,,,,,,,____%
+%,,1234,,,,,,,,,,,,,,,,,,____%
+%____________________________%
+%__________________________E_%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
