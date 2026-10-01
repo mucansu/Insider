@@ -24,14 +24,14 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-004 | GodotSteam × 4.7.2 uyumluluk kontrolü | 0 | cekirdek | P1 | S | — (yalnız /tmp; IS-003'le paralel) | Bitti (araştırma; koordinatör okuması) | — |
 | US-001 | Ağ çekirdeği ve oturum | 1 | cekirdek | P1 | M | IS-003 | Sürüyor (2026-10-01, wt) | |
 | US-002 | Bakkal seviyesi v0 + test arenası | 1 | seviye | P1 | S | IS-003 | Bitti | d8ab983 |
-| US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Denetimde (t1, wt) | |
+| US-003 | Ana menü, HUD iskeleti, tema ve metin altyapısı | 1 | arayuz | P1 | M | IS-003 | Bitti | 7b34286 |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002 | Backlog | |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Backlog | |
 | IS-005 | Faz 1 çıkış testi + Windows/Linux build | 1 | altyapi | P1 | M | US-003, US-005 | Backlog | |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | IS-005 | Backlog | |
-| IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Backlog | |
-| IS-009 | Girdi haritası: `pause` eylemi + ui_accept/ui_cancel gamepad | 1 | altyapi | P1 | XS | US-003 | Backlog | |
+| IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Sürüyor (2026-10-01) | |
+| IS-009 | Girdi haritası (`pause`, ui gamepad) + US-003 nit'leri | 1 | arayuz | P1 | S | US-003 | Sürüyor (2026-10-01, wt) | |
 
 ### IS-001 — Süreç ve ajan altyapısı
 EP-00 · P1 · S · Sahip: koordinatör
@@ -148,10 +148,11 @@ EP-01 · P2 · XS · Sahip: seviye · Bağımlılık: US-002, US-003
 **Kabul:** US-002'de `levels/level_layout.gd` başında duran seviye renk oranları `ThemeTokens`'a `LEVEL_FLOOR, LEVEL_BACKROOM, LEVEL_SIDEWALK, LEVEL_STREET, LEVEL_WALL, LEVEL_WALL_EDGE, LEVEL_GLASS, LEVEL_SHELF, LEVEL_COUNTER` olarak eklenir (ekleme; arayuz'un mevcut token'larına dokunulmaz) ve seviye bunları okur; test_levels yeşil.
 **Dokunulacak:** ui/theme/tokens.gd (yalnız ekleme), levels/level_layout.gd, tests/unit/test_levels.gd
 
-### IS-009 — Girdi haritası: pause + ui_accept/ui_cancel gamepad
-EP-01 · P1 · XS · Sahip: altyapi · Bağımlılık: US-003
-**Kabul:** project.godot'a `pause` eylemi (Esc + gamepad Start) ve `ui_accept` (+A), `ui_cancel` (+B) gamepad olayları eklenir (S5); `test_smoke` bunları denetler; US-003'teki çalışma anı geçici çözümü (`UiInput.ensure_gamepad_ui()`) kaldırılır ve duraklatma `pause` eylemini okur; ui testleri yeşil.
-**Dokunulacak:** project.godot, tests/unit/test_smoke.gd, ui/ui_input.gd, ui/hud.gd, ui/pause_menu.gd ve ilgili ui testleri (yalnız bu değişiklik için; arayuz alanına istisna)
+### IS-009 — Girdi haritası (pause, ui gamepad) + US-003 nit'leri
+EP-01 · P1 · S · Sahip: arayuz (project.godot'ta yalnız bu iki girdi değişikliği için altyapi alanına istisna) · Bağımlılık: US-003
+**Kabul:** (1) project.godot'a `pause` eylemi (Esc + gamepad Start) ve `ui_accept` (+A), `ui_cancel` (+B) gamepad olayları eklenir (S5); `test_smoke` bunları denetler; `UiInput.ensure_gamepad_ui()` geçici çözümü kaldırılır, duraklatma `pause` eylemini okur. (2) Denetci nit'leri: anahtarı olmayan oturum olayında ham `kind` yerine genel metin + push_warning (`hud.gd`); host'ta `start_level` başarısız olursa menü STARTING'de takılı kalmaz (zaman aşımı/vazgeç); HUD `Net.connection_failed`'i dinler ve el sıkışma sırasında seviye yüklenmişken bağlantı düşerse `MENU_ERROR_CONNECTION_FAILED` ile menüye döner; beklenen push_warning birim test çıktısında WARNING satırı basmaz. (3) ci_local yeşil.
+**Dokunulacak:** project.godot (yalnız girdi), tests/unit/test_smoke.gd, ui/**, i18n/texts.csv, tests/unit/test_ui_*.gd
+**Dokunulmayacak:** autoload/**, main.*, levels/**, ui/theme/tokens.gd (paralel IS-008)
 
 ### IS-007 — Faz 1 tasarım değerlendirmesi (Fable)
 EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: IS-005 (faz kapanışından önce)
