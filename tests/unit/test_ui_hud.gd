@@ -1,6 +1,6 @@
 extends TestCase
-## HUD (US-003 AC2, AC3, AC5): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi, sahte oyuncunun
-## S7 sinyallerine tepki, Esc/Start ile duraklat menüsü ve ayrılma akışı.
+## HUD (US-003 AC2, AC3, AC5; IS-009): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi, sahte
+## oyuncunun S7 sinyallerine tepki, `pause` eylemiyle (Esc/Start) duraklat menüsü, ayrılma ve kopma akışı.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -11,6 +11,8 @@ var journal: Fakes.CallLog
 var viewport: SubViewport
 var hud: Hud
 var menu_requests: Array[StringName] = []
+## HUD'un geliştirici uyarıları (eksik metin anahtarı); çıktıya WARNING basılmaz.
+var warnings: Array[String] = []
 
 
 ## `before_ready` HUD sahneye eklenmeden önce sahteleri hazırlamak içindir.
@@ -28,6 +30,7 @@ func _open(before_ready: Callable = Callable()) -> void:
 	hud.net = net
 	hud.game = game
 	hud.menu_override = func(error_key: StringName) -> void: menu_requests.append(error_key)
+	hud.warning_override = func(missing_key: String) -> void: warnings.append(missing_key)
 	viewport.add_child(hud)
 	await tree().process_frame
 
@@ -136,8 +139,11 @@ func test_session_event_shows_keyed_toast() -> void:
 	await _open()
 	game.session_event.emit(&"police_called", {})
 	eq(_toast_texts(), [tr("EVENT_POLICE_CALLED")] as Array[String])
-	game.session_event.emit(&"alarm_tripped", {})
-	eq(_toast_texts()[1], tr("EVENT_GENERIC") % "alarm tripped", "anahtarı olmayan olay genel biçimle")
+	eq(warnings, [] as Array[String], "anahtarı olan olay uyarı vermez")
+	game.session_event.emit(&"alarm_tripped", {"amount": 5})
+	eq(_toast_texts()[1], tr("EVENT_GENERIC"), "anahtarı olmayan olay genel metinle")
+	is_false(_toast_texts()[1].to_lower().contains("alarm"), "ham olay adı oyuncuya görünmez")
+	eq(warnings, ["EVENT_ALARM_TRIPPED"] as Array[String], "eksik anahtar geliştiriciye bildirilir")
 
 
 func test_session_event_data_fills_placeholders() -> void:
@@ -296,6 +302,7 @@ func test_escape_and_start_toggle_pause_menu() -> void:
 	await _open()
 	var esc := InputEventKey.new()
 	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
 	esc.pressed = true
 	viewport.push_input(esc)
 	is_true(hud.is_pause_open(), "Esc açar")
@@ -314,7 +321,7 @@ func test_escape_and_start_toggle_pause_menu() -> void:
 	viewport.push_input(back)
 	is_false(hud.is_pause_open(), "gamepad B oyunda menü açmaz")
 	var start := InputEventJoypadButton.new()
-	start.button_index = UiInput.PAUSE_JOY_BUTTON
+	start.button_index = JOY_BUTTON_START
 	start.pressed = true
 	viewport.push_input(start)
 	is_true(hud.is_pause_open(), "gamepad Start açar")
@@ -341,6 +348,25 @@ func test_host_disconnected_returns_to_menu_with_error() -> void:
 	await _open()
 	net.host_disconnected.emit()
 	eq(menu_requests, [&"MENU_ERROR_HOST_DISCONNECTED"] as Array[StringName])
+
+
+func test_connection_failed_after_level_load_returns_to_menu() -> void:
+	# El sıkışma bitmeden seviye yüklendi (ana menü kalktı), sonra bağlantı kurulamadı.
+	await _open()
+	net.connection_failed.emit()
+	eq(menu_requests, [&"MENU_ERROR_CONNECTION_FAILED"] as Array[StringName])
+	net.host_disconnected.emit()
+	net.connection_failed.emit()
+	eq(menu_requests.size(), 1, "menüye bir kez döner")
+	eq(journal.entries, [], "ağa bir şey göndermez")
+
+
+func test_connection_failed_after_own_leave_shows_no_error() -> void:
+	await _open()
+	hud.toggle_pause()
+	_pause_button("LeaveButton").pressed.emit()
+	net.connection_failed.emit()
+	eq(menu_requests, [&""] as Array[StringName])
 
 
 func test_hud_uses_active_tone_theme() -> void:

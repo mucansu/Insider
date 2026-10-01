@@ -1,5 +1,6 @@
 extends TestCase
-## UiInput (S5, US-003 t1): oyun içi menü açıkken oyun girdisi engeli; son girdi cihazı ve istem tuş adı.
+## UiInput (S5, US-003 t1, IS-009): oyun içi menü açıkken oyun girdisi engeli; son girdi cihazı ve istem
+## tuş adı; duraklatma olayları `pause` eylemini okur.
 
 
 func test_not_blocked_without_menus() -> void:
@@ -74,3 +75,33 @@ func test_device_tracking_and_action_hints() -> void:
 	eq(UiInput.action_hint(&"interact"), "E")
 	eq(UiInput.action_hint(&"no_such_action"), "")
 	UiInput.using_gamepad = false
+
+
+func test_pause_events_follow_pause_action() -> void:
+	var esc := InputEventKey.new()
+	esc.keycode = KEY_ESCAPE
+	esc.physical_keycode = KEY_ESCAPE
+	esc.pressed = true
+	var start := _joy(JOY_BUTTON_START)
+	var back := _joy(JOY_BUTTON_B)
+	var action := InputEventAction.new()
+	action.action = UiInput.PAUSE_ACTION
+	action.pressed = true
+	for e: InputEvent in [esc, start, action]:
+		is_true(UiInput.is_pause_open_event(e), "açar: " + e.as_text())
+		is_true(UiInput.is_pause_close_event(e), "kapatır: " + e.as_text())
+	is_false(UiInput.is_pause_open_event(back), "gamepad B oyunda menü açmaz")
+	is_true(UiInput.is_pause_close_event(back), "gamepad B açık menüyü kapatır")
+	is_false(UiInput.is_pause_open_event(_joy(JOY_BUTTON_START, false)), "bırakma olayı açmaz")
+	var shifted: InputEventKey = esc.duplicate() as InputEventKey
+	shifted.shift_pressed = true
+	is_false(UiInput.is_pause_open_event(shifted), "değiştirici tuşla Esc duraklatmaz (tam eşleşme)")
+	esc.echo = true
+	is_false(UiInput.is_pause_open_event(esc), "basılı tutma tekrarı menüyü açıp kapatmaz")
+
+
+static func _joy(button: JoyButton, pressed: bool = true) -> InputEventJoypadButton:
+	var e := InputEventJoypadButton.new()
+	e.button_index = button
+	e.pressed = pressed
+	return e

@@ -2,13 +2,16 @@ class_name MainMenu
 extends Control
 ## Ana menü (US-003 AC1, AC6): oyuncu adı, host (port), katıl (adres + port), çıkış.
 ## Net/Game'e yalnız S1/S3 sözleşmesiyle bağlanır; testler `net` ve `game`'i sahneye eklemeden önce
-## sahte nesnelerle değiştirir. Seviye yüklenince (`level_loaded`) menü kendini kaldırır.
+## sahte nesnelerle değiştirir. Seviye yüklenince (`level_loaded`) menü kendini kaldırır; host'ta seviye
+## START_TIMEOUT_SEC içinde yüklenmezse oturum kapatılıp forma hatayla dönülür (Vazgeç de aynı yolu açar).
 
 const SCENE_PATH := "res://ui/main_menu.tscn"
 const DEFAULT_PORT := 7777
 const MIN_PORT := 1024
 const MAX_PORT := 65535
 const MAX_NAME_LENGTH := 16
+## Host'ta start_level sonrası level_loaded için beklenen en uzun süre (sn); sonra oturum kapatılır.
+const START_TIMEOUT_SEC := 10.0
 
 enum State { IDLE, CONNECTING, CONNECTED, STARTING }
 
@@ -21,6 +24,8 @@ var game: Object = Game
 var quit_override: Callable
 
 var state: State = State.IDLE
+## STARTING durumunda geçen süre (sn).
+var _starting_elapsed: float = 0.0
 
 @onready var _form: Control = %Form
 @onready var _connecting: Control = %Connecting
@@ -45,7 +50,6 @@ static func open(tree: SceneTree, error_key: StringName = &"") -> void:
 
 func _ready() -> void:
 	ThemeTokens.apply(self)
-	UiInput.ensure_gamepad_ui()
 	_name_edit.max_length = MAX_NAME_LENGTH
 	_host_port_edit.text = str(DEFAULT_PORT)
 	_join_port_edit.text = str(DEFAULT_PORT)
@@ -112,6 +116,20 @@ func _on_host_pressed() -> void:
 	game.call(&"start_level", Game.DEFAULT_LEVEL)
 
 
+func _process(delta: float) -> void:
+	advance(delta)
+
+
+## Zamanlı durumu `delta` saniye ilerletir: host'ta seviye süresinde yüklenmezse oturum kapatılır.
+func advance(delta: float) -> void:
+	if state != State.STARTING:
+		return
+	_starting_elapsed += delta
+	if _starting_elapsed >= START_TIMEOUT_SEC:
+		net.call(&"leave")
+		_back_to_form(&"MENU_ERROR_START_FAILED", _host_button)
+
+
 func _on_join_pressed() -> void:
 	if state != State.IDLE:
 		return
@@ -140,9 +158,10 @@ func _on_join_pressed() -> void:
 func _on_cancel_pressed() -> void:
 	if state == State.IDLE:
 		return
+	var was_hosting: bool = state == State.STARTING
 	net.call(&"leave")
 	_set_state(State.IDLE)
-	_join_button.grab_focus()
+	(_host_button if was_hosting else _join_button).grab_focus()
 
 
 func _on_quit_pressed() -> void:
@@ -167,13 +186,15 @@ func _on_host_disconnected() -> void:
 
 
 func _on_level_loaded(_level: Node) -> void:
+	set_process(false)  # zaman aşımı artık işlemez
 	queue_free()
 
 
-func _back_to_form(error_key: StringName) -> void:
+## Forma hatayla döner; odak `focus`ta (verilmezse Katıl'da).
+func _back_to_form(error_key: StringName, focus: Control = null) -> void:
 	_set_state(State.IDLE)
 	_show_error(tr(error_key))
-	_join_button.grab_focus()
+	(focus if focus != null else _join_button).grab_focus()
 
 
 func _valid_name() -> String:
@@ -200,15 +221,15 @@ func _hide_error() -> void:
 
 func _set_state(value: State) -> void:
 	state = value
+	_starting_elapsed = 0.0
 	var busy: bool = value != State.IDLE
 	_form.visible = not busy
 	_connecting.visible = busy
-	# Host kendi oturumunu açarken vazgeçme yok: seviye zaten yükleniyor.
-	_cancel_button.visible = value == State.CONNECTING or value == State.CONNECTED
+	# Seviye takılırsa host da vazgeçebilir (zaman aşımını beklemeden).
+	_cancel_button.visible = busy
 	if busy:
 		_hide_error()
-		if _cancel_button.visible:
-			_cancel_button.grab_focus()
+		_cancel_button.grab_focus()
 
 
 func _focus_first() -> void:

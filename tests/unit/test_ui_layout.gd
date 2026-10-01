@@ -35,6 +35,13 @@ func test_main_menu_fits() -> void:
 		await _settle()
 		eq(menu.state, MainMenu.State.CONNECTING, label)
 		_check_fits(menu, size, label + " bağlanıyor")
+		# Host açılıyor (Vazgeç görünür).
+		(menu.get_node("%CancelButton") as Button).pressed.emit()
+		net.host_result = OK
+		(menu.get_node("%HostButton") as Button).pressed.emit()
+		await _settle()
+		eq(menu.state, MainMenu.State.STARTING, label)
+		_check_fits(menu, size, label + " host açılıyor")
 	)
 
 
@@ -117,6 +124,7 @@ func _open_hud(size: Vector2i) -> Dictionary:
 	hud.net = pair[0]
 	hud.game = pair[1]
 	hud.menu_override = func(_key: StringName) -> void: pass
+	hud.warning_override = func(_missing_key: String) -> void: pass  # bilinmeyen olay türü bilerek gönderilir
 	_viewport(size).add_child(hud)
 	await _settle()
 	return {"hud": hud, "net": pair[0], "game": pair[1]}

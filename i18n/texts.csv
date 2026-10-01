@@ -26,6 +26,7 @@ MENU_ERROR_HOST_FAILED,%d portunda oturum açılamadı; port kullanımda olabili
 MENU_ERROR_JOIN_FAILED,Bu adrese bağlantı başlatılamadı.,Could not start a connection to this address.
 MENU_ERROR_CONNECTION_FAILED,Bağlantı kurulamadı. Adresi ve portu kontrol et.,Could not connect. Check the address and port.
 MENU_ERROR_HOST_DISCONNECTED,Host ile bağlantı koptu.,Lost the connection to the host.
+MENU_ERROR_START_FAILED,Seviye yüklenemedi; oturum kapatıldı.,The level could not be loaded; the session was closed.
 HUD_CASH_LABEL,EKİP NAKDİ,CREW CASH
 HUD_CASH_VALUE,$%s,$%s
 NUMBER_GROUP_SEPARATOR,.,","
@@ -37,7 +38,7 @@ HUD_PLAYER_YOU,%s (sen),%s (you)
 HUD_PLAYER_UNNAMED,Oyuncu %d,Player %d
 HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
-EVENT_GENERIC,Olay: %s,Event: %s
+EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.
 EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
 PAUSE_TITLE,Menü,Menu
 PAUSE_NOTE,Oyun arkada sürüyor; ekip seni bekliyor olabilir.,The game keeps running; your crew may be waiting.
