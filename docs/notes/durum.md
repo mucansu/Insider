@@ -7,7 +7,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Hedef: online his — bağlan, yürü, ka
 - Sürüyor (paralel, worktree /home/user/insiders-wt/<kalem>): US-001 ağ çekirdeği (cekirdek) — 2026-10-01
 - Bitti: US-003 menü+HUD+tema (denetci PASS t1, 7b34286)
 - Bitti: IS-008 LEVEL_* token'ları (denetci PASS, f0f027f)
-- Sürüyor: IS-009 girdi + nit'ler (arayuz, wt, t2: denetci FAIL t1 — _quietly)
+- Bitti: IS-009 girdi + nit'ler (denetci PASS t2, 332fb08)
 - Bitti: US-002 bakkal v0 (denetci PASS t2, d8ab983)
 - Sırada: US-004 oyuncu (oynanis; US-001+US-002 sonrası) → US-005 etkileşim (oynanis) → IS-005 çıkış testi + build (altyapi) → IS-006 kullanıcı doğrulaması
 
