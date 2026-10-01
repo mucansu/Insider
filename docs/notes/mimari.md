@@ -109,6 +109,7 @@ Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakış�
 
 ### S9 — Metin ve tema (ton altyapısı, KR-005)
 - Oyuncuya görünen **her metin** `tr("ANAHTAR")` ile; anahtarlar `i18n/texts.csv` (kolonlar `keys,tr,en`). Sabit dize UI'da yasak.
+- Seviye çizimi renkleri ton paletinden okur: karo dolgu/kenarları `ThemeTokens.tone().level_*`, harita kenarı dolgusu `bg_color`, cam dolgusu/tarama/bordür çizgileri `wall_color` (IS-008); noir'in `LEVEL_*` değerleri MUTED'dan bağımsız sabitlerdir (arayüz kontrast ayarı dünya renklerini kaydırmaz).
 - Renk ve yazı tipleri yalnız tema token'larından (`ui/theme/tokens.gd`, `class_name ThemeTokens`) ve `ui/theme/noir.tres` temasından okunur. Oyun için anlamlı renkler (kart rengi, uyarı rengi) her tonda aynı kalır ve `ThemeTokens.GAMEPLAY_*` adını taşır.
 
 ## 4. Fizik katmanları (project.godot)

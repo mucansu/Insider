@@ -29,6 +29,34 @@ const SURFACE_RAISED := Color("#1f232b")
 ## Kenar ve ayraç çizgisi.
 const LINE := Color("#2f343d")
 
+# --- noir seviye paleti (IS-008): seviye yer tutucu çizimi, levels/level_layout.gd ---
+## Tonda karşılıkları `Tone.level_*_color`; seviye bunları `tone()`dan okur. Harita kenarı dolgusu BG,
+## kenar taraması, kaldırım bordürü ve cam çerçevesi WALL'dır (tonda bg_color, wall_color).
+## Değerler US-002'deki türetmelerin (yorumdaki oranlar) bugünkü paletle sonucudur; sabitlendikleri için
+## arayüz ayarları (ör. MUTED kontrastı) seviye görünümünü kaydırmaz.
+## Satış alanı zemini ve kapı boşluğu: FLOOR → ACCENT %12 (aydınlık iç mekân).
+const LEVEL_FLOOR := Color("#2f2c26")
+## Arka oda zemini: FLOOR → ACCENT %5.
+const LEVEL_BACKROOM := Color("#232323")
+## Kaldırım ve ara sokak: FLOOR → WALL %40.
+const LEVEL_SIDEWALK := Color("#212429")
+## Cadde: BG → FLOOR %50.
+const LEVEL_STREET := Color("#15171b")
+## Duvar dolgusu: WALL → MUTED %45.
+const LEVEL_WALL := Color("#55585f")
+## Duvarın yürünebilir tarafındaki kenar çizgisi (MUTED).
+const LEVEL_WALL_EDGE := Color("#868a92")
+## Vitrin camı şeridi: MUTED → FG %25.
+const LEVEL_GLASS := Color("#9ea0a4")
+## Raf dolgusu: WALL → MUTED %20.
+const LEVEL_SHELF := Color("#3e4148")
+## Raf dış çizgisi ve bölmeleri: MUTED %25 koyu.
+const LEVEL_SHELF_EDGE := Color("#65686e")
+## Tezgâh dolgusu: ACCENT %60 koyu.
+const LEVEL_COUNTER := Color("#50411e")
+## Tezgâh dış çizgisi: ACCENT %35 koyu.
+const LEVEL_COUNTER_EDGE := Color("#836931")
+
 # --- noir yazı ve biçim (yazı tipi: Godot varsayılanı) ---
 const FONT_SIZE_SMALL := 15
 const FONT_SIZE_BODY := 18
@@ -78,6 +106,17 @@ static func noir_tone() -> Tone:
 	t.accent_color = ACCENT
 	t.wall_color = WALL
 	t.floor_color = FLOOR
+	t.level_floor_color = LEVEL_FLOOR
+	t.level_backroom_color = LEVEL_BACKROOM
+	t.level_sidewalk_color = LEVEL_SIDEWALK
+	t.level_street_color = LEVEL_STREET
+	t.level_wall_color = LEVEL_WALL
+	t.level_wall_edge_color = LEVEL_WALL_EDGE
+	t.level_glass_color = LEVEL_GLASS
+	t.level_shelf_color = LEVEL_SHELF
+	t.level_shelf_edge_color = LEVEL_SHELF_EDGE
+	t.level_counter_color = LEVEL_COUNTER
+	t.level_counter_edge_color = LEVEL_COUNTER_EDGE
 	t.font_size_small = FONT_SIZE_SMALL
 	t.font_size_body = FONT_SIZE_BODY
 	t.font_size_heading = FONT_SIZE_HEADING

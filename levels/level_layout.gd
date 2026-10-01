@@ -6,7 +6,8 @@ extends Node2D
 ## `rows` ASCII karo ızgarasıdır (1 karo = 32 px, sol üst köşe seviye kökünün (0, 0) noktası).
 ## Kaynak `levels/layouts/<seviye>.txt`; `levels/tools/build_levels.gd` bu düğümü, `Walls`
 ## çarpışma şekillerini, `SpawnPoints` ve `Markers` düğümlerini aynı ızgaradan üretir.
-## Renkler yalnız ThemeTokens'tan türetilir (S9); sahneye renk yazılmaz, çizim `_draw` ile yapılır.
+## Renkler yalnız etkin tonun seviye paletinden okunur (S9, IS-008: `ThemeTokens.tone().level_*_color`,
+## noir değerleri `ThemeTokens.LEVEL_*`); sahneye renk yazılmaz, çizim `_draw` ile yapılır.
 ##
 ## Lejant (işaret harfleri her düzen dosyasında `@` satırlarıyla tanımlanır, ızgarada zemin karakterine döner):
 ##   %  sınır (harita kenarı / komşu bina; çarpışır)     #  duvar (çarpışır)
@@ -43,17 +44,7 @@ const SOLID_PREFIX := {
 	Kind.COUNTER: "Counter",
 }
 
-# Renk türetme oranları (ThemeTokens tabanından; yeni token gelirse buradan taşınır).
-const STREET_LIFT := 0.5      # BG → FLOOR
-const SIDEWALK_LIFT := 0.4    # FLOOR → WALL
-const INTERIOR_WARMTH := 0.12 # FLOOR → ACCENT (aydınlık iç mekân)
-const BACKROOM_WARMTH := 0.05
-const WALL_LIFT := 0.45       # WALL → MUTED
-const SHELF_LIFT := 0.2
-const SHELF_EDGE_DARKEN := 0.25
-const COUNTER_DARKEN := 0.6
-const COUNTER_EDGE_DARKEN := 0.35
-const GLASS_LIFT := 0.25      # MUTED → FG
+# Çizgi kalınlıkları ve aralıklar (renkler tondan: ThemeTokens.tone()).
 const WALL_EDGE_WIDTH := 2.0
 const CURB_WIDTH := 2.0
 const GLASS_WIDTH := 6.0
@@ -136,45 +127,47 @@ static func shape_rect(kind: Kind, cells: Rect2i) -> Rect2:
 	return rect.grow(-FURNITURE_INSET) if is_furniture(kind) else rect
 
 
-## Türün zemin/dolgu rengi (yalnız ThemeTokens'tan türetilir).
+## Türün zemin/dolgu rengi (etkin tonun seviye paletinden).
 static func color_of(kind: Kind) -> Color:
+	var tone: Tone = ThemeTokens.tone()
 	match kind:
 		Kind.BOUND:
-			return ThemeTokens.BG
+			return tone.bg_color
 		Kind.STREET:
-			return ThemeTokens.BG.lerp(ThemeTokens.FLOOR, STREET_LIFT)
+			return tone.level_street_color
 		Kind.SIDEWALK:
-			return ThemeTokens.FLOOR.lerp(ThemeTokens.WALL, SIDEWALK_LIFT)
+			return tone.level_sidewalk_color
 		Kind.FLOOR, Kind.DOOR:
-			return ThemeTokens.FLOOR.lerp(ThemeTokens.ACCENT, INTERIOR_WARMTH)
+			return tone.level_floor_color
 		Kind.BACKROOM:
-			return ThemeTokens.FLOOR.lerp(ThemeTokens.ACCENT, BACKROOM_WARMTH)
+			return tone.level_backroom_color
 		Kind.WALL:
-			return ThemeTokens.WALL.lerp(ThemeTokens.MUTED, WALL_LIFT)
+			return tone.level_wall_color
 		Kind.WINDOW:
-			return ThemeTokens.WALL
+			return tone.wall_color
 		Kind.SHELF:
-			return ThemeTokens.WALL.lerp(ThemeTokens.MUTED, SHELF_LIFT)
+			return tone.level_shelf_color
 		Kind.COUNTER:
-			return ThemeTokens.ACCENT.darkened(COUNTER_DARKEN)
-	return ThemeTokens.BG
+			return tone.level_counter_color
+	return tone.bg_color
 
 
 ## Kenar/çizgi rengi: duvar iç kenarı, cam şeridi, raf ve tezgâh dış çizgisi.
 static func edge_color(kind: Kind) -> Color:
+	var tone: Tone = ThemeTokens.tone()
 	match kind:
 		Kind.BOUND:
-			return ThemeTokens.WALL  # tarama çizgisi: cadde ve kaldırımdan ayrı okunur
+			return tone.wall_color  # tarama çizgisi: cadde ve kaldırımdan ayrı okunur
 		Kind.WALL:
-			return ThemeTokens.MUTED
+			return tone.level_wall_edge_color
 		Kind.WINDOW:
-			return ThemeTokens.MUTED.lerp(ThemeTokens.FG, GLASS_LIFT)
+			return tone.level_glass_color
 		Kind.SHELF:
-			return ThemeTokens.MUTED.darkened(SHELF_EDGE_DARKEN)
+			return tone.level_shelf_edge_color
 		Kind.COUNTER:
-			return ThemeTokens.ACCENT.darkened(COUNTER_EDGE_DARKEN)
+			return tone.level_counter_edge_color
 		Kind.SIDEWALK:
-			return ThemeTokens.WALL  # bordür
+			return tone.wall_color  # bordür
 	return color_of(kind)
 
 

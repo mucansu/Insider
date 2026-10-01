@@ -19,6 +19,21 @@ extends Resource
 @export var wall_color: Color
 @export var floor_color: Color
 
+@export_subgroup("Level")
+## Seviye yer tutucu çizimi (levels/level_layout.gd, IS-008); noir değerleri ThemeTokens.LEVEL_*.
+## Harita kenarı bg_color; kenar taraması, kaldırım bordürü ve cam çerçevesi wall_color kullanır.
+@export var level_floor_color: Color
+@export var level_backroom_color: Color
+@export var level_sidewalk_color: Color
+@export var level_street_color: Color
+@export var level_wall_color: Color
+@export var level_wall_edge_color: Color
+@export var level_glass_color: Color
+@export var level_shelf_color: Color
+@export var level_shelf_edge_color: Color
+@export var level_counter_color: Color
+@export var level_counter_edge_color: Color
+
 @export_group("Type")
 ## null: Godot varsayılan yazı tipi.
 @export var font: Font

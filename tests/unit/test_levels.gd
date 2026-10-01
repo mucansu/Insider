@@ -334,6 +334,53 @@ func test_visuals_take_colors_from_theme_tokens() -> void:
 		is_true(diff >= 0.03, "harita kenarı ile %s ayırt edilemiyor" % _kind_name(outside))
 
 
+func test_level_palette_comes_from_tone() -> void:
+	# IS-008: seviye renkleri etkin tonun seviye paletinden; noir değerleri ThemeTokens.LEVEL_*.
+	var tokens: Dictionary = {
+		"level_floor_color": ThemeTokens.LEVEL_FLOOR, "level_backroom_color": ThemeTokens.LEVEL_BACKROOM,
+		"level_sidewalk_color": ThemeTokens.LEVEL_SIDEWALK, "level_street_color": ThemeTokens.LEVEL_STREET,
+		"level_wall_color": ThemeTokens.LEVEL_WALL, "level_wall_edge_color": ThemeTokens.LEVEL_WALL_EDGE,
+		"level_glass_color": ThemeTokens.LEVEL_GLASS, "level_shelf_color": ThemeTokens.LEVEL_SHELF,
+		"level_shelf_edge_color": ThemeTokens.LEVEL_SHELF_EDGE, "level_counter_color": ThemeTokens.LEVEL_COUNTER,
+		"level_counter_edge_color": ThemeTokens.LEVEL_COUNTER_EDGE,
+	}
+	var noir: Tone = ThemeTokens.noir_tone()
+	for prop: String in tokens:
+		eq(noir.get(prop), tokens[prop], "noir_tone().%s = ThemeTokens sabiti" % prop)
+	var fill: Dictionary = {
+		LevelLayout.Kind.BOUND: "bg_color", LevelLayout.Kind.STREET: "level_street_color",
+		LevelLayout.Kind.SIDEWALK: "level_sidewalk_color", LevelLayout.Kind.FLOOR: "level_floor_color",
+		LevelLayout.Kind.DOOR: "level_floor_color", LevelLayout.Kind.BACKROOM: "level_backroom_color",
+		LevelLayout.Kind.WALL: "level_wall_color", LevelLayout.Kind.WINDOW: "wall_color",
+		LevelLayout.Kind.SHELF: "level_shelf_color", LevelLayout.Kind.COUNTER: "level_counter_color",
+	}
+	var edge: Dictionary = {
+		LevelLayout.Kind.BOUND: "wall_color", LevelLayout.Kind.SIDEWALK: "wall_color",
+		LevelLayout.Kind.WALL: "level_wall_edge_color", LevelLayout.Kind.WINDOW: "level_glass_color",
+		LevelLayout.Kind.SHELF: "level_shelf_edge_color", LevelLayout.Kind.COUNTER: "level_counter_edge_color",
+	}
+	eq(fill.size(), LevelLayout.Kind.size(), "her karo türünün dolgu rengi tanımlı")
+	# Başka bir ton seviye renklerini de değiştirir: renkler çizim anında etkin tondan okunur.
+	var other: Tone = ThemeTokens.noir_tone()
+	other.id = &"test_level_tone"
+	for prop: String in tokens.keys() + ["bg_color", "wall_color"]:
+		other.set(prop, (other.get(prop) as Color).inverted())
+	for tone: Tone in [noir, other]:
+		ThemeTokens.set_tone(tone)
+		for kind: LevelLayout.Kind in fill:
+			eq(LevelLayout.color_of(kind), tone.get(fill[kind]), "%s: %s dolgusu ← %s" % [tone.id, _kind_name(kind), fill[kind]])
+		for kind: LevelLayout.Kind in edge:
+			eq(LevelLayout.edge_color(kind), tone.get(edge[kind]), "%s: %s kenarı ← %s" % [tone.id, _kind_name(kind), edge[kind]])
+	ThemeTokens.set_tone(null)
+	# Seviye betikleri ton dışı sabit renk okumaz (ThemeTokens.BG, .LEVEL_* vb.); ikinci ton seviyeyi de boyar.
+	var direct := RegEx.create_from_string("ThemeTokens\\.[A-Z]")
+	for path: String in ["res://levels/level_layout.gd", BUILDER]:
+		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
+		for i: int in lines.size():
+			var code: String = lines[i].get_slice("#", 0)  # yorumlar hariç
+			is_true(direct.search(code) == null, "%s:%d ton yerine ThemeTokens sabiti okuyor: %s" % [path, i + 1, code.strip_edges()])
+
+
 # --- yardımcılar ---
 
 func _load(path: String) -> Node2D:
