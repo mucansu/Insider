@@ -5,7 +5,7 @@ extends TestCase
 
 const ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
-	&"sprint", &"sneak", &"interact", &"intimidate", &"toggle_debug",
+	&"sprint", &"sneak", &"interact", &"intimidate", &"pause", &"toggle_debug",
 ]
 const LAYERS: Array[String] = ["world", "players", "npcs", "interactables", "triggers", "vision_block"]
 ## Autoload adı -> betik yolu (sıra project.godot ile aynı). `NoiseBus`: `Noise` yerleşik sınıfla çakışır (S8).
@@ -91,6 +91,29 @@ func test_input_actions_have_keyboard_and_gamepad() -> void:
 		is_true(pads >= 1, "%s: gamepad olayı yok" % action)
 
 
+func test_pause_and_ui_gamepad_events() -> void:
+	# S5 (IS-009): pause = Esc + Start; ui_accept/ui_cancel Godot varsayılan tuşlarını korur, A/B eklenir.
+	# InputMap çalışma anında değiştirilebildiğinden project.godot'taki kayıt okunur.
+	var expected := {
+		&"pause": [_key(KEY_ESCAPE), _joy(JOY_BUTTON_START)],
+		&"ui_accept": [_key(KEY_ENTER), _key(KEY_KP_ENTER), _key(KEY_SPACE), _joy(JOY_BUTTON_A)],
+		&"ui_cancel": [_key(KEY_ESCAPE), _joy(JOY_BUTTON_B)],
+	}
+	for action: StringName in expected:
+		var entry: Variant = ProjectSettings.get_setting("input/" + action)
+		if not is_true(entry is Dictionary, "project.godot'ta eylem yok: %s" % action):
+			continue
+		var events: Array = (entry as Dictionary).get("events", [])
+		for probe: InputEvent in expected[action]:
+			var found: bool = false
+			for e: InputEvent in events:
+				found = found or e.is_match(probe)
+			is_true(found, "%s: %s eşlemesi yok" % [action, probe.as_text()])
+	var b := _joy(JOY_BUTTON_B)
+	is_false(InputMap.event_is_action(b, &"pause"), "gamepad B oyunda duraklatma açmaz")
+	is_false(InputMap.event_is_action(_joy(JOY_BUTTON_A), &"ui_cancel"), "A geri değil")
+
+
 func test_modifiers_do_not_block_movement() -> void:
 	# Sızarken (Ctrl) ve koşarken (Shift) yön tuşları eylemlerini korumalı.
 	var e := InputEventKey.new()
@@ -172,6 +195,21 @@ func test_all_scripts_compile() -> void:
 
 
 # --- yardımcılar ---
+
+static func _key(code: Key) -> InputEventKey:
+	var e := InputEventKey.new()
+	e.keycode = code
+	e.physical_keycode = code
+	e.pressed = true
+	return e
+
+
+static func _joy(button: JoyButton) -> InputEventJoypadButton:
+	var e := InputEventJoypadButton.new()
+	e.button_index = button
+	e.pressed = true
+	return e
+
 
 static func _autoload_order() -> Array:
 	var names: Array = []

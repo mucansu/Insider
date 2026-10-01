@@ -1,15 +1,11 @@
 class_name UiInput
 extends RefCounted
-## Arayüz girdisi yardımcıları: odak sırası, gamepad ile onay/geri, duraklatma tuşu (US-003 AC3, AC6),
-## etkin cihaza göre tuş adı (istemler için) ve oyun içi menü açıkken oyun girdisi engeli (S5).
+## Arayüz girdisi yardımcıları: odak sırası, duraklatma olayları (US-003 AC3, AC6), etkin cihaza göre
+## tuş adı (istemler için) ve oyun içi menü açıkken oyun girdisi engeli (S5).
+## Gamepad ile onay/geri project.godot'taki ui_accept (+A) ve ui_cancel (+B) eşlemelerinden gelir (S5, IS-009).
 
-## Gamepad'de duraklatma (Esc'in karşılığı). Kalıcı yeri project.godot'ta bir `pause` eylemi olmalı (raporda öneri).
-const PAUSE_JOY_BUTTON := JOY_BUTTON_START
-## Godot'un varsayılan ui_accept/ui_cancel eylemlerinde gamepad düğmesi yok; arayüz bunları eksikse ekler.
-const GAMEPAD_UI_EVENTS := {
-	&"ui_accept": JOY_BUTTON_A,
-	&"ui_cancel": JOY_BUTTON_B,
-}
+## Duraklat menüsünü açan/kapatan eylem (S5: Esc + gamepad Start).
+const PAUSE_ACTION := &"pause"
 ## İstemlerde gösterilen gamepad düğme adları (Xbox düzeni); listede olmayan düğme numarasıyla gösterilir.
 const JOY_BUTTON_LABELS := {
 	JOY_BUTTON_A: "A",
@@ -101,40 +97,15 @@ static func _key_name(e: InputEventKey) -> String:
 	return OS.get_keycode_string(code)
 
 
-## ui_accept'e A, ui_cancel'a B düğmesini (yoksa) ekler; tekrar çağrılması zararsızdır.
-## Not: project.godot altyapi'nin; bu eylemler oraya eklenince bu çağrı hiçbir şey yapmaz.
-static func ensure_gamepad_ui() -> void:
-	for action: StringName in GAMEPAD_UI_EVENTS:
-		if not InputMap.has_action(action):
-			continue
-		var button: JoyButton = GAMEPAD_UI_EVENTS[action]
-		var present: bool = false
-		for e: InputEvent in InputMap.action_get_events(action):
-			if e is InputEventJoypadButton and (e as InputEventJoypadButton).button_index == button:
-				present = true
-		if not present:
-			var ev := InputEventJoypadButton.new()
-			ev.button_index = button
-			ev.device = -1
-			InputMap.action_add_event(action, ev)
-
-
-## Duraklat menüsünü açan olay: Esc (klavyeden ui_cancel) ya da gamepad Start. Gamepad B (ui_cancel)
-## oyunda menü açmaz, yalnız açık menüyü kapatır (bkz. `is_pause_close_event`).
+## Duraklat menüsünü açan olay: `pause` eylemi (Esc / gamepad Start). Gamepad B (ui_cancel) oyunda
+## menü açmaz, yalnız açık menüyü kapatır (bkz. `is_pause_close_event`).
 static func is_pause_open_event(event: InputEvent) -> bool:
-	if _is_pause_button(event):
-		return true
-	return (event is InputEventKey or event is InputEventAction) and event.is_action_pressed(&"ui_cancel", false, true)
+	return event.is_action_pressed(PAUSE_ACTION, false, true)
 
 
-## Açık duraklat menüsünü kapatan olay: ui_cancel (Esc / gamepad B) ya da Start.
+## Açık duraklat menüsünü kapatan olay: `pause` (Esc / Start) ya da ui_cancel (Esc / gamepad B).
 static func is_pause_close_event(event: InputEvent) -> bool:
-	return _is_pause_button(event) or event.is_action_pressed(&"ui_cancel", false, true)
-
-
-static func _is_pause_button(event: InputEvent) -> bool:
-	var joy := event as InputEventJoypadButton
-	return joy != null and joy.pressed and joy.button_index == PAUSE_JOY_BUTTON
+	return is_pause_open_event(event) or event.is_action_pressed(&"ui_cancel", false, true)
 
 
 ## `from`un `side` yönündeki odak komşusunu `to` yapar.

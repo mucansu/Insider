@@ -1,6 +1,6 @@
 extends TestCase
-## Ana menü (US-003 AC1, AC5, AC6): sahte Net/Game'e doğru çağrılar, hata/bağlanıyor durumları,
-## klavye ve gamepad odak sırası.
+## Ana menü (US-003 AC1, AC5, AC6; IS-009): sahte Net/Game'e doğru çağrılar, hata/bağlanıyor durumları,
+## host'ta seviye yüklenmezse zaman aşımı/vazgeç, klavye ve gamepad odak sırası.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const MENU_SCENE := preload("res://ui/main_menu.tscn")
@@ -68,6 +68,13 @@ static func _joy(button: JoyButton, pressed: bool = true) -> InputEventJoypadBut
 	return e
 
 
+## Geçerli adla Host'a basar (sahte Net host'u başarıyla açar).
+func _start_hosting() -> void:
+	_type("NameEdit", "Ayşe")
+	_press("HostButton")
+	eq(menu.state, MainMenu.State.STARTING)
+
+
 # --- AC1: Host ---
 
 func test_host_calls_set_name_host_and_start_level_in_order() -> void:
@@ -79,8 +86,50 @@ func test_host_calls_set_name_host_and_start_level_in_order() -> void:
 	eq(menu.state, MainMenu.State.STARTING)
 	is_true(_node("Connecting").visible, "yükleniyor görünümü")
 	is_false(_node("Form").visible, "form gizli")
-	is_false(_node("CancelButton").visible, "host açılırken vazgeç yok")
+	is_true(_node("CancelButton").visible, "host açılırken de vazgeçilebilir")
+	eq(_focused(), "CancelButton")
 	eq((_node("ConnectingLabel") as Label).text, tr("MENU_STARTING"))
+
+
+func test_host_start_timeout_closes_session() -> void:
+	# start_level sessizce başarısız: level_loaded hiç gelmez, menü STARTING'de takılı kalmaz.
+	await _open()
+	_start_hosting()
+	menu.advance(MainMenu.START_TIMEOUT_SEC - 0.5)
+	eq(menu.state, MainMenu.State.STARTING, "süre dolmadan bekler")
+	eq(journal.names(), PackedStringArray(["set_local_name", "host", "start_level"]))
+	menu.advance(0.5)
+	eq(menu.state, MainMenu.State.IDLE)
+	eq(journal.names(), PackedStringArray(["set_local_name", "host", "start_level", "leave"]), "oturum kapatılır")
+	is_true(_node("Form").visible)
+	eq(_error_text(), tr("MENU_ERROR_START_FAILED"))
+	eq(_focused(), "HostButton", "tekrar denemek için odak Host'ta")
+	menu.advance(MainMenu.START_TIMEOUT_SEC * 2.0)
+	eq(journal.names().size(), 4, "boşta zaman aşımı işlemez")
+
+
+func test_host_cancel_while_starting_leaves() -> void:
+	await _open()
+	_start_hosting()
+	menu.advance(1.0)
+	_press("CancelButton")
+	eq(journal.names(), PackedStringArray(["set_local_name", "host", "start_level", "leave"]))
+	eq(menu.state, MainMenu.State.IDLE)
+	eq(_error_text(), "", "kendi vazgeçişinde hata yok")
+	eq(_focused(), "HostButton")
+	_press("HostButton")
+	eq(menu.state, MainMenu.State.STARTING, "yeniden host olunabilir")
+	menu.advance(MainMenu.START_TIMEOUT_SEC - 0.5)
+	eq(menu.state, MainMenu.State.STARTING, "süre her başlatmada sıfırlanır")
+
+
+func test_level_loaded_while_starting_stops_timeout() -> void:
+	await _open()
+	_start_hosting()
+	game.level_loaded.emit(null)
+	is_true(menu.is_queued_for_deletion())
+	is_false(menu.is_processing(), "kaldırılan menüde zaman aşımı işlemez")
+	is_false(journal.names().has("leave"), "oturum kapatılmaz")
 
 
 func test_host_failure_shows_error_and_stays() -> void:

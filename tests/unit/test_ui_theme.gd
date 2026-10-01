@@ -45,7 +45,9 @@ func test_tone_selection_api() -> void:
 	custom.id = &"test_missing_theme"
 	ThemeTokens.set_tone(custom)
 	eq(ThemeTokens.tone(), custom)
-	eq(ThemeTokens.theme().resource_path, "res://ui/theme/noir.tres", "teması üretilmemiş ton noir'e düşer")
+	# Bu çağrı bilerek "tema yok" uyarısı verir; uyarı test çıktısına basılmaz (IS-009).
+	var fallback: Theme = _quietly(func() -> Theme: return ThemeTokens.theme()) as Theme
+	eq(fallback.resource_path, "res://ui/theme/noir.tres", "teması üretilmemiş ton noir'e düşer")
 	ThemeTokens.set_tone(null)
 	var noir: Tone = ThemeTokens.noir_tone()
 	eq(noir.bg_color, ThemeTokens.BG)
@@ -101,6 +103,23 @@ func test_screens_reference_noir_theme() -> void:
 
 
 # --- yardımcılar ---
+
+## `fn`'i motorun hata/uyarı yazımı kapalıyken çağırıp sonucunu döner: beklenen push_warning birim test
+## çıktısına WARNING satırı basmasın (koşucunun allow_errors'u yalnız sayımı etkiler, yazımı değil).
+## Bu sürede koşucu da hata yakalamaz; yalnız sonucu ayrıca doğrulanan tek çağrı için kullanılır.
+## Çağrı `_invoke`ta: çağrı noktasındaki hata (geçersiz Callable, imza uyuşmazlığı) yalnız onu durdurur,
+## yazım yine geri açılır; sonuç null döner ve test kendi doğrulamasında düşer.
+static func _quietly(fn: Callable) -> Variant:
+	var previous: bool = Engine.print_error_messages
+	Engine.print_error_messages = false
+	var result: Variant = _invoke(fn)
+	Engine.print_error_messages = previous
+	return result
+
+
+static func _invoke(fn: Callable) -> Variant:
+	return fn.call()
+
 
 func _contrast_at_least(fg: Color, bg: Color, minimum: float, what: String) -> void:
 	var ratio: float = _contrast(fg, bg)

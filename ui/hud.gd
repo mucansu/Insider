@@ -26,6 +26,8 @@ var net: Object = Net
 var game: Object = Game
 ## Testler için: atanırsa ana menüye geçmek yerine hata anahtarıyla bu çağrılır.
 var menu_override: Callable
+## Testler için: atanırsa eksik metin uyarısı push_warning yerine eksik anahtarla bu çağrılır.
+var warning_override: Callable
 
 var _player: Node = null
 ## Yakındaki etkileşim hedefinin eylem anahtarı (S7 interaction_target_changed); boş = hedef yok.
@@ -55,12 +57,12 @@ var _leaving: bool = false
 
 func _ready() -> void:
 	ThemeTokens.apply(_root)
-	UiInput.ensure_gamepad_ui()
 	game.connect(&"team_cash_changed", _on_team_cash_changed)
 	game.connect(&"players_changed", refresh_players)
 	game.connect(&"session_event", _on_session_event)
 	game.connect(&"local_player_changed", _bind_player)
 	net.connect(&"host_disconnected", _on_host_disconnected)
+	net.connect(&"connection_failed", _on_connection_failed)
 	_pause_menu.leave_requested.connect(_on_leave_requested)
 	_ping_timer.wait_time = PING_INTERVAL_SEC
 	_ping_timer.timeout.connect(refresh_ping)
@@ -186,12 +188,14 @@ func refresh_players() -> void:
 
 # --- oturum olayları ---
 
-## EVENT_<KIND> anahtarının metni; `data` alanları {ad} yer tutucularına yerleşir. Anahtar yoksa genel biçim.
+## EVENT_<KIND> anahtarının metni; `data` alanları {ad} yer tutucularına yerleşir. Anahtar yoksa oyuncuya
+## ham olay adı değil genel metin gösterilir, eksik anahtar geliştiriciye uyarıyla bildirilir.
 func event_text(kind: StringName, data: Dictionary) -> String:
 	var key: String = EVENT_KEY_PREFIX + String(kind).to_upper()
 	var text: String = tr(key)
 	if text == key:
-		text = tr(&"EVENT_GENERIC") % String(kind).replace("_", " ")
+		_warn_missing_text(key)
+		return tr(&"EVENT_GENERIC")
 	return text.format(data) if not data.is_empty() else text
 
 
@@ -323,10 +327,20 @@ func _on_leave_requested() -> void:
 
 
 func _on_host_disconnected() -> void:
+	_lost_session(&"MENU_ERROR_HOST_DISCONNECTED")
+
+
+## İstemcide seviye el sıkışma bitmeden yüklenmişken bağlantı kurulamazsa (ana menü kaldırılmış olur).
+func _on_connection_failed() -> void:
+	_lost_session(&"MENU_ERROR_CONNECTION_FAILED")
+
+
+## Oturum dışarıdan bitti: bir kez ana menüye, hatayla döner (kendi ayrılışında hata gösterilmez).
+func _lost_session(error_key: StringName) -> void:
 	if _leaving:
 		return
 	_leaving = true
-	_open_main_menu(&"MENU_ERROR_HOST_DISCONNECTED")
+	_open_main_menu(error_key)
 
 
 func _open_main_menu(error_key: StringName) -> void:
@@ -334,3 +348,11 @@ func _open_main_menu(error_key: StringName) -> void:
 		menu_override.call(error_key)
 	else:
 		MainMenu.open(get_tree(), error_key)
+
+
+## Eksik metin anahtarını geliştiriciye bildirir (oyuncu görmez).
+func _warn_missing_text(key: String) -> void:
+	if warning_override.is_valid():
+		warning_override.call(key)
+	else:
+		push_warning("Hud: metin anahtarı yok: %s (i18n/texts.csv)" % key)
