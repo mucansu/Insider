@@ -70,8 +70,8 @@ EP-01 · P1 · M · Sahip: cekirdek · Sözleşme: S1, S2, S3, S6 · Bağımlıl
 - AC5 `Game.raise_session_event` herkese ulaşır ve dökümde `events` listesinde görünür; `Game.add_team_cash` host'ta toplar, herkese yayınlar — `session_events.json`.
 - AC6 `tools/latency_proxy.py`: çoklu istemcili UDP röle, `--delay-ms` (yön başına), `--jitter-ms`, `--loss`; python birim testi ölçülen gecikmeyi ±15 ms doğrular. `net_smoke.py --latency-ms 150` bu proxy'yi araya koyar; AC1-AC5 senaryoları 150 ms'de de geçer.
 - AC7 Argümansız açılışta `main.gd` `res://ui/main_menu.tscn` varsa ona geçer (yoksa uyarı). Birim testler: Args ayrıştırma, dump birleştirme, geçersiz adreste `connection_failed`.
-**Dokunulacak:** autoload/{net,args,game}.gd, main.tscn, main.gd, tools/net_smoke.py, tools/latency_proxy.py, tools/test_latency_proxy.py, tests/net/**, tests/fixtures/**, tests/unit/test_{net,args,game}*.gd, i18n/texts.csv (satır ekleme)
-**Dokunulmayacak:** project.godot, entities/**, levels/**, ui/**
+**Dokunulacak:** autoload/{net,args,game}.gd, main.tscn, main.gd, tools/net_smoke.py, tools/latency_proxy.py, tools/test_latency_proxy.py, tests/net/**, tests/fixtures/**, tests/unit/test_{net,args,game}*.gd
+**Dokunulmayacak:** project.godot, entities/**, levels/**, ui/**, i18n/texts.csv (paralel US-003 ile birleştirme çakışmasını önlemek için; metin gerekiyorsa raporda anahtar öner)
 **Oku:** mimari.md §1-3, §5 · GDD §12 · **Test beklentisi:** senaryolar 0 ve 150 ms + birim · **Karar gereken (ön):** —
 
 ### US-002 — Bakkal seviyesi v0 + test arenası
