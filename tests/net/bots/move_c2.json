@@ -1,0 +1,8 @@
+{
+  "_doc": "move_sync.json c2 botu: sağ, yukarı, dur.",
+  "steps": [
+    {"t": 0.5, "move": [1, 0]},
+    {"t": 2.5, "move": [0, -1]},
+    {"t": 4.0, "move": [0, 0]}
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "_doc": "move_sync.json host botu (S6 bot biçimi): sağ 1,5 sn, aşağı 1 sn, sol 1 sn, dur. Spawn1 (160,160) -> (210,260).",
+  "steps": [
+    {"t": 0.5, "move": [1, 0]},
+    {"t": 2.0, "move": [0, 1]},
+    {"t": 3.0, "move": [-1, 0]},
+    {"t": 4.0, "move": [0, 0]}
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "_doc": "level_change.json host botu: hareket eder, durur ve oturum içinde seviyeyi değiştirir (S3 start_level 'herkese yükletir'). Zaman çizelgesi yeniden doğuşta sürer.",
+  "steps": [
+    {"t": 0.2, "move": [1, 0]},
+    {"t": 2.4, "move": [0, 0]},
+    {"t": 2.5, "game": "start_level", "args": ["res://tests/fixtures/empty_level_b.tscn"]}
+  ]
+}

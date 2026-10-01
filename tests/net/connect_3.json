@@ -1,0 +1,29 @@
+{
+  "_doc": "US-001 AC1: host + 2 istemci bağlanır; üç dökümde de peers 3 kimlik ve players 3 kayıt (isimleriyle). Senaryo ve beklenti biçimi: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 5,
+  "expect": [
+    {"len": ["*.peers", 3]},
+    {"all_equal": "peers"},
+    {"has": ["*.peers", 1]},
+    {"has": ["*.peers", "$c1"]},
+    {"has": ["*.peers", "$c2"]},
+    {"len": ["*.players", 3]},
+    {"eq": ["*.players.$host.name", "host"]},
+    {"eq": ["*.players.$c1.name", "c1"]},
+    {"eq": ["*.players.$c2.name", "c2"]},
+    {"all_equal": "players"},
+    {"eq": ["host.peer_id", 1]},
+    {"ne": ["c1.peer_id", 1]},
+    {"ne": ["c2.peer_id", 1]},
+    {"eq": ["host.is_host", true]},
+    {"eq": ["c1.is_host", false]},
+    {"eq": ["c2.is_host", false]},
+    {"eq": ["*.host_lost", false]},
+    {"eq": ["*.exit_reason", "quit_after"]},
+    {"between": ["c1.ping_ms.1", 0, 400]},
+    {"between": ["host.ping_ms.$c2", 0, 400]}
+  ]
+}

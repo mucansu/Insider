@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://vvsqtbhlwpby"]
+
+[ext_resource type="Script" uid="uid://u8n4rf5dob5t" path="res://tests/fixtures/dummy_player.gd" id="1_xepfk"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_dpf2a"]
+radius = 12.0
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_ui8qc"]
+properties/0/path = NodePath(".:position")
+properties/0/spawn = true
+properties/0/replication_mode = 1
+
+[node name="DummyPlayer" type="CharacterBody2D" unique_id=33420126]
+collision_layer = 2
+collision_mask = 0
+motion_mode = 1
+script = ExtResource("1_xepfk")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=203368633]
+shape = SubResource("CircleShape2D_dpf2a")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1746419987]
+replication_interval = 0.05
+replication_config = SubResource("SceneReplicationConfig_ui8qc")

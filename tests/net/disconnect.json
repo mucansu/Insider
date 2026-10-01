@@ -1,0 +1,24 @@
+{
+  "_doc": "US-001 AC4: c2 erken ayrılır -> host ve c1'de oyuncusu silinir; sonra host kapanır -> c1 host_disconnected alır, dökümde host_lost: true yazıp 0 koduyla çıkar. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 7,
+  "quit_after": {"c2": 3.5, "c1": 30},
+  "expect": [
+    {"len": ["c2.players", 3]},
+    {"eq": ["c2.exit_reason", "quit_after"]},
+    {"len": ["host.peers", 2]},
+    {"lacks": ["host.peers", "$c2"]},
+    {"lacks": ["host.players", "$c2"]},
+    {"lacks": ["host.player_nodes", "$c2"]},
+    {"len": ["host.player_nodes", 2]},
+    {"lacks": ["c1.players", "$c2"]},
+    {"lacks": ["c1.player_nodes", "$c2"]},
+    {"has": ["c1.player_nodes", "$c1"]},
+    {"eq": ["host.host_lost", false]},
+    {"eq": ["c1.host_lost", true]},
+    {"eq": ["c1.exit_reason", "host_lost"]},
+    {"eq": ["c1.exit_code", 0]}
+  ]
+}

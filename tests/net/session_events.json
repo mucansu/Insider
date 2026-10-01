@@ -1,0 +1,25 @@
+{
+  "_doc": "US-001 AC5: Game.add_team_cash host'ta toplanır ve herkese yayılır (geç katılan c2 dahil); Game.raise_session_event o an bağlı herkese ulaşır ve dökümde events listesinde görünür; istemcinin host'a özgü çağrıları etkisizdir. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 10,
+  "start_delay": {"c2": 5.0},
+  "bots": {
+    "host": "res://tests/net/bots/events_host.json",
+    "c1": "res://tests/net/bots/events_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.team_cash", 150]},
+    {"all_equal": "team_cash"},
+    {"len": ["host.events", 2]},
+    {"same": ["host.events", "c1.events"]},
+    {"eq": ["c1.events.0.kind", "police_called"]},
+    {"eq": ["c1.events.0.data.by", "host"]},
+    {"eq": ["c1.events.0.data.level", 2]},
+    {"eq": ["c1.events.1.kind", "alarm"]},
+    {"len": ["c2.events", 1]},
+    {"eq": ["c2.events.0.kind", "alarm"]},
+    {"eq": ["c2.events.0.data.zone", "back"]}
+  ]
+}

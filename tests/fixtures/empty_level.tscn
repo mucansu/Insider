@@ -1,0 +1,30 @@
+[gd_scene format=3 uid="uid://dr5hs2quke6h4"]
+
+[node name="EmptyLevel" type="Node2D" unique_id=1233450421]
+
+[node name="Walls" type="Node2D" parent="." unique_id=120793882]
+
+[node name="SpawnPoints" type="Node2D" parent="." unique_id=1034012988]
+
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints" unique_id=1345204434]
+position = Vector2(160, 160)
+
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints" unique_id=558283141]
+position = Vector2(160, 260)
+
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints" unique_id=1086128504]
+position = Vector2(160, 360)
+
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints" unique_id=1173511285]
+position = Vector2(160, 460)
+
+[node name="Players" type="Node2D" parent="." unique_id=50564219]
+
+[node name="Props" type="Node2D" parent="." unique_id=1190956606]
+
+[node name="NPCs" type="Node2D" parent="." unique_id=1167229769]
+
+[node name="Markers" type="Node2D" parent="." unique_id=1967776969]
+
+[node name="Exit" type="Marker2D" parent="Markers" unique_id=158000609]
+position = Vector2(1100, 360)
