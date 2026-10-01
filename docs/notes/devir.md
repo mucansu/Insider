@@ -16,7 +16,7 @@ Bu proje ilk oturumda Claude Code'un bulut ortamında başladı; kullanıcı kre
 - `wip/US-004`: denetim bekleyen oyuncu karakteri. Kapanış yolu: denetci PASS → `git checkout dev && git merge --no-ff wip/US-004` (ya da commit'i dev'e cherry-pick) → `US-004:` önekli commit kuralına uy → dalı sil.
 
 ## Yerelde kurulum (Windows)
-1. Repoyu klonla (GitHub'daki `insiders`), `git checkout dev`; `git branch wip/US-004 origin/wip/US-004`.
+1. Repoyu klonla: `git clone https://github.com/mucansu/Insider` → `cd Insider` → `git checkout dev`; `git branch wip/US-004 origin/wip/US-004`. (Bulutta yerel klasör adı `insiders` idi; ajan dosyalarındaki `/home/user/insiders` yollarını kendi klon yoluna çevir.)
 2. **Godot 4.7.2-stable** (Windows) indir: https://godotengine.org/download/archive/ → 4.7.2-stable. Editörle projeyi aç (`project.godot`). Oyunu iki pencereyle denemek: Debug → Customize Run Instances.
 3. **Testler ve yerel CI** (`tools/ci_local.sh`) şu an Linux'a göre yazıldı: `get_godot.sh` yalnız Linux ikilisini indirir, `net_smoke.py` POSIX süreç gruplarını (`os.killpg`) kullanır. İki yol:
    - **Önerilen: WSL2 (Ubuntu)** içinde klonla ve çalıştır: `tools/ci_local.sh` olduğu gibi çalışır (Godot Linux ikilisini kendisi indirir). Godot editörünü Windows tarafında kullanmaya devam edebilirsin.

@@ -40,7 +40,7 @@ Bağımlılıksız kendi birim test koşucumuz (tests/run_tests.gd) + çok süre
 Takip düzeni uyarlandı: faz = durma noktası, kalem = iş birimi, denetci PASS olmadan Bitti yok, ajanlar commit atmaz; faz sonunda dev → main ff + `faz-N` etiketi; paralel paketler ayrı worktree'de. Farklar ajanlar.md sonunda.
 
 ### KR-011 — Repo (2026-10-01, koordinatör)
-Repo adı `insiders`, private. Branch'ler: `dev` (çalışma), `main` (faz sonu oynanabilir sürüm).
+Repo GitHub'da `mucansu/Insider` (kullanıcı açtı, 2026-10-01; bulut oturumundaki yerel klasör adı `insiders`), private. Branch'ler: `dev` (çalışma), `main` (faz sonu oynanabilir sürüm).
 
 ### KR-012 — Görsel yer tutucular (2026-10-01, koordinatör)
 Faz 1-2'de görseller geometrik yer tutucu (Polygon2D/ColorRect, tema token renkleri); CC0 asset (Kenney vb.) entegrasyonu ayrı kalem, lisans kaydı docs/notes/assetler.md.

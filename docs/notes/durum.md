@@ -10,7 +10,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Proje buluttan yerele devrediliyor: önce
 - Sırada: US-005 etkileşim (kasa + kapı) → IS-005 çıkış testi + build → IS-007 Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
 
 ## Kullanıcıdan bekleyen
-- GitHub'da `insiders` reposu (Claude entegrasyonu oluşturamadı, 403) → push; ya da git bundle yedeğinden geri yükleme.
+- (Tamam) GitHub reposu: https://github.com/mucansu/Insider — dev, main ve wip/US-004 push edildi (2026-10-01).
 - Yerel kurulum (devir.md): Godot 4.7.2, WSL2 önerisi.
 - KR-013 (oyun adı), KR-014 (Steamworks) — Faz 5'te.
 - Animasyon denemesi geri bildirimi (kaydırıcı değerleri) → Faz 2 karakter kuklası.
