@@ -6,7 +6,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Hedef: online his — bağlan, yürü, ka
 ## Kalemler
 - Bitti: US-001 ağ çekirdeği (denetci PASS t2 + inceleme, bc49aef)
 - Bitti: IS-010 OOP (A) uygulaması (denetci PASS, f6bd55c)
-- Sürüyor: US-004 oyuncu karakteri (oynanis, ana ağaç, 2026-10-01)
+- Denetimde: US-004 oyuncu karakteri (oynanis, t1; denetci + çürütmeli inceleme)
 - Bitti: US-003 menü+HUD+tema (denetci PASS t1, 7b34286)
 - Bitti: IS-008 LEVEL_* token'ları (denetci PASS, f0f027f)
 - Bitti: IS-009 girdi + nit'ler (denetci PASS t2, 332fb08)

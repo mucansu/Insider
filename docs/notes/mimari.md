@@ -51,7 +51,7 @@ Taşıma seçimi Net'in içinde kalır (`_create_peer()`); başka hiçbir dosya 
 
 ### S2 — Yetki modeli
 - **Host yetkili:** etkileşim sonuçları, NPC davranışı, gürültü yayılımı, ekip nakdi, oturum durumu, ileride uyarı/muhafız/ekonomi. Host'ta çalışan kod `multiplayer.is_server()` ile korunur.
-- **İstemci yetkili:** yalnız her oyuncunun **kendi hareketi** (konum, yön, hareket kipi). Oyuncu kökü `set_multiplayer_authority(peer_id)`; `MultiplayerSynchronizer` bu alanları 0,05 sn aralıkla yayınlar; uzak kopyalar ara değerleme (interpolasyon) ile çizilir.
+- **İstemci yetkili:** yalnız her oyuncunun **kendi hareketi** (konum, yön, hareket kipi). Uygulama (US-004): yerel oyuncu `net_position/facing/mode` ile kendi saatinden `net_time`'ı 20 Hz güvenilmez kanaldan senkronlar; uzak kopya gönderenin saatine göre (saat farkı üstel ortalama) şimdi − 100 ms anını iki anlık görüntü arasında doğrusal ara değerler, veri gecikirse son durumda bekler (ileri tahmin yok). Oyuncu kökü `set_multiplayer_authority(peer_id)`; `MultiplayerSynchronizer` bu alanları 0,05 sn aralıkla yayınlar; uzak kopyalar ara değerleme (interpolasyon) ile çizilir.
 - **Gecikme toleransı** (GDD "Ağ ve gecikme"): host, istemci isteğini doğrularken menzile +24 px ve zamana +0,25 sn pay verir; saklanma/görülme kararlarında şüphe oyuncu lehine ~0,2 sn geç başlar (Faz 2).
 - RPC kuralları: istemci→host istekleri `@rpc("any_peer", "call_remote", "reliable")` ve host gönderen kimliğini `multiplayer.get_remote_sender_id()` ile doğrular; host→herkes durum olayları `@rpc("authority", "call_local", "reliable")`; yalnız görsel olaylar (gürültü halkası) `unreliable`.
 
@@ -96,7 +96,8 @@ Kök `Level` (`levels/level.gd`, `class_name Level extends Node2D`, build_levels
 ### S6 — Komut satırı, bot girdisi ve test dökümü
 - Kullanıcı argümanları `--` sonrasında (autoload `Args`, `autoload/args.gd`): `--host` · `--join=ADDR` · `--port=N` · `--name=AD` · `--level=res://...` · `--bot=PATH.json` · `--dump=PATH.json` · `--quit-after=SN` · `--player-scene=res://...` (yalnız test).
 - Bot dosyası: `{"steps":[{"t":0.0,"move":[1,0]},{"t":1.5,"move":[0,0]},{"t":2.0,"hold":"interact","dur":4.5},{"t":7.0,"press":"intimidate"}]}`; `t` saniye, oyun başlangıcına göre. `PlayerInput` bot modunda bu zaman çizelgesini oynatır.
-- Döküm (`--dump`, çıkışta yazılır): `{"peer_id":int,"is_host":bool,"peers":[int],"players":{"<peer>":{"pos":[x,y]}},"team_cash":int, ...sağlayıcı anahtarları}`. Her sistem `Game.register_dump_provider()` ile kendi anahtarını ekler (ör. `"civilians"`, `"props"`).
+- Döküm (`--dump`, çıkışta yazılır): `{"peer_id":int,"is_host":bool,"peers":[int],"players":{"<peer>":{"pos":[x,y]}},"team_cash":int, ...sağlayıcı anahtarları}`. Her sistem `Game.register_dump_provider()` ile kendi anahtarını ekler (ör. `"civilians"`, `"props"`; US-004: `"player_states"` — kip, yön, duvar içi kare sayısı, tampon tükenmesi).
+- `samples_near` eşikleri görüntü gecikmesini ölçer (hız × (tek yön gecikme + 100 ms tampon + kare)); oyun kuralı değildir, oyun toleransı S2'dedir. Gerçek oyuncu: host↔istemci 32 px, istemci↔istemci (host üzerinden iki bacak) 48 px; fikstür oyuncu (ara değerleme yok) 40 px.
 - Ağ duman testi: `python3 tools/net_smoke.py tests/net/<senaryo>.json [--latency-ms 150]`. Senaryo: `{"level":..., "clients":2, "duration":12, "bots":{"host":"...","c1":"..."}, "expect":[{"all_equal":"team_cash"}, {"eq":["host.team_cash", 150]}, {"near":["host.players.2.pos","c1.players.2.pos", 8]}]}`. Gecikme `tools/latency_proxy.py` ile (UDP röle, yön başına RTT/2 gecikme + isteğe bağlı jitter/kayıp).
 
 ### S7 — Etkileşim protokolü
