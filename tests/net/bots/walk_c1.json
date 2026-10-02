@@ -1,0 +1,11 @@
+{
+  "_doc": "store_walk.json c1 botu (US-004): c2 katılıp eşitlemesi başlayana dek bekle (geç katılanın yetiştirme evresi bu senaryoda ölçülmez; o store_late_move'da), sağa yürü, çapraz inip cadde kenarında (sınır durdurur) kay, sola yürü, sızarak yukarı, sızma basılıyken dur (kip senkronu).",
+  "steps": [
+    {"t": 2.5, "move": [1, 0]},
+    {"t": 4.0, "move": [0.7071, 0.7071]},
+    {"t": 5.0, "move": [-1, 0]},
+    {"t": 7.0, "move": [0, -1]},
+    {"t": 7.0, "hold": "sneak"},
+    {"t": 8.0, "move": [0, 0]}
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "_doc": "store_walk.json host botu (US-004): kaldırımda sağa yürü, ön kapıdan girip raf dibine kadar yukarı (raf durdurur), raf boyunca sızarak sola, dur.",
+  "steps": [
+    {"t": 0.3, "move": [1, 0]},
+    {"t": 2.15, "move": [0, -1]},
+    {"t": 5.0, "move": [-1, 0]},
+    {"t": 5.0, "hold": "sneak", "dur": 1.0},
+    {"t": 6.0, "move": [0, 0]}
+  ]
+}
