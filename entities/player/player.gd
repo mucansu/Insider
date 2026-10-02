@@ -25,6 +25,9 @@ extends CharacterBody2D
 ## her fizik adımında (hareketten sonra) hedef bulur ve istek/iptal yollar; aşağıdaki üç sinyal (HUD sözleşmesi)
 ## yalnız yerel oyuncuda yayılır. Dökümde (yalnız `--dump`) yerel oyuncu "interaction" anahtarını kaydeder:
 ## PlayerInteraction.stats(). US-004 hareket/senkron davranışı bundan etkilenmez.
+## "Etkileşimde" durumu (IS-014; görsel göstergesi her peer'da aynı): yerel kopyada PlayerInteraction'dan (basışta
+## hemen, karar gelince biter; GDD §12); uzak kopyada host'un çoğalttığı `Interactable.busy_by`'dan (bu oyuncunun
+## tuttuğu bileşen varsa) her karede türetilir — ek ağ alanı yok. Kapı gibi anlık eylemler uzakta görünmez.
 
 signal identity_changed()
 ## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
@@ -116,6 +119,7 @@ func _physics_process(delta: float) -> void:
 func _process(_delta: float) -> void:
 	if _local:
 		return
+	_interacting = Interactable.held_by(get_tree(), peer_id()) != null
 	var frame: SnapshotBuffer.Frame = _buffer.sample(_now())
 	if frame == null:
 		return
@@ -143,7 +147,7 @@ func display_name() -> String:
 	return _display_name
 
 
-## Etkileşim sürüyor mu (US-005 doldurur; görsel okur).
+## Etkileşim sürüyor mu (görsel okur): yerelde PlayerInteraction'dan, uzakta çoğaltılan busy_by'dan (her karede).
 func is_interacting() -> bool:
 	return _interacting
 

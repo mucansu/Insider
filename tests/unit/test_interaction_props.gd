@@ -3,7 +3,9 @@ extends TestCase
 ## Interactable host doğrulaması (AC1, AC4: taraf, menzil + 24 px, meşguliyet, tekrar beklemesi, aktör yok),
 ## kasa (AC2: 3 sn → +150, boş, yarıda bırakma sıfırlar, son 0,25 sn payı), kapı (AC3: anında, engel), store_a
 ## yerleşimi (AC5), PropDef verisi (S10), oyuncu tarafı (PlayerInteraction + Player sinyalleri, S7).
-## Kurallar: test_interaction.gd; ağ: tests/net/{register_empty,door_sync,contention}.json.
+## Kurallar: test_interaction.gd; kapı engeli ve uzak gösterge: test_interaction_{door_block,indicator}.gd;
+## ağ: tests/net/{register_empty,door_sync,contention}.json. Yalnız genel API (§6, KR-018): uzak peer isteği
+## `host_start/host_cancel` (RPC gövdesi), süre sayımı `step` (fizik adımı); `_` üyelere erişim yok.
 
 const REGISTER_SCENE := "res://entities/props/register.tscn"
 const DOOR_SCENE := "res://entities/props/door.tscn"
@@ -78,7 +80,7 @@ func _watch(item: Interactable) -> void:
 func _run(item: Interactable, seconds: float) -> void:
 	var steps: int = roundi(seconds / DT)
 	for i: int in steps:
-		item._physics_process(DT)
+		item.step(DT)
 
 
 func _interactable(prop: Node) -> Interactable:
@@ -191,14 +193,14 @@ func test_busy_and_missing_actor() -> void:
 	_actor(2, STAFF + Vector2(0, 8))
 	item.request_start(1)
 	eq(item.busy_by, 1)
-	item._host_start(2, 7)  # uzak peer'ın isteği (RPC gövdesi)
+	item.host_start(2, 7)  # uzak peer'ın isteği (RPC gövdesi)
 	eq(item.busy_by, 1, "AC4: yalnız biri")
 	eq(item.stats()["rejected"], {"busy": 1})
-	item._host_cancel(2, 7)
+	item.host_cancel(2, 7)
 	eq(item.busy_by, 1, "başkasının iptali etkisiz")
 	item.request_cancel(99)
 	eq(item.busy_by, 1, "eski sıra numaralı iptal etkisiz")
-	item._host_start(3, 1)
+	item.host_start(3, 1)
 	eq(item.stats()["rejected"], {"busy": 1, "no_actor": 1}, "aktörü olmayan peer")
 	# Tutan aktör kaybolursa (ayrıldı) host iptal eder.
 	for node: Node in tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
@@ -306,11 +308,11 @@ func test_door_toggles_instantly_and_blocks() -> void:
 	is_false(door.is_blocking(), "açıkken engel yok")
 	# Tekrar beklemesi: aynı anda basan ikinci oyuncu kapıyı geri çevirmez (AC4).
 	_actor(2, Vector2(368, 430))
-	item._host_start(2, 1)
+	item.host_start(2, 1)
 	is_true(door.is_open)
 	eq(item.stats()["rejected"], {"cooldown": 1})
 	_run(item, InteractionRules.REPEAT_COOLDOWN + DT)
-	item._host_start(2, 2)
+	item.host_start(2, 2)
 	is_false(door.is_open, "bekleme sonrası kapanır")
 	await tree().process_frame
 	is_true(door.is_blocking())

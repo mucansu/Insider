@@ -5,11 +5,17 @@ extends Node2D
 ## boşluğun merkezi); dönüş 0° yatay duvarda, 90° dikey duvarda (kanat yerel x ekseni boyunca).
 ## Durum (`is_open`, host'un duvar saatiyle `changed_at`) host yetkili MultiplayerSynchronizer ile değişince
 ## yayılır; başlangıç durumu sahnede `is_open` (ör. ön kapı mesai saatinde açık). Görsel yalnız durumu okur.
+## Kapanma engeli (IS-014): açık kapı, kapanınca kanadı (Body şekli) players katmanındaki bir aktörün gövdesiyle
+## örtüşecekse kapanmaz: host isteği `blocked` ile reddeder (istem görünür kalır). Gövde, host'un bildiği iki
+## konumda denenir: çizilen (`global_position`) ve en güncel (`interaction_position()`); yarıçap gövdenin daire
+## şeklinden (yoksa 0). Açma her zaman serbest. Kural: InteractionRules.circle_overlaps_box.
 ## Döküm (S6 "props"): {"open", "flips" (bu süreçte görülen durum değişimi), "visible_delay_ms" (son değişimin
 ## host kararından bu süreçte görünmesine; değişim yoksa -1), "consistent" (son durum = başlangıç durumu +
 ## görülen değişim sayısının paritesi: bu süreç her değişimi gördü), "interact": Interactable.stats()}.
 
 const DEF_PATH := "res://data/props/door.tres"
+## Kapanmayı engelleyen gövdelerin fizik katmanı: players (mimari.md §4, 2. katman).
+const BLOCKER_LAYERS := 1 << 1
 
 @export var def: PropDef
 
@@ -34,6 +40,7 @@ func _ready() -> void:
 	_interactable.interact_range = def.interact_range
 	_interactable.requirement = def.requirement
 	_interactable.completed.connect(_on_completed)
+	_interactable.start_blocker = is_closing_blocked
 	_start_open = is_open
 	_apply(false)
 	add_to_group(PropDump.GROUP)
@@ -43,6 +50,44 @@ func _ready() -> void:
 ## Kanat şu an geçişi engelliyor mu (fizik durumu; açılıp kapanma bir sonraki fizik adımında işler).
 func is_blocking() -> bool:
 	return not _shape.disabled
+
+
+## Açık kapı şimdi kapansa kanat bir oyuncu gövdesine çarpar mı (kapalıyken her zaman false: açma serbest).
+func is_closing_blocked() -> bool:
+	if not is_open:
+		return false
+	var leaf: RectangleShape2D = _shape.shape as RectangleShape2D
+	if leaf == null:
+		return false
+	var half: Vector2 = leaf.size * 0.5 * _shape.global_scale.abs()
+	var center: Vector2 = _shape.global_position
+	var angle: float = _shape.global_rotation
+	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
+		var body: CollisionObject2D = node as CollisionObject2D
+		if body == null or (body.collision_layer & BLOCKER_LAYERS) == 0:
+			continue
+		var radius: float = _body_radius(body)
+		var spots: Array[Vector2] = [body.global_position]
+		if body.has_method(&"interaction_position"):
+			var latest: Variant = body.call(&"interaction_position")
+			if latest is Vector2:
+				spots.append(latest)
+		for spot: Vector2 in spots:
+			if InteractionRules.circle_overlaps_box(spot, radius, center, half, angle):
+				return true
+	return false
+
+
+## Gövdenin (genel fizik API'si: şekil sahipleri) ilk daire şeklinin yarıçapı; daire yoksa 0 (nokta).
+static func _body_radius(body: CollisionObject2D) -> float:
+	for owner_id: int in body.get_shape_owners():
+		if body.is_shape_owner_disabled(owner_id):
+			continue
+		for i: int in body.shape_owner_get_shape_count(owner_id):
+			var circle: CircleShape2D = body.shape_owner_get_shape(owner_id, i) as CircleShape2D
+			if circle != null:
+				return circle.radius
+	return 0.0
 
 
 func dump_state() -> Dictionary:

@@ -14,7 +14,11 @@ extends Area2D
 ## (host'un bildiği en güncel konum) sunan düğüm; isteğe bağlı `interaction_tags() -> Dictionary`.
 ## Çoğaltılan durum: `busy_by` (0 = boş) ve `progress` (sn), host yetkili MultiplayerSynchronizer
 ## (değişince, güvenilir; `SYNC_INTERVAL`). `enabled` ve `action_key`'i prop kendi çoğaltılan durumundan
-## her peer'da türetir.
+## her peer'da türetir. `busy_by` her peer'da "kim etkileşimde" bilgisidir (`held_by`; uzak oyuncu göstergesi).
+## Host engeli (IS-014): prop `start_blocker`'a `func() -> bool` verebilir; host doğrulamasında true dönerse
+## istek `blocked` nedeniyle reddedilir (istemci istem süzgeci bakmaz: istem görünür kalır).
+## Genel host API'si (`host_start`, `host_cancel`, `step`) RPC gövdesi, yerel istek ve fizik adımı tarafından
+## çağrılır; testler de aynı yolu kullanır (§6: `_` üyelere dışarıdan erişim yok).
 
 ## Yalnız host'ta.
 signal completed(peer_id: int)
@@ -41,6 +45,9 @@ const SYNC_INTERVAL := 0.1
 ## Çoğaltılan durum (host yazar).
 var busy_by: int = 0
 var progress: float = 0.0
+## İsteğe bağlı host engeli: `func() -> bool` (true = şu an uygulanamaz; ret nedeni "blocked"). Yalnız host'ta
+## ve yalnız yeni istek doğrulanırken çağrılır.
+var start_blocker: Callable = Callable()
 
 var _seq: int = 0
 var _cooldown_left: float = 0.0
@@ -70,6 +77,23 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
+	step(delta)
+
+
+## `peer_id`'nin tuttuğu (host'un çoğalttığı `busy_by`) bileşen; yoksa null. Her peer'da çalışır.
+static func held_by(tree: SceneTree, peer_id: int) -> Interactable:
+	if tree == null or peer_id <= 0:
+		return null
+	for node: Node in tree.get_nodes_in_group(GROUP):
+		var item: Interactable = node as Interactable
+		if item != null and item.busy_by == peer_id:
+			return item
+	return null
+
+
+## Bir zaman adımı: tekrar beklemesi azalır; host'ta süren etkileşimin süresi sayılır, aktör menzilden
+## (+ S2 toleransı) çıktıysa ya da ayrıldıysa iptal edilir. Fizik adımı çağırır.
+func step(delta: float) -> void:
 	_cooldown_left = maxf(_cooldown_left - delta, 0.0)
 	if busy_by == 0 or not _is_host():
 		return
@@ -100,7 +124,7 @@ func progress_ratio() -> float:
 ## Yerel oyuncu: etkileşim isteği (host'ta doğrudan, istemcide RPC).
 func request_start(seq: int) -> void:
 	if _is_host():
-		_host_start(multiplayer.get_unique_id(), seq)
+		host_start(multiplayer.get_unique_id(), seq)
 	else:
 		_rpc_start.rpc_id(1, seq)
 
@@ -108,7 +132,7 @@ func request_start(seq: int) -> void:
 ## Yerel oyuncu: bıraktı ya da uzaklaştı.
 func request_cancel(seq: int) -> void:
 	if _is_host():
-		_host_cancel(multiplayer.get_unique_id(), seq)
+		host_cancel(multiplayer.get_unique_id(), seq)
 	else:
 		_rpc_cancel.rpc_id(1, seq)
 
@@ -134,14 +158,12 @@ func stats() -> Dictionary:
 
 @rpc("any_peer", "call_remote", "reliable")
 func _rpc_start(seq: int) -> void:
-	if _is_host():
-		_host_start(multiplayer.get_remote_sender_id(), seq)
+	host_start(multiplayer.get_remote_sender_id(), seq)
 
 
 @rpc("any_peer", "call_remote", "reliable")
 func _rpc_cancel(seq: int) -> void:
-	if _is_host():
-		_host_cancel(multiplayer.get_remote_sender_id(), seq)
+	host_cancel(multiplayer.get_remote_sender_id(), seq)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -151,8 +173,10 @@ func _rpc_result(seq: int, success: bool) -> void:
 
 # --- host ---
 
-func _host_start(peer_id: int, seq: int) -> void:
-	if peer_id <= 0:
+## Yalnız host'ta (değilse yok sayılır): `peer_id`'nin `seq` numaralı başlatma isteğini doğrular ve kabul ya da
+## reddeder (RPC gövdesi; host'un kendi isteği de buradan geçer).
+func host_start(peer_id: int, seq: int) -> void:
+	if peer_id <= 0 or not _is_host():
 		return
 	if busy_by == peer_id:
 		_seq = seq  # aynı peer'ın yinelenen isteği: süren etkileşim sürer, karar yeni sıra numarasıyla gider
@@ -161,7 +185,9 @@ func _host_start(peer_id: int, seq: int) -> void:
 	var actor: Node = _actor(peer_id)
 	var result: InteractionRules.Result = InteractionRules.Result.NO_ACTOR
 	if actor != null:
-		result = InteractionRules.host_check(_spec(), peer_id, _actor_position(actor), _actor_tags(actor),
+		var spec: InteractionRules.Target = _spec()
+		spec.blocked = start_blocker.is_valid() and bool(start_blocker.call())
+		result = InteractionRules.host_check(spec, peer_id, _actor_position(actor), _actor_tags(actor),
 			_cooldown_left)
 	if result != InteractionRules.Result.OK:
 		var reason: String = InteractionRules.result_name(result)
@@ -176,8 +202,10 @@ func _host_start(peer_id: int, seq: int) -> void:
 		_finish(true)
 
 
-func _host_cancel(peer_id: int, seq: int) -> void:
-	if busy_by != peer_id or seq != _seq:
+## Yalnız host'ta: `peer_id` bıraktı. Süren etkileşim o peer'ın ve aynı sıra numarasıyla değilse etkisiz; son
+## TIME_TOLERANCE payındaysa tamamlanır, değilse iptal.
+func host_cancel(peer_id: int, seq: int) -> void:
+	if not _is_host() or busy_by != peer_id or seq != _seq:
 		return  # bitmiş ya da başkasının etkileşimi
 	_finish(InteractionRules.release_completes(progress, hold_time))
 
@@ -240,6 +268,7 @@ func _spec() -> InteractionRules.Target:
 	_target.interact_range = interact_range
 	_target.enabled = enabled
 	_target.busy_by = busy_by
+	_target.blocked = false
 	if requirement != null:
 		_target.side = requirement.side.rotated(global_rotation)
 		_target.side_min = requirement.side_min
