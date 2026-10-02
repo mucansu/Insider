@@ -213,7 +213,7 @@ EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: (A) yok · (B) IS-005, IS-
 
 ## 2b. Faz 2 kalemleri (EP-02 — Gizlilik, bakkal; plan 2026-10-02, KR-019/020/021)
 Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md` §2 · US-016 → §3 · US-010 → §4 · IS-023 → §5 (taslakta "IS-022" yazılı) · US-009/US-011/US-012/US-013/IS-015 AC değişiklikleri → §6. Kartlar GDD v0.3 §6.1, §9.1-9.3'e dayanır.
-**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2-int` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
+**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **Tasarım dalgası eki (2026-10-02, Fable: sanat-yonu, oyun-hissi, rahatlik-ux, ekip-iletisimi, mekan-estetigi):** 2a'ya (test-2 öncesi) US-021 his turu, US-022 kamera dili, US-025 ayarlar v0, US-028 tut/geçiş, US-030 tuş simgeleri, US-033 keseler, IS-033 ses bağlama, US-027 hatalar; US-026 bağlantı kolaylığı test-1'e; geri kalanı 2b. Faz 3-4 tasarımları: t2-benzinlik.md, ekonomi-kefalet.md, plan-masasi-ui.md (kalem taslakları orada; faz başında açılır). **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2-int` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
 
 | ID | Başlık | EP | Sahip | Öncelik | Büyüklük | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
@@ -242,6 +242,33 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
 | IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
 | IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Sürüyor (t3; medyan kestirim — jitter altında düşük gösterim) | |
+| US-026 | Bağlantı kolaylığı: ad + son adres hatırlanır, host kendi Tailscale/LAN adresini görür + Kopyala/Yapıştır, port 'Gelişmiş' altında (docs/tasarim/arastirma/rahatlik-ux.md UX-1) | 1 | arayuz | P1 | S | — | Sürüyor (2026-10-02; dev, test-1'e yetişirse) | |
+| US-027 | Anlaşılır bağlantı hataları + sürüm uyuşmazlığı nedeni istemciye + menüde build kimliği (UX-2) | 2 | cekirdek + arayuz | P1 | S | IS-026 | Backlog | |
+| US-028 | Sızma/koşu/etkileşim için tut↔geçiş seçenekleri + HUD kip ikonu (UX-3) | 2 | oynanis + arayuz | P1 | S | US-025 | Backlog | |
+| US-025 | Ayarlar v0 (`user://settings.cfg`; ses kanalları, görüntü, hareket azaltma tek kaynak — kukla/sis/halka/merdiven bağlanır, yazı ölçeği, ipuçları, kip seçenekleri) + duraklat erişimi (UX-4 + oyun-hissi #7) | 2 | arayuz | P1 | M | US-014 | Backlog | |
+| US-029 | İpucu sistemi + rehberli bakkal (8 tetik bazlı tek satır ipucu) (UX-5) | 2 | arayuz + oynanis | P2 | S | US-008 | Backlog (2b) | |
+| US-030 | Cihaz algılama + tuş simgeleri ([E]↔[A]), fare imleci, sağ çubuk ölü bölge (UX-6) | 2 | arayuz + oynanis + altyapi | P1 | S | US-011d | Backlog | |
+| US-031 | Lobi v0: Hazır/Başla, host kuralları (görüş kipi), davet adresi, kontrol kartı, geç katılan bekler (UX-7) | 2 | arayuz + cekirdek | P2 | M | US-026 | Backlog (2b) | |
+| US-032 | HUD katmanlama (her zaman / bakınca) + 1280×800 düzen testi + kontrast seçeneği (UX-8) | 2 | arayuz | P2 | S | US-011c | Backlog (2b) | |
+| US-021 | His turu v1 — etkileşim ve kasa: iki aşamalı geri bildirim (ON-02), 22 px hedef halkası (ON-06), kapı ön-aralanma, red gri sönüm (docs/tasarim/arastirma/oyun-hissi.md #1) | 2 | oynanis + arayuz | P1 | S | US-014 | Backlog | |
+| US-022 | Kamera dili v1: camera_tuning.tres (yumuşatma, look-ahead, zoom darbesi, trauma sarsıntı, vinyet, hareket azaltma kapısı) (oyun-hissi #2) | 2 | oynanis | P1 | S | US-011b | Backlog | |
+| US-023 | Tepki kuklası: ürkme, sorgu donması, tutulma + ÇEK, sendeleme, yakalanma, çanta (oyun-hissi #3) | 2 | oynanis (görsel) | P2 | M | US-008, US-014, US-012 | Backlog (2b) | |
+| IS-033 | Olay → ses-görsel bağlama: oyun-hissi §2 anahtarları, stinger + müzik kesme kancası (IS-024 eki) | 2 | arayuz | P1 | S | IS-024, US-008 | Backlog | |
+| US-024 | HUD tepkileri v1: nakit sayarak artış, çanta ikonu, Kaçtı n/3, TUTULDUN/ÇEK istemi, sayaç pulse (oyun-hissi #5) | 2 | arayuz | P2 | S | US-012 | Backlog (2b) | |
+| IS-035 | His ölçüm eki: koşu JSON `feel` alanları, gözlem formu H sütunu (oyun-hissi #8) | 2 | cekirdek | P2 | XS | IS-015 | Backlog (2b) | |
+| US-017 | Bağlamsal ping çekirdeği (core/comm_rules, request_ping → host doğrular → ping_shown; görünen NPC kesin, görülmeyen iddia) (docs/tasarim/arastirma/ekip-iletisimi.md) | 2 | oynanis | P1 | M | US-011b | Backlog (2b; kullanıcıya soruldu) | |
+| US-018 | Ping/mesaj görselleri + HUD günlüğü + token/i18n | 2 | arayuz | P1 | S | US-017 | Backlog (2b) | |
+| US-019 | Hızlı mesaj tekerleği (8) + go-kodu + gürültülü 'Kaç!' | 2 | arayuz + oynanis + altyapi | P2 | S | US-017 | Backlog (2b) | |
+| IS-032 | Test-2 'Discord sessiz turu' protokolü ve ölçümü (yakınlık sesi ihtiyacı) | 2 | tasarim + koordinatör | P2 | S | — | Backlog | |
+| US-033 | Bakkal keseler ve koli engelleri (arka oda + ara sokak, içecek dolabı) — vision_block (docs/tasarim/arastirma/mekan-estetigi.md K3) | 2 | seviye | P1 | XS | IS-023 | Backlog | |
+| US-034 | Bakkal dekor + ışık v1 (16 öğe, vitrin/tezgâh/arka oda ışık havuzları; CanvasModulate + ADD) (mekan-estetigi K1 + docs/tasarim/arastirma/sanat-yonu.md #4) | 2 | seviye | P2 | M | US-033, IS-036 | Backlog (2b) | |
+| US-035 | Sahibin ajanda telegrafları (çay bardağı → arka oda, koli çıkartması → raf, zil → telefon) (mekan-estetigi K2) | 2 | oynanis + seviye | P2 | S | US-008 | Backlog (2b) | |
+| IS-036 | Stil kilidi: 6 onaylı AI asset + palet ≤ 24 + `tools/asset_post.sh` + assetler.md (sanat-yonu #1; kullanıcı onayı) | 2 | seviye + koordinatör | P2 | S | kullanıcı onayı | Backlog (2b) | |
+| US-036 | Bakkal zemin/duvar/cam seti v0 (AI, dikişsiz, --placeholder-art yolu korunur) (sanat-yonu #2) | 3 | seviye | P2 | M | IS-036 | Backlog | |
+| IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Backlog | |
+| IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Backlog | |
+| IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Backlog | |
+| IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
 | IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |
