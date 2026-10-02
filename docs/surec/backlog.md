@@ -232,7 +232,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-011a | Görüş: VisionGrid (core, düğümsüz) + sis katmanı (üç ton) + görüş ayarları — gorus-sis-hafiza.md §6 AC1, AC2, AC9, AC10 (seviye payı) | 2 | seviye | P1 | M | US-006 | Denetimde (2026-10-02) | |
 | US-011b | Görüş: bakış yönü (fare/sağ çubuk, look_dir 20 Hz), NPC görünürlük kapısı + hayalet + çevresel siluet, kukla baş/göz, noise_ring çizim koşulu, Game.player_exposure/vision_mode — §6 AC3, AC4, AC6 (Game), AC7 | 2 | oynanis | P1 | M | US-011a, US-008, US-014, US-009 | Backlog | |
 | US-011c | Görüş: HUD maruziyet rozeti, görüldü ikonu, ekip kenar oku, lobi "Görüş" seçimi, i18n (FOG token'ları US-011a'da) — §6 AC5 (UI), AC6 (UI) | 2 | arayuz | P1 | S | — (FakeGame) | Denetimde (2026-10-02) | |
-| US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Denetimde (2026-10-02) | |
+| US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Bitti (2026-10-02; faz2-int f59fbfe) | |
 | IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Sürüyor (2026-10-02; dev) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
@@ -274,11 +274,16 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-044 | Oturum izi v0: host karar günlüğü + peer durum izi (jsonl; S6 samples/events'in uzantısı); girdi replay'i yerine (Ö6; karar gereken: GDD replay maddesi daraltılır) | 2 | cekirdek | P2 | S | IS-043 | Backlog | |
 | IS-045 | S2/S6 notu: tek RPC yükü ≤ 1 KB (Tailscale MTU 1280) + net_smoke en büyük paket istatistiği (Ö8) | 2 | cekirdek | P3 | XS | — | Backlog | |
 | IS-046 | Test hijyeni kapısı: koşucu orphan/sızıntı sayacı (`OBJECT_ORPHAN_NODE_COUNT` farkı + `--verbose` Leaked instance taraması) → test başına uyarı, takım sonu FAIL eşiği (teknik/mimari-test.md; IS-029 sonrası) | 2 | altyapi | P1 | S | IS-029 | Backlog | |
-| IS-047 | Uyarı sıkılaştırma ölçümü: `unsafe_method_access`, `unsafe_property_access`, `unsafe_call_argument`, `return_value_discarded` = 1 (warn) + sayım raporu; hata (2) kararı ölçüm sonrası | 2 | altyapi | P2 | XS | — | Backlog | |
+| IS-047 | Uyarı sıkılaştırma ölçümü: `unsafe_method_access`, `unsafe_property_access`, `unsafe_call_argument`, `return_value_discarded` = 1 (warn) + sayım raporu; hata (2) kararı ölçüm sonrası | 2 | altyapi | P2 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-048 | Typed koleksiyon geçişi (üretimde 73 tipsiz Array/Dictionary → typed ya da küçük Resource; modül sahipleri) | 3 | cekirdek + oynanis | P2 | S | IS-047 | Backlog | |
 | IS-049 | Deterministik zaman: `core/clock.gd` (sahte saat) — üretimde `Time.get_ticks_*` 8 yer, testlerde duvar saati döngüleri | 2 | cekirdek + oynanis | P2 | S | — | Backlog | |
 | IS-050 | Autoload test dikişleri (testlerin 33 özel üye erişimi → açık test API'si), IS-040 öncesi | 2 | cekirdek | P2 | S | — | Backlog | |
 | IS-051 | gdlint (gdtoolkit 4.5) yalnız `max-file-lines: 400` + adlandırma, `--check`; gdformat yok | 3 | altyapi | P3 | XS | — | Backlog | |
+| IS-052 | Süreç: worktree tabanı (ajan worktree'si güncel dalı alsın; ayar doğrulanıyor) + `.gitignore` `.claude/worktrees/` + surec.md §6 yol düzeltmesi (teknik/ajan-sureci.md) | 2 | koordinatör + altyapi | P1 | XS | — | Backlog | |
+| IS-053 | Süreç: ajan hook'ları v1 (PreToolUse: ajanlarda git commit/push, pano dosyaları ve Dokunulmayacak yollar engellenir; denetci yazamaz) | 2 | altyapi | P1 | S | IS-052 | Backlog | |
+| IS-054 | Süreç: denetim kontrol listesi v2 — M/ağ kalemlerinde çürütme ajanı 1-3 ajanın görmediği (holdout) test yazar + denetci 2-3 elle mutant uygular; denetci/çürütme effort xhigh | 2 | koordinatör | P1 | XS | — | Backlog | |
+| IS-055 | Süreç: pano lint (`tools/pano_check.py`: S-sayısı, kimlik tekilliği, durum değerleri, ölü yol) + ortak ajan kuralları tek kaynak + backlog §0 paket sınırı güncel | 2 | altyapi | P2 | S | — | Backlog | |
+| IS-056 | Süreç: XS/S arayüz-altyapı kalemlerinde düşük model kademesi deneyi (kalite = t2 oranı, süre, token) | 2 | koordinatör | P3 | XS | — | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
