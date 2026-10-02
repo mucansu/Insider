@@ -46,6 +46,7 @@ func is_host() -> bool
 func is_online() -> bool
 func local_peer_id() -> int
 func get_ping_ms(peer_id: int = 1) -> int      # host için 0; bilinmiyorsa -1
+func get_ping_info(peer_id: int = 1) -> Dictionary  # {source: "ping"|"transport"|"self"|"none", samples: int} (IS-026; döküm `ping`)
 ```
 Taşıma seçimi Net'in içinde kalır (`_create_peer()`); başka hiçbir dosya `ENetMultiplayerPeer`/Steam sınıflarına doğrudan dokunmaz. Varsayılan port 7777 (UDP).
 

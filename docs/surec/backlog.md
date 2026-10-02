@@ -241,7 +241,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + `level_change.json` 150 ms kararsızlığı (yük altında 53 px, IS-037 koşusu) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
 | IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
-| IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Sürüyor (t4; ping akışını kanıtlayan test, damgalama kaldırılır) | |
+| IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Bitti (2026-10-02; dev, t4 PASS) | |
 | US-026 | Bağlantı kolaylığı: ad + son adres hatırlanır, host kendi Tailscale/LAN adresini görür + Kopyala/Yapıştır, port 'Gelişmiş' altında (docs/tasarim/arastirma/rahatlik-ux.md UX-1) | 1 | arayuz | P1 | S | — | Bitti (2026-10-02; dev a776551; README birleştirmede IS-041/076 metniyle birleştirildi) | |
 | US-027 | Anlaşılır bağlantı hataları + sürüm uyuşmazlığı nedeni istemciye (game.gd:427 ret nedeni yollanır) + menüde/dökümde build kimliği (application/config/version + git kısa hash, export_presets sürüm alanları) (UX-2 + teknik/operasyon-guvenilirlik.md Ö1) | 2 | cekirdek + arayuz | P1 | S | IS-026 | Backlog | |
 | US-028 | Sızma/koşu/etkileşim için tut↔geçiş seçenekleri + HUD kip ikonu (UX-3) | 2 | oynanis + arayuz | P1 | S | US-025 | Backlog | |
