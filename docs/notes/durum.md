@@ -9,11 +9,12 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
 
 ## Faz 2 (`faz2-int`, GitHub'a yedekli; plan backlog §2b)
 - Bitti (faz2-int): US-006, US-007, IS-023, US-009, US-013, US-014, US-011a, US-011c, US-011d, US-012, US-033, US-008 · IS-024, IS-037, IS-038, IS-039, IS-047, IS-067. Son tam CI yeşil (500 birim, 34 ağ koşusu).
-- Sürüyor: yok (devir noktası). US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
+- Sürüyor: IS-078 (arayuz, faz2-int worktree): dev → faz2-int birleştirmesi çakışmaları çözüldü (game.gd döküm `ping`+`alert`, make_pair(vision, fresh_settings), ci_local araç adımları, main_menu odak), contracts.gd'ye Net.get_ping_info eklendi; birleşik ağaçta 6 arayüz testi kırık → IS-078; yeşil olunca birleştirme commit'i + push.
+- Önceki: US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
 
 ## Yeni sohbette ilk adımlar (sırayla)
 1. (Tamamlandı) US-008 faz2-int'te.
-2. dev → faz2-int birleştir (IS-026 `get_ping_info` → `tests/contracts.gd` Net listesine ekle; IS-046 koşucu, IS-053, IS-076).
+2. (Sürüyor, IS-078) dev → faz2-int birleştir (IS-026 `get_ping_info` → `tests/contracts.gd` Net listesine ekle; IS-046 koşucu, IS-053, IS-076).
 3. Sıradaki Faz 2: US-011b (bakış + NPC görünürlük kapısı; `Level.attach_fog` Game'den bağlanır) → US-037 NPC teması (KR-027) → US-010 bakkal etkileşimleri (KR-026) → US-016 mekân nüfusu → IS-028 → IS-015 botlar → test-2 (IS-017).
 4. Açık nit/kalem adayları backlog'da: IS-057..IS-077 (araştırma turlarından), IS-064/IS-058 (US-008 kalanları), IS-020 (level_change kararsızlığı), IS-077 (sert ağ auth ERROR'u).
 
