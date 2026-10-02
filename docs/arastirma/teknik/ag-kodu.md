@@ -142,3 +142,122 @@ MultiplayerSynchronizer/Spawner en iyi kullanımı ve tuzakları (4.x sürüm du
 - Ara değerleme / telafi: https://gafferongames.com/post/snapshot_interpolation/ · https://www.gabrielgambetta.com/lag-compensation.html · Unity Netcode ClientTickRate (InterpolationDelayJitterScale) https://docs.unity3d.com/Packages/com.unity.netcode@1.5/api/Unity.NetCode.ClientTickRate.html · Overwatch GDC 2017 https://gdcvault.com/play/1024001/-Overwatch-Gameplay-Architecture-and · Valve Source Multiplayer Networking https://developer.valvesoftware.com/wiki/Source_Multiplayer_Networking (403 ile erişilemedi; Gambetta ile çapraz)
 - Örnek projeler: https://github.com/godotengine/godot-demo-projects (networking/multiplayer_bomber, multiplayer_pong) · Campos & Lovato, "The Essential Guide to Creating Multiplayer Games with Godot 4.0" https://oreilly.com/library/view/the-essential-guide/9781803232614
 - Proje içi: `docs/arastirma/steam-ag.md`, `docs/arastirma/tuzaklar.md`, `docs/tasarim/arastirma/rahatlik-ux.md`, `docs/surec/kararlar.md` (IS-013, US-004 günlükleri).
+
+---
+
+## Tur 2 — 2026-10-02 (ölçüm ağırlıklı)
+
+### Kapsam
+(1) Gerçek bayt/paket ölçümü vs tur 1 tahmini; (2) 20 Hz vs 30 Hz sert ağ A/B tabanı (IS-013 ölçümünün tekrarı) ve 30 Hz'in kod yüzeyi (US-015 AC önerisi); (3) Steam Networking Sockets şerit/HOL davranışı ve GodotSteam MultiplayerPeer'in reliable delta ile etkileşimi (Faz 5 notu); (4) `held`/`caught` anında istemci girdisinin kesilmesi; (5) Godot 4.8 dev sürecinde multiplayer değişiklikleri.
+
+### Ölçüm düzeneği (depoya kod girmedi)
+- Çıktılar: `%LOCALAPPDATA%\Temp\claude\...\scratchpad\agkodu-tur2-20261002-133943\` (`batch.out`, `hard20_N.log`, `hard30_N.log`, `*.bytes.json`, `*.cmds.json`, `measure.py`, `measure2.py`).
+- **Bayt sayımı:** `tools/net_smoke.py` değiştirilmeden, `LatencyProxy` scratchpad'de bayt/paket sayan ve ENet komut başlıklarını ayrıştıran bir alt sınıfla değiştirildi (monkeypatch; `--latency-ms 2`). Proxy yalnız istemci↔host trafiğini görür; "up" = istemci yüklemesi, "down" = host'un o istemciye yüklemesi. Tel değeri = yük + 28 B (IPv4+UDP). ENet başlığı yükün içinde; `ENetMultiplayerPeer` sıkıştırma açmaz (4.7 kaynak `enet_multiplayer_peer.cpp`: `compress` çağrısı yok) [O].
+- **30 Hz A/B:** `entities/player/player.tscn` kopyası (`replication_interval = 0.0333`, uid satırı silindi) scratchpad'e kondu; `main.gd:89-96` `--player-scene` için `ResourceLoader.exists` + `load` ile **mutlak OS yolunu kabul ediyor** (ext_resource `res://` yolları çözülüyor) → senaryo JSON kopyasında `player_scene` mutlak yol. Depoda değişiklik yok; aynı yöntem ileride her A/B için kullanılabilir [O].
+- Sert ağ: `faz1_full.json --latency-ms 150 --jitter-ms 30 --loss 0.01`, 10 koşu × 2 varyant; ENet komut dökümü `store_walk` ve `faz1_full` (20 Hz, 2 ms).
+
+### Mevcut durum (dosya:satır; dev `1704158`)
+- Bant genişliği/paket istatistiği yok: `autoload/net.gd:252-259` yalnız `PEER_ROUND_TRIP_TIME`; döküm `ping_ms` (`game.gd:226`). `ENetConnection.pop_statistic(HOST_TOTAL_SENT_DATA|SENT_PACKETS|RECEIVED_DATA|RECEIVED_PACKETS)` "döner ve sıfırlar" [O: belge]; `get_statistic` ENetConnection'da **yok** (tur 1 metnindeki ad yanlış; ENetPacketPeer'de `get_statistic(PeerStatistic)` var). `ENetMultiplayerPeer.host` ile ENetConnection'a erişilir → IS-059 `Net.stats()` için yol açık.
+- Senkron: `player.tscn:43` `0.05`; `tests/fixtures/dummy_player.tscn:23` `0.05`; `tests/unit/test_player.gd:147` "20 Hz" sabitini doğruluyor; `player.gd:13`, `snapshot_buffer.gd:6,32,94` yorumları; mimari.md §2 satır 10 ve S2 satır 54 "0,05 sn (20 Hz)". `SnapshotBuffer.MAX_FRAMES = 32` → 30 Hz'de 1,07 sn (yeterli).
+- Yetkilendirme: SceneMultiplayer `poll` (`scene_multiplayer.cpp:97`) bekleyen (auth) peer'dan AUTH dışı paket gelirse `ERR_CONTINUE` basar; AUTH paketleri reliable kanal 0 [O: 4.7 kaynak].
+- GodotSteam 4.22.1 (`godot4` dalı, Codeberg; GitHub deposu 2026-09-04 arşivlendi) `steam_packet_peer.cpp`: `ConfigureConnectionLanes(conn, configured_lanes, nullptr, nullptr)`, `configured_lanes = SteamProjectSettings::get_max_channels()`; `send`: `if (p_channel >= configured_lanes - 1) { WARN; p_channel = 0 }`, `m_idxLane = p_channel`; `godotsteam_multiplayer_peer.cpp` `_get_steam_packet_flags`: RELIABLE→Reliable, UNRELIABLE→Unreliable, **UNRELIABLE_ORDERED→Reliable** ("No equivalent"); `no_nagle`/`no_delay` her pakete eklenir; alış `ReceiveMessagesOnPollGroup` (≤ 255 mesaj/poll); istatistik/ping sarmalayıcısı **yok** [O].
+
+### Bulgular ve ölçümler
+
+#### 1. Gerçek bayt/paket ölçümü (3 oyuncu: host + 2 istemci, `faz1_full`, 2 ms)
+| | 20 Hz | 30 Hz |
+|---|---|---|
+| İstemci yüklemesi (up), yük / tel | 2,05 KB/s / 3,1 KB/s · 38 paket/sn · ort 55 B | 2,86 KB/s / 4,27 KB/s · 51 paket/sn · ort 57 B |
+| Host → bir istemci (down), yük / tel | 2,1 KB/s / 3,15 KB/s · 38 paket/sn · ort 56 B | 2,9 KB/s / 4,3 KB/s · 51 paket/sn · ort 58 B |
+| Host toplam yükleme (2 istemci), tel | ≈ 6,3 KB/s | ≈ 8,6 KB/s |
+| En büyük datagram | 210 B (down) / 122 B (up) | 210 / 122 |
+
+ENet komut dökümü (`store_walk`, 20 Hz, saniye başına kararlı durumda; `*.cmds.json`) [O]:
+- **İstemci yüklemesi:** `UNSEQ ch1 sync` ~20/sn × 57 B (yük 49 B: tur 1 tahmini 41 B'ye yakın) **+ `UNSEQ ch1 sys(RELAY)` ~20/sn × 63 B**. Yani istemci her senkron turunda **her uzak peer için ayrı paket** üretir: host'a düz senkron, diğer istemciye SYS_COMMAND_RELAY sarmalı (+6 B) kopya (SceneReplicationInterface `_send_sync` peer başına paket kurar; istemci hedefi host değilse SceneMultiplayer RELAY'e sarar). N oyuncuda istemci yüklemesi (N−1) × tur.
+- **Her `put_packet` ayrı UDP datagramı:** aynı turdaki iki paket birleşmiyor (ENetMultiplayerPeer her gönderimde flush eder; ort datagram 55-58 B, 38 ≈ 2 × 20/sn). Paket sayısı bant genişliğinden önce büyür: 4 oyuncu 30 Hz'de istemci 90 paket/sn, host 270 paket/sn [G: ölçümden türetildi].
+- **Host → istemci:** kendi senkronu 57 B + diğer istemcinin röle kopyası 63 B; ayrıca `REL ch0 sync` (ON_CHANGE delta: `busy_by/progress` tutma sırasında ~10/sn, kapı) 31 komut × 40 B, `UNREL ch1 rpc` 30 × 70-80 B (2 sn yetiştirme akışı; tur 1 R4), spawn/simplify_path/sys reliable tek seferlik; ACK ~2/sn, PING ~1,5/sn (ENet 500 ms ping aralığı) — ihmal edilir.
+- **Tur 1 tahminiyle karşılaştırma:** akış başına tel maliyeti (57+28) × 20 ≈ 1,7 KB/s ≈ tahmin (1,6) ✓; ama **röle kopyası tahminde yoktu**: istemci yüklemesi 3 oyuncuda 2 × 1,7 ≈ 3,1 KB/s (ölçüldü 3,1 ✓), 4 oyuncuda ≈ 5,2 KB/s; host yüklemesi 4 oyuncuda 3 × 3 × 1,75 ≈ 16 KB/s (20 Hz), ≈ 24 KB/s (30 Hz). Hâlâ ev hattı için önemsiz [G]; NPC ekleri (host yetkili, röle yok, tek pakete paketlenir) tur 1 §9 bütçesini değiştirmez.
+- Steam notu: SNS Nagle (varsayılan 5 ms, `k_ESteamNetworkingConfig_NagleTime`) aynı turdaki küçük mesajları tek UDP paketine birleştirir → Steam'de paket sayısı ENet'in yaklaşık yarısı [O: steamnetworkingtypes.h; G: bize uygulanışı].
+
+#### 2. 20 Hz vs 30 Hz, sert ağ (150 ms + 30 ms jitter + %1 kayıp), `faz1_full`, 10'ar koşu
+| | PASS | `samples_near` host↔istemci (< 32 px) | istemci↔istemci (< 48 px) | Diğer FAIL |
+|---|---|---|---|---|
+| **20 Hz (taban)** | **3/10** | 7 koşuda aşıldı: en kötü 32,1 · 34,7 · 40,8 · 42,5 · 50,2 · 77,0 · **264,6** px | 5 koşuda aşıldı: 61,8-71,2 px (+264,6) | 1 koşuda auth ERROR satırları (aşağıda §3) |
+| **30 Hz (A/B)** | **9/10** | **10/10 geçti**, en kötü 29,1-30,4 px | 10/10 geçti, en kötü 41,2-45,3 px | 1 koşu: `c2.interaction.result_delay_ms` 417 > RTT+200 (reliable istek/sonuç kaybı → ENet yeniden gönderim; IS-013'teki "kayıpta 433-483 ms" ile aynı sınıf, ara değerlemeyle ilgisiz) |
+
+- IS-013 tabanı 5/10'du; bu tur 3/10 (aynı sınıf: 40-77 px sıçramalar). 264 px (koşu 8, host kopyası) tek seferlik aykırı değer — tek makinede 3 Godot + proxy çalışırken süreç duraklaması olabilir [?]; dökümde "en uzun örnek boşluğu/underrun anı" olmadığı için ayrıştırılamadı (IS-059'a: dökümde `underruns` zaten var, `max_gap_ms` eklenmeli).
+- Yorum: Gaffer'ın "tampon ≥ 3 × gönderim aralığı" kuralıyla tutarlı — 30 Hz'de 100 ms tampon iki ardışık kayba dayanıyor; 20 Hz'de tek kayıp + 30 ms jitter tamponu boşaltıyor [G]. **30 Hz tek başına ölçülebilir hedefi karşılıyor**; uyarlanır tampon (US-015 ikinci adım) bu veriye göre ertelenebilir (karar gereken).
+- Maliyet: 30 Hz bant genişliği ×1,4 (ölçüldü), paket sayısı ×1,35; uzak kopyada CPU etkisi ihmal edilir (tampon push 30/sn).
+- **30 Hz'in kod yüzeyi (US-015 için):** `player.tscn:43` `replication_interval` 0,05 → 0,0333 (ya da `PlayerTuning`'e `sync_interval` alanı + `_ready`'de `_sync.replication_interval = tuning.sync_interval` — veri odaklı, S10 kalıbı; ajan kararı); `tests/fixtures/dummy_player.tscn:23` (fikstür senaryolarının 40 px eşiği 20 Hz için türetildi, 30 Hz'de de geçer); `tests/unit/test_player.gd:147` beklentisi; `player.gd:13`, `snapshot_buffer.gd:6,32,94` yorumları; mimari.md §2/S2 "0,05 sn (20 Hz)" (koordinatör); `MAX_FRAMES` kalır. Geç katılma yetiştirmesi (`game.gd:686-703`, 20 Hz 2 sn) bağımsız, dokunulmaz.
+- **US-015 AC önerisi (yeniden):** AC1 oyuncu senkron aralığı 1/30 sn (tek kaynak: `PlayerTuning.sync_interval` ya da tscn), birim testi günceller. AC2 sert ağ profilinde `faz1_full` 10 koşuda `samples_near` 10/10 (< 32 / < 48 px), toplam PASS ≥ 9/10 (reliable kayıp kaynaklı `result_delay` tek başına kabul edilir — ya da eşik `$rtt+350` olarak ayrı senaryoya alınır; karar gereken). AC3 bayt ölçümü (IS-059 `Net.stats()` varsa) istemci yüklemesi ≤ 5 KB/s, host ≤ 10 KB/s (3 oyuncu) dökümde; yoksa bu turdaki scratchpad sayımı kayıt. AC4 uyarlanır tampon **yapılmaz**; `delay` 0,10 sabit kalır; 0 ms'de davranış değişmez (`store_walk` 0/150 PASS).
+
+#### 3. Kayıpta yetkilendirme (auth) hata satırları — yeni risk
+- 20 Hz koşu 4'te `c1`'de 15 × `ERROR: Condition "len < 2 || (packet[0] & CMD_MASK) != NETWORK_COMMAND_SYS || packet[1] != SYS_COMMAND_AUTH" is true. Continuing. at: poll (scene_multiplayer.cpp:97)` — `INSIDERS_READY`'den **önce**. Mekanizma [O kaynak + G çıkarım]: host `complete_auth` paketini reliable kanal 0'dan yollar ve peer'ı hemen `connected_peers`'a alır → o andan itibaren ona senkron (unsequenced kanal 1) ve röle paketleri gider. AUTH paketi %1 kayba yakalanırsa ENet yeniden gönderimi `roundTripTime + 4 × varyans` sonra (bağlantı başında `roundTripTime` varsayılanı **500 ms**, `ENET_PEER_DEFAULT_ROUND_TRIP_TIME`) → o ~0,4-0,5 sn boyunca gelen her unsequenced paket istemcide "bekleyen peer'dan AUTH dışı paket" hatası basar (15 paket ≈ 375 ms × 40 paket/sn ✓). Zararsız (paketler zaten atılır, oturum normal kurulur, senaryo içerik olarak geçti) ama `net_smoke` ERROR satırını FAIL sayar → sert ağ profilinde PASS oranını düşüren bir **ölçüm gürültüsü**. GitHub'da bu satır için açık issue bulunamadı (arama 0 sonuç) [O].
+- Öneri: sert ağ koşularında senaryo `allow_log`'una bu satırın regex'i (yalnız 150+kayıp profilinde; 0/150 ms temiz kalmalı) — karar gereken (kalite kapısı gevşetme); üst akışa küçük rapor (bekleyen peer için `ERR_CONTINUE` yerine sessiz atma) P3.
+
+#### 4. Steam Networking Sockets: şerit (lane) / HOL ve GodotSteam MultiplayerPeer (Faz 5 notu)
+- **[O] Steamworks belgesi (`ConfigureConnectionLanes`):** bir şerit içindeki mesajlar kuyruğa giriş sırasıyla gönderilir; farklı şeritler birbirini beklemez ("head-of-line blocking control"); öncelik (düşük öncelikli şerit yalnız yüksekler boşken) + ağırlık (aynı öncelikte bant paylaşımı); "3 civarı şerit iyi, > 8 çok". `SendRateMin/Max` varsayılanı 256 KB/s; `NagleTime` 5 ms; `SendBufferSize` 512 KB; tek mesaj ≤ 512 KB (parçalama/yeniden birleştirme SNS'te).
+- **[O] GodotSteam 4.22.1:** şerit sayısı = `steam/multiplayer_peer/max_channels` (varsayılan 4; tur 1 steam-ag.md ile uyumlu), öncelik/ağırlık **nullptr** (eşit öncelik ve ağırlık [?: SNS nullptr davranışı belgede "eşit" olarak geçer]); `p_channel >= lanes − 1` eksik-bir denetimi → son şerit kullanılamaz, uyarı + kanal 0'a düşüş (steam-ag.md R4 doğrulandı); UNRELIABLE_ORDERED → Reliable; istatistik sarmalayıcısı yok → Steam'de bant ölçümü GodotSteam tekilinin `getConnectionRealTimeStatus` benzeri Networking Sockets çağrılarıyla [?: ad doğrulanmalı].
+- **Bugünkü tasarıma etkisi [G]:** Godot'ta reliable ve unreliable aynı **kanalda** (0) gidiyor → Steam'de hepsi **şerit 0**. Şerit içi sıra "gönderim sırası"dır; ENet'teki gibi reliable kaybı aynı kanaldaki sonraki reliable'ı bekletir, unreliable senkronlar beklemez (SNS reliable akışı ayrı; sıralı teslim yalnız reliable'lar arasında) [?: SNS iç yeniden gönderimi şerit başına mı bağlantı başına mı — belgede açık değil]. Küçük mesajlarda (S2 ≤ 1 KB ilkesi) HOL etkisi ölçülemeyecek kadar küçük: 1 KB @ 256 KB/s = 4 ms. **Bozulan karar yok.** Tek dikkat: Faz 3 plan masası çizimleri gibi > 10 KB reliable yük şerit 0'a konursa 256 KB/s'de 40 ms+ boyunca aynı şeritteki senkronları kuyrukta bekletir → ayrı kanal (Godot kanal 1 = şerit 1; eksik-bir yüzünden `max_channels ≥ 3`) ve düşük öncelik; GodotSteam öncelik vermediğinden yalnız "ayrı şerit" kazanılır, öncelik yok [O/G].
+- Yetiştirme RPC'si `unreliable_ordered` Steam'de reliable olur (IS-059'da `unreliable` + damga; tur 1 R4) — ölçümde bu akış 30 paket × 70-80 B / 2 sn, küçük.
+- Doğrulama planı (Faz 5): `Steam.setGlobalConfigValueInt32(FAKE_PACKET_LAG_SEND/RECV 75, FAKE_PACKET_LOSS 1)` ile `faz1_full` tekrarı; `net_smoke`'un Steam taşıyıcısında proxy yerine bu ayarları kullanması (XS, cekirdek, Faz 5).
+
+#### 5. `held`/`caught`: istemci yetkili harekette host'un "dur" kararı
+- Zamanlama [G, S2 sayılarıyla]: host kararı istemcinin `net_position`'ının 50-175 ms bayat hâline dayanır (RTT/2 + ≤ 1 senkron aralığı + proxy jitter); karar RPC'si (reliable) RTT/2 sonra istemciye ulaşır → istemci kararın verildiği andan itibaren **RTT/2 + 1 kare** daha koşar: 150 ms RTT'de ≈ 20 px, 300 ms'de ≈ 36 px (220 px/sn). Diğer oyuncular donmayı RTT/2 + 100 ms sonra görür. Bayatlık (host geride görür, IS-057 ölü hesap) ile aşım (istemci ileride) **toplanır**: yakalanan oyuncunun ekranında sahip 150 ms'de ~40 px, 300 ms'de ~70 px uzaktan "tutmuş" görünebilir.
+- Seçenekler:
+  (a) **Yalnız host RPC'si, istemci aldığında girdiyi keser, konum istemcide kalır, host istemcinin bildirdiği durma konumunu kabul eder** (tur 1 §5 kalıbı). Artı: uzlaştırma kodu yok, "ışınlanma" yok; eksi: yukarıdaki görsel boşluk. Hissedilen gecikme girdi gecikmesi değildir (oyuncu "dur" basmadı); algılanan tek şey "uzaktan tutuldum".
+  (b) İstemcide tahmini durma (istemci yerelde 28 px + 0,5 sn temas görünce kendini durdurur, host onaylamazsa serbest bırakır). Artı: boşluk küçülür; eksi: istemcideki NPC kopyası 100 ms + RTT/2 bayat (ters yönde hata), yanlış tahminde "takıldım-çözüldüm" hissi; iki yetkili karar (KR-008'e aykırı eğilim). Unity Netcode belgesi tahmin edilen eyleme sunucunun "stun" yollamasını klasik uyumsuzluk örneği olarak verir ve çözüm olarak **düzeltmeyi animasyonla gizlemeyi** ("controlled desync", "action anticipation") önerir [O].
+  (c) (a) + görsel düzeltmeyi **host yetkili tarafta** yapmak: tutma anında host, sahibi oyuncunun en güncel `net_position`'ına atlatır/hamle ettirir ("lunge": ≤ 40 px, 0,1-0,2 sn, `owner_held` animasyonu); NPC host yetkili olduğundan bu her istemcide tutarlı ve ucuz; oyuncu kopyası hiç düzeltilmez. Artı: boşluk kapanır, uzlaştırma yok; eksi: tasarım dokunuşu (sahip "sıçrayarak" tutar — bakkal sahibi için makul, Fable'a soru).
+  - Ek: istemcide "tutulmak üzere" ipucu (sahip yerelde 28 px içinde → kısa görsel/ses, "action anticipation") yalnız kozmetik; girdi kesilmez.
+  - `held`/`caught` durumu host yetkili olduğu için **oyuncu eşitleyicisine konmaz** (istemci yetkili düğüm; tur 1 §10 kuralı). S3 `player_exposure` kalıbı: `Game` sözlüğü host yazar + reliable RPC (durum geçişi ayrık) ya da ON_CHANGE delta; istemci `Player.set_held(true)` ile girdiyi keser, `net_mode`'a `HELD` kipi ekler ki uzak kopyalar animasyonu doğru çizsin. 0,5 sn temas kuralı (AC7) kararı zaten toleranslı kılar; ÇEK (1 sn tut, 32 px) de aynı S7 doğrulamasıyla çalışır.
+- Öneri: **(a) + (c)**; (b) yapılmaz.
+
+#### 6. Godot 4.8 dev süreci
+- [O] Dev snapshot'lar: 4.8 dev 1 (2026-07-06) … dev 7 (2026-09-29, **özellik dondurma**); duyurularda multiplayer/ENet/replication maddesi yok. GitHub: milestone 4.8 + `topic:multiplayer` birleşmiş PR = yalnız **#109864** "Fix peers stopping replication on deleting node they spawned with MultiplayerSpawner" (2026-06-18; birden çok peer'ın spawn ettiği düğümlerde `net_id` çakışması; **4.7.2'ye cherry-pick edildi**, bizde var); `topic:network` + 4.8 = 7 PR, hepsi mbedTLS/TLS/IP (ağ oyununa etkisi yok). Sonuç: 4.8'de bize dokunan API/davranış değişikliği yok; 4.7.2 kilidi (KR-007) rahat.
+
+### Bizim yapımıza uygunluk değerlendirmesi
+- Bant genişliği tur 1 sonucunu doğruluyor: sınırlayıcı değil (4 oyuncu 30 Hz host ≈ 24 KB/s tel). Yeni nüans: **röle kopyaları ve paket başına flush** yüzünden paket sayısı oyuncu sayısıyla kareye yakın büyür; 4 oyuncuda hâlâ düşük (host 270 paket/sn), Steam'de Nagle yarıya indirir.
+- 30 Hz, mevcut S2 modelini (sabit 100 ms tampon, ileri tahmin yok) değiştirmeden sert ağ hedefini tutturuyor → en ucuz yol; uyarlanır tampon ertelenebilir.
+- Steam'e geçişte kanal/şerit tasarımı değişmiyor; yalnız büyük reliable yük için ayrı kanal kuralı ve `max_channels ≥ kanal + 2` notu geçerli.
+
+### Bulgular
+**Doğru yaptıklarımız**
+- Senkron yükü küçük ve tahmine yakın (49 B); ON_CHANGE delta akışı yalnız durum değişince (tutma sırasında ~10/sn × 40 B).
+- `--player-scene` mutlak yol kabul ediyor → depo değişmeden A/B ölçümü mümkün (test altyapısı esnek).
+- Throttle kapatma (`net.gd:31-33`) ölçümde teyit: `THROTTLE` komutu bağlantı başında 1 kez, unreliable düşüş gözlenmedi (2 ms'de underrun sıfır; sert ağda kayıp yalnız proxy'den).
+
+**Saptığımız yerler / riskler**
+- R9 20 Hz + 100 ms tampon sert ağda 3/10 — tur 1 R1'in sayısal teyidi; 30 Hz 9/10 (10/10 ara değerleme). → §2.
+- R10 Kayıpta auth paketi kaybı → motor ERROR satırları → `net_smoke` yanlış FAIL (1/20 koşu). → §3.
+- R11 İstemci her turda (N−1) ayrı datagram, host her istemciye (N−1)+1 datagram; Faz 5 SDR'de paket/sn sınırı yok ama Wi-Fi'da paket başına ek yük. İzlenir, aksiyon yok. → §1.
+- R12 `held` görsel boşluğu (bayatlık + aşım 40-70 px) tasarımla kapatılmalı (NPC hamlesi). → §5.
+- R13 Tur 1 metnindeki `ENetConnection.get_statistic` adı yanlış; IS-059 `pop_statistic` kullanmalı (sıfırlayan sayaç → Net kendi toplamını tutar).
+
+### Öneriler (öncelik · maliyet · sahip · kalem adayı + AC)
+- **P1 · XS · oynanis — US-015 kapsam daraltma: "Oyuncu senkronu 30 Hz"** — AC1: aralık 1/30 tek kaynaktan (`PlayerTuning.sync_interval` ya da tscn), `test_player.gd` ve fikstür güncel; AC2: sert ağ `faz1_full` 10 koşuda `samples_near` 10/10, PASS ≥ 9/10; AC3: 0/150 ms tüm senaryolar yeşil; uyarlanır tampon kapsam dışı (ileride veriyle açılır).
+- **P1 · S · oynanis (US-008 içinde) — "held/caught ağ kalıbı"** — AC1: `held/caught` host yetkili (Game sözlüğü + reliable RPC ya da ON_CHANGE), oyuncu eşitleyicisinde değil; istemci alınca girdiyi keser, konum korunur, host istemcinin durma konumunu kabul eder (snap yok); AC2: tutma anında sahip host'ta oyuncunun en güncel `net_position`'ına ≤ 40 px hamle eder (`owner_held` animasyonu); AC3: `rescue.json` 150 ve 300 ms'de: tutulan kopyanın donma anından sonra yer değiştirmesi ≤ RTT/2 × 220 px/sn + 8 px, sahip–oyuncu mesafesi dökümde ≤ 32 px.
+- **P2 · XS · cekirdek + altyapi — IS-059 eki "Telemetri ayrıntıları"** — AC1: `Net.stats()` `ENetConnection.pop_statistic` ile (sıfırlayan sayaç, Net toplar), dökümde `net_bytes {sent, recv, packets_sent, packets_recv}`; AC2: `net_smoke` `max_kbps` eşikleri bu turun ölçümüne göre (3 oyuncu 30 Hz: istemci ≤ 6 KB/s, host ≤ 12 KB/s tel; 4 oyuncu ×1,5); AC3: dökümde uzak kopya başına `max_gap_ms` (ardışık anlık görüntü arası en uzun boşluk) — 264 px aykırı değerini sınıflandırmak için; AC4 (**karar gereken**): sert ağ profilinde `allow_log` için auth satırı regex'i.
+- **P3 · XS · cekirdek (Faz 5) — "Steam şerit kuralı"** — AC1: ikinci Godot kanalı kullanılacaksa `steam/multiplayer_peer/max_channels ≥ 3`; AC2: `net_smoke` Steam taşıyıcısında `FAKE_PACKET_LAG/LOSS` ile 150 ms + %1 profili; AC3: büyük reliable yük (> 1 KB) yalnız kanal 1'de (S2 ilkesi + S1 notu, koordinatör).
+- **P3 · — — Üst akış:** `scene_multiplayer.cpp:97` bekleyen peer için sessiz atma önerisi (issue); bize etkisi test gürültüsü.
+
+### Karar gereken (koordinatör)
+1. 30 Hz'in varsayılan olması ve uyarlanır tamponun US-015'ten çıkarılıp "veriyle açılır" notuna düşmesi (S2 metni 20 Hz → 30 Hz, mimari §2).
+2. Sert ağ profilinde motorun auth ERROR satırının `allow_log` ile izinli sayılması (yalnız kayıplı profil) ve `result_delay` için ayrı eşik (`$rtt+350`) ya da ayrı senaryo.
+3. Tutma anında sahibin oyuncuya hamle etmesi (tasarım dokunuşu; Fable görüşü).
+4. US-015 AC3 bayt eşiklerinin IS-059'a bağlanması (sıra: IS-059 önce mi?).
+
+### Bir sonraki tur için açık sorular
+- 264 px aykırı değer: süreç duraklaması mı, tampon mantığı mı (max_gap_ms sonrası tekrar)?
+- NPC akışı gerçek ölçüm (faz2-int'te sahip + chaser + müşteriler): 6 NPC × 15 Hz tek pakete mi paketleniyor, `focus_direction` yuvarlama gerçekten delta'yı susturuyor mu?
+- Steam'de şerit içi reliable yeniden gönderimi aynı şeritteki unreliable'ı bekletiyor mu (FAKE_PACKET_LOSS ile ölçüm)?
+- 30 Hz ile 4 oyuncu (3 istemci) sert ağ: `samples_near` istemci↔istemci 48 px eşiği hâlâ tutuyor mu (relay yolu iki bacak)?
+- `held` sırasında ÇEK isteğinin host doğrulaması (32 px) bayat konumla reddedilme oranı (150/300 ms).
+
+### Kaynaklar (tur 2)
+- Godot belgeleri: ENetConnection https://docs.godotengine.org/en/stable/classes/class_enetconnection.html · SceneTree.multiplayer_poll https://docs.godotengine.org/en/stable/classes/class_scenetree.html
+- Godot 4.7 kaynak: https://github.com/godotengine/godot/blob/4.7/modules/multiplayer/scene_multiplayer.cpp · https://github.com/godotengine/godot/blob/4.7/modules/multiplayer/multiplayer_synchronizer.cpp · https://github.com/godotengine/godot/blob/4.7/modules/enet/enet_multiplayer_peer.cpp · https://github.com/godotengine/godot/blob/4.7/thirdparty/enet/protocol.c · https://github.com/godotengine/godot/blob/4.7/thirdparty/enet/peer.c · https://github.com/godotengine/godot/blob/4.7/thirdparty/enet/enet/enet.h
+- Godot 4.8: https://godotengine.org/article/dev-snapshot-godot-4-8-dev-1/ … /dev-snapshot-godot-4-8-dev-7/ · PR #109864 https://github.com/godotengine/godot/pull/109864 · PR listeleri https://github.com/godotengine/godot/pulls?q=is%3Apr+is%3Amerged+label%3Atopic%3Amultiplayer+milestone%3A4.8 · https://github.com/godotengine/godot/pulls?q=is%3Apr+is%3Amerged+label%3Atopic%3Anetwork+milestone%3A4.8
+- Steam: ISteamNetworkingSockets (ConfigureConnectionLanes, SendMessageToConnection, GetConnectionRealTimeStatus) https://partner.steamgames.com/doc/api/ISteamNetworkingSockets · GameNetworkingSockets README https://github.com/ValveSoftware/GameNetworkingSockets · steamnetworkingtypes.h https://github.com/ValveSoftware/GameNetworkingSockets/blob/master/include/steam/steamnetworkingtypes.h
+- GodotSteam (Codeberg, godot4 dalı, 4.22.1): https://codeberg.org/godotsteam/godotsteam/src/branch/godot4/steam_packet_peer.cpp · https://codeberg.org/godotsteam/godotsteam/src/branch/godot4/godotsteam_multiplayer_peer.cpp · belge https://godotsteam.com/classes/multiplayer_peer/ · değişiklik günlüğü https://godotsteam.com/changelog/multiplayer_peer/ (GitHub deposu 2026-09-04 arşivlendi, Codeberg'e taşındı)
+- Tahmin/stun: Unity Netcode "Dealing with latency" (client/server authority, stun örneği, action anticipation, controlled desync) https://mp-docs.dl.it.unity3d.com/netcode/2.3.2/learn/dealing-with-latency · Gaffer snapshot interpolation (tur 1)
+- Proje içi: `docs/arastirma/steam-ag.md`, `docs/surec/kararlar.md` (IS-013, US-004 günlükleri), `tools/net_smoke.py`, `tools/latency_proxy.py`; ölçüm çıktıları scratchpad `agkodu-tur2-20261002-133943/`.
