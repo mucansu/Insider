@@ -212,10 +212,10 @@ func test_transition_is_continuous_across_updates() -> void:
 		near(fog.shown_weights(cells[k]), before[k], 2.5 / 255.0, "sıçrama yok: %s" % cells[k])
 	fog._process(fog.tuning.transition_sec + 0.01)
 	near(fog.shown_weights(Vector2i(25, 15)), Vector3.ZERO, 0.001, "hedefe varır")
-	var mat: ShaderMaterial = fog.get_node("Shade").material as ShaderMaterial
+	var mat: ShaderMaterial = (fog.get_node("Shade") as CanvasItem).material as ShaderMaterial
 	eq(mat.get_shader_parameter(&"blend_t"), 1.0)
 	is_true(mat.get_shader_parameter(&"prev_data") is ImageTexture and mat.get_shader_parameter(&"next_data") is ImageTexture)
-	var outline: ShaderMaterial = fog.get_node("Outline").material as ShaderMaterial
+	var outline: ShaderMaterial = (fog.get_node("Outline") as CanvasItem).material as ShaderMaterial
 	eq(outline.get_shader_parameter(&"next_data"), mat.get_shader_parameter(&"next_data"), "kroki aynı veriyi okur")
 
 
@@ -243,7 +243,7 @@ func test_fog_tokens_and_no_literal_colors() -> void:
 		is_true(vec_default.search(text) == null, "%s: varsayılanlı vec4 uniform (renk) yok" % path)
 	var level: Level = await _store()
 	var fog: FogLayer = level.attach_fog(_observer(level, Vector2i(6, 15)))
-	var mat: ShaderMaterial = fog.get_node("Shade").material as ShaderMaterial
+	var mat: ShaderMaterial = (fog.get_node("Shade") as CanvasItem).material as ShaderMaterial
 	eq(mat.get_shader_parameter(&"unknown_color"), ThemeTokens.GAMEPLAY_FOG_UNKNOWN)
 	eq(mat.get_shader_parameter(&"memory_color"), ThemeTokens.GAMEPLAY_FOG_MEMORY)
 	eq(mat.get_shader_parameter(&"peripheral_color"), ThemeTokens.GAMEPLAY_FOG_PERIPHERAL)
