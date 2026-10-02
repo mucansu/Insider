@@ -235,7 +235,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Bitti (2026-10-02; faz2-int f59fbfe) | |
 | IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Bitti (2026-10-02; dev 330fd37) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
-| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
+| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Bitti (2026-10-02; faz2-int 1 birleştirme) | |
 | IS-015 | Oyun testi botları: kapalı döngü `bot_brain.gd` (çoğaltılan durumu okur, PlayerInput sağlayıcısı; beyin oynanis) + koşu istatistiği dökümü (cekirdek) (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek + oynanis | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Sert ağ pürüzsüzlüğü: önce 30 Hz gönderim A/B (100 ms tampon iki kayba dayanır); yetmezse uyarlanır tampon (jitter EMA + underrun, 100-180 ms) (IS-013 kararı + teknik/ag-kodu.md) | 2 | oynanis | P1 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
@@ -268,8 +268,8 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Sürüyor (2026-10-02; faz2-int, IS-039 ile) | |
 | IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int, IS-038 ile) | |
-| IS-041 | README Tailscale teşhis notu: paylaşılan makineye FQDN ile erişim, `tailscale status` relay, exe'ye özel UDP 7777 güvenlik duvarı kuralı (`netsh`), yer tutucu ses notu (teknik/operasyon-guvenilirlik.md Ö4) | 1 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; dev, IS-042 ile) | |
-| IS-042 | Checkpoint dağıtımı: `test-N` etiketinde GitHub Release + sürümlü zip (CI); itch gizli sayfa test-2'de karar (Ö5) | 1 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; dev, IS-041 ile) | |
+| IS-041 | README Tailscale teşhis notu: paylaşılan makineye FQDN ile erişim, `tailscale status` relay, exe'ye özel UDP 7777 güvenlik duvarı kuralı (`netsh`), yer tutucu ses notu (teknik/operasyon-guvenilirlik.md Ö4) | 1 | altyapi | P1 | XS | — | Bitti (2026-10-02; dev 676e28f) | |
+| IS-042 | Checkpoint dağıtımı: `test-N` etiketinde GitHub Release + sürümlü zip (CI); itch gizli sayfa test-2'de karar (Ö5) | 1 | altyapi | P1 | XS | — | Bitti (2026-10-02; dev 676e28f) | |
 | IS-043 | Yapılandırılmış günlük v0 (`Logger` alt sınıfı + OS.add_logger, seviye/kategori, halka tampon, release backtrace) + "Sorun bildir" paketi (log + döküm + PNG + sistem bilgisi zip) + `session.lock` temiz kapanmadı bayrağı (Ö2 + Ö3) | 2 | cekirdek + arayuz | P1 | S | — | Backlog | |
 | IS-044 | Oturum izi v0: host karar günlüğü + peer durum izi (jsonl; S6 samples/events'in uzantısı); girdi replay'i yerine (Ö6; karar gereken: GDD replay maddesi daraltılır) | 2 | cekirdek | P2 | S | IS-043 | Backlog | |
 | IS-045 | (S2 notu mimari §5'e yazıldı; ölçüm IS-059'a taşındı) | 2 | — | — | — | — | Elendi (IS-059) | |
@@ -295,7 +295,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-065 | AI hata ayıklama katmanı (F3 / `--debug-ai`: NPC durum, yol, koni, şüphe; ekran görüntüsüyle) | 2 | arayuz + oynanis | P2 | S | US-008 | Backlog | |
 | IS-066 | Görüş hattı tekilleştirme (Perception → ortak SightLine core yardımcısı; US-011b ile) + algı örnekleme 20 Hz tek sabit | 2 | oynanis | P3 | XS | US-011b | Backlog | |
 | IS-067 | Çizim ölçümü: `--perf` argümanı + döküm `"render"` (draw call, CPU/GPU ms `viewport_get_measured_render_time_*`, fps) + pencereli perf senaryosu; arkadaş makinesi dökümüyle karşılaştırma (teknik/cizim-performans.md P1) | 2 | altyapi + cekirdek | P1 | S | — | Backlog | |
-| IS-068 | Kukla CPU bütçesi: ekran dışı/görünmeyen kuklada rig + `queue_redraw` atlanır, uzak kukla 30 Hz (puppet.gd:106-110) | 2 | oynanis | P2 | S | US-014 | Backlog | |
+| IS-068 | Kukla CPU bütçesi + cila: ekran dışı/görünmeyen kuklada rig + `queue_redraw` atlanır, uzak kukla 30 Hz (puppet.gd:106-110); atkı ucu yuvarlak, toz/bere segment sayısı, `_draw` tahsisleri (US-014 nit) | 2 | oynanis | P2 | S | US-014 | Backlog | |
 | IS-069 | Doku süzgeci ve import ön ayarı: `default_texture_filter = Linear Mipmap` + import mipmap (AI asset'ler için), `snap_2d_*` kapalı | 3 | altyapi | P2 | XS | IS-036 | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
