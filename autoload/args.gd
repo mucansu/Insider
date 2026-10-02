@@ -2,6 +2,7 @@ extends Node
 ## Komut satırı argümanları (autoload `Args`, S6 — docs/notes/mimari.md).
 ## Kullanıcı argümanları `--` sonrasında: --host · --join=ADDR · --port=N · --name=AD · --level=res://...
 ## · --bot=PATH.json · --dump=PATH.json · --quit-after=SN · --player-scene=res://... (yalnız test)
+## · ekran görüntüsü (IS-022): --screenshot-at=SN[,SN…] · --screenshot-dir=YOL · --window-size=GxY (ör. 1280x720)
 ## Açılışta `OS.get_cmdline_user_args()` ayrıştırılır; testler `parse()` ile kendi listesini verebilir.
 ## Tanınmayan argümanlar `unknown` listesine girer (test koşucusunun --filter gibi argümanları için uyarı
 ## basılmaz); tanınan anahtarın değeri bozuksa uyarı basılır ve varsayılan korunur.
@@ -18,7 +19,16 @@ var dump_path: String = ""
 ## Saniye; 0 = kapalı.
 var quit_after: float = 0.0
 var player_scene: String = ""
+## Ekran görüntüsü anları (saniye, açılışa göre; --quit-after ile aynı saat); artan, tekrarsız. Boş = kapalı.
+var screenshot_at: PackedFloat64Array = []
+## PNG'lerin yazılacağı dizin (mutlak, res:// ya da user://).
+var screenshot_dir: String = ""
+## Pencere boyutu (piksel); (0, 0) = proje ayarı.
+var window_size: Vector2i = Vector2i.ZERO
 var unknown: PackedStringArray = []
+
+const WINDOW_SIZE_MIN := 64
+const WINDOW_SIZE_MAX := 16384
 
 
 func _init() -> void:
@@ -36,6 +46,9 @@ func parse(args: PackedStringArray) -> void:
 	dump_path = ""
 	quit_after = 0.0
 	player_scene = ""
+	screenshot_at = []
+	screenshot_dir = ""
+	window_size = Vector2i.ZERO
 	unknown = []
 	for raw: String in args:
 		var arg: String = raw.strip_edges()
@@ -80,11 +93,26 @@ func parse(args: PackedStringArray) -> void:
 			"--player-scene":
 				if _need_value(key, value, has_value):
 					player_scene = value
+			"--screenshot-at":
+				if _need_value(key, value, has_value):
+					screenshot_at = parse_moments(value)
+					if screenshot_at.is_empty():
+						push_warning("Args: geçersiz --screenshot-at '%s' (SN[,SN…], SN >= 0)" % value)
+			"--screenshot-dir":
+				if _need_value(key, value, has_value):
+					screenshot_dir = value
+			"--window-size":
+				if _need_value(key, value, has_value):
+					window_size = parse_window_size(value)
+					if window_size == Vector2i.ZERO:
+						push_warning("Args: geçersiz --window-size '%s' (GxY, ör. 1280x720)" % value)
 			_:
 				unknown.append(raw)
 	if want_host and not join_address.is_empty():
 		push_warning("Args: --host ve --join birlikte verildi; --host kullanılıyor")
 		join_address = ""
+	if not screenshot_at.is_empty() and screenshot_dir.is_empty():
+		push_warning("Args: --screenshot-at için --screenshot-dir gerekir; görüntü alınmayacak")
 
 
 ## Argümanlar doğrudan bir oturum başlatıyor mu (host ya da katıl).
@@ -95,6 +123,40 @@ func wants_session() -> bool:
 ## Otomasyon/test koşusu mu (döküm ya da süreli çıkış istendi).
 func is_automated() -> bool:
 	return not dump_path.is_empty() or quit_after > 0.0
+
+
+## Ekran görüntüsü istendi mi (anlar ve dizin birlikte verildi).
+func wants_screenshots() -> bool:
+	return not screenshot_at.is_empty() and not screenshot_dir.is_empty()
+
+
+## "3,1.5,3" → [1.5, 3.0] (artan, tekrarsız). Boş öğe (sondaki virgül dahil), sayı olmayan, sonlu olmayan
+## ("1e400", "inf") ya da negatif değer varsa boş liste.
+static func parse_moments(value: String) -> PackedFloat64Array:
+	var out: PackedFloat64Array = []
+	for part: String in value.split(","):
+		var s: String = part.strip_edges()
+		if not s.is_valid_float():
+			return PackedFloat64Array()
+		var t: float = s.to_float()
+		if not is_finite(t) or t < 0.0:
+			return PackedFloat64Array()
+		if not out.has(t):
+			out.append(t)
+	out.sort()
+	return out
+
+
+## "1280x720" (x ya da X) → Vector2i(1280, 720); bozuk ya da [WINDOW_SIZE_MIN, WINDOW_SIZE_MAX] dışıysa (0, 0).
+static func parse_window_size(value: String) -> Vector2i:
+	var parts: PackedStringArray = value.strip_edges().to_lower().split("x")
+	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
+		return Vector2i.ZERO
+	var w: int = parts[0].to_int()
+	var h: int = parts[1].to_int()
+	if w < WINDOW_SIZE_MIN or h < WINDOW_SIZE_MIN or w > WINDOW_SIZE_MAX or h > WINDOW_SIZE_MAX:
+		return Vector2i.ZERO
+	return Vector2i(w, h)
 
 
 ## `--bot` dosyasının adımları (bkz. `load_bot`); dosya verilmediyse boş.

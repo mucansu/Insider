@@ -68,6 +68,23 @@ push'unda koşup build'leri yükler (bkz. Build'i çalıştırma). Birim testler
 `godot --headless --path . -s res://tests/run_tests.gd -- --filter=smoke`
 (testler `tests/unit/test_*.gd`, `extends TestCase`; yardımcılar `tests/t.gd`).
 
+## Ekran görüntüsü
+
+Headless renderer görüntü üretmez; `tools/screenshot.py` görüntüsü istenen peer'ları GPU'lu pencerede açar
+(ekranlı bir masaüstü gerekir; CI'da ya da ekransız ortamda "atlandı" deyip 0 döner).
+
+```sh
+python tools/screenshot.py --scenario tests/net/store_walk.json --at 3,5.5,8      # store_a, 3 oyuncu, walk botları
+python tools/screenshot.py --at 2,4 --clients 0 --bot host=res://tests/net/bots/wander.json --peers host
+```
+
+Çıktı `build/screens/<ad>/<peer>_<an>.png` (an = host başlangıcından saniye); her PNG pencere boyutunda
+(`--window-size`, varsayılan 1280x720) ve boş/siyah olmadığı denetlenir; geçersiz olan `*_INVALID.png` adıyla
+ayrılır. İstemci seviyeyi henüz yüklememişken düşen an hata değildir, "atlandı" satırıyla yazılır. Pencereli exe:
+`--godot-gui`, `GODOT_GUI` ya da `GODOT` console exe'sinin yanındaki `*.exe`. Oyunun kendisi de doğrudan alabilir:
+`-- --host --screenshot-at=2,4 --screenshot-dir=C:/yol --window-size=1280x720 --quit-after=5` (S6).
+Bu argümanlar geliştirici aracıdır (export build'de de çalışır, oyuncuya yönelik değildir).
+
 ## Windows'ta geliştirme
 
 - **Kabuk:** betikler [Git for Windows](https://git-scm.com/download/win) ile gelen **Git Bash**'te koşar
