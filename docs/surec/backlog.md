@@ -236,7 +236,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Sürüyor (2026-10-02; dev) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
-| IS-015 | Oyun testi botları (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog (2b) | |
+| IS-015 | Oyun testi botları: kapalı döngü `bot_brain.gd` (çoğaltılan durumu okur, PlayerInput sağlayıcısı; beyin oynanis) + koşu istatistiği dökümü (cekirdek) (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek + oynanis | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Sert ağ pürüzsüzlüğü: önce 30 Hz gönderim A/B (100 ms tampon iki kayba dayanır); yetmezse uyarlanır tampon (jitter EMA + underrun, 100-180 ms) (IS-013 kararı + teknik/ag-kodu.md) | 2 | oynanis | P1 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
@@ -287,6 +287,13 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-057 | Yakalama/tespit bayatlık payı: oyuncu lehine pay `max(0,2; bayatlık + 0,05)` sn, yakalamada ölü hesap (`net_position + hız × yaş`) (ag-kodu P1; US-008 sonrası) | 2 | oynanis | P1 | S | US-008 | Backlog | |
 | IS-058 | NPC çoğaltma sözleşmesi uygulaması (S11 eki: poz 15 Hz unreliable + istemci SnapshotBuffer, ayrık durum ON_CHANGE, yön 1/16) + oturum tohumu `Game.session_seed()` / `--seed=` (US-008 içinde yapılmadıysa) | 2 | oynanis + cekirdek | P1 | S | US-008 | Backlog | |
 | IS-059 | Ağ telemetrisi: `Net.stats()` bayt/paket, döküm `net_bytes`, net_smoke `max_kbps` + en büyük paket; yetiştirme RPC'si `unreliable` + damga; RPC hijyen taraması (testte) (ag-kodu P2 + Ö8) | 2 | cekirdek + altyapi | P2 | S | — | Backlog | |
+| IS-060 | Ses busları (Master/Music/SFX/UI/VO, `default_bus_layout.tres`) + katalogda `bus` alanı + düzey ayarları US-025'e bağlanır (teknik/ses.md P1) | 2 | altyapi + arayuz | P1 | S | IS-024 | Backlog | |
+| IS-061 | Konumlu ses hijyeni: mono 44,1 kHz (dönüştürme aracı `tools/sfx_prep.py`), kısa SFX `.wav` izinli, `max_distance` her çalışta sıfırlanır, attenuation katalogda (2,0), uzaklık kapısı; yerel `AudioListener2D` + panning 0,75 (IS-024 t2'de kalanı) | 2 | arayuz + oynanis | P1 | XS | IS-024 | Backlog | |
+| IS-062 | Çok sesli emitter (`AudioStreamPolyphonic`) oyuncu/NPC için + Randomizer varyantları (US-009 adım, US-012 çanta önkoşulu) | 2 | oynanis | P2 | S | IS-024 | Backlog | |
+| IS-063 | Ucuz ses örtme: `SFX_Muffled` bus + yerel ışın 5 Hz | 3 | oynanis | P2 | S | IS-060 | Backlog | |
+| IS-064 | NPC karar mimarisi temizliği: HFSM-lite, zaman damgalı Fsm geçmişi, `SuspicionMeter.pulse` (ses → şüphe, günlüklü), NpcMover ulaşılamayan hedef `failed` + repath kaydırma, testlerde `map_force_update` yerine iterasyon bekleme (US-008'de yapılmayan kalanı; teknik/oyun-yz.md) | 2 | oynanis | P1 | S | US-008 | Backlog | |
+| IS-065 | AI hata ayıklama katmanı (F3 / `--debug-ai`: NPC durum, yol, koni, şüphe; ekran görüntüsüyle) | 2 | arayuz + oynanis | P2 | S | US-008 | Backlog | |
+| IS-066 | Görüş hattı tekilleştirme (Perception → ortak SightLine core yardımcısı; US-011b ile) + algı örnekleme 20 Hz tek sabit | 2 | oynanis | P3 | XS | US-011b | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
