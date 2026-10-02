@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → ağ duman senaryoları (0 ve 150 ms).
-# İlk hatada sıfır olmayan kodla çıkar. Push öncesi yeşil olmalı.
-# Kullanım: tools/ci_local.sh [godot|import|unit|net ...]   (adım verilmezse hepsi, bu sırayla)
+# Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → araç testleri (Python) →
+# ağ duman senaryoları (0 ve 150 ms). İlk hatada sıfır olmayan kodla çıkar. Push öncesi yeşil olmalı.
+# Kullanım: tools/ci_local.sh [godot|import|unit|tools|net ...]   (adım verilmezse hepsi, bu sırayla)
+# Python: python3 → python → py -3 sırasıyla ilk >= 3.10 olan (Windows'ta Git Bash ile de çalışır).
 # .github/workflows/ci.yml aynı adımları aynı sırayla bu betikle koşar; biri değişirse diğeri de.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
+
+# Python çıktısı boruya/dosyaya giderken de UTF-8 olsun (Windows'ta varsayılan cp1254 Türkçeyi bozar;
+# Linux'ta zararsız).
+export PYTHONUTF8=1
 
 GODOT="$(bash tools/get_godot.sh)"
 export GODOT
@@ -38,6 +43,31 @@ step_unit() {
 	"$GODOT" --headless --path . -s res://tests/run_tests.gd
 }
 
+# Python yorumlayıcısı (dizi: `py -3` iki sözcük). İlk kullanımda bulunur; yoksa adım başarısız.
+PYTHON=()
+find_python() {
+	((${#PYTHON[@]})) && return 0
+	local cand
+	for cand in "python3" "python" "py -3"; do
+		# shellcheck disable=SC2086 # aday bilerek sözcüklere bölünür
+		if command -v "${cand%% *}" >/dev/null 2>&1 \
+			&& $cand -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
+			read -r -a PYTHON <<<"$cand"
+			return 0
+		fi
+	done
+	echo "Python >= 3.10 bulunamadı (python3 | python | py -3)." >&2
+	return 1
+}
+
+# Araç testleri: gecikme proxy'si ve net_smoke süreç ağacı öldürme (Godot gerekmez).
+step_tools() {
+	find_python || return 1
+	"${PYTHON[@]}" --version
+	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
+	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
+}
+
 step_net() {
 	shopt -s nullglob
 	local scenarios=(tests/net/*.json)
@@ -50,24 +80,25 @@ step_net() {
 		echo "UYARI: tools/net_smoke.py yok; ${#scenarios[@]} ağ senaryosu atlandı." >&2
 		return 0
 	fi
+	find_python || return 1
 	# Not: adımlar `if` içinde çağrıldığından set -e burada işlemez; her hata açıkça döndürülür.
 	local s
 	for s in "${scenarios[@]}"; do
 		echo "-- $s (0 ms)"
-		python3 tools/net_smoke.py "$s" || return 1
+		"${PYTHON[@]}" tools/net_smoke.py "$s" || return 1
 		echo "-- $s (150 ms)"
-		python3 tools/net_smoke.py "$s" --latency-ms 150 || return 1
+		"${PYTHON[@]}" tools/net_smoke.py "$s" --latency-ms 150 || return 1
 	done
 }
 
 steps=("$@")
-((${#steps[@]})) || steps=(godot import unit net)
+((${#steps[@]})) || steps=(godot import unit tools net)
 started=$SECONDS
 for step in "${steps[@]}"; do
 	case "$step" in
-	godot | import | unit | net) ;;
+	godot | import | unit | tools | net) ;;
 	*)
-		echo "Bilinmeyen adım: $step (godot|import|unit|net)" >&2
+		echo "Bilinmeyen adım: $step (godot|import|unit|tools|net)" >&2
 		exit 2
 		;;
 	esac

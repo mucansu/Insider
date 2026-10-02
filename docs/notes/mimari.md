@@ -24,7 +24,7 @@ ui/                      menü, lobi, HUD, tema (arayuz)
 i18n/                    texts.csv: tüm görünür metinler (arayuz; ekleme herkese serbest)
 data/                    .tres içerik kaynakları (sahip: içeriği tanımlayan ajan)
 tests/                   run_tests.gd + t.gd (altyapi), unit/test_*.gd (modül sahibi), net/*.json senaryolar, fixtures/
-tools/                   get_godot.sh, ci_local.sh (altyapi); net_smoke.py, latency_proxy.py (cekirdek)
+tools/                   get_godot.sh, ci_local.sh (altyapi); net_smoke.py, latency_proxy.py (cekirdek); test_*.py araç testleri (aracın sahibi)
 .github/workflows/ci.yml (altyapi)
 docs/                    koordinatör (tasarim/ → tasarim ajanı, koordinatör isteğiyle)
 ```
@@ -133,7 +133,8 @@ Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc
 - **Birim:** `godot --headless --path . -s res://tests/run_tests.gd` → `tests/unit/test_*.gd` içindeki `test_*` metotları; doğrulamalar `tests/t.gd`; çıkış kodu 0/1.
 - **Ağ duman:** S6; her ağ davranışı en az bir senaryo taşır; senaryolar 0 ms ve 150 ms RTT ile geçer.
 - **İçe aktarma temizliği:** `godot --headless --path . --import` hata/uyarı-hata vermez.
-- **Yerel CI:** `tools/ci_local.sh` = Godot indir (yoksa) → import → birim → tüm `tests/net/*.json` (0 ve 150 ms). Push öncesi koordinatör çalıştırır. Uzak CI `.github/workflows/ci.yml` aynısını dev ve main push'unda çalıştırır.
+- **Araç testleri:** `tools/test_*.py` (Python unittest; gecikme proxy'si, net_smoke süreç ağacı öldürme); Godot gerektirmez.
+- **Yerel CI:** `tools/ci_local.sh` = Godot indir (yoksa) → import → birim → araç testleri → tüm `tests/net/*.json` (0 ve 150 ms). Linux ve Windows (Git Bash; IS-011) desteklenir; Python `python3` → `python` → `py -3` (≥ 3.10). Push öncesi koordinatör çalıştırır. Uzak CI `.github/workflows/ci.yml` aynısını dev ve main push'unda çalıştırır.
 
 ## 7. İleri uyumluluk notları (bugün uygulanmaz, kapı kapatılmaz)
 - **Alternatif giriş ve kasa erişimi (GB-02):** seviye düzenine ileride yeni karo türleri eklenecek: havalandırma kanalı (yalnız sürünme kipinde geçilir, görüşü keser), zayıf duvar (yıkılabilir parça), kat geçişi (delik/merdiven). Bu yüzden `build_levels.gd` birleştirdiği duvar dikdörtgenlerinde türleri ayrı tutar (zaten `Wall*`/`Window*`/`Shelf*` ayrımı var); yıkılabilir duvar ayrı düğüm olacağı için birleştirmeye girmez. Çok katlı seviye: her kat ayrı katman/alt sahne, oyuncunun bulunduğu kat çoğaltılan bir alan; S4'e o kalemde ekleme yapılır.
