@@ -4,7 +4,10 @@ extends SceneTree
 ## tests/unit/test_*.gd dosyalarını (extends TestCase, tests/t.gd) bulur; `test_` ile başlayan argümansız
 ## her metodu yeni bir örnekte koşar ve test başına sonuç + ad + süre basar. Başarısızlık nedenleri:
 ## doğrulama, test sırasında betik hatası, izin verilmemiş push_error/motor hatası, zaman aşımı.
-## Çıkış kodu: 0 hepsi geçti; 1 en az bir başarısızlık, koşulacak test yok ya da zaman aşımı.
+## Test hijyeni (IS-046): her testin öncesi/sonrası (autofree + bir kare sonrası) yetim düğüm sayısı
+## (Performance.OBJECT_ORPHAN_NODE_COUNT) karşılaştırılır; artış `[ORPHAN] dosya::test +N` satırı basar
+## ve takım sonunda özetlenir. Eşik 0: tek yetim düğüm bile koşuyu başarısız yapar (kaçış yok).
+## Çıkış kodu: 0 hepsi geçti; 1 en az bir başarısızlık, yetim düğüm, koşulacak test yok ya da zaman aşımı.
 
 const UNIT_DIR := "res://tests/unit"
 const DEFAULT_TIMEOUT_SEC := 30.0
@@ -46,6 +49,8 @@ var _timeout_sec: float = DEFAULT_TIMEOUT_SEC
 var _watch_id: int = 0
 var _passed: int = 0
 var _failed: int = 0
+var _orphan_total: int = 0
+var _orphan_tests: int = 0
 
 
 func _initialize() -> void:
@@ -68,11 +73,12 @@ func _run() -> void:
 		await _run_file(path)
 	var total: int = _passed + _failed
 	print("\n%d test: %d geçti, %d başarısız (%d ms)" % [total, _passed, _failed, Time.get_ticks_msec() - started])
+	print("Yetim düğüm farkı: toplam +%d (%d test)" % [_orphan_total, _orphan_tests])
 	if total == 0:
 		printerr("Koşulacak test yok (%s/test_*.gd%s)" % [UNIT_DIR, ", filtre: " + _filter if not _filter.is_empty() else ""])
 		_finish(1)
 	else:
-		_finish(1 if _failed > 0 else 0)
+		_finish(1 if _failed > 0 or _orphan_total > 0 else 0)
 
 
 func _test_files() -> PackedStringArray:
@@ -111,6 +117,7 @@ func _run_file(path: String) -> void:
 
 
 func _run_test(script: GDScript, method: String, label: String) -> void:
+	var orphans_before: int = _orphan_count()
 	var instance: Variant = script.new()
 	var case: TestCase = instance as TestCase
 	if case == null:
@@ -130,6 +137,19 @@ func _run_test(script: GDScript, method: String, label: String) -> void:
 	var problems: PackedStringArray = case.failures().duplicate()
 	problems.append_array(_texts(_capture.take(), case.errors_allowed()))
 	_report(label, ms, problems)
+	var leaked: int = _orphan_count() - orphans_before
+	if leaked > 0:
+		await process_frame  # geç düşen queue_free'ler yanlış pozitif olmasın: bir kare daha bekle
+		leaked = _orphan_count() - orphans_before
+	if leaked > 0:
+		_orphan_total += leaked
+		_orphan_tests += 1
+		print("[ORPHAN] %s +%d" % [label, leaked])
+
+
+## Sahneye bağlı olmayan, ebeveynsiz düğüm sayısı (Node.print_orphan_nodes ile aynı küme).
+func _orphan_count() -> int:
+	return int(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT))
 
 
 func _arm_watchdog(id: int, label: String) -> void:
