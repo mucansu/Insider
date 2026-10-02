@@ -2,11 +2,15 @@ extends Node
 ## Komut satırı argümanları (autoload `Args`, S6 — docs/notes/mimari.md).
 ## Kullanıcı argümanları `--` sonrasında: --host · --join=ADDR · --port=N · --name=AD · --level=res://...
 ## · --bot=PATH.json · --dump=PATH.json · --quit-after=SN · --player-scene=res://... (yalnız test)
+## · --camera-zoom=X (geliştirici; IS-027: yerel kameranın yakınlaştırması, PlayerTuning.camera_zoom yerine)
 ## Açılışta `OS.get_cmdline_user_args()` ayrıştırılır; testler `parse()` ile kendi listesini verebilir.
 ## Tanınmayan argümanlar `unknown` listesine girer (test koşucusunun --filter gibi argümanları için uyarı
 ## basılmaz); tanınan anahtarın değeri bozuksa uyarı basılır ve varsayılan korunur.
 
 const DEFAULT_PORT := 7777
+## `--camera-zoom` kabul aralığı (PlayerTuning.camera_zoom aralığıyla aynı).
+const CAMERA_ZOOM_MIN := 0.25
+const CAMERA_ZOOM_MAX := 4.0
 
 var want_host: bool = false
 var join_address: String = ""
@@ -18,6 +22,8 @@ var dump_path: String = ""
 ## Saniye; 0 = kapalı.
 var quit_after: float = 0.0
 var player_scene: String = ""
+## Kamera yakınlaştırması geçersiz kılma (`--camera-zoom`); 0 = verilmedi, tuning değeri kullanılır.
+var camera_zoom: float = 0.0
 var unknown: PackedStringArray = []
 
 
@@ -36,6 +42,7 @@ func parse(args: PackedStringArray) -> void:
 	dump_path = ""
 	quit_after = 0.0
 	player_scene = ""
+	camera_zoom = 0.0
 	unknown = []
 	for raw: String in args:
 		var arg: String = raw.strip_edges()
@@ -80,6 +87,12 @@ func parse(args: PackedStringArray) -> void:
 			"--player-scene":
 				if _need_value(key, value, has_value):
 					player_scene = value
+			"--camera-zoom":
+				if _need_value(key, value, has_value):
+					if value.is_valid_float() and value.to_float() >= CAMERA_ZOOM_MIN and value.to_float() <= CAMERA_ZOOM_MAX:
+						camera_zoom = value.to_float()
+					else:
+						push_warning("Args: geçersiz --camera-zoom '%s' (%.2f..%.2f)" % [value, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX])
 			_:
 				unknown.append(raw)
 	if want_host and not join_address.is_empty():

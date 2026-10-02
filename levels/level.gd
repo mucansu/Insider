@@ -10,6 +10,7 @@ const _PROPS := ^"Props"
 const _NPCS := ^"NPCs"
 const _SPAWN_POINTS := ^"SpawnPoints"
 const _MARKERS := ^"Markers"
+const _TILES := ^"Tiles"
 
 
 ## Oyuncu düğümlerinin kabı (Game üretir; düğüm adı peer kimliği).
@@ -50,6 +51,19 @@ func marker(marker_name: StringName) -> Node2D:
 	if markers == null or text.is_empty() or text.validate_node_name() != text:
 		return null  # yol parçası içeren ad ("../Players" gibi) işaret değildir
 	return markers.get_node_or_null(NodePath(text)) as Node2D
+
+
+## Haritanın oynanabilir alan dikdörtgeni (IS-027; kamera sınırı): `Tiles` ızgarasının tamamı, harita kenarı
+## dolgusu (sınır karoları) dahil; bu köke göre (kökün kendi dönüşümü hariç). `Tiles` yoksa ya da boşsa
+## alanı sıfır olan Rect2() — çağıran sınır uygulamaz.
+func map_rect() -> Rect2:
+	var tiles: LevelLayout = get_node_or_null(_TILES) as LevelLayout
+	if tiles == null:
+		return Rect2()
+	var size: Vector2i = tiles.size_in_tiles()
+	if size.x <= 0 or size.y <= 0:
+		return Rect2()
+	return _to_level(tiles) * Rect2(Vector2.ZERO, Vector2(size * LevelLayout.TILE))
 
 
 func _spawn_points() -> Array[Node2D]:

@@ -16,6 +16,7 @@ extends Node
 ##     "samples": duvar saatine hizalı SAMPLE_INTERVAL_SEC dilimlerinde oyuncu konumları
 ##     [{"slot": int, "players": {"<peer_id>": [x, y]}}]; aynı makinedeki süreçler aynı dilimi karşılaştırır.
 ##   · Kare hızı MAX_FPS_AUTOMATED ile sınırlanır (headless döngü işlemciyi tüketmesin).
+## - Açılışta viewport temizleme rengi etkin tonun BG'sine ayarlanır (IS-027).
 
 const MAIN_MENU := "res://ui/main_menu.tscn"
 const READY_MARKER := "INSIDERS_READY"
@@ -37,7 +38,13 @@ var _last_slot: int = -1
 
 
 func _ready() -> void:
+	apply_clear_color()
 	_start.call_deferred()
+
+
+## Viewport temizleme rengi = etkin tonun BG'si (IS-027, KR-005): harita dışı gri (#4d4d4d) değil koyu görünür.
+static func apply_clear_color() -> void:
+	RenderingServer.set_default_clear_color(ThemeTokens.tone().bg_color)
 
 
 ## Açılış kipi: &"host", &"join", &"menu" (menü sahnesi var) ya da &"none".
