@@ -1,0 +1,55 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" uid="uid://byxhj1xfhrhmn" path="res://entities/npc/components/perception.gd" id="1_perc"]
+[ext_resource type="Script" uid="uid://bni5lewv6poaj" path="res://entities/npc/components/suspicion.gd" id="2_susp"]
+[ext_resource type="Resource" path="res://data/npc/perception_tuning.tres" id="3_tune"]
+
+[sub_resource type="RectangleShape2D" id="Rect_shelf"]
+size = Vector2(32, 80)
+
+[sub_resource type="RectangleShape2D" id="Rect_window"]
+size = Vector2(8, 60)
+
+[sub_resource type="RectangleShape2D" id="Rect_wall"]
+size = Vector2(8, 400)
+
+[sub_resource type="RectangleShape2D" id="Rect_glass"]
+size = Vector2(8, 24)
+
+[node name="PerceptionRoom" type="Node2D"]
+
+[node name="Walls" type="StaticBody2D" parent="."]
+collision_mask = 0
+
+[node name="Shelf1" type="CollisionShape2D" parent="Walls"]
+position = Vector2(200, 240)
+shape = SubResource("Rect_shelf")
+
+[node name="Wall1" type="CollisionShape2D" parent="Walls"]
+position = Vector2(320, 300)
+shape = SubResource("Rect_wall")
+
+[node name="Window1" type="StaticBody2D" parent="." groups=["see_through"]]
+collision_mask = 0
+
+[node name="WindowShape" type="CollisionShape2D" parent="Window1"]
+position = Vector2(200, 350)
+shape = SubResource("Rect_window")
+
+[node name="Glass" type="StaticBody2D" parent="." groups=["see_through"]]
+collision_mask = 0
+
+[node name="GlassShape" type="CollisionShape2D" parent="Glass"]
+position = Vector2(200, 400)
+shape = SubResource("Rect_glass")
+
+[node name="Guard" type="Node2D" parent="."]
+position = Vector2(100, 300)
+
+[node name="Perception" type="Node2D" parent="Guard"]
+script = ExtResource("1_perc")
+tuning = ExtResource("3_tune")
+
+[node name="Suspicion" type="Node" parent="Guard" node_paths=PackedStringArray("perception")]
+script = ExtResource("2_susp")
+perception = NodePath("../Perception")
