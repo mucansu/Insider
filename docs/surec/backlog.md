@@ -242,7 +242,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
 | IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
 | IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Denetimde (t3; medyan + elle flush kaldırıldı + hello RPC) | |
-| US-026 | Bağlantı kolaylığı: ad + son adres hatırlanır, host kendi Tailscale/LAN adresini görür + Kopyala/Yapıştır, port 'Gelişmiş' altında (docs/tasarim/arastirma/rahatlik-ux.md UX-1) | 1 | arayuz | P1 | S | — | Sürüyor (2026-10-02; dev, test-1'e yetişirse) | |
+| US-026 | Bağlantı kolaylığı: ad + son adres hatırlanır, host kendi Tailscale/LAN adresini görür + Kopyala/Yapıştır, port 'Gelişmiş' altında (docs/tasarim/arastirma/rahatlik-ux.md UX-1) | 1 | arayuz | P1 | S | — | Denetimde (2026-10-02; dev) | |
 | US-027 | Anlaşılır bağlantı hataları + sürüm uyuşmazlığı nedeni istemciye (game.gd:427 ret nedeni yollanır) + menüde/dökümde build kimliği (application/config/version + git kısa hash, export_presets sürüm alanları) (UX-2 + teknik/operasyon-guvenilirlik.md Ö1) | 2 | cekirdek + arayuz | P1 | S | IS-026 | Backlog | |
 | US-028 | Sızma/koşu/etkileşim için tut↔geçiş seçenekleri + HUD kip ikonu (UX-3) | 2 | oynanis + arayuz | P1 | S | US-025 | Backlog | |
 | US-025 | Ayarlar v0 (`user://settings.cfg`; ses kanalları, görüntü, hareket azaltma tek kaynak — kukla/sis/halka/merdiven bağlanır, yazı ölçeği, ipuçları, kip seçenekleri) + duraklat erişimi (UX-4 + oyun-hissi #7) | 2 | arayuz | P1 | M | US-014 | Backlog | |

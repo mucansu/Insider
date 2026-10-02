@@ -164,3 +164,106 @@ GDScript proje mimarisi (dizin/bağımlılık yönü, class_name, autoload, siny
 - netfox / vest (ağ eklentisi test yaklaşımı): https://github.com/foxssake/netfox · https://godotengine.org/asset-library/asset/edit/17638
 - Görsel regresyon ilkeleri: https://bugnet.io/blog/how-to-automate-screenshot-comparison-testing
 - Kod imzalama maliyeti (OV/EV): https://godotengine.org/qa/70752/code-signing-certificate-others-windows-export-application
+
+---
+
+## Tur 2 — 2026-10-02 (deney ağırlıklı)
+
+### 1. Kapsam
+Tur 1'in açık sorularından beşi, deneyle: (1) süreç içi iki-peer ENet loopback spike, (2) gdtoolkit 4.5.0 parser'ının 4.7 sözdizimimizle uyumu, (3) `--verbose` + `OBJECT_ORPHAN_NODE_COUNT` ile mevcut takımda sızıntı ölçümü (IS-046 tabanı), (4) ci_local `net` adımı süresi ve paralellik, (5) `Logger` API'sinin 4.8 dev durumu. Deneyler scratchpad `mt2-7f3a/` altında (depoya yazılmadı); kod okuması faz2-int worktree'sinde (HEAD 579a96e; ölçüm sırasında 62af45a → 579a96e ilerledi, IS-029 ve US-014 birleşti — bkz. §5 madde 3).
+
+### 2. Mevcut durum (dosya:satır; faz2-int 579a96e)
+- **Koşucu:** `tests/run_tests.gd` tur 1'deki gibi (orphan sayacı yok). `tools/ci_local.sh:45-69` (IS-029 ile geldi): birim adımı `tee` ile log'lanır, `(leaked|still in use) at exit` deseni (`LEAK_PATTERN`, satır 49) eşleşirse adım FAIL + `--verbose` ikinci koşuyla `Leaked instance/Resource still in use` satırları basılır. `.github/workflows/ci.yml:23` `timeout-minutes: 20` (test işi), `:58` 30 (build).
+- **Loopback kalıbı zaten var (ad hoc):** `tests/unit/test_game.gd:227-286` `test_leave_during_handshake_cleans_up` — `/root/FakeHost` dalında ayrı `SceneMultiplayer` (`tree().set_multiplayer(api, fake_root.get_path())`, 234-235) + `ENetMultiplayerPeer.create_server(free_udp_port())` sahte host; gerçek `Net.join("127.0.0.1", port)` istemci (251). Kapanışta lambda döngüsü elle kırılıyor (280-284). Yani "süreç içi host + istemci" fikstürü bir testte gömülü; genel fikstür yok.
+- **Ağ senaryoları:** `tests/net/*.json` 15 adet, hepsi `clients=2`; `duration` 5-27 sn (contention/faz1_full/register_empty 22, late_join_real 27 + `start_delay c2=16`). `tools/net_smoke.py:439` `free_udp_port()` (0'a bind) → port çakışması yok. Yerel koşu `ci_local net`: 30 koşu.
+- **Birim takımı:** 38 dosya, 364 test, ~30 sn (`--verbose` ile). Dosya başına süre (ilk koşu, 340 test): `test_noise_bus.gd` 9,96 sn (12 test; 323-324 2 sn `deadline` döngüsü), `test_player.gd` 2,2, `test_net.gd` 1,6, `test_perception_components.gd` 1,2, `test_ui_layout.gd` 1,1 → ilk 5 dosya toplamın ~%53'ü.
+- **>400 satır:** `autoload/game.gd` 840, `levels/tools/build_levels.gd` 465, testlerde `test_interaction_props` 524, `test_levels_population` 517, `test_levels_nav` 498, `test_levels` 491, `test_puppet` 403 (gdlint `max-file-lines: 400` sayımı).
+
+### 3. Deneyler ve bulgular
+
+#### 3.1 Süreç içi iki-peer ENet loopback (spike) — ÇALIŞIYOR [O]
+Betik: `extends SceneTree`, `-s <mutlak yol>` ile projede koşuldu (mutlak OS yolu `-s` için geçerli [O]). İki dal (`HostBranch`, `ClientBranch`) + iki `SceneMultiplayer` (`set_multiplayer(api, dal_yolu)`), `ENetMultiplayerPeer.create_server(47777, 3)` / `create_client("127.0.0.1", 47777)`; her dalda aynı adlı `Peer` düğümü, `@rpc("any_peer")` ping → `@rpc("authority")` pong. Sonuç (Godot 4.7.2, Windows, headless):
+- `connected_to_server` **2 kare**; ilk RPC gidiş-dönüş **2 kare**, sonraki 10 gidiş-dönüş **ortalama 1,0 kare**; istemci `close()` → host `peer_disconnected` **1 kare**; toplam **103 ms**; kapanışta `OBJECT_ORPHAN_NODE_COUNT` 0 ve `--verbose` "Leaked instance" 0.
+- RPC yolu dal köküne göre çözülür: `HostBranch/Peer` ↔ `ClientBranch/Peer` eşleşir (göreli `NodePath`), kök `multiplayer` ile karışmaz (`cp.multiplayer == get_multiplayer()` false) [O].
+- Sıra notu: istemcide `connected_to_server` geldiği karede host'un `get_peers()` henüz boş; host'un `peer_connected`'ı bir kare sonra [O] (el sıkışma onayı asimetrik). Testlerde "host peer'ı gördü" için ayrıca beklenmeli.
+- **Tuzak (ilk deneme başarısız oldu):** GDScript lambda'ları yerel değişkeni **değerle** yakalar; `func(): connected = true` dış değişkeni değiştirmez [O, GDScript docs "lambda ... captures ... by value"]. Üye değişken ya da `Array[bool]` kutusu gerekir (test_game.gd:239,247 bunu doğru yapıyor).
+- Sınır [G]: `Net`/`Game` autoload'ları kök `multiplayer`'a bağlı → bir süreçte yalnız **bir "gerçek" taraf** olur; karşı taraf sahte dal (fikstür) ya da hiç autoload kullanmayan saf `SceneMultiplayer` düğümleridir. S7/S8 RPC'leri `Interactable`/`NoiseBus` düğümleri üzerinden gittiği için iki saf dal yeterli; `Game` el sıkışması (auth) için test_game'deki sahte host kalıbı gerekir.
+- Değerlendirme [G]: net_smoke'un yerine değil, altına **hızlı katman**: 30 koşu × ~15 sn yerine kare adımlı 0,1 sn. Gecikme/kayıp simülasyonu yok (proxy net_smoke'ta kalır); "mesaj sırası/kabul/yetki" doğrulamaları için yeter.
+
+#### 3.2 gdtoolkit 4.5.0 (gdlint/gdformat) uyumu [O]
+Venv: Python 3.13.5, `gdtoolkit==4.5.0`. 85 `.gd` dosyası (git ls-files, faz2-int), koşu 8 sn.
+- **Parse:** 84/85 başarılı. Tek hata `tests/unit/test_perception_components.gd:143` — `"..."` dizesinin içinde **gerçek satır sonu** (çok satırlı normal dize; Godot 4.7 kabul ediyor, gdtoolkit grameri `"""` olmayan dizede satır sonu kabul etmiyor). Kodlama sorunu değil (`PYTHONUTF8=1` ile aynı). Düzeltme XS: `\n` kaçışı ya da `"""`. Typed Dictionary, `&"..."`, lambda, `@rpc`, `Array[ScriptBacktrace]`, `class ... extends Logger` sorunsuz.
+- **gdlint varsayılan kural seti:** 976 ihlal: `max-line-length(100)` 961, `class-definitions-order` 12, `max-public-methods` 2, `max-returns` 1. **`max-line-length: 120` + `max-file-lines: 400` ile:** 107 — satır uzunluğu 82 (`ui/theme/theme_builder.gd` 18, test dosyaları ~45; 130'da 24, 140'ta 9), `class-definitions-order` 12 (`args.gd`, `net.gd:31-33` const'lar var'dan sonra; `noise_profile.gd:37`, `level_layout.gd:23`, `main_menu.gd:16`), `max-file-lines` 7 (§2), `max-public-methods` 3 (`puppet_rig.gd`, `test_ui_hud.gd`, `test_ui_main_menu.gd` >20 kamusal metot — test dosyalarında anlamsız, `tests/` için kapatılmalı), `max-returns` 1 (`data/noise_profile.gd:65 radius_for`), `duplicated-load` 1 (`test_puppet_scene.gd:300`).
+- **gdformat `--check`:** 78/97 dosya yeniden biçimlenirdi → KR (gdformat yok) doğru; `--check` bile gürültü, raporlamaya değmez.
+- Değerlendirme [G]: IS-051 kapsamı makul; önerilen `.gdlintrc`: `max-line-length: 120` (82 düzeltme, S) ya da 130 (24, XS); `max-file-lines: 400`; `class-definitions-order` **kapalı** (bizim düzen: signal → var → const; kuralı açmak 5 dosyada yeniden sıralama = diff gürültüsü); `max-public-methods` yalnız üretim için (gdlint dizin bazlı farklı rc desteklemiyor → `tests/` ayrı `gdlintrc` ile ayrı çağrı ya da kural kapalı); `duplicated-load`/`max-returns` açık. Linux CI'da `pip install gdtoolkit==4.5.0` + cache.
+
+#### 3.3 Sızıntı ve yetim düğüm ölçümü (IS-046 tabanı) [O]
+- **Güncel durum (579a96e, IS-029 sonrası): 0 sızıntı.** Tam takım `--verbose` 5 koşu (özgün koşucu ×3, orphan prototipi ×2): "Leaked instance" 0; dosya başına `--filter` 38 koşu: hepsi 0; `test_a..test_u` ön ek grupları 0.
+- **Test başına yetim düğüm farkı: tüm 364 testte 0.** Scratchpad koşucusu (`run_tests_orphan.gd`, ~10 satır fark: `_run_test` öncesi/sonrası `Performance.get_monitor(OBJECT_ORPHAN_NODE_COUNT)`, farklıysa `[ORPHAN] etiket +n` satırı + özet) — IS-046 AC1 için başlangıç tabanı temiz; kapı sıfır eşikle açılabilir.
+- **İlk koşu (62af45a, IS-029 öncesi, 340 test) 9 sızıntı:** `SceneMultiplayer`(refcount 2) + `SceneRPCInterface` + `SceneReplicationInterface` + `SceneCacheInterface` + `OfflineMultiplayerPeer` + `StreamPeerBuffer` + 2 `GDScript` + `GDScriptNativeClass` — tam olarak test_game.gd:280-281'in anlattığı "lambda `api`'yi yakalar, `api` lambdayı saklar" döngüsü; IS-029 kırmış. Dosya başına koşuda görünmemesi (o anda da 0'dı) sıra bağımlı değil; worktree ilerlemişti. Ders [G]: sızıntı tek dosya koşusuyla değil, **tam koşu + sürüm sabitlenmiş** ölçülmeli.
+- `--verbose` çıktısındaki "Orphan StringName: ..." satırları sızıntı değil (kapanışta StringName tablosu dökümü) [O]; kapı deseni (`ci_local.sh:49`) bunları doğru dışlıyor.
+- Kapı iki katmanlı önerilir [G]: ci_local çıkış kapısı (var, ObjectDB/RID/Resource) + koşucu içi orphan farkı (yok; RefCounted döngülerini yakalamaz ama `remove_child` sonrası `free` unutulan düğümleri test adıyla gösterir; `--verbose` ikinci koşuya gerek kalmaz).
+
+#### 3.4 ci_local `net` adımı süresi [O]
+- Yerel (Windows, 12 iş parçacığı): **456 sn (7,6 dk)**, 30 koşu, hepsi PASS. Senaryo süreleri toplamı 448,6 sn → süreç açılış/kapanış ek yükü ~2 sn/koşu; **150 ms koşusu 0 ms'den pahalı değil** (duvar saatine bağlı: `duration` + `start_delay` + ~2 sn).
+- En uzun 5: `late_join_real` 29,4, `faz1_full` 24,0, `contention` 24,3, `register_empty` 24,0, `door_sync` 19,4 (her biri ×2) → **%54**. Kalan 10 senaryo 7-13 sn.
+- 20 dk tavanı: ubuntu runner'da (2 vCPU) adım süreleri — Godot indir (önbellekli ~10 sn), import ×2, unit ~30-40 sn, tools birkaç sn, net ≈ 7,6-9 dk (duvar saatine bağlı olduğundan CPU farkı küçük [?]) → tahmini **~10-11 dk**, pay ~9 dk ≈ 25 koşu ≈ **12 yeni senaryo** (ortalama 10 sn) ya da 4-5 uzun senaryo. Gerçek CI süreleri alınamadı (depo özel, API 404; `gh` yok) [?].
+- Paralellik: portlar boş-port seçimi → güvenli; sınır CPU (koşu başına 3 Godot + proxy). Seçenekler [G]: (a) `matrix: latency [0, 150]` iki iş → duvar süresi yarıya (~4 dk), kurulum tekrarı önbellekli; (b) net_smoke'a `-j N` (threading) → runner'da 2 vCPU ile kazanç belirsiz [?]; (c) uzun senaryoların `duration`'ı (22-27 sn) gerçekten gerekli mi — `register_empty` 22 sn ile "boş kayıt" testi şüpheli; cekirdek'e soru.
+
+#### 3.5 Logger API 4.8 dev durumu [O]
+- `doc/classes/Logger.xml` (master, 2026-10): `_log_error(function, file, line, code, rationale, editor_notify, error_type, script_backtraces: Array[ScriptBacktrace])` ve `_log_message(message, error)`; sabitler `ERROR_TYPE_ERROR/WARNING/SCRIPT/SHADER` — 4.5'ten beri **değişmemiş**. `latest` belgesi aynı.
+- 4.8 dev 1/2/3 duyuruları (dev 2: 2026-07-21, dev 3: 2026-08-07; özellik dondurma ~Eylül 2026) Logger/ScriptBacktrace/`OS.add_logger` değişikliği içermiyor; 2026'da "Logger" başlıklı tek birleşen PR belge bağlantısı (#117709). Yükseltme riski **düşük**; koşucu 4.8'e taşınabilir [G]. (dev 3'te GDScript uyarı altı çizgisi #119588 — yalnız editör.)
+
+### 4. Yapımıza uygunluk değerlendirmesi
+- Loopback: yapıya uyar; mevcut test_game kalıbının **fikstüre** çekilmesi yeter (`tests/fixtures/loopback_peer.gd`: dal + SceneMultiplayer + ENet + boş port + `auth` yardımcıları + lambda döngüsünü kıran `teardown`). KR-009 (kendi koşucu) ve S1 (taşıma yalnız net.gd'de; fikstür `ENetMultiplayerPeer`'a test içinde dokunur — `test_net.gd:136-143` "transport yalnız Net'te" taraması `tests/fixtures/` için istisna gerektirir → karar gereken küçük madde).
+- gdlint: IS-051 ile uyumlu; `class-definitions-order` kapalı tutulursa diff gürültüsü yok; 400 satır kuralı testleri de yakalar (tur 1 açık sorusu: testler kapsam dışıysa `tests/` ayrı rc).
+- Sızıntı: IS-029 işi yapmış; IS-046 yalnız koşucu içi orphan farkı + raporlama olarak küçülür (XS).
+- Net süresi: bugün sorun değil (7,6 dk / 20 dk); Faz 3'te NPC/muhafız senaryoları eklendikçe (ag-kodu tur 1 S11) matris bölmesi gerekecek.
+
+### 5. Bulgular
+**Doğru yaptıklarımız**
+1. IS-029 sızıntıyı kök nedenden (lambda-API döngüsü) çözmüş; ci_local kapısı doğru desenle (StringName gürültüsünü dışlar) ve ikinci `--verbose` koşusuyla iyi tasarlanmış.
+2. test_game'deki sahte host kalıbı, loopback spike'ın gösterdiği her şeyi zaten doğru yapıyor (ayrı dal, boş port, kutu değişkenle lambda, döngü kırma).
+3. net_smoke boş port seçimi paralel koşuya hazır; 150 ms koşusu ek maliyet getirmiyor.
+4. Kod tabanı gdtoolkit parser'ından (1 dize hariç) temiz geçiyor; sürüm yükseltme (4.8) için Logger engeli yok.
+
+**Saptığımız yerler**
+5. Dize içinde gerçek satır sonu (test_perception_components.gd:143) — tek araç uyumsuzluğu, XS.
+6. `const` tanımları `var`'dan sonra (`net.gd:31-33`, `args.gd:36-37`) — Godot stil rehberi sırası (signal → enum → const → export → var) [O docs GDScript style guide] ile çelişir; gdlint 12 yerde işaretliyor; benimsenecekse kural, benimsenmeyecekse rc'de kapatma kararı.
+7. Birim süresinin %33'ü tek dosyada (`test_noise_bus.gd` ~10 sn; 2 sn'lik gerçek saat döngüsü 323-324) — IS-049 ilk hedefi.
+8. Net adımının %54'ü 5 uzun senaryoda; `register_empty`/`contention`/`faz1_full` 22 sn `duration` gerekçesi belgelenmemiş.
+
+**Riskler**
+9. Loopback fikstürü yanlış kullanılırsa (kök `multiplayer` ile dal karışımı, lambda değer yakalama) sessizce zaman aşımına düşer — fikstür belgesi + örnek test şart.
+10. Worktree ölçüm sırasında değişti (62af45a → 579a96e); ölçümler commit'e sabitlenmezse yanlış sonuç (ilk 9 sızıntı gibi). Ölçüm kalemlerinde AC'ye commit kimliği yazılmalı.
+11. CI gerçek süreleri görünmüyor (özel depo, yerelde `gh` yok); 20 dk tavanına yaklaşma yalnız tahmin.
+
+### 6. Öneriler
+| # | Öneri | Öncelik | Maliyet | Sahip | Kalem adayı + AC |
+|---|---|---|---|---|---|
+| 1 | Loopback fikstürü (tur 1 #9'un spike'ı tamam → uygulama) | P2 | S | cekirdek | **IS: Süreç içi loopback fikstürü** — AC1 `tests/fixtures/loopback_peer.gd`: dal + `SceneMultiplayer` + ENet (boş port) + `teardown()` (peer close, `set_multiplayer(null)`, callable temizliği); AC2 `test_game.gd:227-286` fikstüre taşınır, davranış aynı; AC3 bir S7 RPC akışı (ör. `request_start`→`completed`) kare adımlı test, < 0,5 sn, çıkışta 0 sızıntı/yetim; AC4 `test_net.gd` transport taraması `tests/fixtures/` istisnasını açıkça listeler |
+| 2 | IS-046'yı küçült: koşucuda test başına orphan farkı + özet; ci_local kapısı ikinci katman | P2 | XS | altyapi | **IS-046 güncelleme** — AC1 `[ORPHAN] etiket +n` satırı ve özet "yetim düğüm farkı toplam"; AC2 toplam > 0 → çıkış 1; AC3 taban 0 (579a96e'de doğrulandı) |
+| 3 | IS-051 kapsamını ölçüme göre sabitle | P3 | XS→S | altyapi | **IS-051 güncelleme** — AC1 `gdlintrc`: `max-line-length` 120 (82 düzeltme) ya da 130 (24) [karar], `max-file-lines: 400`, `class-definitions-order` kapalı [karar], `max-public-methods` tests/ için kapalı; AC2 test_perception_components.gd:143 dize düzeltmesi; AC3 `ci_local tools` adımında `gdlint` (8 sn), CI'da pip önbelleği; gdformat hiç yok |
+| 4 | IS-049 ilk hedef: `test_noise_bus.gd` 2 sn döngü (323) ve `test_player/test_net` bekleyişleri | P2 | S | oynanis (noise), cekirdek (net/game) | **IS-049 eki** — AC1 birim toplam süresi 30 → ≤ 15 sn; AC2 tek dosya > 3 sn yok; AC3 `--verbose` ve orphan tabanı değişmez |
+| 5 | Net adımı bakımı (tur 1 #12 eki) | P3 | XS | altyapi + cekirdek | **IS: Net adımı süre bütçesi** — AC1 ci_local `net` senaryo başına süreyi özetler ve toplamı yazar (yerel taban 456 sn); AC2 toplam > 600 sn olunca `matrix: latency [0,150]` bölmesi (ci.yml) devreye alınır; AC3 cekirdek 22-27 sn'lik 4 senaryonun `duration` gerekçesini JSON `_doc`'a yazar ya da kısaltır |
+| 6 | Ölçüm kalemlerinde commit sabitleme kuralı | P3 | XS | koordinatör (süreç) | **Süreç notu** — ölçüm/raporlama AC'lerine "hangi commit'te" eklenir (karar gerekmez; surec.md'ye koordinatör yazar) |
+
+### 7. Bir sonraki tur için açık sorular
+- Loopback fikstürüyle `Game` el sıkışması (auth) iki yönlü test edilebilir mi: gerçek `Game` host + sahte istemci dalı (bugünkü tersi) [?] — fikstür kaleminde denenmeli.
+- `register_empty`/`contention`/`faz1_full` 22 sn `duration` neyi bekliyor (yetiştirme zaman aşımı? kısma yakınsaması?) — cekirdek'e soru.
+- Godot stil rehberi tanım sırası (const önce var) benimsenecek mi (gdlint `class-definitions-order`) — karar.
+- `tests/` dosyaları için 400 satır kuralı (tur 1 sorusu; gdlint sayımı: 5 test dosyası) — karar.
+- CI gerçek adım süreleri: `gh` kurulumu ya da iş özetine (`$GITHUB_STEP_SUMMARY`) adım süreleri yazılması (öneri 5 AC1) — hangisi?
+- Headless Linux'ta loopback spike'ı aynı kare sayılarını veriyor mu (ENet polling CI runner'da) [?] — fikstür kaleminde CI'da doğrulanır.
+
+### 8. Kaynaklar (tur 2)
+- Deney çıktıları (scratchpad, depoda değil): `mt2-7f3a/spike2.txt`, `gdlint_120_utf8.txt`, `unit_verbose.txt` (62af45a), `unit_rep1-3.txt` (579a96e), `unit_orphan_full.txt`, `net_timing.txt`, `run_tests_orphan.gd`, `loopback_spike.gd`.
+- Godot docs, SceneTree.set_multiplayer (dal başına MultiplayerAPI): https://docs.godotengine.org/en/stable/classes/class_scenetree.html#class-scenetree-method-set-multiplayer
+- Godot docs, High-level multiplayer (RPC yolu, SceneMultiplayer): https://docs.godotengine.org/en/stable/tutorials/networking/high_level_multiplayer.html
+- Godot docs, GDScript reference — lambda değerle yakalama: https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_basics.html#lambda-functions
+- Godot docs, GDScript style guide (tanım sırası): https://docs.godotengine.org/en/stable/tutorials/scripting/gdscript/gdscript_styleguide.html#code-order
+- Godot docs, Performance monitors (`OBJECT_ORPHAN_NODE_COUNT`): https://docs.godotengine.org/en/stable/classes/class_performance.html
+- Godot docs, Logger (latest): https://docs.godotengine.org/en/latest/classes/class_logger.html · master XML: https://raw.githubusercontent.com/godotengine/godot/master/doc/classes/Logger.xml
+- Godot 4.8 dev 2 (2026-07-21): https://godotengine.org/article/dev-snapshot-godot-4-8-dev-2/ · dev 3 (2026-08-07): https://godotengine.org/article/dev-snapshot-godot-4-8-dev-3/
+- gdtoolkit 4.5.0: https://pypi.org/project/gdtoolkit/ · linter kuralları: https://github.com/Scony/godot-gdscript-toolkit/wiki/3.-Linter
+- GitHub Actions matrix: https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
