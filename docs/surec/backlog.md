@@ -229,10 +229,10 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-024 | 2a SFX: yer tutucu sesler (CC0 indirme, kullanıcı izni) + ses kataloğu + SfxEmitter; kapı/kasa/UI bağlı, sahip/adım anahtarları US-008/US-009'a | 2 | arayuz | P1 | S | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-030 | Yer tutucu seslerin üretilmiş (AI) seslerle değiştirilmesi + Türkçe bakkal/mahalleli ses satırları (kullanıcı kaydı ya da üretim); assetler.md + Steam AI bildirimi işaretleri | 4 | arayuz | P2 | S | IS-024 | Backlog (kullanıcı notu) | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
-| US-011a | Görüş: VisionGrid (core, düğümsüz) + sis katmanı (üç ton) + görüş ayarları — gorus-sis-hafiza.md §6 AC1, AC2, AC9, AC10 (seviye payı) | 2 | seviye | P1 | M | US-006 | Sürüyor (2026-10-02; faz2-int) | |
+| US-011a | Görüş: VisionGrid (core, düğümsüz) + sis katmanı (üç ton) + görüş ayarları — gorus-sis-hafiza.md §6 AC1, AC2, AC9, AC10 (seviye payı) | 2 | seviye | P1 | M | US-006 | Denetimde (2026-10-02) | |
 | US-011b | Görüş: bakış yönü (fare/sağ çubuk, look_dir 20 Hz), NPC görünürlük kapısı + hayalet + çevresel siluet, kukla baş/göz, noise_ring çizim koşulu, Game.player_exposure/vision_mode — §6 AC3, AC4, AC6 (Game), AC7 | 2 | oynanis | P1 | M | US-011a, US-008, US-014, US-009 | Backlog | |
-| US-011c | Görüş: HUD maruziyet rozeti, görüldü ikonu, ekip kenar oku, lobi "Görüş" seçimi, i18n (FOG token'ları US-011a'da) — §6 AC5 (UI), AC6 (UI) | 2 | arayuz | P1 | S | — (FakeGame) | Sürüyor (2026-10-02; faz2-int) | |
-| US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
+| US-011c | Görüş: HUD maruziyet rozeti, görüldü ikonu, ekip kenar oku, lobi "Görüş" seçimi, i18n (FOG token'ları US-011a'da) — §6 AC5 (UI), AC6 (UI) | 2 | arayuz | P1 | S | — (FakeGame) | Denetimde (2026-10-02) | |
+| US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Denetimde (2026-10-02) | |
 | IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Sürüyor (2026-10-02; dev) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
@@ -260,14 +260,14 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-018 | Ping/mesaj görselleri + HUD günlüğü + token/i18n | 2 | arayuz | P1 | S | US-017 | Backlog (2b) | |
 | US-019 | Hızlı mesaj tekerleği (8) + go-kodu + gürültülü 'Kaç!' | 2 | arayuz + oynanis + altyapi | P2 | S | US-017 | Backlog (2b) | |
 | IS-032 | Test-2 'Discord sessiz turu' protokolü ve ölçümü (yakınlık sesi ihtiyacı) | 2 | tasarim + koordinatör | P2 | S | — | Backlog | |
-| US-033 | Bakkal keseler ve koli engelleri (arka oda + ara sokak, içecek dolabı) — vision_block (docs/tasarim/arastirma/mekan-estetigi.md K3) | 2 | seviye | P1 | XS | IS-023 | Backlog | |
+| US-033 | Bakkal keseler ve koli engelleri (arka oda + ara sokak, içecek dolabı) — vision_block (docs/tasarim/arastirma/mekan-estetigi.md K3) | 2 | seviye | P1 | XS | IS-023 | Sürüyor (2026-10-02; faz2-int) | |
 | US-034 | Bakkal dekor + ışık v1 (16 öğe, vitrin/tezgâh/arka oda ışık havuzları; CanvasModulate + ADD) (mekan-estetigi K1 + docs/tasarim/arastirma/sanat-yonu.md #4) | 2 | seviye | P2 | M | US-033, IS-036 | Backlog (2b) | |
 | US-035 | Sahibin ajanda telegrafları (çay bardağı → arka oda, koli çıkartması → raf, zil → telefon) (mekan-estetigi K2) | 2 | oynanis + seviye | P2 | S | US-008 | Backlog (2b) | |
 | IS-036 | Stil kilidi: 6 onaylı AI asset + palet ≤ 24 + `tools/asset_post.sh` + assetler.md (sanat-yonu #1; kullanıcı onayı) | 2 | seviye + koordinatör | P2 | S | kullanıcı onayı | Backlog (2b) | |
 | US-036 | Bakkal zemin/duvar/cam seti v0 (AI, dikişsiz, --placeholder-art yolu korunur) (sanat-yonu #2) | 3 | seviye | P2 | M | IS-036 | Backlog | |
-| IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Backlog | |
-| IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Backlog | |
-| IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Backlog | |
+| IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
+| IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Sürüyor (2026-10-02; faz2-int, IS-039 ile) | |
+| IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int, IS-038 ile) | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
