@@ -28,7 +28,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-011 | Windows'ta yerel geliştirme: net_smoke süreç yönetimi (killpg yerine Windows eşdeğeri) ve get_godot Windows dalı ya da WSL kılavuzu | 1 | altyapi | P1 | S | — | Bitti | 8124e82 |
 | IS-010 | OOP/genişletilebilirlik (A) uygulaması: Level API, slot, bağımlılık yönü | 1 | cekirdek | P1 | S | US-001 | Bitti | f6bd55c |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
-| US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Backlog | |
+| US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Sürüyor (2026-10-02) | |
 | IS-005 | Faz 1 çıkış testi + Windows/Linux build | 1 | altyapi | P1 | M | US-003, US-005 | Backlog | |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | IS-005 | Backlog | |
@@ -131,7 +131,7 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 - AC5 Nesneler `levels/store_a.tscn` → `Props` altına `Register`, `FrontDoor`, `BackDoor` Marker konumlarında yerleştirilir (seviyenin başka kısmına dokunulmaz).
 - AC6 Senaryolar `register_empty.json` (istemci boşaltır → tüm peer'larda team_cash 150, kasa boş; sonucun görünme gecikmesi dökümde ölçülür), `door_sync.json`, `contention.json`; 0 ve 150 ms.
 - AC7 Birim: `core/interaction_rules.gd` (menzil + tolerans, süre, meşguliyet).
-**Dokunulacak:** entities/props/**, core/**, data/props/**, levels/store_a.tscn (yalnız Props altı), tests/unit/test_interaction*.gd, tests/net/{register_empty,door_sync,contention}.json, tests/net/bots/**, i18n/texts.csv (satır ekleme)
+**Dokunulacak:** entities/props/**, entities/player/** (yalnız S7 oyuncu tarafı: hedef bulma, `interact` isteği, oyuncu sinyalleri; US-004 hareket/senkron davranışı değişmez), core/**, data/props/**, levels/store_a.tscn (yalnız Props altı), tests/unit/test_interaction*.gd, tests/net/{register_empty,door_sync,contention}.json, tests/net/bots/**, i18n/texts.csv (satır ekleme)
 **Dokunulmayacak:** autoload/{net,args,game}.gd, ui/**, project.godot, levels/store_a.tscn'nin Props dışı
 **Oku:** mimari.md S2, S7 · GDD §6.3, §12
 
