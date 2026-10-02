@@ -114,6 +114,37 @@ func test_pause_and_ui_gamepad_events() -> void:
 	is_false(InputMap.event_is_action(_joy(JOY_BUTTON_A), &"ui_cancel"), "A geri değil")
 
 
+func test_look_actions_right_stick() -> void:
+	# US-011d (S5 eki, GDD §6.5): bakış eylemleri yalnız gamepad sağ çubuk; fare bakışı imleç konumundan
+	# okunur (eylem değil), klavye-yalnız oyuncu yürüme yönüne döner (tuş yok). Ölü bölge move_* ile aynı.
+	var expected := {
+		&"look_left": [JOY_AXIS_RIGHT_X, -1.0], &"look_right": [JOY_AXIS_RIGHT_X, 1.0],
+		&"look_up": [JOY_AXIS_RIGHT_Y, -1.0], &"look_down": [JOY_AXIS_RIGHT_Y, 1.0],
+	}
+	var move_deadzone: float = float((ProjectSettings.get_setting("input/move_up") as Dictionary)["deadzone"])
+	for action: StringName in expected:
+		var entry: Variant = ProjectSettings.get_setting("input/" + action)
+		if not is_true(entry is Dictionary, "project.godot'ta eylem yok: %s" % action):
+			continue
+		var deadzone: float = float((entry as Dictionary).get("deadzone", -1.0))
+		near(deadzone, move_deadzone, 0.0001, "%s ölü bölgesi move_* ile aynı" % action)
+		var events: Array = (entry as Dictionary).get("events", [])
+		eq(events.size(), 1, "%s: tek olay (sağ çubuk)" % action)
+		for e: InputEvent in events:
+			if not is_true(e is InputEventJoypadMotion, "%s: yalnız eksen olayı" % action):
+				continue
+			var m := e as InputEventJoypadMotion
+			eq(m.axis, expected[action][0], "%s ekseni" % action)
+			eq(m.axis_value, expected[action][1], "%s yönü" % action)
+	is_false(InputMap.has_action(&"look_toggle_mode"), "kip host kuralı; oyuncu eylemi yok")
+	# Sağ çubuk hareket ya da arayüz eylemlerine karışmaz.
+	var stick := InputEventJoypadMotion.new()
+	stick.axis = JOY_AXIS_RIGHT_X
+	stick.axis_value = 1.0
+	for other: StringName in [&"move_right", &"move_left", &"ui_right", &"ui_left"]:
+		is_false(InputMap.event_is_action(stick, other), "sağ çubuk %s tetiklememeli" % other)
+
+
 func test_modifiers_do_not_block_movement() -> void:
 	# Sızarken (Ctrl) ve koşarken (Shift) yön tuşları eylemlerini korumalı.
 	var e := InputEventKey.new()
