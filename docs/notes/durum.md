@@ -4,8 +4,8 @@
 Faz 1 — İki kişi bakkalda (EP-01). Yerel geliştirme: `C:\Users\Turkuaz\OneDrive\Desktop\Insider` (Windows 11, Git Bash, Godot 4.7.2 win64); buluttan devir tamamlandı (devir.md silindi).
 
 ## Kalemler
-- Bitti (Faz 1): US-001 ağ çekirdeği · US-002 bakkal · US-003 menü/HUD/tema · IS-008 · IS-009 · IS-010 (KR-018) · IS-011 Windows yerel geliştirme (8124e82) · US-004 oyuncu karakteri (a88d9c1)
-- Sürüyor: US-005 etkileşim çerçevesi + kasa + kapı (oynanis, 2026-10-02)
+- Bitti (Faz 1): US-001 ağ çekirdeği · US-002 bakkal · US-003 menü/HUD/tema · IS-008 · IS-009 · IS-010 (KR-018) · IS-011 Windows yerel geliştirme (8124e82) · US-004 oyuncu karakteri (a88d9c1) · US-005 etkileşim + kasa + kapı (e32adf7)
+- Hazır: IS-012 gecikme proxy testinin Windows kararsızlığı (altyapi, XS; sıradaki)
 - Sırada: IS-005 çıkış testi + build → IS-007 Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
 
 ## Kullanıcıdan bekleyen
