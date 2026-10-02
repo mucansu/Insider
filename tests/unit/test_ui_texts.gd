@@ -12,6 +12,10 @@ const KEY_PATTERN := "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$|^[A-Z][A-Z0-9]+$"
 const TSCN_TEXT_PROPS := "text|placeholder_text|tooltip_text|title"
 ## Geliştirici günlüğü satırları (oyuncu görmez) taramadan muaf.
 const LOG_CALLS: Array[String] = ["push_warning(", "push_error(", "print(", "printerr(", "print_debug("]
+## Oturum olayı yayan kaynaklar (IS-080): bu klasörlerdeki her `raise_session_event(...)` ve `_raise(&"...")`.
+const EVENT_SOURCE_DIRS: Array[String] = ["res://autoload", "res://core", "res://entities", "res://levels", "res://ui"]
+## Olay türü yerine değişken alan çağrılar (sarmalayıcı parametresi; türü çağıranda taranır).
+const EVENT_PASS_THROUGH: Array[String] = ["kind"]
 
 
 func test_csv_well_formed() -> void:
@@ -95,6 +99,33 @@ func test_scripts_contain_no_literal_text() -> void:
 	is_true(keys_seen >= 15, "betiklerde anahtar bulunamadı (%d); tarama bozuk mu?" % keys_seen)
 
 
+func test_every_session_event_has_hud_text() -> void:
+	# IS-080: kaynakta yayılan her session_event türünün HUD metni texts.csv'de olmalı (HUD'un kasıtlı sustuğu
+	# türler hariç: Hud.SILENT_EVENTS). Yeni olay metinsiz eklenirse bu test düşer.
+	var table: Dictionary = _csv()
+	var kinds: Dictionary = _emitted_session_events()
+	for want: String in ["player_held", "player_caught", "player_rescued", "police_arrived"]:
+		is_true(kinds.has(want), "tarama %s olayını bulamadı; desen değişti mi?" % want)
+	for kind: String in kinds:
+		if StringName(kind) in Hud.SILENT_EVENTS:
+			continue
+		var key: String = Hud.event_key(StringName(kind))
+		is_true(table.has(key), "%s olayının HUD metni yok: %s (%s)" % [kind, key, kinds[kind]])
+
+
+func test_event_scanner_resolves_literals_and_constants() -> void:
+	var src: String = "const EV := &\"alpha\"\nfunc f() -> void:\n\tGame.raise_session_event(EV, {})\n" \
+		+ "\traise_session_event(&\"beta\")\n\t_raise(&\"gamma\", {})\n\tGame.raise_session_event(kind, data)\n" \
+		+ "# Game.raise_session_event(&\"comment\")\nfunc _raise(kind: StringName, data: Dictionary) -> void:\n"
+	var found: Dictionary = {}
+	var unresolved: Array[String] = []
+	_collect_events(src, "x.gd", found, unresolved)
+	eq(found.keys(), ["alpha", "beta", "gamma"])
+	eq(unresolved, [] as Array[String], "sarmalayıcı parametresi (kind) çözümsüz sayılmaz")
+	_collect_events("func g() -> void:\n\tGame.raise_session_event(make_kind())\n", "y.gd", found, unresolved)
+	eq(unresolved.size(), 1, "çözülemeyen tür bildirilir")
+
+
 func test_scanner_detects_literal_text() -> void:
 	# Taramanın kendisi: yorumdaki metin sayılmaz, dizedeki metin ve # yakalanır.
 	var scan: Dictionary = _scan_gdscript("var a := \"Merhaba dünya\" # \"yorum metni\"\nlabel.text = \"Host\"\nvar b := 'x # y'\n")
@@ -141,6 +172,42 @@ func test_running_screens_show_only_keys() -> void:
 
 
 # --- yardımcılar ---
+
+## Kaynakta yayılan oturum olayı türleri: tür -> ilk bulunduğu yer. Çözülemeyen çağrı testi düşürür.
+func _emitted_session_events() -> Dictionary:
+	var found: Dictionary = {}
+	var unresolved: Array[String] = []
+	for dir: String in EVENT_SOURCE_DIRS:
+		if not DirAccess.dir_exists_absolute(dir):
+			continue
+		for path: String in _files_under(dir, ".gd"):
+			_collect_events(FileAccess.get_file_as_string(path), path, found, unresolved)
+	eq(unresolved, [] as Array[String], "türü çözülemeyen session_event çağrısı (sabit ya da &\"...\" kullan)")
+	return found
+
+
+## `raise_session_event(X` / `_raise(X` çağrılarında X: &"tür" dizesi ya da aynı dosyadaki `const X := &"tür"`.
+static func _collect_events(source: String, path: String, found: Dictionary, unresolved: Array[String]) -> void:
+	var code: String = ""
+	for line: String in source.split("\n"):
+		if not line.strip_edges().begins_with("#"):
+			code += line + "\n"
+	var call_re: RegEx = RegEx.create_from_string("(?:\\braise_session_event|\\b_raise)\\(\\s*([^,)]+)")
+	var lit_re: RegEx = RegEx.create_from_string("^&?\"([a-z0-9_]+)\"$")
+	for m: RegExMatch in call_re.search_all(code):
+		var arg: String = m.get_string(1).strip_edges()
+		if arg.begins_with("kind:") or arg in EVENT_PASS_THROUGH:
+			continue  # tanım satırı ya da sarmalayıcı parametresi
+		var lit: RegExMatch = lit_re.search(arg)
+		if lit == null and arg.is_valid_identifier():
+			var const_re: RegEx = RegEx.create_from_string("const\\s+%s\\s*(?::\\s*\\w+\\s*)?:?=\\s*&?\"([a-z0-9_]+)\"" % arg)
+			lit = const_re.search(code)
+		if lit == null:
+			unresolved.append("%s: %s" % [path, arg])
+			continue
+		if not found.has(lit.get_string(1)):
+			found[lit.get_string(1)] = path
+
 
 ## anahtar -> [tr, en]
 static func _csv() -> Dictionary:

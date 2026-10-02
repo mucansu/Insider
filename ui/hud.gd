@@ -23,6 +23,11 @@ const SWATCH_SIZE := Vector2(10, 10)
 const PLAYER_NAME_MAX_WIDTH := 170.0
 ## Oturum olayı anahtarı: EVENT_<KIND> (ör. &"police_called" → EVENT_POLICE_CALLED).
 const EVENT_KEY_PREFIX := "EVENT_"
+## Bildirim gösterilmeyen olaylar: başka HUD öğesi zaten gösterir (alert_level → uyarı merdiveni, US-013).
+const SILENT_EVENTS: Array[StringName] = [&"alert_level"]
+## Olay verisinde oyuncuyu belirten alan (S3 eki, US-008: player_held/caught/rescued {peer}); metne {name} olarak girer.
+const EVENT_PEER_FIELD := "peer"
+const EVENT_NAME_FIELD := "name"
 ## İstemdeki tuş adının alındığı eylem (S5).
 const INTERACT_ACTION := &"interact"
 
@@ -207,9 +212,7 @@ func refresh_players() -> void:
 		swatch.color = ThemeTokens.PLAYER_COLORS[posmod(slot, ThemeTokens.PLAYER_COLORS.size())]
 		var label := Label.new()
 		label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
-		var player_name: String = str(info.get("name", "")).strip_edges().left(MainMenu.MAX_NAME_LENGTH)
-		if player_name.is_empty():
-			player_name = tr(&"HUD_PLAYER_UNNAMED") % peer_id
+		var player_name: String = _player_name(peer_id, info)
 		label.text = tr(&"HUD_PLAYER_YOU") % player_name if peer_id == local_id else player_name
 		row.add_child(swatch)
 		row.add_child(label)
@@ -223,15 +226,35 @@ func refresh_players() -> void:
 
 # --- oturum olayları ---
 
-## EVENT_<KIND> anahtarının metni; `data` alanları {ad} yer tutucularına yerleşir. Anahtar yoksa oyuncuya
+## EVENT_<KIND> anahtarının metni; `data` alanları {ad} yer tutucularına yerleşir. `data` bir oyuncu
+## (`peer`) taşıyorsa adı {name} olarak eklenir (veride `name` yoksa). Anahtar yoksa oyuncuya
 ## ham olay adı değil genel metin gösterilir, eksik anahtar geliştiriciye uyarıyla bildirilir.
 func event_text(kind: StringName, data: Dictionary) -> String:
-	var key: String = EVENT_KEY_PREFIX + String(kind).to_upper()
+	var key: String = event_key(kind)
 	var text: String = tr(key)
 	if text == key:
 		_warn_missing_text(key)
 		return tr(&"EVENT_GENERIC")
-	return text.format(data) if not data.is_empty() else text
+	var fields: Dictionary = data.duplicate()
+	if typeof(data.get(EVENT_PEER_FIELD)) == TYPE_INT and not fields.has(EVENT_NAME_FIELD):
+		var peer_id: int = int(data[EVENT_PEER_FIELD])
+		var players: Dictionary = game.call(&"players")
+		var info: Dictionary = players.get(peer_id, {}) if typeof(players.get(peer_id)) == TYPE_DICTIONARY else {}
+		fields[EVENT_NAME_FIELD] = _player_name(peer_id, info)
+	return text.format(fields) if not fields.is_empty() else text
+
+
+## Olay türünün HUD metin anahtarı (S9): &"player_held" → "EVENT_PLAYER_HELD".
+static func event_key(kind: StringName) -> String:
+	return EVENT_KEY_PREFIX + String(kind).to_upper()
+
+
+## Oyuncunun görünen adı (S3 players() kaydından); ad yoksa "Oyuncu N".
+func _player_name(peer_id: int, info: Dictionary) -> String:
+	var player_name: String = str(info.get("name", "")).strip_edges().left(MainMenu.MAX_NAME_LENGTH)
+	if player_name.is_empty():
+		player_name = tr(&"HUD_PLAYER_UNNAMED") % peer_id
+	return player_name
 
 
 func show_toast(text: String) -> void:
@@ -253,6 +276,8 @@ func show_toast(text: String) -> void:
 
 
 func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if kind in SILENT_EVENTS:
+		return
 	show_toast(event_text(kind, data))
 
 

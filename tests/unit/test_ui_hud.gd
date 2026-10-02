@@ -160,6 +160,34 @@ func test_session_event_data_fills_placeholders() -> void:
 	TranslationServer.remove_translation(t)
 
 
+func test_player_events_show_named_text() -> void:
+	# IS-080: US-008 oyuncu olayları (player_status.gd) genel metne düşmez, oyuncunun adını taşır.
+	await _open()
+	game.roster = {1: {"name": "Ayla", "slot": 0}, 7: {"name": "", "slot": 1}}
+	game.session_event.emit(&"player_held", {"peer": 1, "window": 3.0})
+	game.session_event.emit(&"player_caught", {"peer": 1, "by": &"owner"})
+	game.session_event.emit(&"player_rescued", {"peer": 7, "by": 1})
+	var unnamed: String = tr("HUD_PLAYER_UNNAMED") % 7
+	eq(_toast_texts(), [tr("EVENT_PLAYER_HELD").format({"name": "Ayla"}),
+		tr("EVENT_PLAYER_CAUGHT").format({"name": "Ayla"}),
+		tr("EVENT_PLAYER_RESCUED").format({"name": unnamed})] as Array[String])
+	eq(warnings, [] as Array[String], "üç olayın da metni var")
+	has(_toast_texts()[0], "Ayla")
+	has(_toast_texts()[2], unnamed)
+	for text: String in _toast_texts():
+		is_false(text.contains("{"), "yer tutucu açıkta kalmaz: %s" % text)
+		is_true(text != tr("EVENT_GENERIC"), "genel metne düşmez")
+
+
+func test_unknown_peer_and_silent_events() -> void:
+	await _open()
+	eq(hud.event_text(&"player_caught", {"peer": 42}), tr("EVENT_PLAYER_CAUGHT").format(
+		{"name": tr("HUD_PLAYER_UNNAMED") % 42}), "listede olmayan oyuncu: Oyuncu N")
+	game.session_event.emit(&"alert_level", {"level": 2})
+	eq(_toast_texts(), [] as Array[String], "alert_level uyarı merdiveninde; bildirim yok")
+	eq(warnings, [] as Array[String])
+
+
 func test_toasts_expire_and_are_capped() -> void:
 	await _open()
 	for i: int in Hud.MAX_TOASTS + 2:
