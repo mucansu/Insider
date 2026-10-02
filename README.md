@@ -85,6 +85,17 @@ ayrılır. İstemci seviyeyi henüz yüklememişken düşen an hata değildir, "
 `-- --host --screenshot-at=2,4 --screenshot-dir=C:/yol --window-size=1280x720 --quit-after=5` (S6).
 Bu argümanlar geliştirici aracıdır (export build'de de çalışır, oyuncuya yönelik değildir).
 
+## Performans dökümü
+
+**Arkadaşlar (build ile):** Windows build klasöründeki `perf_dump.bat`'ı çift tıklayın; oyun ~25 sn kendiliğinden
+açılıp kapanır (dokunmayın) ve aynı klasöre `perf_<BİLGİSAYAR>.json` yazar, o dosyayı gönderin (içinde GPU/sürücü
+adı, ekran ve kare ölçümleri var; kişisel veri yok). Elle: `Insiders.exe -- --host --perf --perf-seconds=20
+--quit-after=24 --dump=perf.json`; dökümün `"render"` bölümü kare süresi (p50/p95/p99), FPS (ortalama, en düşük,
+%1 düşük), draw call/nesne/ilkel, process/physics ve render CPU/GPU ms'sini son `--perf-seconds` saniye için
+özetler (headless'ta `"headless": true`, renderer alanları 0). **Geliştirici:** `python tools/perf_run.py
+--seconds 10` pencereli host + 1 headless istemciyle store_a'yı koşar, dökümleri `build/perf/<ad>/`'e yazar ve özet
+tablo basar (CI'a girmez; aynı makinede açık başka Godot süreçleri ölçümü bozar, araç sayısını uyarır).
+
 ## Windows'ta geliştirme
 
 - **Kabuk:** betikler [Git for Windows](https://git-scm.com/download/win) ile gelen **Git Bash**'te koşar

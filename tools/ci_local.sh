@@ -92,6 +92,7 @@ step_tools() {
 	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
 	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
 	"${PYTHON[@]}" tools/test_screenshot.py || return 1
+	"${PYTHON[@]}" tools/test_perf_run.py || return 1
 }
 
 # Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.

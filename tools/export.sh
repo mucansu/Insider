@@ -7,7 +7,7 @@
 #                Linux:   ${XDG_DATA_HOME:-~/.local/share}/godot/export_templates/<sürüm>.stable
 #              Kuruluysa atlar. Yoksa resmi .tpz'yi (~1,3 GB) .tools/ altına indirir, SHA-512'yi resmi
 #              SHA512-SUMS.txt değeriyle doğrular, yalnız Windows/Linux x86_64 şablonlarını açar, .tpz'yi siler.
-#   windows    build/windows/Insiders.exe (+ Insiders.console.exe; pck gömülü)
+#   windows    build/windows/Insiders.exe (+ Insiders.console.exe; pck gömülü) + perf_dump.bat (IS-067)
 #   linux      build/linux/Insiders.x86_64 (pck gömülü) + build/Insiders-linux-x86_64.tar.gz (çalıştırma izni korunur)
 #   smoke      bu makinenin build'ini (Windows'ta Windows, Linux'ta Linux) headless iki süreçle açar: host +
 #              127.0.0.1'e katılan istemci, ikisi de --quit-after ile kapanır; her biri kod 0, READY satırı,
@@ -148,6 +148,8 @@ step_windows() {
 	export_preset "$WINDOWS_PRESET" "$WINDOWS_OUT" || return 1
 	[[ "$(head -c 2 "$WINDOWS_OUT")" == "MZ" ]] || { echo "PE değil: $WINDOWS_OUT" >&2; return 1; }
 	[[ -s "${WINDOWS_OUT%.exe}.console.exe" ]] || { echo "Konsol sarmalayıcısı yok" >&2; return 1; }
+	# IS-067: arkadaş makinesi performans dökümü betiği build'in yanında (cmd için CRLF).
+	sed 's/\r*$/\r/' tools/perf_dump.bat > "$(dirname "$WINDOWS_OUT")/perf_dump.bat" || return 1
 }
 
 step_linux() {
