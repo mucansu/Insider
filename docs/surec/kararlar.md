@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-027 — NPC teması ve itme; ajanda süreleri; chaser hızı (2026-10-02, kullanıcı fikri → Fable → koordinatör)
+- Sakin temas (uyarı ≤ 1): çarpışma yok, daireler çakışırken (< 24 px) oyuncu hızı ×0,5, NPC yer değiştirmez, kukla 8 px eğilir.
+- İT = koşu kipinde hız yönünün ±60° önündeki NPC'ye temas (ayrı tuş yok; kullanıcı isterse yalnız girdi katmanı değişir). NPC 24 px / 0,25 sn kayar, 0,8 sn sendeler; iten 0,2 sn ×0,7; aynı NPC'ye 1 sn yeniden itme yok.
+- Sakin bedel: itilen +30×n, görüş hattı olan gözlemci +15×n (n = son 10 sn itme sayısı, tavan 3); itilen sahip BAK. Kızışmış (uyarı ≥ 2): bedel yok; chaser itilince yakalama penceresi sıfırlanır, 0,8 sn sendeler, 4 sn bağışık; arkadan temas itme sayılmaz. Sahip TUT'ta ekip arkadaşının omzu = ÇEK sonucu. Ağ host otoriteli `npc_pushed(peer, npc)`, istemci yerel tahmin. Tüm sayılar `data/npc/contact_tuning.tres`.
+- Ajanda: GDD §9.3 değerleri ölçüme güncellenir (tezgâh 25-40, raf 6-10, yürüme 100 px/sn; süre = pencere süresi, yol dahil); kabul ölçütleri bağlayıcı. Chaser 190 px/sn (KR-021 200 → 190). police/caught_all ısı +15 GDD'ye. Fable sonraki GDD güncellemesinde işler.
+
 ### KR-026 — Bakkal etkileşim ayarları (2026-10-02, Fable → koordinatör)
 - DİKKAT DAĞIT (raf devirme) yarıçapı 120 → 320 px (bağırışla aynı sınıf); tezgâhtaki sahibi koparmak aracın amacı. Risk: T1 fazla cömert olursa (IS-015 200 koşuda temiz oranı > %60) 260 px'e çekilir.
 - Tezgâh: E = SATIN AL (ana), Q (`intimidate`; gamepad X) = ARKA ODAYA GÖNDER (alt). Kural: yanlışlıkla tetiklenmesi pahalı eylem ayrı tuşa. `intimidate` → `interact_alt` yeniden adlandırma Faz 2b teknik kararı.
