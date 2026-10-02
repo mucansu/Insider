@@ -13,10 +13,10 @@ const LAYOUT_DIR := "res://levels/layouts"
 const TMP_DIR := "user://test_levels_nav"
 
 const TILE := 32
-const WORLD_LAYER := 1        # §4 katman 1
-const PLAYERS_LAYER := 1 << 1  # §4 katman 2
-const TRIGGERS_LAYER := 1 << 4  # §4 katman 5
-const SEE_THROUGH := &"see_through"
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 katman 1
+const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4 katman 2
+const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4 katman 5
+const SEE_THROUGH := PhysicsLayers.SEE_THROUGH_GROUP
 const AGENT_RADIUS := 12.0    # karakter çapı ~24 px (S4)
 const ARRIVE := 2.0           # yol sonu hedefe bu kadar yakınsa "ulaştı"
 const DOOR_PASS := TILE + 1.0  # kapı bağı uçları kapı merkezinden bir karo ötede
@@ -70,8 +70,8 @@ func test_line_of_sight_passes_glass_but_not_shelves() -> void:
 	# Raf satırı (6. satır, 4-9. sütun) iki koridoru ayırır: (5, 5) → (5, 7).
 	var shelf: Dictionary = _ray(space, _center(Vector2i(5, 5)), _center(Vector2i(5, 7)), true)
 	eq(_shape_name(shelf), "Shelf", "raf görüşü keser (K1)")
-	# Arka oda duvarı (14. sütun): satış alanından (13, 5) arka odaya (15, 5).
-	eq(_shape_name(_ray(space, _center(Vector2i(13, 5)), _center(Vector2i(15, 5)), true)), "Wall", "duvar görüşü keser")
+	# Arka oda duvarı (14. sütun): satış alanından (13, 4) arka odaya (15, 4) (13, 5-7 içecek dolabı, US-033).
+	eq(_shape_name(_ray(space, _center(Vector2i(13, 4)), _center(Vector2i(15, 4)), true)), "Wall", "duvar görüşü keser")
 	# Tezgâh (17. sütun) yarım boy değil: görüşü keser.
 	eq(_shape_name(_ray(space, _center(Vector2i(16, 10)), _center(Vector2i(18, 10)), true)), "Counter", "tezgâh görüşü keser")
 	tree().root.remove_child(level)

@@ -13,6 +13,10 @@
 ; telefon P (tezgâh arkası doğu duvarı; camın değil duvarın önü), arka oda O; raf ucu prop yerleri x y z (US-010).
 ; Bölgeler: müşteri alanı (satış + tezgâhın batısı), personel tarafı (tezgâh hattı ve doğusu, iç kapıya açılır),
 ; arka oda. Kapı karoları bölgesizdir (eşik); bölgeler örtüşmez, iç zeminin her karosu tam bir bölgededir.
+; Görüş kesen engeller (US-033, mekan-estetigi K3): I içecek dolabı (13,5)-(13,7) satış doğu duvarına yaslı (koridor
+; 11-12 kalır); G koli (20,6) arka oda kesesi (21,6)-(21,7): BackroomSpot'tan gizli, iç kapıdan giren (19,7) görür;
+; G koli (21,2) ara sokak: arka kapıyı açan (20,2) StreetRoute5'ten gizli, StreetRoute6'dan görünür. Mevcut nakit cebi
+; (15,5)-(15,7) korunur. Yoğunluk: çarpışan dekor 5 karo, kapı eşiği ve iki yanı, işaret karoları engelsiz.
 ; İşaret satırı: @ <harf> <Marker adı> <zemin karakteri>; Spawn* adları SpawnPoints'e, diğerleri Markers'a gider.
 ; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
 ; Boyamasız bölge: = <Bölge adı> <sütun> <satır> <genişlik> <yükseklik> (karo; aynı ad yinelenirse çok parçalı).
@@ -61,12 +65,12 @@
 = Backroom 15 4 7 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %,,,,,,,,,,,,,,,,,,,f,,,,____%
-%,,,,,,,,,,,,,,,,,,,,,,e,____%
+%,,,,,,,,,,,,,,,,,,,,G,e,____%
 %###################B##,,____%
 %#..SSSSSSSS..#V::::::#,,____%
-%#..o..j......#:::O:::#,,____%
-%#S.SSSSSSx...#:SS::::#,,____%
-%#S.p.....k...#MSS::::#,,____%
+%#..o..j.....I#:::O:::#,,____%
+%#S.SSSSSSx..I#:SS::G:#,,____%
+%#S.p.....k..I#MSS::::#,,____%
 %#S.SSSSSSy...#####D###,N____%
 %#S.r..l.........T....#,,____%
 %#S.SSSSSSz.....uC....wd,____%

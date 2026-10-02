@@ -14,7 +14,7 @@ const TMP_DIR := "user://test_levels_roundtrip"  # gidiş-dönüş testi depodak
 const TILE := 32
 const CHAR_RADIUS := 12.0     # karakter çapı ~24 px (S4)
 const INTERACT_RANGE := 40.0  # Interactable.interact_range varsayılanı (S7)
-const WORLD_LAYER := 1        # mimari.md §4
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 katman 1
 
 const REQUIRED: Array[String] = ["Walls", "SpawnPoints", "Players", "Props", "NPCs", "Markers"]
 const MARKERS: Array[String] = ["FrontDoor", "BackDoor", "Register", "Counter", "ClerkSpot", "BackroomSafe", "Exit"]
@@ -353,11 +353,13 @@ func test_level_palette_comes_from_tone() -> void:
 		LevelLayout.Kind.DOOR: "level_floor_color", LevelLayout.Kind.BACKROOM: "level_backroom_color",
 		LevelLayout.Kind.WALL: "level_wall_color", LevelLayout.Kind.WINDOW: "wall_color",
 		LevelLayout.Kind.SHELF: "level_shelf_color", LevelLayout.Kind.COUNTER: "level_counter_color",
+		LevelLayout.Kind.COOLER: "level_shelf_color", LevelLayout.Kind.CRATE: "level_counter_color",
 	}
 	var edge: Dictionary = {
 		LevelLayout.Kind.BOUND: "wall_color", LevelLayout.Kind.SIDEWALK: "wall_color",
 		LevelLayout.Kind.WALL: "level_wall_edge_color", LevelLayout.Kind.WINDOW: "level_glass_color",
 		LevelLayout.Kind.SHELF: "level_shelf_edge_color", LevelLayout.Kind.COUNTER: "level_counter_edge_color",
+		LevelLayout.Kind.COOLER: "level_glass_color", LevelLayout.Kind.CRATE: "level_counter_edge_color",
 	}
 	eq(fill.size(), LevelLayout.Kind.size(), "her karo türünün dolgu rengi tanımlı")
 	# Başka bir ton seviye renklerini de değiştirir: renkler çizim anında etkin tondan okunur.
