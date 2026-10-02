@@ -1,7 +1,8 @@
 extends TestCase
 ## Proje iskeleti duman testi (IS-003): proje ayarları, S5 girdi eylemleri, §4 fizik katmanları,
-## autoload'lar ve S1/S3/S8 sözleşme imzaları, S4 Level API imzaları (IS-005), çeviri kaydı, tema token'ları, ana sahne ve
-## projedeki tüm betiklerin derlenmesi (statik tipleme hataları içe aktarmada görünmediği için).
+## autoload'lar ve S1/S3/S8 sözleşme imzaları, S4 Level API imzaları (IS-005; ekler ve PENDING kalıbı IS-039),
+## çeviri kaydı, tema token'ları, ana sahne ve projedeki tüm betiklerin derlenmesi (statik tipleme hataları içe
+## aktarmada görünmediği için).
 
 const ACTIONS: Array[StringName] = [
 	&"move_up", &"move_down", &"move_left", &"move_right",
@@ -17,56 +18,10 @@ const AUTOLOADS := {
 	"NoiseBus": "res://autoload/noise.gd",
 }
 
-## Sözleşme satırları docs/notes/mimari.md S1/S3/S8'den birebir (yorumlar hariç).
-## Uygulama fazlasını içerebilir; bu satırların her biri aynen bulunmalı.
-const CONTRACTS := {
-	"Net": [
-		"signal peer_connected(peer_id: int)",
-		"signal peer_disconnected(peer_id: int)",
-		"signal connected_to_host()",
-		"signal connection_failed()",
-		"signal host_disconnected()",
-		"func host(port: int = 7777, max_peers: int = 4) -> Error",
-		"func join(address: String, port: int = 7777) -> Error",
-		"func leave() -> void",
-		"func is_host() -> bool",
-		"func is_online() -> bool",
-		"func local_peer_id() -> int",
-		"func get_ping_ms(peer_id: int = 1) -> int",
-	],
-	"Game": [
-		"signal players_changed()",
-		"signal local_player_changed(player: Node)",
-		"signal team_cash_changed(value: int)",
-		"signal level_loaded(level: Node)",
-		"signal session_event(kind: StringName, data: Dictionary)",
-		"const DEFAULT_LEVEL := \"res://levels/store_a.tscn\"",
-		"const HUD_SCENE := \"res://ui/hud.tscn\"",
-		"var player_scene: PackedScene",
-		"func set_local_name(player_name: String) -> void",
-		"func players() -> Dictionary",
-		"func local_player() -> Node",
-		"func start_level(level_path: String) -> void",
-		"func current_level() -> Node",
-		"func add_team_cash(amount: int) -> void",
-		"func team_cash() -> int",
-		"func raise_session_event(kind: StringName, data: Dictionary = {}) -> void",
-		"func register_dump_provider(key: String, provider: Callable) -> void",
-		"func collect_dump() -> Dictionary",
-	],
-	"NoiseBus": [
-		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
-	],
-	# S4 Level API (autoload değil; betik yolu LEVEL_SCRIPT, sınıf adı ve taban ayrıca denetlenir).
-	"Level": [
-		"func players_root() -> Node2D",
-		"func props_root() -> Node2D",
-		"func npcs_root() -> Node2D",
-		"func spawn_count() -> int",
-		"func spawn_position(index: int) -> Vector2",
-		"func marker(marker_name: StringName) -> Node2D",
-	],
-}
+## Sözleşme satırları ve henüz gelmemiş (PENDING) üyeler tek kaynakta: tests/contracts.gd (IS-039).
+## Uygulama fazlasını içerebilir; PENDING dışındaki her satır aynen bulunmalı.
+const Contracts := preload("res://tests/contracts.gd")
+const CONTRACTS := Contracts.LINES
 const LEVEL_SCRIPT := "res://levels/level.gd"
 
 
@@ -209,9 +164,10 @@ func test_autoloads_and_contracts() -> void:
 		eq(script.resource_path if script else "", AUTOLOADS[autoload_name])
 		if not CONTRACTS.has(autoload_name) or script == null:
 			continue
-		var surface: PackedStringArray = _surface(script)
-		for line: String in CONTRACTS[autoload_name]:
-			is_true(surface.has(line), "%s sözleşmesinde eksik ya da farklı: %s" % [autoload_name, line])
+		var problems: PackedStringArray = contract_problems(autoload_name, script)
+		is_true(problems.is_empty(), "%s sözleşmesinde eksik ya da farklı:
+  %s" % [autoload_name, "
+  ".join(problems)])
 
 
 func test_level_contract() -> void:
@@ -221,14 +177,71 @@ func test_level_contract() -> void:
 		return
 	eq(script.get_global_name(), &"Level", "S4 sınıf adı")
 	eq(script.get_instance_base_type(), &"Node2D", "S4 taban sınıfı")
-	var surface: PackedStringArray = _surface(script)
-	for line: String in CONTRACTS["Level"]:
-		is_true(surface.has(line), "Level sözleşmesinde eksik ya da farklı: " + line)
+	var problems: PackedStringArray = contract_problems("Level", script)
+	is_true(problems.is_empty(), "Level sözleşmesinde eksik ya da farklı:
+  " + "
+  ".join(problems))
 	# Denetimin kendisi: imza tipi değişirse yakalanır.
 	var mutant := GDScript.new()
 	mutant.source_code = "extends Node2D\nfunc spawn_position(index: float) -> Vector2:\n\treturn Vector2.ZERO\n"
 	eq(mutant.reload(), OK)
 	is_false(_surface(mutant).has("func spawn_position(index: int) -> Vector2"), "tip farkı yakalanmalı")
+
+
+## IS-039: PENDING üye gerçek betikte yoksa atlanır; gelince imzası denetlenir. PENDING olmayan üye eksikse düşer.
+func test_pending_contract_members() -> void:
+	for owner: String in Contracts.PENDING:
+		var names: PackedStringArray = Contracts.names(owner)
+		for member: String in Contracts.PENDING[owner]:
+			has(names, member, "%s PENDING üyesi sözleşme satırlarında yok: %s" % [owner, member])
+	# Hiçbir S3 eki olmayan Game: yalnız PENDING dışı (Faz 1) eksikler raporlanır.
+	var bare: GDScript = _mutant("extends Node
+func players() -> Dictionary:
+	return {}
+")
+	var problems: PackedStringArray = contract_problems("Game", bare)
+	is_false(_mentions(problems, "alert_level"), "gelmemiş PENDING üye atlanmalı: %s" % problems)
+	is_true(_mentions(problems, "team_cash"), "PENDING dışı eksik üye düşmeli")
+	is_false(_mentions(problems, "players()"), "doğru imzalı üye geçer")
+	# PENDING üye gelince imzası denetlenir: doğru imza geçer, yanlış imza düşer.
+	var good: GDScript = _mutant("extends Node
+signal alert_level_changed(level: int)
+func alert_level() -> int:
+	return 0
+"
+		+ "func player_world_position(peer: int) -> Vector2:
+	return Vector2.INF
+")
+	problems = contract_problems("Game", good)
+	is_false(_mentions(problems, "alert_level") or _mentions(problems, "player_world_position"), "doğru imza geçer: %s" % problems)
+	var wrong: GDScript = _mutant("extends Node
+signal alert_level_changed(level: float)
+func alert_level() -> float:
+	return 0.0
+"
+		+ "func set_vision_mode(mode: StringName) -> void:
+	pass
+")
+	problems = contract_problems("Game", wrong)
+	for line: String in ["signal alert_level_changed(level: int)", "func alert_level() -> int", "func set_vision_mode(mode: int) -> void"]:
+		has(problems, line, "PENDING üyenin yanlış imzası düşmeli")
+	# Level: tipli dizi dönüşü (marker_sequence) ve PENDING sis üyeleri aynı kalıpla.
+	var level: GDScript = _mutant("extends Node2D
+func marker_sequence(prefix: StringName) -> Array[Node2D]:
+	return []
+"
+		+ "func tier() -> float:
+	return 1.0
+")
+	problems = contract_problems("Level", level)
+	is_false(problems.has("func marker_sequence(prefix: StringName) -> Array[Node2D]"), "tipli dizi dönüşü okunmalı")
+	has(problems, "func tier() -> int", "PENDING tier yanlış tipte düşmeli")
+	has(problems, "func attach_fog(observer: Node2D) -> FogLayer", "gerçek (PENDING olmayan) üye eksikse düşer")
+	var untyped: GDScript = _mutant("extends Node2D
+func marker_sequence(prefix: StringName) -> Array:
+	return []
+")
+	has(contract_problems("Level", untyped), "func marker_sequence(prefix: StringName) -> Array[Node2D]", "tipsiz dizi farkı yakalanmalı")
 
 
 func test_autoloads_callable_by_name() -> void:
@@ -326,6 +339,36 @@ static func _scripts_under(dir: String) -> PackedStringArray:
 	return out
 
 
+## `owner` sözleşmesinden betikte eksik ya da farklı satırlar. PENDING üye betikte hiç yoksa atlanır.
+static func contract_problems(owner: String, script: Script) -> PackedStringArray:
+	var surface: PackedStringArray = _surface(script)
+	var present: Dictionary = {}
+	for entry: String in surface:
+		present[Contracts.member_name(entry)] = true
+	var out: PackedStringArray = []
+	for line: String in Contracts.LINES[owner]:
+		var member: String = Contracts.member_name(line)
+		if Contracts.is_pending(owner, member) and not present.has(member):
+			continue  # sözleşmeli ama gerçek betiğe henüz gelmedi
+		if not surface.has(line):
+			out.append(line)
+	return out
+
+
+static func _mutant(source: String) -> GDScript:
+	var script := GDScript.new()
+	script.source_code = source
+	script.reload()
+	return script
+
+
+static func _mentions(lines: PackedStringArray, text: String) -> bool:
+	for line: String in lines:
+		if line.contains(text):
+			return true
+	return false
+
+
 ## Betiğin genel yüzeyini sözleşme satırı biçiminde çıkarır.
 static func _surface(script: Script) -> PackedStringArray:
 	var out: PackedStringArray = []
@@ -372,4 +415,6 @@ static func _type_name(info: Dictionary, is_return: bool) -> String:
 		return "void" if is_return and not (int(info["usage"]) & PROPERTY_USAGE_NIL_IS_VARIANT) else "Variant"
 	if not cls.is_empty():
 		return cls  # nesne sınıfı ya da enum (ör. Error)
+	if type == TYPE_ARRAY and int(info.get("hint", 0)) == PROPERTY_HINT_ARRAY_TYPE:
+		return "Array[%s]" % info["hint_string"]  # tipli dizi (ör. Array[Node2D])
 	return type_string(type)
