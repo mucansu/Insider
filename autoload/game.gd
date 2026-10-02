@@ -838,3 +838,384 @@ static func _sanitize_name(value: Variant) -> String:
 		if code >= 32 and code != 127:
 			out += ch
 	return out.strip_edges()
+
+
+# =====================================================================================================================
+# US-012 — Soygun sonucu (S3 eki, KR-021: heist_finished, heist_result, request_restart, venue_tier).
+# Bu bölüm yukarıdaki koda dokunmaz: bağlantılar ve fizik adımı `_notification`'dan (ENTER_TREE, PHYSICS_PROCESS).
+# Kurallar ve sayaçlar düğümsüz `HeistRules` / `HeistRules.Tracker`'da (core/heist_rules.gd); burada yalnız
+# sahne bağlama: oyuncu görünümü (kaçış bölgesi `Level.zone(&"EscapeZone")`, yakalanma/tutulma oyuncu
+# API'sinden okunur, taşınan çanta değeri), kasa nakdinin kimin olduğu (bileşenin `completed` sinyali), sonuç
+# yayını; iş bitince ganimet etkileşimleri host'ta kilitlenir (yeni istek reddi, geç biten kasanın nakdi geri alınır).
+# - İş yalnız `EscapeZone` taşıyan seviyelerde izlenir; host karar verir (S2), sonuç herkese RPC ile gider ve
+#   geç katılana kabulde yollanır. Bitişte ekip nakdi = iş öncesi + ödeme (kasadan anında giren nakit ödemeyle
+#   değiştirilir). Seviye kalkınca (yeniden başlatma, oturum sonu) sonuç sıfırlanır.
+# - US-008 bağlanma noktaları (yoksa atlanır): Game sinyalleri `alert_level_changed(level)`, `police_arrived()`,
+#   `player_caught(peer_id[, by])`; `alert_level()` (her adımda okunur); oyuncu `is_caught()` / `is_held()`
+#   (HeistRules.CAUGHT_METHODS / HELD_METHODS). Aynı olaylar session_event olarak da kabul edilir:
+#   &"alert_level" {"level"}, &"police_arrived", &"player_caught" {"peer", "by"?: &"chaser"}, &"shout".
+# - Test kancası (yalnız otomasyon + host, ağ senaryosu): `--bot` dosyasındaki {"t": SN, "heist": "<olay>",
+#   "data": {...}} adımları — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart" —
+#   yukarıdaki session_event'lerle (ve request_restart ile) uygulanır; US-008 gelene dek sahip olaylarının
+#   yerine geçer. Zaman, bot zaman çizelgesi gibi ilk yerel oyuncunun ilk fizik adımından sayılır.
+# Döküm (S6 "heist", yalnız --dump): {"active", "max_alert", "elapsed", "result", "history"}.
+# =====================================================================================================================
+
+signal heist_finished(result: Dictionary)
+
+const HEIST_DUMP_KEY := "heist"
+const HEIST_ESCAPE_ZONE := &"EscapeZone"
+## Mekân kademesi (Faz 2'de tek mekân: bakkal T1).
+const HEIST_VENUE_TIER := 1
+const HEIST_SIG_ALERT := &"alert_level_changed"
+const HEIST_SIG_POLICE := &"police_arrived"
+const HEIST_SIG_CAUGHT := &"player_caught"
+const HEIST_EVENT_ALERT := &"alert_level"
+const HEIST_EVENT_POLICE := &"police_arrived"
+const HEIST_EVENT_CAUGHT := &"player_caught"
+const HEIST_EVENT_SHOUT := &"shout"
+const HEIST_HOOK_KEY := "heist"
+const HEIST_HISTORY_MAX := 16
+## Etkileşim bileşenlerinin grubu: Interactable.GROUP ile aynı değer (= PhysicsLayers.INTERACTABLES_GROUP, IS-037;
+## birleştirmede ona bağlanır). Autoload entities/ sınıflarına derlemede bağlanmasın diye (§6) bileşenlere
+## yalnız ördek tiplemeyle (has_signal/has_method/"x" in) dokunulur.
+const HEIST_INTERACTABLES_GROUP := PhysicsLayers.INTERACTABLES_GROUP
+
+var _heist: HeistRules.Tracker = null
+var _heist_result: Dictionary = {}
+var _heist_history: Array[Dictionary] = []
+var _heist_hook_steps: Array[Dictionary] = []
+var _heist_hook_next: int = 0
+var _heist_hook_t: float = 0.0
+var _heist_hook_started: bool = false
+## Bağlanan isteğe bağlı sinyaller (US-008; adı -> true): her seviye yüklemesinde yeniden denenir.
+var _heist_bound: Dictionary = {}
+## request_restart: ekip nakdi yeni seviye yüklenince sıfırlanır.
+var _heist_reset_cash: bool = false
+
+
+## Bitmiş işin sonucu (S3 eki; geç katılan da alır); iş sürüyorsa ya da yoksa boş.
+func heist_result() -> Dictionary:
+	return _heist_result.duplicate(true)
+
+
+## Yalnız host: aynı seviyeyi yeniden yükler (Game seviye yolu); prop'lar seviyeyle sıfırlanır, ekip nakdi yeni
+## seviye yüklendikten sonra sıfırlanır (Faz 2'de kalıcı ekonomi yok).
+func request_restart() -> void:
+	if not _has_host_authority():
+		push_warning("Game.request_restart: yalnız host çağırabilir")
+		return
+	if _level_path.is_empty():
+		push_warning("Game.request_restart: yüklü seviye yok")
+		return
+	_heist_reset_cash = true
+	start_level(_level_path)
+
+
+## Mekân kademesi (uyarı merdiveni metinleri `ALERT_T<k>_<level>`).
+func venue_tier() -> int:
+	return HEIST_VENUE_TIER
+
+
+## Bölümün tek motor girişi: `_enter_tree`/`_physics_process` tanımlanmaz ki başka bölümler (US-008) kendi
+## sanal yöntemlerini çakışmadan ekleyebilsin.
+func _notification(what: int) -> void:
+	match what:
+		NOTIFICATION_ENTER_TREE:
+			_heist_setup()
+		NOTIFICATION_PHYSICS_PROCESS:
+			_heist_physics(get_physics_process_delta_time())
+
+
+func _heist_setup() -> void:
+	set_physics_process(true)
+	_heist_bind_optional()
+	if level_loaded.is_connected(_heist_on_level_loaded):
+		return
+	level_loaded.connect(_heist_on_level_loaded)
+	session_event.connect(_heist_on_session_event)
+	Net.peer_connected.connect(_heist_on_peer_connected)
+	if not Args.dump_path.is_empty():
+		register_dump_provider(HEIST_DUMP_KEY, _heist_dump)
+	_heist_load_hook()
+
+
+func _heist_physics(delta: float) -> void:
+	_heist_run_hook(delta)
+	if _heist == null or _heist.finished or _level == null or not _has_host_authority():
+		return
+	var views: Dictionary = _heist_views()
+	if views.is_empty():
+		return
+	if has_method(&"alert_level"):
+		_heist.set_alert(int(call(&"alert_level")))
+	_heist.observe(views, delta)
+	_heist_drop_caught_bags()
+	var decision: StringName = _heist.evaluate(views)
+	if decision != HeistRules.DECISION_NONE:
+		_heist_finish(decision, views)
+
+
+## US-008 sinyalleri (yoksa atlanır; her seviye yüklemesinde yeniden denenir): uyarı (1 arg), polis (0),
+## yakalanma (1-2 arg: peer_id[, by]); fazla argüman atılır (HeistRules.adapt_callable).
+func _heist_bind_optional() -> void:
+	_heist_bind(HEIST_SIG_ALERT, _heist_on_alert, 1, 1)
+	_heist_bind(HEIST_SIG_POLICE, _heist_on_police, 0, 0)
+	_heist_bind(HEIST_SIG_CAUGHT, _heist_on_caught, 1, 2)
+
+
+func _heist_bind(signal_name: StringName, target: Callable, min_args: int, max_args: int) -> void:
+	if _heist_bound.has(signal_name) or not has_signal(signal_name):
+		return
+	_heist_bound[signal_name] = true
+	var argc: int = -1
+	for s: Dictionary in get_signal_list():
+		if StringName(str(s["name"])) == signal_name:
+			argc = (s["args"] as Array).size()
+	var adapted: Callable = HeistRules.adapt_callable(target, argc, min_args, max_args)
+	if not adapted.is_valid():
+		push_warning("Game: %s sinyali beklenen argümanı taşımıyor; soygun sonucu bağlanmadı" % signal_name)
+		return
+	connect(signal_name, adapted)
+
+
+func _heist_on_level_loaded(level: Node) -> void:
+	_heist = null
+	_heist_bind_optional()
+	if _heist_reset_cash and _has_host_authority():
+		_heist_reset_cash = false
+		add_team_cash(-_team_cash)
+	var lvl: Level = level as Level
+	if lvl == null or lvl.zone(HEIST_ESCAPE_ZONE) == null:
+		return
+	_heist = HeistRules.Tracker.new()
+	if not level.tree_exiting.is_connected(_heist_on_level_exiting):
+		level.tree_exiting.connect(_heist_on_level_exiting, CONNECT_ONE_SHOT)
+	for node: Node in get_tree().get_nodes_in_group(HEIST_INTERACTABLES_GROUP):
+		var prop: Node = node.get_parent()
+		if not level.is_ancestor_of(node) or prop == null or prop.is_in_group(HeistRules.BAG_GROUP) \
+				or not node.has_signal(&"completed"):
+			continue
+		var def: Resource = prop.get(&"def") as Resource
+		var cash: int = int(def.get(&"cash_value")) if def != null and "cash_value" in def else 0
+		if cash <= 0:
+			continue
+		node.connect(&"completed", _heist_on_cash_taken.bind(cash))
+		# İş bitince host yeni ganimet etkileşimini reddeder (bileşenin kendi engeli yoksa; çanta kendi kilitlenir).
+		if "start_blocker" in node and not (node.get(&"start_blocker") as Callable).is_valid():
+			node.set(&"start_blocker", _heist_loot_locked)
+	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
+		if level.is_ancestor_of(bag) and bag.has_signal(&"taken"):
+			bag.connect(&"taken", _heist_on_bag_taken)
+
+
+## Seviye kalkarken (yeniden başlatma, seviye değişimi, oturum sonu): iş ve sonucu sıfırlanır. Yeni seviyenin
+## HUD'u eski sonucu görmesin diye yükleme öncesinde.
+func _heist_on_level_exiting() -> void:
+	_heist = null
+	_heist_result = {}
+
+
+## Kasa nakdi kimin (prop kendi işleyicisinde ekip nakdine ekledi). Sonuçtan sonra biten (iş bitmeden başlamış)
+## boşaltmanın nakdi geri alınır: ödeme kesinleşti.
+func _heist_on_cash_taken(peer_id: int, cash: int) -> void:
+	if _heist == null:
+		return
+	if not _heist.finished:
+		_heist.add_cash(peer_id, cash)
+	elif _has_host_authority():
+		add_team_cash(-cash)
+
+
+func _heist_loot_locked() -> bool:
+	return _heist != null and _heist.finished
+
+
+func _heist_on_bag_taken(peer_id: int) -> void:
+	if _heist != null and not _heist.finished:
+		_heist.note_bag(peer_id)
+
+
+func _heist_on_alert(level: int) -> void:
+	if _heist != null and _has_host_authority():
+		_heist.set_alert(level)
+
+
+## Polis geldi (US-008 sayacı): kaçış bölgesi dışındaki herkes yakalanır; karar bir sonraki adımda.
+func _heist_on_police() -> void:
+	if _heist == null or _heist.finished or not _has_host_authority():
+		return
+	_heist.arrive_police(_heist_views())
+
+
+func _heist_on_caught(peer_id: int, by: StringName = &"") -> void:
+	_heist_mark_caught(peer_id, by)
+
+
+func _heist_mark_caught(peer_id: int, cause: StringName) -> void:
+	if _heist != null and not _heist.finished and _has_host_authority():
+		_heist.mark_caught(peer_id, cause)
+
+
+func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
+	if _heist == null or _heist.finished or not _has_host_authority():
+		return
+	match kind:
+		HEIST_EVENT_ALERT:
+			_heist.set_alert(int(data.get("level", 0)))
+		HEIST_EVENT_POLICE:
+			_heist_on_police()
+		HEIST_EVENT_CAUGHT:
+			_heist_mark_caught(int(data.get("peer", 0)), StringName(str(data.get("by", ""))))
+		HEIST_EVENT_SHOUT:
+			_heist.note_shout()
+
+
+## Host: oyuncu görünümü (HeistRules.Tracker): peer -> {"in_zone", "caught", "held", "bag_value", "sprinting"}.
+func _heist_views() -> Dictionary:
+	var out: Dictionary = {}
+	var root: Node2D = _players_root()
+	if root == null or _level == null:
+		return out
+	var zone: Area2D = _level.zone(HEIST_ESCAPE_ZONE)
+	var bag_values: Dictionary = {}
+	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
+		var carrier: int = int(bag.get(&"carrier"))
+		if carrier != 0:
+			bag_values[carrier] = int(bag_values.get(carrier, 0)) + int(bag.get(&"value"))
+	for child: Node in root.get_children():
+		var node: Node2D = child as Node2D
+		if node == null or not str(node.name).is_valid_int():
+			continue
+		var peer_id: int = str(node.name).to_int()
+		var pos: Vector2 = node.global_position
+		if node.has_method(&"interaction_position"):
+			pos = node.call(&"interaction_position")
+		out[peer_id] = {
+			"in_zone": _heist_in_zone(zone, pos),
+			"caught": HeistRules.node_flag(node, HeistRules.CAUGHT_METHODS),
+			"held": HeistRules.node_flag(node, HeistRules.HELD_METHODS),
+			"bag_value": int(bag_values.get(peer_id, 0)),
+			"sprinting": HeistRules.node_flag(node, HeistRules.SPRINT_METHODS),
+		}
+	return out
+
+
+## Nokta (global) bölgenin şekillerinden birinin içinde mi.
+static func _heist_in_zone(zone: Area2D, point: Vector2) -> bool:
+	if zone == null:
+		return false
+	for child: Node in zone.get_children():
+		var holder: CollisionShape2D = child as CollisionShape2D
+		if holder == null or holder.disabled or holder.shape == null:
+			continue
+		var local: Vector2 = holder.global_transform.affine_inverse() * point
+		var rect: RectangleShape2D = holder.shape as RectangleShape2D
+		var circle: CircleShape2D = holder.shape as CircleShape2D
+		if rect != null:
+			if Rect2(-rect.size * 0.5, rect.size).has_point(local):
+				return true
+		elif circle != null:
+			if local.length() <= circle.radius:
+				return true
+		elif holder.shape.get_rect().has_point(local):
+			return true
+	return false
+
+
+## Yakalanan taşıyıcının çantası düşer (ekip arkadaşı alabilir).
+func _heist_drop_caught_bags() -> void:
+	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
+		var carrier: int = int(bag.get(&"carrier"))
+		if carrier != 0 and _heist.is_caught(carrier) and bag.has_method(&"host_drop"):
+			bag.call(&"host_drop")
+
+
+func _heist_finish(decision: StringName, views: Dictionary) -> void:
+	_heist.finished = true
+	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
+		if bag.has_method(&"host_lock"):
+			bag.call(&"host_lock")
+	var result: Dictionary = _heist.build_result(decision, views, _players)
+	var cash_delta: int = maxi(int(result["payout"]) - _heist.cash_grabbed(), -_team_cash)
+	if cash_delta != 0:
+		add_team_cash(cash_delta)
+	_to_all(&"_rpc_heist_finished", [result])
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_heist_finished(result: Dictionary) -> void:
+	_heist_result = result.duplicate(true)
+	_heist_history.append(_heist_result.duplicate(true))
+	if _heist_history.size() > HEIST_HISTORY_MAX:
+		_heist_history.pop_front()
+	if _heist != null:
+		_heist.finished = true
+	heist_finished.emit(heist_result())
+
+
+## Geç katılan: iş bittiyse sonuç kabulden sonra (kare sonunda) yollanır.
+func _heist_on_peer_connected(peer_id: int) -> void:
+	if Net.is_host() and not _heist_result.is_empty():
+		_heist_send_result.call_deferred(peer_id)
+
+
+func _heist_send_result(peer_id: int) -> void:
+	if Net.is_host() and not _heist_result.is_empty() and multiplayer.get_peers().has(peer_id):
+		_rpc_heist_finished.rpc_id(peer_id, _heist_result)
+
+
+func _heist_dump() -> Dictionary:
+	return {
+		"active": _heist != null and not _heist.finished,
+		"max_alert": _heist.max_alert if _heist != null else 0,
+		"elapsed": snappedf(_heist.elapsed, 0.01) if _heist != null else 0.0,
+		"result": _heist_result,
+		"history": _heist_history,
+	}
+
+
+# --- test kancası (yalnız otomasyon + host) ---
+
+func _heist_load_hook() -> void:
+	_heist_hook_steps.clear()
+	if not Args.is_automated() or Args.bot_path.is_empty():
+		return
+	for step: Dictionary in Args.bot_steps():
+		if step.has(HEIST_HOOK_KEY):
+			_heist_hook_steps.append(step)
+
+
+func _heist_run_hook(delta: float) -> void:
+	if _heist_hook_next >= _heist_hook_steps.size() or not Net.is_host():
+		return
+	if not _heist_hook_started:
+		if local_player() == null:
+			return
+		_heist_hook_started = true
+	_heist_hook_t += delta
+	while _heist_hook_next < _heist_hook_steps.size() \
+			and float(_heist_hook_steps[_heist_hook_next]["t"]) <= _heist_hook_t:
+		_heist_apply_hook(_heist_hook_steps[_heist_hook_next])
+		_heist_hook_next += 1
+
+
+func _heist_apply_hook(step: Dictionary) -> void:
+	var data: Dictionary = step.get("data", {}) if typeof(step.get("data")) == TYPE_DICTIONARY else {}
+	match str(step[HEIST_HOOK_KEY]):
+		"alert":
+			raise_session_event(HEIST_EVENT_ALERT, {"level": int(data.get("level", 0))})
+		"police":
+			raise_session_event(HEIST_EVENT_POLICE)
+		"shout":
+			raise_session_event(HEIST_EVENT_SHOUT)
+		"caught":
+			var by: String = str(data.get("by", ""))
+			for peer_id: int in _players:
+				var slot: int = int((_players[peer_id] as Dictionary)["slot"])
+				if bool(data.get("all", false)) or (data.has("slot") and int(data["slot"]) == slot):
+					raise_session_event(HEIST_EVENT_CAUGHT, {"peer": peer_id, "by": by})
+		"restart":
+			request_restart()
+		_:
+			push_warning("Game: bilinmeyen soygun test adımı: %s" % str(step[HEIST_HOOK_KEY]))

@@ -33,6 +33,9 @@ extends CharacterBody2D
 ## 120, yürüme/sızma 0) > 0 ve gerçek hız (`get_real_velocity`; duvara itmek sayılmaz) ≥ `step_min_speed` iken
 ## en fazla `step_interval`'da bir (NoiseRules.Cadence) `NoiseBus.emit_noise`; istemcide host doğrular (S2).
 ## Uzak kopya ses üretmez.
+##
+## Çanta (US-012): taşıma durumu çantadadır (Bag, host yetkili); oyuncu yalnız okur (`is_carrying`,
+## `interaction_tags` → eli boşsa `free_hands`) ve koşuyu bildirir (`is_sprinting`); düşürme kuralı çantada (host).
 
 signal identity_changed()
 ## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
@@ -50,6 +53,8 @@ const BODY_RADIUS := 12.0
 const WALL_CHECK_MARGIN := 2.0
 ## Fizik katmanı world (mimari.md §4).
 const WORLD_MASK := PhysicsLayers.WORLD
+## Koşu sayılması için en düşük hız (px/sn; US-012): koşu tuşu basılı ama duran oyuncu koşmuyor.
+const SPRINT_MOVING_SPEED := 20.0
 
 @export var tuning: PlayerTuning
 
@@ -119,7 +124,7 @@ func _physics_process(delta: float) -> void:
 		facing = PlayerMotion.facing_for(facing, direction)
 		_publish()
 		_emit_step_noise(delta)
-		_interaction.tick(delta, _input.is_held(INTERACT_ACTION), global_position, peer_id())
+		_interaction.tick(delta, _input.is_held(INTERACT_ACTION), global_position, peer_id(), interaction_tags())
 	if _track_walls and overlaps_world():
 		_wall_frames += 1
 
@@ -172,6 +177,23 @@ func interaction_position() -> Vector2:
 		return global_position
 	var parent: Node2D = get_parent() as Node2D
 	return parent.to_global(net_position) if parent != null else net_position
+
+
+## Etkileşim etiketleri (S7 `InteractionRequirement.required_tag`; host da aynı yöntemi okur). US-012: eli boşsa
+## `free_hands` (çanta yalnız eli boşken alınır/devralınır).
+func interaction_tags() -> Dictionary:
+	return {} if is_carrying() else {HeistRules.FREE_HANDS_TAG: 1}
+
+
+## Çanta taşıyor mu (US-012; durum çantada, host yetkili ve çoğaltılır).
+func is_carrying() -> bool:
+	return is_inside_tree() and Bag.carried_by(get_tree(), peer_id()) != null
+
+
+## Koşuyor mu (US-012 çanta düşürme ve "Maratoncu" notu): koşu kipi ve gerçekten hareket ediyor. Uzak kopyada
+## ara değerlenen kip ve hızdan.
+func is_sprinting() -> bool:
+	return move_mode == PlayerMotion.Mode.SPRINT and velocity.length() > SPRINT_MOVING_SPEED
 
 
 ## Gövde (kenar payı WALL_CHECK_MARGIN düşülmüş) world katmanıyla örtüşüyor mu.
