@@ -243,7 +243,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
 | IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Sürüyor (t3; medyan kestirim — jitter altında düşük gösterim) | |
 | US-026 | Bağlantı kolaylığı: ad + son adres hatırlanır, host kendi Tailscale/LAN adresini görür + Kopyala/Yapıştır, port 'Gelişmiş' altında (docs/tasarim/arastirma/rahatlik-ux.md UX-1) | 1 | arayuz | P1 | S | — | Sürüyor (2026-10-02; dev, test-1'e yetişirse) | |
-| US-027 | Anlaşılır bağlantı hataları + sürüm uyuşmazlığı nedeni istemciye + menüde build kimliği (UX-2) | 2 | cekirdek + arayuz | P1 | S | IS-026 | Backlog | |
+| US-027 | Anlaşılır bağlantı hataları + sürüm uyuşmazlığı nedeni istemciye (game.gd:427 ret nedeni yollanır) + menüde/dökümde build kimliği (application/config/version + git kısa hash, export_presets sürüm alanları) (UX-2 + teknik/operasyon-guvenilirlik.md Ö1) | 2 | cekirdek + arayuz | P1 | S | IS-026 | Backlog | |
 | US-028 | Sızma/koşu/etkileşim için tut↔geçiş seçenekleri + HUD kip ikonu (UX-3) | 2 | oynanis + arayuz | P1 | S | US-025 | Backlog | |
 | US-025 | Ayarlar v0 (`user://settings.cfg`; ses kanalları, görüntü, hareket azaltma tek kaynak — kukla/sis/halka/merdiven bağlanır, yazı ölçeği, ipuçları, kip seçenekleri) + duraklat erişimi (UX-4 + oyun-hissi #7) | 2 | arayuz | P1 | M | US-014 | Backlog | |
 | US-029 | İpucu sistemi + rehberli bakkal (8 tetik bazlı tek satır ipucu) (UX-5) | 2 | arayuz + oynanis | P2 | S | US-008 | Backlog (2b) | |
@@ -268,6 +268,11 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Sürüyor (2026-10-02; faz2-int, IS-039 ile) | |
 | IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int, IS-038 ile) | |
+| IS-041 | README Tailscale teşhis notu: paylaşılan makineye FQDN ile erişim, `tailscale status` relay, exe'ye özel UDP 7777 güvenlik duvarı kuralı (`netsh`), yer tutucu ses notu (teknik/operasyon-guvenilirlik.md Ö4) | 1 | altyapi | P1 | XS | — | Backlog (test-1 öncesi) | |
+| IS-042 | Checkpoint dağıtımı: `test-N` etiketinde GitHub Release + sürümlü zip (CI); itch gizli sayfa test-2'de karar (Ö5) | 1 | altyapi | P1 | XS | — | Backlog (test-1 öncesi) | |
+| IS-043 | Yapılandırılmış günlük v0 (`Logger` alt sınıfı + OS.add_logger, seviye/kategori, halka tampon, release backtrace) + "Sorun bildir" paketi (log + döküm + PNG + sistem bilgisi zip) + `session.lock` temiz kapanmadı bayrağı (Ö2 + Ö3) | 2 | cekirdek + arayuz | P1 | S | — | Backlog | |
+| IS-044 | Oturum izi v0: host karar günlüğü + peer durum izi (jsonl; S6 samples/events'in uzantısı); girdi replay'i yerine (Ö6; karar gereken: GDD replay maddesi daraltılır) | 2 | cekirdek | P2 | S | IS-043 | Backlog | |
+| IS-045 | S2/S6 notu: tek RPC yükü ≤ 1 KB (Tailscale MTU 1280) + net_smoke en büyük paket istatistiği (Ö8) | 2 | cekirdek | P3 | XS | — | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
