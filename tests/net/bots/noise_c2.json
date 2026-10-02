@@ -1,0 +1,9 @@
+{
+  "_doc": "noise_ring.json c2 botu (US-009): sızarak caddeye iner ve sağa ilerler (sızma sessiz: hiç ses yayılmaz); sızma tuşu sona dek basılı.",
+  "steps": [
+    {"t": 3.0, "hold": "sneak"},
+    {"t": 3.0, "move": [0, 1]},
+    {"t": 3.5, "move": [1, 0]},
+    {"t": 6.5, "move": [0, 0]}
+  ]
+}

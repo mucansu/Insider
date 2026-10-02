@@ -1,0 +1,7 @@
+{
+  "_doc": "noise_ring.json host botu (US-009): yürüyerek aşağı caddeye iner (yürüme sessiz: hiç ses yayılmaz), durur.",
+  "steps": [
+    {"t": 3.0, "move": [0, 1]},
+    {"t": 3.6, "move": [0, 0]}
+  ]
+}

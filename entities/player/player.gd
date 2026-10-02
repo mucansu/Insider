@@ -28,6 +28,11 @@ extends CharacterBody2D
 ## "Etkileşimde" durumu (IS-014; görsel göstergesi her peer'da aynı): yerel kopyada PlayerInteraction'dan (basışta
 ## hemen, karar gelince biter; GDD §12); uzak kopyada host'un çoğalttığı `Interactable.busy_by`'dan (bu oyuncunun
 ## tuttuğu bileşen varsa) her karede türetilir — ek ağ alanı yok. Kapı gibi anlık eylemler uzakta görünmez.
+##
+## Gürültü (US-009, S8): yalnız yerel kopya, hareketten sonra adım sesi yayar: kipin yarıçapı (NoiseProfile: koşu
+## 120, yürüme/sızma 0) > 0 ve gerçek hız (`get_real_velocity`; duvara itmek sayılmaz) ≥ `step_min_speed` iken
+## en fazla `step_interval`'da bir (NoiseRules.Cadence) `NoiseBus.emit_noise`; istemcide host doğrular (S2).
+## Uzak kopya ses üretmez.
 
 signal identity_changed()
 ## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
@@ -68,6 +73,8 @@ var _wall_query: PhysicsShapeQueryParameters2D = null
 ## Otomasyonda (S6) her fizik karesinde duvar denetimi yapılır ve sayılır.
 var _track_walls: bool = false
 var _wall_frames: int = 0
+var _noise_profile: NoiseProfile = null
+var _step_noise: NoiseRules.Cadence = null
 
 @onready var _input: PlayerInput = $PlayerInput
 @onready var _sync: MultiplayerSynchronizer = $MultiplayerSynchronizer
@@ -82,6 +89,8 @@ func _ready() -> void:
 		tuning = load(TUNING_PATH) as PlayerTuning
 	_local = is_multiplayer_authority()
 	_buffer = SnapshotBuffer.new(tuning.interpolation_delay)
+	_noise_profile = NoiseProfile.load_default()
+	_step_noise = NoiseRules.Cadence.new(_noise_profile.step_interval)
 	add_to_group(Interactable.ACTOR_GROUP)
 	_camera.enabled = _local
 	if _local:
@@ -111,6 +120,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		facing = PlayerMotion.facing_for(facing, direction)
 		_publish()
+		_emit_step_noise(delta)
 		_interaction.tick(delta, _input.is_held(INTERACT_ACTION), global_position, peer_id())
 	if _track_walls and overlaps_world():
 		_wall_frames += 1
@@ -189,6 +199,20 @@ func _publish() -> void:
 	net_facing = facing
 	net_mode = move_mode
 	net_time = _now()
+
+
+## Yerel kopya: koşu adımı sesi (S8). Tür ve yarıçap kipten; tempo ve hız eşiği NoiseProfile'dan.
+func _emit_step_noise(delta: float) -> void:
+	var kind: StringName = NoiseProfile.KIND_WALK
+	match move_mode:
+		PlayerMotion.Mode.SNEAK:
+			kind = NoiseProfile.KIND_SNEAK
+		PlayerMotion.Mode.SPRINT:
+			kind = NoiseProfile.KIND_RUN
+	var radius: float = _noise_profile.radius_for(kind)
+	var stepping: bool = radius > 0.0 and get_real_velocity().length() >= _noise_profile.step_min_speed
+	if _step_noise.tick(delta, stepping):
+		NoiseBus.emit_noise(global_position, radius, kind, peer_id())
 
 
 func _on_interaction_started(action_key: String, duration: float) -> void:
