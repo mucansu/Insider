@@ -167,7 +167,7 @@ func test_fakes_match_real_autoload_signatures() -> void:
 		var real_surface: Dictionary = _surface(real)
 		for entry: String in _surface(fake):
 			var member: String = entry.get_slice("/", 0)
-			if not is_true(CONTRACT[autoload_name].has(member), "%s sahtesinde sözleşme dışı üye: %s" % [autoload_name, member]):
+			if not is_true((CONTRACT[autoload_name] as Array).has(member), "%s sahtesinde sözleşme dışı üye: %s" % [autoload_name, member]):
 				continue
 			if _pending(autoload_name, member) and not _has_member(real_surface, member):
 				continue  # sözleşmeli ama gerçek betiğe henüz gelmedi
@@ -189,7 +189,7 @@ func test_ui_uses_only_contract_members() -> void:
 	for key: String in used:
 		var autoload_name: String = key.get_slice(".", 0)
 		var member: String = key.get_slice(".", 1)
-		is_true(CONTRACT[autoload_name].has(member), "%s sözleşmede yok (%s)" % [key, used[key]])
+		is_true((CONTRACT[autoload_name] as Array).has(member), "%s sözleşmede yok (%s)" % [key, used[key]])
 		var real: Script = load(REAL_SCRIPTS[autoload_name]) as Script
 		var names: Dictionary = {}
 		for entry: String in _surface(real):

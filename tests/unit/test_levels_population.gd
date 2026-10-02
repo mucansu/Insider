@@ -191,7 +191,7 @@ func test_zones_disjoint_and_partition_interior() -> void:
 				bad_ground.append("%s %s" % [cell, LevelLayout.Kind.keys()[kind]])
 		is_true(bad_ground.is_empty(), "%s: nüfus bölgesi iç zemin dışında: %s" % [path, ", ".join(bad_ground)])
 		for i: int in level.spawn_count():
-			var cell: Vector2i = LevelLayout.cell_of(level.get_node("SpawnPoints/Spawn%d" % (i + 1)).position)
+			var cell: Vector2i = LevelLayout.cell_of((level.get_node("SpawnPoints/Spawn%d" % (i + 1)) as Node2D).position)
 			is_false(owner_of.has(cell), "%s: Spawn%d bölge dışında (dışarısı)" % [path, i + 1])
 		if path != STORE:
 			continue
