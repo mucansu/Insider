@@ -235,7 +235,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Bitti (2026-10-02; faz2-int f59fbfe) | |
 | IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Bitti (2026-10-02; dev 330fd37) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
-| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Bitti (2026-10-02; faz2-int 1 birleştirme) | |
+| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Bitti (2026-10-02; faz2-int 579a96e) | |
 | IS-015 | Oyun testi botları: kapalı döngü `bot_brain.gd` (çoğaltılan durumu okur, PlayerInput sağlayıcısı; beyin oynanis) + koşu istatistiği dökümü (cekirdek) (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek + oynanis | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Sert ağ pürüzsüzlüğü: önce 30 Hz gönderim A/B (100 ms tampon iki kayba dayanır); yetmezse uyarlanır tampon (jitter EMA + underrun, 100-180 ms) (IS-013 kararı + teknik/ag-kodu.md) | 2 | oynanis | P1 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
