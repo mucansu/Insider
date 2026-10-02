@@ -5,6 +5,7 @@
 [ext_resource type="Script" uid="uid://wmpwougwl3ct" path="res://entities/player/player_input.gd" id="3_8fjmc"]
 [ext_resource type="Script" uid="uid://darsokpflurd1" path="res://entities/player/player_visual.gd" id="4_qiwj3"]
 [ext_resource type="Script" uid="uid://x7acb2lvcbri" path="res://entities/player/player_interaction.gd" id="5_intr"]
+[ext_resource type="PackedScene" uid="uid://cocb50xosg2kf" path="res://entities/player/puppet/puppet.tscn" id="6_pupt"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_26q78"]
 radius = 12.0
@@ -45,6 +46,8 @@ replication_config = SubResource("SceneReplicationConfig_bectd")
 
 [node name="Visual" type="Node2D" parent="." unique_id=1842051851]
 script = ExtResource("4_qiwj3")
+
+[node name="Puppet" parent="Visual" unique_id=517204688 instance=ExtResource("6_pupt")]
 
 [node name="NameLabel" type="Label" parent="Visual" unique_id=1860742169]
 auto_translate_mode = 2
