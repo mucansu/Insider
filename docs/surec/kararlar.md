@@ -174,3 +174,4 @@ Kullanıcı 2026-10-02'de geri alınabilir tasarım kararlarında koordinatörü
 - 2026-10-01 (IS-003): Gürültü autoload'ı `NoiseBus` (yerleşik `Noise` sınıfıyla ad çakışması; dosya autoload/noise.gd). `.translation` dosyaları gitignore'da (Godot VCS önerisi), import iki geçiş. `.gitattributes` (LF) IS-003'e eklendi. Test yardımcıları is_true/is_false.
 - 2026-10-01: GitHub entegrasyonu repo oluşturamadı (403); repo kullanıcı tarafından açılacak, iş yerelde sürüyor.
 - 2026-10-02 (IS-078): ana menüde görüş seçimi host portuyla aynı satırda (Grid 4 kolon), dikey odak zincirinin dışında, gamepad satırı port ↔ görüş ↔ Gelişmiş; 720p taşması tema değiştirmeden çözüldü (arayuz önerisi a).
+- 2026-10-02 (IS-080): `alert_level` oturum olayı HUD bildirimi göstermez (Hud.SILENT_EVENTS; bilgi uyarı merdiveninde); olay metinleri oyuncu adını `{name}` ile Game.players()'tan alır.
