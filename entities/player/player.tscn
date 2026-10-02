@@ -43,6 +43,7 @@ replication_config = SubResource("SceneReplicationConfig_bectd")
 script = ExtResource("4_qiwj3")
 
 [node name="NameLabel" type="Label" parent="Visual" unique_id=1860742169]
+auto_translate_mode = 2
 horizontal_alignment = 1
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=127350141]

@@ -5,7 +5,8 @@ extends Node2D
 ## dokunmaz (KR-003). Faz 2'de prosedürel kukla (KR-017) bu düğümün yerini alır.
 ## Kip gösterimi: sızarken soluk dolgu, koşarken dış halka; etkileşimde gövde üstünde nokta.
 ## Renkler: oyuncu rengi ThemeTokens.PLAYER_COLORS[slot] (her tonda aynı), kenar/etiket etkin tondan
-## (mimari.md §6 görsel istisnası, S9). Ad etiketi oyuncunun adıdır (dinamik metin, tr() yok).
+## (mimari.md §6 görsel istisnası, S9). Ad etiketi oyuncunun adıdır: dinamik metin, otomatik çeviri kapalı
+## (ad bir çeviri anahtarına denk gelse de aynen görünür); ad boşsa HUD ile aynı yedek, tr("HUD_PLAYER_UNNAMED").
 
 const RADIUS := 12.0
 const OUTLINE_WIDTH := 1.5
@@ -82,7 +83,10 @@ func _draw() -> void:
 func _refresh_identity() -> void:
 	var colors: Array[Color] = ThemeTokens.PLAYER_COLORS
 	_color = colors[posmod(_player.slot(), colors.size())]
-	_label.text = _player.display_name()
+	var player_name: String = _player.display_name()
+	if player_name.is_empty():
+		player_name = tr(&"HUD_PLAYER_UNNAMED") % _player.peer_id()
+	_label.text = player_name
 	queue_redraw()
 
 

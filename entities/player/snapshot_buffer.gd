@@ -49,8 +49,11 @@ func _init(delay_sec: float = 0.1) -> void:
 	delay = delay_sec
 
 
-## Gelen anlık görüntü. Eskiyse (gönderen anı son görüntüden ileri değilse) atılır ve false döner.
+## Gelen anlık görüntü. Eskiyse (gönderen anı son görüntüden ileri değilse) ya da anlar/konum/yön sonlu
+## değilse (NaN/INF: bozuk paket saati ya da çizimi zehirlemesin) atılır ve false döner.
 func push(sender_time: float, local_time: float, position: Vector2, facing: Vector2, mode: int) -> bool:
+	if not (is_finite(sender_time) and is_finite(local_time) and position.is_finite() and facing.is_finite()):
+		return false
 	if not _frames.is_empty() and sender_time <= _frames.back().time:
 		return false
 	var measured: float = local_time - sender_time

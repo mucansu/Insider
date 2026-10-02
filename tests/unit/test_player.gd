@@ -1,6 +1,7 @@
 extends TestCase
 ## US-004 oyuncu: ayar okuma (AC2, S10), kipe göre hız ve ivmelenme (PlayerMotion), sahne yapısı (AC1: katmanlar,
-## görsel ayrı düğüm, kamera yalnız yerelde), yerel hareket + duvar (AC2), uzak kopyanın tampondan çizilmesi (AC4).
+## görsel ayrı düğüm, kamera yalnız yerelde, yuvadan renk + ad etiketi), yerel hareket + duvar (AC2), uzak kopyanın
+## tampondan çizilmesi (AC4).
 ## Ağ davranışı çok süreçli: tests/net/store_walk.json.
 
 const SCENE := "res://entities/player/player.tscn"
@@ -32,6 +33,11 @@ func _spawn(authority: int = 1, at: Vector2 = Vector2.ZERO, parent: Node = null)
 func _physics_frames(count: int) -> void:
 	for i: int in count:
 		await tree().physics_frame
+
+
+func _process_frames(count: int) -> void:
+	for i: int in count:
+		await tree().process_frame
 
 
 # --- ayarlar (AC2, S10) ---
@@ -160,11 +166,42 @@ func test_camera_and_input_only_on_local_player() -> void:
 	eq(remote.peer_id(), 2)
 
 
-func test_visual_color_from_slot() -> void:
-	var player: Player = _spawn(1)
-	var visual: PlayerVisual = player.get_node("Visual") as PlayerVisual
-	eq(visual.body_color(), ThemeTokens.PLAYER_COLORS[player.slot()])
-	eq(visual.label_text(), player.display_name())
+func test_visual_color_and_name_from_identity() -> void:
+	# Renk yuvadan, ad Game.players()'tan (S3); iki farklı yuva, boş olmayan adlar.
+	var before: Dictionary = Game.players()
+	Game._rpc_players({2: {"name": "Ayşe", "slot": 1}, 3: {"name": "Bora", "slot": 2}})
+	var a: Player = _spawn(2, Vector2(100, 0))
+	var b: Player = _spawn(3, Vector2(200, 0))
+	var va: PlayerVisual = a.get_node("Visual") as PlayerVisual
+	var vb: PlayerVisual = b.get_node("Visual") as PlayerVisual
+	eq(a.slot(), 1)
+	eq(b.slot(), 2)
+	eq(va.body_color(), ThemeTokens.PLAYER_COLORS[1])
+	eq(vb.body_color(), ThemeTokens.PLAYER_COLORS[2])
+	is_true(va.body_color() != vb.body_color(), "farklı yuva farklı renk")
+	eq(va.label_text(), "Ayşe")
+	eq(vb.label_text(), "Bora")
+	# Kimlik sonradan değişince görsel izler (identity_changed).
+	Game._rpc_players({2: {"name": "Cem", "slot": 0}, 3: {"name": "Bora", "slot": 2}})
+	eq(va.body_color(), ThemeTokens.PLAYER_COLORS[0])
+	eq(va.label_text(), "Cem")
+	Game._rpc_players(before)
+
+
+func test_name_label_is_not_auto_translated_and_has_fallback() -> void:
+	var before: Dictionary = Game.players()
+	is_true(tr("PAUSE_TITLE") != "PAUSE_TITLE", "ön koşul: anahtar çevrilir")
+	Game._rpc_players({2: {"name": "PAUSE_TITLE", "slot": 0}, 3: {"name": "", "slot": 1}})
+	var keyed: Player = _spawn(2, Vector2(100, 0))
+	var unnamed: Player = _spawn(3, Vector2(200, 0))
+	var label: Label = keyed.get_node("Visual/NameLabel") as Label
+	is_false(label.can_auto_translate(), "ad etiketi otomatik çevrilmez")
+	eq((keyed.get_node("Visual") as PlayerVisual).label_text(), "PAUSE_TITLE")
+	eq(label.atr(label.text), "PAUSE_TITLE", "çeviri anahtarına denk gelen ad aynen görünür")
+	var fallback: String = (unnamed.get_node("Visual") as PlayerVisual).label_text()
+	eq(fallback, tr("HUD_PLAYER_UNNAMED") % 3, "boş ad: HUD ile aynı yedek")
+	is_true(fallback != "HUD_PLAYER_UNNAMED" and fallback.contains("3"), "yedek çevrilmiş ve peer kimlikli: %s" % fallback)
+	Game._rpc_players(before)
 
 
 # --- hareket (AC2) ---
@@ -198,26 +235,51 @@ func test_local_player_walks_and_stops_at_wall() -> void:
 # --- uzak kopya (AC4) ---
 
 func test_remote_copy_draws_from_buffer_not_raw() -> void:
+	# Ham uygulamayı (gelen net_position'ı doğrudan konuma yazmak) ayırt eder: ikinci görüntü gelince konum
+	# hemen sıçramaz (tampon gecikmesi), arada iki görüntü arasında kalır ve hız iki görüntüden türer.
 	var player: Player = _spawn(2, Vector2(5, 5))
 	await _physics_frames(2)
 	near(player.position, Vector2(5, 5), 0.001, "veri yokken konuma dokunulmaz (Game yetiştirmesi yazar)")
 	var sync: MultiplayerSynchronizer = player.get_node("MultiplayerSynchronizer") as MultiplayerSynchronizer
-	var now: float = Time.get_ticks_usec() / 1_000_000.0
+	var sender_start: float = Time.get_ticks_usec() / 1_000_000.0 - 1.0  # gönderen saati: fark yalnız saat kayması
 	player.net_position = Vector2(40, 0)
 	player.net_facing = Vector2.LEFT
 	player.net_mode = PlayerMotion.Mode.SNEAK
-	player.net_time = now - 1.0  # gönderen saati: fark yalnız saat kayması
+	player.net_time = sender_start
 	sync.synchronized.emit()
-	await tree().process_frame
-	await tree().process_frame
+	await _process_frames(2)  # process_frame sinyali düğümlerin _process'inden önce gelir
 	near(player.position, Vector2(40, 0), 0.001, "ilk görüntüde beklenir")
 	eq(player.facing, Vector2.LEFT)
 	eq(player.move_mode, PlayerMotion.Mode.SNEAK)
 	eq(player.velocity, Vector2.ZERO)
-	# İkinci görüntü 50 ms sonra: ~100 ms tampon dolunca ona doğru ara değerlenir.
-	player.net_position = Vector2(47, 0)
-	player.net_time = now - 1.0 + 0.05
+	# İkinci görüntü gönderen saatinde SPAN sn sonra (yürüme hızında 40 -> 96). SPAN, saat farkı sıfırlama eşiğinin
+	# (0,5 sn) altında; hemen gelmesi saat farkını ~SPAN × 0,05 kadar kaydırır, çizim ~(delay - 0,02) sn geride kalır.
+	const SPAN := 0.4
+	var target := Vector2(40.0 + 140.0 * SPAN, 0.0)
+	player.net_position = target
+	player.net_facing = Vector2.UP
+	player.net_mode = PlayerMotion.Mode.WALK
+	player.net_time = sender_start + SPAN
 	sync.synchronized.emit()
+	await _process_frames(2)
+	near(player.position, Vector2(40, 0), 0.001, "tampon gecikmesi: yeni görüntüye hemen sıçramaz")
+	eq(player.facing, Vector2.LEFT, "yön de tampondan")
+	eq(player.move_mode, PlayerMotion.Mode.SNEAK, "kip de tampondan")
+	# Çizim anı iki görüntü arasına girince ara değerlenir (pencere ~0,08..0,48 sn).
 	await tree().create_timer(0.25).timeout
-	await tree().process_frame
-	near(player.position, Vector2(47, 0), 0.001, "tampon geçince son görüntü")
+	await _process_frames(2)
+	is_true(player.position.x > 40.5 and player.position.x < target.x - 0.5,
+		"iki görüntü arasında ara değer, gelen %s" % player.position)
+	near(player.position.y, 0.0, 0.001)
+	near(player.velocity, Vector2(140.0, 0.0), 0.01, "hız iki görüntü arasından (ham kopyada 0 kalır)")
+	is_true(not player.facing.is_equal_approx(Vector2.LEFT) and not player.facing.is_equal_approx(Vector2.UP),
+		"yön ara değerlenir, gelen %s" % player.facing)
+	near(player.facing.length(), 1.0, 0.001)
+	eq(player.move_mode, PlayerMotion.Mode.SNEAK, "kip önceki görüntüden")
+	# Tampon geçince son görüntüde beklenir; ileri tahmin yok.
+	await tree().create_timer(0.45).timeout
+	await _process_frames(2)
+	near(player.position, target, 0.001, "tampon geçince son görüntü")
+	eq(player.velocity, Vector2.ZERO, "son görüntüden öteye tahmin yok")
+	eq(player.facing, Vector2.UP)
+	eq(player.move_mode, PlayerMotion.Mode.WALK)

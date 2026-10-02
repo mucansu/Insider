@@ -53,6 +53,29 @@ func test_stale_and_reordered_snapshots_are_dropped() -> void:
 	eq(buffer.size(), 1)
 
 
+func test_non_finite_snapshots_are_dropped() -> void:
+	var buffer := SnapshotBuffer.new(DELAY)
+	is_true(buffer.push(1.0, 11.0, Vector2(10, 0), Vector2.RIGHT, 0))
+	var bad: Array = [
+		[NAN, 11.05, Vector2(17, 0), Vector2.RIGHT, "gönderen anı NaN"],
+		[INF, 11.05, Vector2(17, 0), Vector2.RIGHT, "gönderen anı +INF"],
+		[-INF, 11.05, Vector2(17, 0), Vector2.RIGHT, "gönderen anı -INF"],
+		[1.05, NAN, Vector2(17, 0), Vector2.RIGHT, "yerel an NaN"],
+		[1.05, 11.05, Vector2(NAN, 0), Vector2.RIGHT, "konum NaN"],
+		[1.05, 11.05, Vector2(0, INF), Vector2.RIGHT, "konum INF"],
+		[1.05, 11.05, Vector2(17, 0), Vector2(NAN, NAN), "yön NaN"],
+	]
+	for row: Array in bad:
+		is_false(buffer.push(float(row[0]), float(row[1]), row[2] as Vector2, row[3] as Vector2, 0), str(row[4]))
+	eq(buffer.size(), 1, "bozuk paketler tampona girmez")
+	near(buffer.clock_offset(), 10.0, 0.0001, "saat farkı bozulmaz")
+	# INF gönderen anı sonraki geçerli paketleri "eski" saydırmaz; çizim sonlu kalır.
+	is_true(buffer.push(1.05, 11.05, Vector2(17, 0), Vector2.RIGHT, 0), "ardından gelen geçerli paket kabul")
+	var frame: SnapshotBuffer.Frame = buffer.sample(11.125)
+	is_true(frame.position.is_finite() and frame.velocity.is_finite() and frame.facing.is_finite())
+	near(frame.position, Vector2(13.5, 0), 0.0001)
+
+
 func test_clock_offset_resets_on_large_jump() -> void:
 	var buffer := SnapshotBuffer.new(DELAY)
 	buffer.push(0.0, 10.0, Vector2.ZERO, Vector2.DOWN, 0)
