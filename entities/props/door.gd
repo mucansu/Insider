@@ -12,6 +12,7 @@ extends Node2D
 ## Döküm (S6 "props"): {"open", "flips" (bu süreçte görülen durum değişimi), "visible_delay_ms" (son değişimin
 ## host kararından bu süreçte görünmesine; değişim yoksa -1), "consistent" (son durum = başlangıç durumu +
 ## görülen değişim sayısının paritesi: bu süreç her değişimi gördü), "interact": Interactable.stats()}.
+## Gürültü (US-009, S8): host her açma/kapamada kapı konumunda `NoiseProfile.KIND_DOOR` sesi yayar.
 
 const DEF_PATH := "res://data/props/door.tres"
 ## Kapanmayı engelleyen gövdelerin fizik katmanı: players (mimari.md §4, 2. katman).
@@ -101,9 +102,11 @@ func dump_state() -> Dictionary:
 
 
 ## Yalnız host'ta (Interactable.completed).
-func _on_completed(_peer_id: int) -> void:
+func _on_completed(peer_id: int) -> void:
 	changed_at = PropDump.wall_time()
 	is_open = not is_open
+	var noise: NoiseProfile = NoiseProfile.load_default()
+	NoiseBus.emit_noise(global_position, noise.radius_for(NoiseProfile.KIND_DOOR), NoiseProfile.KIND_DOOR, peer_id)
 
 
 func _set_open(value: bool) -> void:

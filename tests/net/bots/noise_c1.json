@@ -1,0 +1,8 @@
+{
+  "_doc": "noise_ring.json c1 botu (US-009): herkes bağlandıktan sonra kaldırımda (y 528) sağa 2,2 sn koşar (~3 Hz adım sesi), durur; koşu sonunda ProbeStreet'in (açık alan, 64 px) ve ProbeInside'ın (dükkân içinde, düz duvar arkası, ~96 px) yakınından geçer.",
+  "steps": [
+    {"t": 3.0, "move": [1, 0]},
+    {"t": 3.0, "hold": "sprint", "dur": 2.2},
+    {"t": 5.2, "move": [0, 0]}
+  ]
+}

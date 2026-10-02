@@ -1,0 +1,40 @@
+{
+  "_doc": "US-009 AC1, AC3-AC6: store_a + iki test dinleyicisi (tests/fixtures/noise_store.tscn: store_a'yı miras alır, NPCs altında Hearing'li noise_probe). c1 koşar: her adım sesi istemciden host'a güvenilir RPC ile gider, host doğrular (gönderen kimliği, kendi aktörü, konum toleransı) ve yayar; host ve diğer istemci halka olayını alır (güvenilmez, yalnız görsel). Host yürür, c2 sızar: ikisi de hiç ses üretmez. Dinleyiciler yalnız host'ta duyar: açık alandaki ProbeStreet (yola 64 px) koşunun son 2-3 adımını tam yarıçapla duyar; dükkân içinde düz duvar arkasındaki ProbeInside koşunun tam yarıçapı (120) içinde kalır ama duvar arkası zayıflamayla (×0,5 = 60 < ~96 px) duymaz. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/noise_store.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 9,
+  "bots": {
+    "host": "res://tests/net/bots/noise_host.json",
+    "c1": "res://tests/net/bots/noise_c1.json",
+    "c2": "res://tests/net/bots/noise_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/noise_store.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"between": ["c1.noise.emitted", 5, 9]},
+    {"eq": ["host.noise.emitted", 0]},
+    {"eq": ["c2.noise.emitted", 0]},
+    {"same": ["host.noise.accepted", "c1.noise.emitted"]},
+    {"eq": ["host.noise.rejected_total", 0]},
+    {"same": ["host.noise.dispatched", "host.noise.accepted"]},
+    {"same": ["host.noise.rings", "host.noise.accepted"]},
+    {"between": ["c1.noise.rings", 5, 9]},
+    {"between": ["c2.noise.rings", 5, 9]},
+    {"len": ["*.noise.ring_kinds", 1]},
+    {"has": ["*.noise.ring_kinds", "run"]},
+    {"eq": ["c1.noise.accepted", 0]},
+    {"eq": ["c2.noise.dispatched", 0]},
+    {"between": ["host.noise_probes.ProbeStreet.heard", 2, 6]},
+    {"eq": ["host.noise_probes.ProbeStreet.min_radius", 120]},
+    {"eq": ["host.noise_probes.ProbeInside.heard", 0]},
+    {"eq": ["c1.noise_probes.ProbeStreet.heard", 0]},
+    {"eq": ["c2.noise_probes.ProbeStreet.heard", 0]},
+    {"between": ["*.players.$c1.pos.0", 580, 680]},
+    {"near": ["*.players.$c1.pos.1", 528, 2]},
+    {"between": ["*.players.$c2.pos.0", 300, 420]},
+    {"eq": ["*.player_states.$c2.mode", 1]},
+    {"eq": ["*.player_states.$host.mode", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}
