@@ -237,7 +237,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
 | IS-015 | Oyun testi botları (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog (2b) | |
-| US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
+| US-015 | Sert ağ pürüzsüzlüğü: önce 30 Hz gönderim A/B (100 ms tampon iki kayba dayanır); yetmezse uyarlanır tampon (jitter EMA + underrun, 100-180 ms) (IS-013 kararı + teknik/ag-kodu.md) | 2 | oynanis | P1 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
 | IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
@@ -272,7 +272,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-042 | Checkpoint dağıtımı: `test-N` etiketinde GitHub Release + sürümlü zip (CI); itch gizli sayfa test-2'de karar (Ö5) | 1 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; dev, IS-041 ile) | |
 | IS-043 | Yapılandırılmış günlük v0 (`Logger` alt sınıfı + OS.add_logger, seviye/kategori, halka tampon, release backtrace) + "Sorun bildir" paketi (log + döküm + PNG + sistem bilgisi zip) + `session.lock` temiz kapanmadı bayrağı (Ö2 + Ö3) | 2 | cekirdek + arayuz | P1 | S | — | Backlog | |
 | IS-044 | Oturum izi v0: host karar günlüğü + peer durum izi (jsonl; S6 samples/events'in uzantısı); girdi replay'i yerine (Ö6; karar gereken: GDD replay maddesi daraltılır) | 2 | cekirdek | P2 | S | IS-043 | Backlog | |
-| IS-045 | S2/S6 notu: tek RPC yükü ≤ 1 KB (Tailscale MTU 1280) + net_smoke en büyük paket istatistiği (Ö8) | 2 | cekirdek | P3 | XS | — | Backlog | |
+| IS-045 | (S2 notu mimari §5'e yazıldı; ölçüm IS-059'a taşındı) | 2 | — | — | — | — | Elendi (IS-059) | |
 | IS-046 | Test hijyeni kapısı: koşucu orphan/sızıntı sayacı (`OBJECT_ORPHAN_NODE_COUNT` farkı + `--verbose` Leaked instance taraması) → test başına uyarı, takım sonu FAIL eşiği (teknik/mimari-test.md; IS-029 sonrası) | 2 | altyapi | P1 | S | IS-029 | Backlog | |
 | IS-047 | Uyarı sıkılaştırma ölçümü: `unsafe_method_access`, `unsafe_property_access`, `unsafe_call_argument`, `return_value_discarded` = 1 (warn) + sayım raporu; hata (2) kararı ölçüm sonrası | 2 | altyapi | P2 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-048 | Typed koleksiyon geçişi (üretimde 73 tipsiz Array/Dictionary → typed ya da küçük Resource; modül sahipleri) | 3 | cekirdek + oynanis | P2 | S | IS-047 | Backlog | |
@@ -284,6 +284,9 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-054 | Süreç: denetim kontrol listesi v2 — M/ağ kalemlerinde çürütme ajanı 1-3 ajanın görmediği (holdout) test yazar + denetci 2-3 elle mutant uygular; denetci/çürütme effort xhigh | 2 | koordinatör | P1 | XS | — | Backlog | |
 | IS-055 | Süreç: pano lint (`tools/pano_check.py`: S-sayısı, kimlik tekilliği, durum değerleri, ölü yol) + ortak ajan kuralları tek kaynak + backlog §0 paket sınırı güncel | 2 | altyapi | P2 | S | — | Backlog | |
 | IS-056 | Süreç: XS/S arayüz-altyapı kalemlerinde düşük model kademesi deneyi (kalite = t2 oranı, süre, token) | 2 | koordinatör | P3 | XS | — | Backlog | |
+| IS-057 | Yakalama/tespit bayatlık payı: oyuncu lehine pay `max(0,2; bayatlık + 0,05)` sn, yakalamada ölü hesap (`net_position + hız × yaş`) (ag-kodu P1; US-008 sonrası) | 2 | oynanis | P1 | S | US-008 | Backlog | |
+| IS-058 | NPC çoğaltma sözleşmesi uygulaması (S11 eki: poz 15 Hz unreliable + istemci SnapshotBuffer, ayrık durum ON_CHANGE, yön 1/16) + oturum tohumu `Game.session_seed()` / `--seed=` (US-008 içinde yapılmadıysa) | 2 | oynanis + cekirdek | P1 | S | US-008 | Backlog | |
+| IS-059 | Ağ telemetrisi: `Net.stats()` bayt/paket, döküm `net_bytes`, net_smoke `max_kbps` + en büyük paket; yetiştirme RPC'si `unreliable` + damga; RPC hijyen taraması (testte) (ag-kodu P2 + Ö8) | 2 | cekirdek + altyapi | P2 | S | — | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
