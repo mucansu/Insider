@@ -206,19 +206,19 @@ EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: (A) yok · (B) IS-005, IS-
 
 ## 2b. Faz 2 kalemleri (EP-02 — Gizlilik, bakkal; plan 2026-10-02, KR-019/020/021)
 Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md` §2 · US-016 → §3 · US-010 → §4 · IS-023 → §5 (taslakta "IS-022" yazılı) · US-009/US-011/US-012/US-013/IS-015 AC değişiklikleri → §6. Kartlar GDD v0.3 §6.1, §9.1-9.3'e dayanır.
-**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
+**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2-int` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
 
 | ID | Başlık | EP | Sahip | Öncelik | Büyüklük | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
 | US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
 | US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Bitti (dal `faz2/US-007`, Faz 1 checkpoint'inden sonra dev'e) | 3280e78 |
-| IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Sürüyor (2026-10-02; faz2) | |
+| IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Sürüyor (2026-10-02; faz2-int) | |
 | US-008 | Bakkal sahibi v0: Agenda + sivil çarpan + sorgu/bağırış/tutma + ÇEK kurtarma + mahalleli (chaser) + polis sayacı | 2 | oynanis | P1 | M | US-006, US-007, IS-023 | Hazır (US-006 t2 sonrası) | |
 | US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
 | US-010 | Bakkal etkileşimleri: SATIN AL, OYALA, ARKA ODAYA GÖNDER, DİKKAT DAĞIT, oyalanma sayacı | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
 | US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught | 2 | oynanis | P1 | S | US-008 | Backlog | |
 | US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
-| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Sürüyor (2026-10-02; faz2) | |
+| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Sürüyor (2026-10-02; faz2-int) | |
 | IS-024 | 2a SFX: 5-6 yer tutucu ses (zil, ?, !, bağırış, kapı, kasa) — CC0, assetler.md kaydı | 2 | arayuz | P1 | XS | US-008 (olay adları) | Backlog | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
 | US-011 | Görüş sisi + okunabilirlik (sahip görev ikonu, koniler, ?/! balonları) | 2 | seviye | P2 | S | US-008 | Backlog (2b) | |
