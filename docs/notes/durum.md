@@ -16,7 +16,7 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
 - Önceki: US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
 
 ## Yeni sohbette ilk adımlar (sırayla; 2026-10-03 durma noktası)
-1. US-011b Denetimde (worktree `.claude/worktrees/agent-ad9e586829b322a27`, dal `worktree-agent-ad9e586829b322a27`, taban faz2-int 5ff9c28, commit yok). denetci raporu durma anında bekleniyordu (gelmediyse yeniden koş). Çürütmeli inceleme bulguları — düzeltme turu (t2, oynanis; ajan bağlamı kayboldu → yeni paket):
+1. US-011b Denetimde (worktree `.claude/worktrees/agent-ad9e586829b322a27`, dal `worktree-agent-ad9e586829b322a27`, taban faz2-int 5ff9c28, commit yok). denetci t1 PASS (tam CI 1062 sn: 576 birim, 46/46 ağ; blocker/should-fix 0) — ama çürütmeli inceleme should-fix'i açık, DoD 4 gereği kapanmadı. Çürütmeli inceleme bulguları — düzeltme turu (t2, oynanis; ajan bağlamı kayboldu → yeni paket):
    - should-fix: `game.gd` `_vision_attach_fog` sisi `default_mode` (çevresel) + varsayılan look RIGHT ile ilk `update_now()` yapıyor, oturum kipi sonra veriliyor → yönlü kipte doğuşta arka 288 px hafızaya yazılır, arkadaki NPC 0,1 sn görünür + 1,5 sn hayalet. Düzeltme: attach sonrası `set_mode` + `set_look_dir(me.look_dir)` + `reset_memory()` + `update_now()` (ya da attach_fog parametresi) + ağ testi iddiası "yönlü kipte doğuşta arkadaki karo MEMORY değil".
    - nit: `core/vision_rules.gd` Session `_history` ayrılan peer'ı silmiyor.
    - nit/kural: eşitleyici paket düzeni değişti, `PROTOCOL_VERSION` (game.gd:53) artırılmadı → bu kalemde 2'ye çıkar; mimari.md'ye "kablo düzeni değişince sürüm artar" kuralı.
