@@ -226,7 +226,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught (US-008 olaylarına sahte sinyallerle; bağlama birleşmede) | 2 | oynanis | P1 | S | US-008 | Sürüyor (2026-10-02; faz2-int) | |
 | US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
 | US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Bitti (faz2-int) | c8c699f |
-| IS-024 | 2a SFX: yer tutucu sesler (CC0 indirme, kullanıcı izni) + ses kataloğu + SfxEmitter; kapı/kasa/UI bağlı, sahip/adım anahtarları US-008/US-009'a | 2 | arayuz | P1 | S | — | Sürüyor (2026-10-02; faz2-int) | |
+| IS-024 | 2a SFX: yer tutucu sesler (CC0 indirme, kullanıcı izni) + ses kataloğu + SfxEmitter; kapı/kasa/UI bağlı, sahip/adım anahtarları US-008/US-009'a | 2 | arayuz | P1 | S | — | Denetimde (2026-10-02) | |
 | IS-030 | Yer tutucu seslerin üretilmiş (AI) seslerle değiştirilmesi + Türkçe bakkal/mahalleli ses satırları (kullanıcı kaydı ya da üretim); assetler.md + Steam AI bildirimi işaretleri | 4 | arayuz | P2 | S | IS-024 | Backlog (kullanıcı notu) | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
 | US-011a | Görüş: VisionGrid (core, düğümsüz) + sis katmanı (üç ton) + görüş ayarları — gorus-sis-hafiza.md §6 AC1, AC2, AC9, AC10 (seviye payı) | 2 | seviye | P1 | M | US-006 | Denetimde (2026-10-02) | |
