@@ -10,6 +10,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Yerel geliştirme: `C:\Users\Turkuaz\OneD
 - Denetimde: IS-005 build (Windows 109 MB / Linux 74 MB, smoke host+istemci; main push'unda CI artifact) · Hazır: IS-019 renderer Compatibility · IS-014 Bitti (0d215b5; push bekliyor)
 - Sırada: IS-007 (B) Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
 - KR-020 (kullanıcı): öncelik aramızda oynanabilir MVP; test checkpoint'leri main + `test-N`; bakkalda güvenlik yok (polis/muhafız/düğme/silah yok; sahibi bağırır, mahalleli gelir) → IS-021 Fable bakkal/kademe revizyonu; Steam işleri sona.
+- KR-021 (geçici): bakkal tasarımı GDD v0.3 (sahip ajandası, sorgu/bağırış/mahalleli, tutma+ÇEK, müşteri/yoldan geçen nüfusu); Faz 2 kalemleri §2b; entegrasyon dalı `faz2`.
 - Faz 2 (erken başlangıç, worktree): Denetimde US-006 algı çekirdeği · Bitti US-007 (dal faz2/US-007) · Sürüyor (worktree) US-009 gürültü, US-014 kukla, IS-022 ekran görüntüsü, IS-019 renderer · IS-021 Fable bakkal/kademe revizyonu; plan backlog §2b, kararlar KR-019 (geçici)
 - Paralellik (kullanıcı 2026-10-02): ajan sınırı yok; koordinatör makine yüküne göre ~4-5 paralel kod paketi, her biri worktree'de.
 

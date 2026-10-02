@@ -90,11 +90,26 @@ Keşif ile soygun arasında kademeyle artan olasılıkla (T1 %5 → T10 %30) bir
 - Hareket kipleri (Faz 1'de kesinleşti, `data/player_tuning.tres`): sızma 70, yürüme 140, koşma 220 px/sn; 1 karo = 32 px, karakter çapı ~24 px. Kip, algıdaki "hedefin durumu" çarpanının ve gürültü yarıçapının girdisidir.
 - Duyma: gürültü olayları yarıçapla yayılır; duvar azaltır, yağmur maskeler. Koşma, kırma, ateş, matkap, düşen nesne.
 - Şüphe ölçeri: her gözlemcinin her oyuncuya karşı 0-100 ölçeri; görünürlük × süre ile dolar, görünmeyince boşalır. Eşikler: 30 "?" (gözlemci bakar, ≥0,5 sn tepki penceresi), 60 inceleme (yürüyerek gelir, sorgular), 100 tespit.
-- Tespit sonucu gözlemciye bağlı: muhafız telsizle bildirir (bölgesel arama → sessiz alarm sayacı), sivil panikler ya da düğmeye basar, kamera operatörlüyse muhafız yönlendirir, operatörsüzse yalnız kayıt (DVR silinmezse ısı).
+- Tespit sonucu gözlemciye bağlı: muhafız telsizle bildirir (bölgesel arama → sessiz alarm sayacı), sivil panikler ya da düğmeye basar (T2+), kamera operatörlüyse muhafız yönlendirir, operatörsüzse yalnız kayıt (DVR silinmezse ısı). **Dükkân sahibi / mahalleli (T1):** düğme ve telsiz yok; sorgular, bağırır, sokaktakiler gelir, tutmaya çalışır (§9.3). Hangi gözlemcinin hangi mekânda bulunduğu §9.1'de.
+- **Sivil gözlemci davranış çarpanı (KR-020):** muhafız için "hedefin durumu" çarpanı hareket kipidir (koşu 2 / yürüme 1 / sızma 0,5). Sahip, müşteri ve yoldan geçen için çarpan, oyuncunun o an yaptığı **en şüpheli** davranıştan gelir (çarpılmaz, en büyüğü alınır); formül aynı: dolum/sn = 25 × bant × çarpan, boşalma 20/sn görünmeyince, 10/sn görünüp masum davranırken (çarpan 0). Tablo (`data/npc/civilian_tuning.tres` başlangıç değerleri):
+
+| Davranış (görülürken) | Çarpan | Yakın bantta tespit (0,2 + dolum) | "?" → tespit aralığı |
+|---|---|---|---|
+| Müşteri bölgesinde yürüme/bekleme (ilk 60 sn) | 0 | hiç | — |
+| Oyalanma: 60 sn'den sonra içeride kalma (§4.3) | 0,25 | 16 sn | uzun |
+| Sızma (çömelmiş müşteri tuhaf, suç değil) | 0,5 | 4,2 sn | 2,8 sn |
+| Koşma (dükkân içinde) | 1 | 2,2 sn | 1,4 sn |
+| Personel tarafı / arka oda / "yalnızca personel" kapısı | 1,5 | 1,5 sn | 0,9 sn |
+| Çanta taşıma, kilit açma (arka kapı, dışarıdan) | 1,5 | 1,5 sn | 0,9 sn |
+| Kasa ya da nakit etkileşimi (tut sürerken) | 2,5 | 1,0 sn | 0,56 sn |
+| Bağırıştan sonra herkes (uyarı ≥ 2) | 2,5 | 1,0 sn | 0,56 sn |
+
+Uzak bantta (×1) süreler iki katıdır. Kasa 3 sn tutar: sahip yakın banttayken kasa boşaltma her zaman görülür (1,0 sn < 3 sn); uzak banttan görüş hattı varsa 1,8 sn'de; görüş hattı yoksa hiç. "?" → tespit aralığı her satırda ≥ 0,5 sn (GDD tepki penceresi) — kasa satırı sınırda, bu yüzden çarpan 2,5'i aşmaz.
 
 ### 6.2 Küresel uyarı kademeleri
 0 Sakin → 1 Şüphe (yerel, zamanla söner) → 2 Arama (bölgesel; muhafızlar rotadan çıkar, kapılar kontrol edilir; 60-90 sn sonra söner) → 3 Sessiz alarm (polis gelişi için T sn sayaç; ECM uzatır; geri dönmez) → 4 Yüksek alarm (kepenk, saat kilidi, boya paketi, müdahale dalgaları) → 5 Kilitleme (yalnız kaçış).
 Kademe 1-2 geri döner; 3+ dönmez. Bayıltılan muhafız bulunursa 2, telsiz yoklaması cevapsız kalırsa 2 → 3.
+Kademelerin **anlamı mekâna bağlıdır** (KR-020): sayı ve HUD merdiveni her kademede aynı, tetikleyen olay ve sonuç §9.1 tablosunun "uyarı eşlemesi" sütunundan gelir. Bakkalda: 1 = sahibin şüphesi/sorgusu (söner), 2 = sahip bağırdı (mahalleli yolda; 30 sn kimse görmezse 1'e iner), 3 = mahalleli içeride (geri dönmez, 60 sn sayaç), 4 yok, 5 = polis geldi (yalnız kaçış). Sessiz alarm sayacı T2'de, kepenk/saat kilidi T3/T8'de başlar.
 
 ### 6.3 Gürültü ve ganimet kuralı
 - Temiz iş (alarm yok) ana ganimet + aracı %85-90.
@@ -103,7 +118,7 @@ Kademe 1-2 geri döner; 3+ dönmez. Bayıltılan muhafız bulunursa 2, telsiz yo
 - Ölü/yaralı başına ek ısı; "kimseye zarar vermeden" bonusu.
 
 ### 6.4 Çatışma (ilk sürüm: minimal)
-Gizlilik varsayılan. Gürültü = baskı altında kaçış ve 30-60 saniyelik koridor tutma anları. Silahlar gürültü yarıçapı + ölümcüllük + ağırlıkla tanımlıdır; muhafız her silahla düşer, kısıt sayı ve sonuçtur. Can/hasar/silah veri güdümlü; muhafız davranışı genişletilebilir. Büyüyen çatışma ileride belirli kademelere (T7 transfer) ya da ayrı "gürültülü iş" türüne gider; plan fazını zayıflatmasına izin verilmez.
+Gizlilik varsayılan. T1-T2'de silah fiili yoktur (KR-020: bakkal/benzinlik soygunu abartılmaz; silah çekme, sindirme T2'de düğme penceresini kesmek için gelir, T1'de yok); silahlı NPC ilk kez T7'de (§9.1). Gürültü = baskı altında kaçış ve 30-60 saniyelik koridor tutma anları. Silahlar gürültü yarıçapı + ölümcüllük + ağırlıkla tanımlıdır; muhafız her silahla düşer, kısıt sayı ve sonuçtur. Can/hasar/silah veri güdümlü; muhafız davranışı genişletilebilir. Büyüyen çatışma ileride belirli kademelere (T7 transfer) ya da ayrı "gürültülü iş" türüne gider; plan fazını zayıflatmasına izin verilmez.
 
 ## 7. Karakter, roller, perk, ekipman
 
@@ -158,8 +173,8 @@ Not: perk ağacı (§7.3) büyümez, etkiler mevcut düğümlere eklenir (karar 
 
 | # | Mekân | Hedef | Yeni mekanik / fiil | Görünmeyen önlem | Keşif değeri | Süre | Varyasyon |
 |---|---|---|---|---|---|---|---|
-| 1 | Köşe bakkalı | Kasa + arka oda nakdi | Sessiz/koşma, gürültü, kasa boşaltma (tut 3 sn, +150, yalnız tezgâh arkasından), sivili sindirme, T1 kilit (arka kapı; ön kapı mesaide açık), kaçış noktası | yok | Düşük (camdan bak) | 3-5 dk | Tezgâhtar/nakit yeri, müşteri, devriye polisin periyodu |
-| 2 | Benzinlik / gece eczanesi | Kasa + ilaç dolabı | Kamera (sabit/dönen), DVR silme, tezgâh altı sessiz alarm, rehine = üçüncü el | Sahte kamera | Orta (hangi kamera gerçek) | 4-6 dk | Kamera açıları, DVR odası, sivil sayısı |
+| 1 | Köşe bakkalı (gündüz, mesai) | Kasa + arka oda nakdi | Sessiz/koşma, gürültü, kasa boşaltma (tut 3 sn, +150, yalnız tezgâh arkasından), sahibin dikkat döngüsünü okuma ve yönetme (oyalama, dikkat dağıtma, arka odaya gönderme, müşteri kılığı), T1 kilit (arka kapı; ön kapı mesaide açık), çanta, kaçış noktası; güvenlik öğesi yok (§9.1, §9.3) | yok | Düşük (camdan bak: sahip nerede, sokak boş mu) | 3-5 dk | Sahibin ajandası (tohum), müşteri sıklığı, arka oda nakdi yeri, yoldan geçen yoğunluğu |
+| 2 | Benzinlik / gece eczanesi (gece) | Kasa + ilaç dolabı | Kamera (sabit/dönen), DVR silme, tezgâh altı sessiz alarm düğmesi, sindirme (düğme penceresini keser) = üçüncü el, ilk polis (sessiz alarm sayacı) | Sahte kamera | Orta (hangi kamera gerçek) | 4-6 dk | Kamera açıları, DVR odası, sivil sayısı |
 | 3 | Rehinci / kuyumcu | Kasa + vitrinler | Kasa çevirme vs matkap, cam kesici vs kırma, tuş takımı kodu; ilk çift anahtar | yok | Orta (kod yeri, bekçi) | 5-7 dk | Kasa modeli, kod yeri, gece bekçisi, insider |
 | 4 | Depo / nakliye ambarı | Manifestodaki kasalar | Devriye rotaları/programı, ışık-karanlık, ceset saklama, ağır ganimet (2 kişi), forklift, havalandırma kanalı (ilk; §7.6) | yok | Yüksek (devriye periyodu, manifesto) | 6-8 dk | Rota grafiği, manifesto, köpek |
 | 5 | Kumarhane sayım odası | Sayım nakdi | Kılık, kalabalık (örtü/tanık), kart klonlama, zaman penceresi, rüşvetli krupiye | Gizli kamera, sivil polis | Yüksek (kim kart taşıyor, sayım saati) | 8-10 dk | Sayım saati, müdür rotası, kalabalık |
@@ -171,6 +186,85 @@ Not: perk ağacı (§7.3) büyümez, etkiler mevcut düğümlere eklenir (karar 
 
 Her kademede 2-3 elle yapılmış şablon + risk seviyesi + modifikatör + tohum. Keşif-soygun arası değişim olasılığı T1 %5 → T10 %30.
 Alternatif giriş vektörlerinin merdiveni (GB-02, §7.6): T1-T3 yok (yalnız kapı/pencere) · T4-T5 havalandırma kanalı · T6-T8 zayıf duvar (görünür ipucu) · T9 görünmez zayıf duvar + kat geçişi · T10 hepsi + kasayı alt kata düşürme. Her yeni vektör ilk göründüğü kademede "öğretilir": o kademenin bir şablonunda vektör, tohumdan bağımsız açıktır.
+
+### 9.1 Kademe başına tehdit modeli (KR-020)
+
+Kural: bir güvenlik öğesi ya da tepki ancak o mekânda gerçek hayatta beklenirse vardır; her öğe merdivende ilk göründüğü kademede öğretilir (kamera/düğme T2, sesli alarm T3, telsizli görevli T4, operatörlü kamera T5, sensör T6, silahlı NPC T7, kepenk/saat kilidi T8, dijital tuzak T9). Süreler başlangıç değeridir (`data/` altında, oyun testiyle ayarlanır). "Uyarı eşlemesi" §6.2 merdiveninin o mekândaki anlamıdır; HUD merdiveni her kademede aynıdır.
+
+| # | Mekân (saat) | İçeridekiler | Dışarıdakiler | Güvenlik öğeleri | Tepki zinciri ve süreler | Uyarı eşlemesi | Gerçekçi en kötü sonuç |
+|---|---|---|---|---|---|---|---|
+| T1 | Köşe bakkalı (gündüz, mesai) | Sahip 1 (ajanda: tezgâh/raf/arka oda/telefon/müşteri); müşteri 0-2 (geliş 35±15 sn, kalış 25-45 sn) | Yoldan geçen ≤2 (20±8 sn'de bir; camdan bakma olasılığı %30, 2 sn); komşu 1 (bağırıştan 8 sn sonra) | **Yok.** Kamera, alarm, panik düğmesi, güvenlik görevlisi, polis devriyesi yok. Arka kapı T1 kilit (6 sn), arka oda nakdi çekmecede | Sahip "?" (durur, bakar 0,5-1 sn) → sorgu (yürür 110 px/sn, 64 px'te "Ne yapıyorsun orada?") → bağırma ("!" + gürültü 320 px) → menzildeki yoldan geçenler döner, komşu 8 sn sonra `NeighbourSpawn`'dan çıkar (200 px/sn) → tutma (sahip, 6 sn kurtarma penceresi) / yakalama (mahalleli, kalıcı) → mahalleli içerideyken 60 sn sonra "polis geldi" | 0 sakin · 1 sahip şüphe/sorgu (söner) · 2 bağırış (mahalleli yolda; 30 sn görüş yoksa 1) · 3 mahalleli içeride (dönmez; 60 sn sayaç) · 4 yok · 5 polis geldi (yalnız kaçış; içeride kalan yakalandı) | Mahalleliye yakalanmak; dayak/silah yok; ısı +5, tanınma sayacı |
+| T2 | Benzinlik / gece eczanesi (gece) | Gece çalışanı 1 (tezgâh, düğme); müşteri 0-1 (araçla, 60±20 sn) | Araç müşterisi; yoldan geçen seyrek; devriye arabası 3-4 dk'da bir geçer (ilk polis varlığı) | Kamera 2 (1 sahte), DVR arka odada, tezgâh altı sessiz alarm düğmesi; görevli yok | Çalışan "?" → "!" → düğmeye uzanır 1,5 sn (sindirme keser: üçüncü el) → sessiz alarm: polis 120 sn. Kamera görürse yalnız kayıt; DVR silinmezse ısı +15 (tanınma) | 1 şüphe · 2 çalışan paniği (bağırmaz, düğmeye gider) · 3 sessiz alarm (120 sn) · 5 polis | Polis gelişi = kilitleme; kayıt = tanınma |
+| T3 | Rehinci / kuyumcu (gündüz randevulu ya da gece bekçili) | Sahip + çalışan 1 (gündüz) ya da gece bekçisi 1 (silahsız, telefon); müşteri 0-1 | Komşu dükkânlar (tanık); polis çağrıyla 150 sn | Kamera 2-3 + DVR, vitrin cam alarmı (sesli), buzzer kapı, kasa (çevirme/matkap), tuş takımı kodu | Cam kırılınca sesli alarm → alarm firması 90 sn → polis 150 sn; bekçi telefon eder (10 sn pencere, sindirme keser); sahip kepenk indirir | 1 şüphe · 2 bekçi/çalışan telefon-düğme · 3 alarm (150 sn) · 4 kepenk · 5 polis | Sesli alarm + mahalle tanıkları; polis 2,5 dk |
+| T4 | Depo / nakliye ambarı (gece, sanayi) | Güvenlik görevlisi 2 (devriye, telsiz, yoklama 90 sn), forklift sürücüsü 0-1, köpek (modifikatör) | Yok (sanayi bölgesi); özel güvenlik aracı 90 sn | Dış kamera 2, hareket sensörlü ışık, telsiz, kilitli yükleme kapıları | Görevli "?" → telsiz 1,5 sn → arama (2) → ikinci tespit ya da yoklama cevapsız → merkez: özel güvenlik 90 sn, polis 180 sn (muhafız FSM: `muhafiz-davranisi.md`) | 0-3 tam · 4 yok (kilitleme yok, kaçış açık) · 5 polis | Özel güvenlik + polis; ağır ganimet geride kalır |
+| T5 | Kumarhane sayım odası (gece) | Sivil 20-40, üniformalı güvenlik 4-6 + sivil polis 1-2, krupiye/müdür (kart) | Vale/otopark; polis 120 sn | Operatörlü canlı kamera (10 sn yönlendirme), kart kapıları, çift kapılı sayım odası, gizli kamera | Operatör gördü → en yakın güvenlik 10 sn → kilitleme 30 sn → polis 120 sn; kalabalık hem örtü hem tanık (§9.2) | 0-5 tam; 5 (kilitleme) 30 sn'de | Kilitleme + tutuklama |
+| T6 | Sanat müzesi (gece) | Bekçi 3-4 (telsiz yoklaması 60-90 sn), kamera operatörü 1 | Yok; polis 90 sn (merkez) | Lazer, basınç plakası, operatörlü kamera, sessiz alarm doğrudan polise, kırılgan eserler | Sensör → sessiz alarm 90 sn (bekçi görmeden); bekçi tespit → telsiz → arama → sessiz alarm | 0-3 + 5; 4 yok (kepenk yok) | Polis 90 sn; eser hasarı değer 0 |
+| T7 | Zırhlı araç transferi (sokak, gündüz) | Silahlı kurye 2-3 (ilk silahlı NPC), sivil polis eskortu 1 | Sokak sivilleri (tanık, panik); polis 60 sn | Araç GPS, GPS'li/boyalı çanta, kurye telsizi 5 sn | Kurye fark eder → telsiz 5 sn → polis 60 sn; silah çekilir (§6.4 koridor tutma) | 2 → 4 doğrudan (sessiz alarm yok, her şey açık) | Ateşli çatışma, boya, yaralı, ısı sıçrar |
+| T8 | Banka şubesi (gündüz) | Görevli 1-2, personel 6-10, müşteri 5-15, müdür (biyometri) | Şehir merkezi: polis 90 sn, özel tim 240 sn | Tam kamera (merkez izleme), her tezgâhta sessiz alarm, saat kilidi, boya paketi, GPS çanta, kepenk | Düğme 1 sn → sessiz alarm → polis 90 sn → kepenk/saat kilidi (4) → özel tim 240 sn (5); rehine pazarlığı | 0-5 tam | Kilitleme + rehine durumu + özel tim |
+| T9 | Şirket merkezi / kripto borsası | Lobi güvenliği 2, güvenlik ofisi 1-2 (kamera duvarı), personel (gündüz çok / gece az) | Özel güvenlik 60 sn, polis 120 sn | Rozet kapıları, görünmez lazer, ağ tuzağı (sessiz tel), sunucu odası biyometri | Ağ tuzağı → dijital iz (ısı +30) + güvenlik ofisi 20 sn → kilitleme; fiziksel tespit → ofis → özel güvenlik 60 sn; yükleme kesilir | 0-5 tam; 3 "dijital" olabilir | Kilitleme + dijital iz; veri yarım |
+| T10 | Merkez bankası / darphane | Askeri koruma 10+, personel, operatörler | Askeri müdahale dalgaları 30/90/180 sn | Hepsi + dönen kodlar, çok kat, yeraltı giriş | Herhangi bir tespit → anında 4; dalgalar; 1-2 kademeleri saniyeler sürer | 4-5 hızlı | Ekip tamamen kaybolur |
+
+Tutarlılık notları: "polis" T1'de dolaylı ve geç (mahalleli → 60 sn → polis), T2'de ilk kez sayaçla gelir; sindirme/üçüncü el T2'den; kamera T2'de öğretilir (K2/K4 değişikliği, KR-020). §15 MVP buna göre: Faz 2 bakkalı sivil gözlemcilerle, Faz 4 benzinliği kamera + düğme + sessiz alarm ile kurar.
+
+### 9.2 Mekân nüfusu (sivil ajanda sistemi)
+
+Her mekânın bir **nüfus profili** vardır (`data/levels/<id>_population.tres`, S10): kim, ne sıklıkla, kaç kişi, ne kadar, hangi rotayla. Nüfus tohumla belirlenimcidir (aynı tohum + aynı girdi = aynı geliş zamanları ve rotalar; replay/CI). Bileşenler (mimari S11): `Perception` + `Suspicion` (§6.1 sivil çarpan tablosu) + `Agenda` (rota/görev listesi: işaret noktası, süre, bakış yönü) + tür başına beyin (`brain_owner`, `brain_customer`, `brain_passerby`, `brain_chaser`). Aynı sistem ileri kademelerde yoğunlukla ölçeklenir (benzinlik 0-1 müşteri, banka 5-15, kumarhane 20-40).
+
+| Parametre | T1 bakkal (başlangıç) | Not |
+|---|---|---|
+| Müşteri geliş aralığı | 35 ± 15 sn (tohum) | İlk müşteri 10-20 sn'de; 2 kişilik oyunda aynı |
+| Aynı anda içeride en fazla | 2 | Üst sınıra ulaşınca gelen beklemez, rota iptal |
+| Kalış süresi | 25-45 sn | Rota: ön kapı → 1-2 raf noktası (`ShopSpot*`, 8-12 sn, rafa döner) → kuyruk noktası (`QueueSpot*`) → servis 6 sn (sahip tezgâhta ve boşsa; değilse bekler, 20 sn sonra bırakıp çıkar) → ön kapı |
+| Yoldan geçen aralığı | 20 ± 8 sn, sokakta ≤ 2 | Rota `StreetRoute1..6` (eski `PolicePatrol*`); her cam parçasında %30 olasılıkla 2 sn içeri bakış (koni 40°/192 px, camdan geçer) |
+| Komşu | 1, yalnız bağırışta, 8 sn sonra `NeighbourSpawn`'dan | İkinci bağırış (20 sn sonra) +1 |
+| NPC üst sınırı (host) | 6 (sahip 1 + müşteri 2 + yoldan geçen 2 + komşu 1) | Algı: 6 × 3 oyuncu × 15 Hz ≈ 270 ışın/sn; çoğaltma konum + yön + durum 15 Hz ≈ 2 KB/sn |
+
+Müşterilerin oyuna etkisi:
+- **Tanık:** sivil çarpan tablosuyla şüphe biriktirir; eşik 100'de bağırmaz, **sahibe söyler**: sahibi görüyorsa ona yürür (3-5 sn), sahibin o oyuncuya şüphesi +60 (sorgu başlar); sahibi görmüyorsa (arka odada) ön kapıdan kaçar ve T1'de başka sonuç yok. "?" balonu müşteride de görünür: oyuncu kimin gördüğünü okur.
+- **Örtü:** dükkânda ≥ 1 müşteri varken sahibin müşteri bölgesindeki oyunculara dolumu ×0,5 (dikkat bölünür); personel tarafı ve kasa satırları etkilenmez.
+- **Dikkat:** müşteri kuyruk noktasına gelince sahip ajandasını keser, tezgâha gelir, batıya döner, 6 sn servis — bu, **arka oda** için pencere açar (kasa açmaz: kasa sahibin burnunun dibinde). Her ön kapı geçişi (zil) sahibi 1 sn kapıya baktırır.
+- **Engel:** kuyruk noktasındaki müşteri kasa boşaltmayı fiziksel olarak engellemez (kasa personel tarafından) ama yakın bantta tanıktır; raf koridorları 1 karo olduğundan müşteri ile oyuncu **çarpışmaz** (npcs katmanı oyuncuları itmez; iç içe geçince yarı saydam) — koridor tıkanması sinir bozucu olur, kaçınılır.
+- Keşif bağı (Faz 3): müşteri sıklığı ve sahibin ajanda sırası dışarıdan camdan izlenebilir zamansal bilgidir ("sahip her 2 dakikada arka odaya gidiyor").
+
+### 9.3 Köşe bakkalı (T1) tasarımı
+
+**Eğlence nereden gelir:** güvenlik yok, ama **bir çift göz** var ve o gözün dikkati okunabilir ve yönetilebilir. Oyun "muhafızdan kaç" değil, "sahibi meşgul tut, zamanı yakala, sokağı kolla"; iki kişi iki yerde (kasa ve arka oda) aynı anda çalışmak isteyince sahip hep birinin yanında — plan bozulur, ekip bağırarak koordine eder. Kaos küçük ölçeklidir (bağıran bakkal, terlikli komşu, düşen çanta), ceza komik ölçekte (kefalet yok, yakalanan payı düşer).
+
+**Sahibin dikkat döngüsü** (`brain_owner`, ajanda tohumla; süreler `data/npc/owner_tuning.tres`):
+
+| Görev | Nerede / bakış | Süre | Hangi pencereyi açar |
+|---|---|---|---|
+| TEZGÂH | `ClerkSpot`, batıya (kapıya) bakar; koni 50°/224 px, yakın bant ≤ 112 px | 20-40 sn | Hiçbiri (kasa 1 karo yanında, arka oda kapısı 3 karo arkasında ama koni dışında: arka odaya **sızarak** girilebilir, D kapısı sesi 160 px "?") |
+| RAF DÜZELTME | `RestockSpot1..3` (raf önü), rafa döner (sırtı satış alanına) | 15-25 sn | **Kasa** (uzak raf: tezgâha 5-7 karo, görüş hattı raflarla kesik) |
+| ARKA ODA | `BackroomSpot`, arka odada | 10-20 sn | **Kasa** tamamen; arka oda kapalı (içerideki görülür) |
+| TELEFON | `PhoneSpot` (tezgâh arkası doğu duvarı), doğuya döner; koni 25° daralır | 10-15 sn | **Kasa** (koni dışında) ve arka oda; kapı zili telefonu kesmez |
+| MÜŞTERİ (kesme) | `ClerkSpot`, batıya | 6 sn / müşteri | **Arka oda**; kasa kapalı |
+| ZİL (kesme) | Durur, kapıya bakar | 1 sn | Dikkati kapıya çeker (yakın banttaki kasa dışında her şey) |
+
+Ajanda sırası tohumdan: TEZGÂH ↔ {RAF, ARKA ODA, TELEFON} dönüşümlü; ardışık iki pencere arasında ≥ 15 sn tezgâh. 3-5 dk'lık işte 4-6 kasa penceresi (her biri ≥ 10 sn; kasa 3 sn + tezgâh ucundan dolanma ~2 sn → yeterli ama sınırlı) ve 2-4 arka oda penceresi çıkar. Kabul: headless ölçümde 300 sn ajandada kasa görüş hattı dışı toplam süre 60-120 sn.
+
+**Tepki zinciri (sayılar):** şüphe 30 "?" → durur, bakar 0,5-1 sn · 60 SORGU → oyuncuya yürür (110 px/sn), 64 px'te durur, "Ne yapıyorsun orada?" balonu, 3 sn bekler; oyuncu masum davranışa dönerse (çarpan 0, boşalma 10/sn) 3 sn'de 30'un altına düşer ve söylenerek ajandaya döner; OYALA ile anında -40 · 100 BAĞIR → "!" + gürültü 320 px (kaldırım + cadde) → uyarı 2; menzildeki yoldan geçenler ve komşu (8 sn) `brain_chaser` olur (200 px/sn; koşan oyuncu 220 ile açık alanda kaçar, köşe ve kapıda yakalanır) → uyarı 3 ilk mahalleli ön kapıdan girince; 60 sn sayaç → 5 "polis geldi" · Sahip TUTMA: 120 px/sn kovalar, 28 px + 0,5 sn temas = oyuncu **tutuldu** (donar; 6 sn pencere; ekip arkadaşı 32 px içinde "çek" 1 sn tutar → ikisi serbest, sahip 2 sn sendeler; aynı oyuncu ikinci kez tutulursa pencere 3 sn) · Mahalleli yakalaması 28 px + 0,5 sn = **yakalandı** (K3: donar, kurtarma yok) · Bağırış sonrası sahip her 5 sn bağırmayı yineler (gürültü), kimseyi 30 sn görmezse uyarı 2 → 1, ajandaya döner (arka oda nakdini kontrol eder: nakit alınmışsa 60 sn sonra yine bağırır, bu kez komşu +1 — "geç fark etme" klibi).
+
+**Oyuncunun araçları** (US-010; hepsi Interactable bileşeni, host doğrular):
+
+| Araç | Nasıl | Etki | Bedel / sınır |
+|---|---|---|---|
+| Müşteri kılığı (pasif) | Müşteri bölgesinde yürümek | Çarpan 0, 60 sn | 60 sn'den sonra oyalanma 0,25; koşma/sızma kılığı bozar |
+| SATIN AL | Tezgâh önünde 2 sn tut (sahip tezgâhtaysa ya da 20 sn içinde gelir) | Oyalanma sayacı sıfırlanır; sahip 6 sn tezgâha kilitlenir, batıya bakar → arka oda penceresi | Ekip nakdinden 10 (yoksa bedava, Faz 2); iş başına sınırsız ama her satın alma sahibin o oyuncuya şüphesini 0'a çeker, diğerlerine değil |
+| OYALA / SOHBET | Sahip 64 px içinde ve o oyuncuya şüphesi 30-99 iken 1,5 sn tut | Şüphe -40, sahip 2 sn daha konuşur (ajanda duraklar) | 1. kez tam, 2. kez -20, 3. kez etkisiz ("bir daha tutmaz"); bağırıştan sonra (100) işlemez |
+| ARKA ODAYA GÖNDER | Tezgâh önünde 2 sn tut ("Arkada X var mı?") | Sahip arka odaya gider, 10 sn arar, "yok" der, döner → **kasa penceresi ~14 sn**; arka oda bu sürede kapalı | İş başına 1; dönüşte soran oyuncuya şüphe +20; o sırada arka odadaki ekip arkadaşı görülürse çarpan 1,5 |
+| DİKKAT DAĞIT | Raf ucundaki `ShelfProp*` (3 adet) anında: ürün devirme, gürültü 120 px | Sahip sese 8 sn bakmaya gider (`DINLE` → inceleme), yönü ses; o sırada kasa ya da arka oda açılır | Prop tek kullanımlık; sesi duyan müşteri de bakar; o noktadan koşarak uzaklaşan oyuncuya +15 |
+| ÇEK (kurtarma) | Tutulan ekip arkadaşının 32 px içinde 1 sn tut | İkisi serbest, sahip 2 sn sendeler, kurtarana şüphe 100 (artık o da hedef) | 6 sn pencere içinde; mahalleli tutmasında işlemez |
+| KAP-KAÇ | Kasayı sahibin gözü önünde tut | 1,0 sn'de bağırır; tezgâhtaysa 1 karo mesafeden 1,5 sn içinde tutar → kasa iptal | Yalnız sahip ≥ 4 karo uzaktayken anlamlı (3 sn kasa + kaçış) ve sokak boşken (yoldan geçenler 1-2 sn'de kapıda) |
+| Arka kapı kilidi (US-009) | Dışarıdan 6 sn tut (T1 maymuncuk), gürültü 60 px | Arka odaya ikinci giriş; sahip arka odadayken kapı sesi 160 px "?" | Yan sokaktan geçen yoldan geçen görürse çarpan 1,5 → bağırır (gürültü 240) |
+
+**Ganimet ve sonuç:** kasa 150 (anında ekip nakdine, US-005) + arka oda nakdi 300-600 (tohum; **çanta** nesnesi: 2 sn alma, taşıyan koşarsa %50 olasılıkla düşürür + gürültü 160, devir 0,3 sn) + opsiyonel raf değerlileri (sigara/içki, 3 × 30, 1 sn alma, tanık çarpanı 1,5; Faz 2b). Kazanma: yakalanmamış herkes `EscapeZone`'da (uyarı 3'ten sonra 60 sn içinde). Kaybetme: herkes yakalandı ya da sayaç bitti. Ödeme = ganimet × oran: uyarı ≤ 1 %85 (temiz; "kimse bağırmadı" bonusu +%5), 2 %85 + ısı +5, 3 %70 ("sıcak"); yakalananın payı 0 (K3), kalanlar kaçtıysa kısmi. Hedef süre 3-5 dk: temiz koşuda sahip penceresi beklemek 60-90 sn, kasa + arka oda 30 sn, kaçış 10 sn.
+
+**Rol bölüşümü:** 3 kişi — **Müşteri** (satın al/oyala/gönder ile sahibi yönetir, kapı zili zamanlar, "şimdi!" der), **Kasacı** (tezgâh ucundan dolanır, pencereyi yakalar), **Arka odacı** (arka kapı kilidi, nakit çantası, yan sokağı kollar). 2 kişi — Müşteri + Hırsız; nakit ya kasa ya arka oda, ikisi de "açgözlü" rotadır (pencere iki kez beklenir). Üçüncü el yok (T2'de); "sahibin dikkatini yöneten ikinci kişi" onun yerine geçer.
+
+**Plan bozulunca kaos (klip adayları):** (1) kasa tutarken cama yoldan geçen gelir — "?" camda; (2) müşteri arkadaş "arkada var mı?" derken arka odacı içeride: sahip arka odaya yürür, ekip "ÇIK ÇIK!"; (3) sorgu anı: "Ne yapıyorsun orada?" balonu, tezgâh arkasındaki arkadaş donup kalır; (4) tutulan arkadaşı çekip kurtarma, sahip sendeler, ikisi birden kapıya; (5) çantayla koşup düşürme, mahalleli terlikle yetişir. Hepsi "görünür neden + görünür sonuç + 1-2 sn gecikme" kalıbına uyar (oyun-testi-ve-klip.md).
+
+**Faz 2 kabul (bakkal dilimi):** sahip ajandası headless 300 sn ölçümünde ≥ 4 kasa penceresi (her ≥ 10 sn) · kasa boşaltma sahip yakın banttayken ≤ 1,0 sn'de "!" (oyuncu lehine 0,2 dahil), uzak banttan ≤ 1,8 sn, görüş hattı yokken hiç · "?" her tespitten ≥ 0,5 sn önce · bağırış → mahalleli ön kapıda ≤ 10 sn (sokak boşsa 8 sn komşu) · oyala 1. kez -40, 3. kez 0 · 2 ve 3 kişilik botla temiz tamamlama oranı farkı ≤ 15 puan (IS-015).
 
 ## 10. Senaryo üretimi
 
@@ -184,7 +278,7 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 ## 11. Co-op ve ölçekleme
 
 - Merkez: 3 kişi. Talepler jeneratörde akış olarak tanımlıdır; oyuncu sayısı akışları ölçekler.
-- 2 kişi: çift anahtar anları sıralıya çevrilir (pencereler uzar) ya da Tech'in bir uzaktan aracı otomasyona bağlanır; muhafız/kamera -1; rol birleşmesi Ghost+Tech ("sessiz olan") + Muscle. Bot yoldaş (MVP sonrası) üçüncü eli doldurur.
+- 2 kişi: çift anahtar anları sıralıya çevrilir (pencereler uzar) ya da Tech'in bir uzaktan aracı otomasyona bağlanır; muhafız/kamera -1; rol birleşmesi Ghost+Tech ("sessiz olan") + Muscle. Bot yoldaş (MVP sonrası) üçüncü eli doldurur. Bakkal (T1) 2 kişiyle tam oynanır (KR-019 K4): müşteri + hırsız; nüfus parametreleri değişmez (§9.3).
 - 4 kişi: ek talep (ikinci kasa kapısı, ek devriye, fazla çanta); Tech ikiye bölünür (hacker + gözcü/dron) ya da "Face" (kılık/sosyal mühendislik); ödeme kişi başı dengelenir.
 - Formül: muhafız = taban + (oyuncu − 3) × k; çanta sayısı, zamanlayıcılar ve keşif süresi oyuncu sayısıyla ölçeklenir.
 - Keşifte 2 kişi: içerideki + dışarıdaki; 4 kişi: hat rolü ikiye (telefon + ağ) ya da ikinci içerideki (tanınma riski paylaşılır).
@@ -212,7 +306,7 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 ## 14. Görsel ve ses yönü
 
 - 2D üstten, hafif eğik "3/4" bakış. Sanatı ışık yapar: 2D ışık + oklüder, görüş konileri, görülmeyen alan sisi, neredeyse tek renk palet + tek uyarı vurgu rengi.
-- Karakterler prosedürel "kukla" (§14.1; KR-017); binalar tile kitleri ya da düz renk vektör geometrisi; ikonlar CC-BY oyun ikon seti; insider portreleri siluet + kod adı.
+- Karakterler prosedürel "kukla" (§14.1; KR-017); binalar tile kitleri ya da düz renk vektör geometrisi; ikonlar CC-BY oyun ikon seti; insider portreleri siluet + kod adı. Yapay zekâ üretimi görsel/ses/metin serbesttir (KR-020 3) ve kukla stiliyle çelişmez: kuklalar kodla çizilir (yapay zekâ içeriği sayılmaz), yapay zekâ üretimi yalnız statik katmanlarda (zemin/duvar dokusu, raf ürünleri, tabela, ikon, insider portresi, SFX) kullanılır; her biri `docs/notes/assetler.md`'de "AI üretimi" sütunuyla kayıtlı. Sivil kukla başlıkları: sahip önlük + kel/kasket, müşteri başlıksız (çeşit: torba, şemsiye), yoldan geçen palto, mahalleli terlik + kolu sıvalı (okunabilirlik: kim kovalıyor belli olmalı).
 - Okunabilirlik önceliği: kamera konisi, muhafız bakış yönü, şüphe ölçeri ("?" ve "!"), gürültü halkası, karanlık bölge, plan katmanı her zaman ayırt edilir.
 - Ses: gürültü olaylarının duyulabilirliği oyun bilgisidir (koşma adımı, cam, matkap); alarm, telsiz ve yoklama sesleri uyarı kademesini taşır. Müzik kademe ile gerilir, tespitte kesilir.
 
@@ -257,8 +351,8 @@ Kabul (Faz 2 "karakter kuklası v0"): oyuncu, tezgâhtar ve muhafız için yür�
 - Kademe 1 (bakkal) ve 2 (benzinlik: kamera, DVR, sessiz alarm, sahte kamera), her biri 1 şablon + tohum varyasyonu.
 - Keşif: içerideki (müşteri) + dışarıdaki; oyalanma ve bakış şüphesi; tanınma sayacı; fotoğraf (3 kare). Hat rolü yok.
 - Plan masası: ortak kroki, ikon paleti, rota, ping, rol ataması, giriş seçimi, plan katmanı. Tetik zinciri ve gadget ön yerleşimi yok.
-- Gizlilik: görüş hattı/sis, muhafız FSM + navigasyon, kamera, şüphe ölçeri, uyarı 0-3 (4-5 yalnız "kaybettin" olarak), gürültü, ceset saklama yok.
-- Çatışma: yok; yakalanma = iş biter. Sindirme var.
+- Gizlilik: görüş hattı/sis, şüphe ölçeri, gürültü; T1'de gözlemciler sivildir — sahip (ajanda FSM + navigasyon), müşteriler ve yoldan geçenler (mekân nüfusu §9.2), mahalleli dalgası; uyarı eşlemesi §9.1 (bakkal: 0-3 + 5, sayaç yalnız 3'te). Muhafız FSM, kamera/DVR ve sessiz alarm T2 benzinlikle gelir; ceset saklama yok.
+- Çatışma: yok; silah fiili yok (T1-T2). Yakalanma: tutulan oyuncu 6 sn içinde ekip arkadaşınca kurtarılabilir, mahalleliye yakalanan donar (K3), kalanlar kaçarsa kısmi ödeme. Sindirme T2'de (düğme penceresi), bakkalda yok.
 - Karakter: perk ağacı v0 (3 dal × 3 düğüm), dükkân 4-6 eşya (T2 maymuncuk, jammer, sessiz ayakkabı, ECM, dürbün, kılık yok).
 - Ekonomi: para, aracı oranı (temiz/sessiz/yüksek), ısı v0 (muhafız sayısı etkisi), insider v0 (tek teklif tipi).
 - Co-op: 2-4 oyuncu, 3 merkez; bot yok; düşen oyuncu donar.
@@ -273,7 +367,7 @@ Sonraya:
 1. Keşif süresi sabit mi (dakika), olay bazlı mı (işin bitmesi)? Öneri: iş bitince 60 sn tolerans, sonra şüphe.
 2. Fotoğraf plan masasında ne kadar yardımcı olmalı? Küçük görüntü yeterli mi, yoksa yakınlaştırma şüpheyi mi öldürür?
 3. Yanlış yerleştirilen ikon için geri bildirim: soygun sonu özetinde "plan doğruluğu" gösterilsin mi (öğretir) yoksa gösterilmesin mi (hafızayı ödüllendirir)?
-4. Sindirilen sivil kaç saniye "tutulmalı"; üçüncü el anı bakkalda bile gerekli mi, yoksa T2'den mi başlasın?
+4. ~~Sindirilen sivil kaç saniye "tutulmalı"; üçüncü el anı bakkalda bile gerekli mi, yoksa T2'den mi başlasın?~~ KR-020: sindirme ve üçüncü el T2'den başlar; bakkalda üçüncü el yerine "sahibin dikkatini yöneten" ikinci kişi (§9.3). Açık kalan: T2'de sindirme tutma süresi (taslak 8 sn, bırakınca çalışan düğmeye koşar).
 5. Aracı oranı ekip genelinde mi, kişi başı davranışa göre mi (gürültü yapan daha az alır)?
 6. Keşifte yakalanmanın bedeli: iş iptali mi, "tetikte" modu mu, ısı mı? (Taslak: tetikte + küçük ısı.)
 7. Plan katmanı yanlış ikonu hiç işaretlemesin mi, yoksa nesne görüş hattına girince ikon solsun mu?

@@ -10,7 +10,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 |---|---|---|---|---|
 | EP-00 | Faz 0 — Kurulum | Süreç, tasarım, Godot iskeleti, test ve CI hazır; Steam riski erken ölçülmüş | 1) `tools/ci_local.sh` boş projede yeşil, 1 geçen birim testle < 5 dk · 2) import uyarı-hatasız · 3) GodotSteam GDExtension'ın 4.7.2'de yüklenip yüklenmediği biliniyor (IS-004) · 4) GDD v0.1 ve mimari sözleşmeler yazılı | Bitti (2026-10-01; uzak CI ilk koşusu repo açılınca) |
 | EP-01 | Faz 1 — İki kişi bakkalda | Online his: bağlan, yürü, kasayı boşalt | 1) Tüm ağ senaryoları 0 ve 150 ms RTT'de yeşil · 2) 150 ms'de hareket sırasında senkron hatası < 1 karo (32 px) · 3) Kasa boşaltma sonucu tüm peer'larda RTT + 200 ms içinde · 4) 10 dk headless dayanıklılık koşusunda hata logu yok · 5) Windows + Linux build'i üretiliyor · 6) Kullanıcı doğrulaması: iki makine (Tailscale) ≤ 5 sn'de bağlanıyor, bir arkadaş oturumu notlandı (IS-006; fazı engellemez, taşınır) | Sürüyor (2026-10-01) |
-| EP-02 | Faz 2 — Gizlilik | 3 kişi bakkal soygununu baştan sona oynar (ilk "eğlenceli mi" kapısı) | Koşan oyuncu koni içinde yakın bantta ≤ 1,2 sn (0,2 sn oyuncu lehine + 1 sn dolum), uzak bantta ≤ 2,2 sn tespit, saklanan hiç tespit edilmiyor (otomatik test) · "?"→inceleme→tespit görünür · kazanma ve kaybetme yolu · iş sonu ekranı · 150 ms'de 20 dk tutarsızlık 0 · 3 arkadaş 3 koşu, ≥ 2'si "tekrar" · Steam spike: 480 lobisiyle 2 kişi hareket | Backlog |
+| EP-02 | Faz 2 — Gizlilik (bakkal, KR-020/021) | 2-3 kişi bakkal soygununu baştan sona oynar (ilk "eğlenceli mi" kapısı) | 1) Algı: kasa tutarken sahip yakın ≤ 1,0 sn, uzak ≤ 1,8 sn "!"; müşteri bölgesinde yürüyen 60 sn hiç; raf arkası hiç; "?" her tespitten ≥ 0,5 sn önce · 2) 300 sn ajandada ≥ 4 kasa penceresi (≥ 10 sn); botla temiz ≥ %30, yakalanma ≤ %70 (3 kişi, 200 koşu) · 3) Zincir görünür (? → sorgu → bağırış → mahalleli → polis sayacı); kazanma (temiz, bağırışlı) ve kaybetme (polis, herkes yakalandı) yolları + iş sonu ödeme · 4) 150 ms'de 20 dk tutarsızlık 0, NPC ≤ 6, `net_flag` 0 · 5) İnsan testi: 3 arkadaş ≥ 3 koşu, ≥ 2 oturumda kendiliğinden "bir daha", koşu başına ≥ 1 klip anı, ölü zaman ≤ %15, 2 kişilik ≥ 1 koşu | Sürüyor (erken; 2026-10-02) |
 | EP-03 | Faz 3 — Keşif ve plan | Oyunun özgün iddiası: hafızaya dayalı keşif + ortak plan masası (ikinci eğlence kapısı) | keşif→plan→soygun→kaçış ≤ 15 dk · ikon doğruluk oranı ölçülüyor · oyalanma şüphesi ve tanınma tetikleniyor · ardışık 3 koşu ≥ 2 güvenlik parametresinde farklı (tohum) · ≥ 2/3 oyuncu "keşif değdi" | Backlog |
 | EP-04 | Faz 4 — Sığınak ve ikinci kademe | İki kademeli mini kampanya | Kampanya + profil kaydı yükleniyor · ekipman yetenek kapısı çalışıyor (T2 maymuncuk → T2 kilit) · ısı > 40'ta muhafız +1 · benzinlik (kamera, DVR, sessiz alarm, sahte kamera) · UI'da sabit metin 0 | Backlog |
 | EP-05 | Faz 5 — Steam ve MVP paketi | Arkadaşlar Steam davetiyle oynar = MVP | Davet ≤ 10 sn'de lobiye sokuyor · TR↔SE SteamMultiplayerPeer 30 dk kopmasız · ENet yedeği aynı build'de · build'ler 3 arkadaş makinesinde açılıyor · 3 oturum yazılı geri bildirim · çökme 0 | Backlog |
@@ -204,41 +204,32 @@ EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: (A) yok · (B) IS-005, IS-
 İki adım (2026-10-02): **(A)** KR-017 → GDD §14 ve GB-02 → GDD §7/§9/§10 işlenir + Faz 2 kapsam önerisi (koordinatöre rapor; faz plan mesajına girdi). **(B)** `faz-1.md` değerlendirmesi IS-005/IS-013 sonuçlarıyla.
 **Kabul:** KR-017 animasyon/karakter stilini GDD §14'e (referans ilkeler, zamanlama aralıkları, okunabilirlik kuralları) ve GB-02'yi (havalandırma girişi, duvar patlatma, alttan kasa düşürme; ileri kademe + ekipman/yetenek kapılı) GDD §7/§9/§10'a işler: hangi kademede açıldığı, gereken ekipman/perk, gürültü ve zamanlama bedeli, keşifte nasıl fark edildiği. `docs/tasarim/degerlendirmeler/faz-1.md` surec.md §5a biçiminde yazılır (Faz 1 temel yapı olduğu için ağırlık: hareket hızları, etkileşim süreleri, bakkal yerleşimi ve online hissin GDD'ye uyumu; Faz 2-3 için erken uyarılar). Koordinatör önerileri oneriler.md'ye işler. Koordinatör okumasıyla kapanır.
 
-## 2b. Faz 2 kalemleri (EP-02 — Gizlilik; plan 2026-10-02, KR-019)
-Sıra = oynanabilir dilime en kısa yol (Fable önerisi, IS-007 A). **2a çirkin dilim** (US-006, US-007, US-008 kamerasız, US-009, US-012, US-013 asgari) → hemen oyun testi; **2b** geri kalanı, test bulgularıyla budanır (KR-019). Ara tasarım değerlendirmesi US-012'den sonra.
+## 2b. Faz 2 kalemleri (EP-02 — Gizlilik, bakkal; plan 2026-10-02, KR-019/020/021)
+Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md` §2 · US-016 → §3 · US-010 → §4 · IS-023 → §5 (taslakta "IS-022" yazılı) · US-009/US-011/US-012/US-013/IS-015 AC değişiklikleri → §6. Kartlar GDD v0.3 §6.1, §9.1-9.3'e dayanır.
+**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
 
 | ID | Başlık | EP | Sahip | Öncelik | Büyüklük | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
 | US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
 | US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Bitti (dal `faz2/US-007`, Faz 1 checkpoint'inden sonra dev'e) | 3280e78 |
-| US-008 | Gözlemci v0 — bakkal sahibi + yoldan geçenler (KR-020; kart Fable revizyonuyla yeniden yazılacak): fark et → şüphe → seslen/bağır → mahalleli gelir; muhafız/kamera ileri kademelere | 2 | oynanis | P1 | M | US-006, US-007, IS-021 | Backlog (yeniden tanım) | |
+| IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Sürüyor (2026-10-02; faz2) | |
+| US-008 | Bakkal sahibi v0: Agenda + sivil çarpan + sorgu/bağırış/tutma + ÇEK kurtarma + mahalleli (chaser) + polis sayacı | 2 | oynanis | P1 | M | US-006, US-007, IS-023 | Hazır (US-006 t2 sonrası) | |
 | US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
-| US-010 | Bakkala uygun etkileşimler (oyalama, dikkat dağıtma, müşteri kılığı) — sindirme/düğme yok (KR-020; Fable revizyonuyla) | 2 | oynanis | P1 | M | US-008 | Backlog (yeniden tanım) | |
-| US-011 | Görüş sisi (ekip paylaşımlı) + okunabilirlik işaretleri (koni, halka, ?/!) | 2 | seviye | P1 | S | US-006 | Backlog | |
-| US-012 | Soygun sonucu: çanta, arka oda nakdi, kaçış, kazan/kaybet, yakalanma (K3), aracı oranı | 2 | oynanis | P1 | S | US-008, US-010 | Backlog | |
-| US-013 | İş sonu ekranı + uyarı kademesi HUD + kayıp ekranı | 2 | arayuz | P1 | S | US-012 (sözleşme önce) | Backlog | |
+| US-010 | Bakkal etkileşimleri: SATIN AL, OYALA, ARKA ODAYA GÖNDER, DİKKAT DAĞIT, oyalanma sayacı | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
+| US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught | 2 | oynanis | P1 | S | US-008 | Backlog | |
+| US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
+| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Sürüyor (2026-10-02; faz2) | |
+| IS-024 | 2a SFX: 5-6 yer tutucu ses (zil, ?, !, bağırış, kapı, kasa) — CC0, assetler.md kaydı | 2 | arayuz | P1 | XS | US-008 (olay adları) | Backlog | |
+| IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
+| US-011 | Görüş sisi + okunabilirlik (sahip görev ikonu, koniler, ?/! balonları) | 2 | seviye | P2 | S | US-008 | Backlog (2b) | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (2026-10-02; worktree) | |
-| IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
-| IS-015 | Oyun testi botları (GB-01) + 150 ms 20 dk dayanıklılık + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog | |
-| IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |
-| IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Sürüyor (2026-10-02) | |
-| IS-017 | Faz 2 kullanıcı oyun testi (3 arkadaş, 3 koşu, ≥ 2 "tekrar") | 2 | kullanıcı | P1 | S | US-013, US-014 | Backlog | |
+| IS-015 | Oyun testi botları (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
+| IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
-
-### US-006 — Algı çekirdeği
-EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S11, §6 · Bağımlılık: US-005 · Faz 2 çıkış kriteri 1
-**Hikâye:** Oyuncu olarak muhafızların ve kameraların beni görüş konileri ve görüş hatları içinde, adil ve okunur bir hızla fark etmesini; raf arkasında saklandığımda hiç fark etmemesini istiyorum.
-**Kabul kriterleri:**
-- AC1 `core/perception.gd` (düğümsüz, RefCounted; Node2D bilmez): koni testi (konum, yön, yarım açı, menzil), iki bant (yakın ≤ R/2 ×2, uzak ×1), dolum/sn = 25 × bant × durum (koşu 2, yürüme 1, sızma 0,5; karanlık bölgede 0 — ikili ışık/gölge), boşalma 20/sn, eşikler 30/60/100, oyuncu lehine 0,2 sn (görüş hattından çıkış ve "görüldü" başlangıcı). Görüş hattı sonucu girdi olarak gelir (`visible: bool`), core raycast yapmaz.
-- AC2 `entities/npc/components/perception.gd` (`Perception`, S11): host'ta fizik sorgusuyla görüş hattı (world katmanı keser; `see_through` grubundaki gövdeler geçilir — US-007 camları bu gruba koyar; raflar keser, K1), hedefler `interaction_actors` grubundaki oyuncular; yalnız host'ta işler. `Suspicion` (oyuncu başına 0-100, `threshold_reached(peer_id: int, level: int)` sinyali; seviye 1 "?", 2 inceleme, 3 tespit) — çoğaltılan özet durum (en yüksek seviye ve yön) istemcide çizim için.
-- AC3 Ayar verisi `data/npc/perception_tuning.tres` (S10 kalıbı: `class_name PerceptionTuning extends Resource`): yarım açı ve menzil (başlangıç muhafız 50°/256 px, kamera 35°/288 px), dolum/boşalma, eşikler, oyuncu lehine süre, dönüş hızı tavanı 120°/sn.
-- AC4 Birim testleri (sabit adım, zamandan bağımsız): koşan oyuncu yakın bantta ≤ 1 sn, uzak bantta ≤ 2 sn tespit (100); sızan uzak bantta ~8 sn; "?" (30) tespitten ≥ 0,5 sn önce; görüş hattı kesik (raf arkası) oyuncu hiç birikmez; cam arkası görünür; menzil/açı kenarları; karanlık ve sızma etkisi; oyuncu lehine 0,2 sn; boşalma.
-- AC5 Bileşenler bir test sahnesinde (tests/fixtures altında küçük oda: duvar, raf, cam) host'ta çalışır; `Perception` + `Suspicion` için bileşen testleri (fizik sorgusu gerçek). Ağ senaryosu bu kalemde zorunlu değil (US-008'de).
-**Dokunulacak:** core/{perception,suspicion}.gd (yeni; mevcut core/interaction_rules.gd'ye dokunma), entities/npc/components/{perception,suspicion}.gd, data/npc/**, tests/unit/test_perception*.gd, tests/unit/test_suspicion*.gd, tests/fixtures/** (yalnız yeni algı test odası)
-**Dokunulmayacak:** autoload/**, entities/player/**, entities/props/**, levels/**, ui/**, project.godot, tools/**
-**Oku:** mimari.md S2, S11, §4, §6 · GDD §5-6 (gizlilik, görüş), §12 · KR-019
+| IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
+| IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |
 
 ### US-008 — (ESKİ TASLAK, KR-020 ile geçersiz: bakkalda polis/muhafız yok; IS-021 sonrası yeniden yazılır. FSM/adalet AC'leri gözlemci için yeniden kullanılır)
 EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S3, S6, S11 · Bağımlılık: US-006, US-007 · 2a dilimi (kamera iskeleti 2b'de tamamlanır)
