@@ -15,7 +15,10 @@ Bağlanınca stdout'a tek satır `LATENCY_PROXY_READY port=<dinlenen port>` basa
 (Windows'ta SIGTERM gönderilemez: CTRL_BREAK_EVENT -> SIGBREAK ile de zarif kapanır).
 
 Windows: select() zaman aşımı varsayılan zamanlayıcı adımına (~15,6 ms) yuvarlanır ve paketler geç çıkar;
-proxy çalışırken süreç zamanlayıcı çözünürlüğü 1 ms'ye çekilir (winmm timeBeginPeriod/timeEndPeriod).
+proxy çalışırken süreç zamanlayıcı çözünürlüğü 1 ms'ye çekilir (winmm timeBeginPeriod/timeEndPeriod). Windows 11
+güç kısıtlaması (EcoQoS) arka plandaki/penceresiz süreçlerin bu isteğini zaman zaman yok sayar (paketler yine
+~11 ms geç çıkar, IS-012); bu yüzden proxy çalışırken süreç güç kısıtlamasından da çıkarılır
+(SetProcessInformation/ProcessPowerThrottling), son proxy durunca sistem varsayılanına döner.
 
 Modül olarak (net_smoke.py, testler):
     proxy = LatencyProxy(target=("127.0.0.1", 7777), delay_ms=75)
@@ -53,6 +56,52 @@ def _timer_period(begin: bool) -> bool:
         return fn(1) == 0  # TIMERR_NOERROR
     except (OSError, AttributeError):
         return False
+
+
+# PROCESS_INFORMATION_CLASS.ProcessPowerThrottling ve PROCESS_POWER_THROTTLING_* bayrakları (processthreadsapi.h).
+_PROCESS_POWER_THROTTLING = 4
+_THROTTLE_EXECUTION_SPEED = 0x1
+_THROTTLE_IGNORE_TIMER_RESOLUTION = 0x4
+_unthrottle_lock = threading.Lock()
+_unthrottle_users = 0
+
+
+class _PowerThrottlingState(ctypes.Structure):
+    _fields_ = [("Version", ctypes.c_ulong), ("ControlMask", ctypes.c_ulong), ("StateMask", ctypes.c_ulong)]
+
+
+def _set_power_throttling_opt_out(opt_out: bool) -> bool:
+    """Windows: opt_out=True süreci EcoQoS'tan ve 'zamanlayıcı çözünürlüğü isteğini yok say' kısıtından açıkça
+    çıkarır; False kararı sisteme geri bırakır. Desteklenmeyen sürümde/başka platformda no-op. Başarılıysa True."""
+    if sys.platform != "win32":
+        return False
+    try:
+        k32 = ctypes.WinDLL("kernel32")
+        k32.GetCurrentProcess.restype = ctypes.c_void_p
+        k32.SetProcessInformation.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong]
+        mask = (_THROTTLE_EXECUTION_SPEED | _THROTTLE_IGNORE_TIMER_RESOLUTION) if opt_out else 0
+        state = _PowerThrottlingState(1, mask, 0)  # StateMask 0 = denetlenen bayraklar kapalı
+        return bool(
+            k32.SetProcessInformation(
+                k32.GetCurrentProcess(), _PROCESS_POWER_THROTTLING, ctypes.byref(state), ctypes.sizeof(state)
+            )
+        )
+    except (OSError, AttributeError):
+        return False
+
+
+def _hold_unthrottled(hold: bool) -> None:
+    """Güç kısıtlamasından çıkışı süreç genelinde sayar: ilk tutan açar, son bırakan sisteme geri verir."""
+    global _unthrottle_users
+    with _unthrottle_lock:
+        if hold:
+            _unthrottle_users += 1
+            if _unthrottle_users == 1:
+                _set_power_throttling_opt_out(True)
+        elif _unthrottle_users > 0:
+            _unthrottle_users -= 1
+            if _unthrottle_users == 0:
+                _set_power_throttling_opt_out(False)
 
 
 def parse_addr(text: str) -> tuple[str, int]:
@@ -105,6 +154,7 @@ class LatencyProxy:
         self._wake_r: socket.socket | None = None
         self._wake_w: socket.socket | None = None
         self._hires_timer = False
+        self._unthrottled = False
         self.port = 0
 
     # --- yaşam döngüsü ---
@@ -121,6 +171,9 @@ class LatencyProxy:
         self._sel = selectors.DefaultSelector()
         self._sel.register(self._listener, selectors.EVENT_READ, "listen")
         self._sel.register(self._wake_r, selectors.EVENT_READ, "wake")
+        if sys.platform == "win32":
+            _hold_unthrottled(True)
+            self._unthrottled = True
         self._hires_timer = _timer_period(True)
         self._thread = threading.Thread(target=self._run, name="latency-proxy", daemon=True)
         self._thread.start()
@@ -148,6 +201,9 @@ class LatencyProxy:
         if self._hires_timer:
             self._hires_timer = False
             _timer_period(False)
+        if self._unthrottled:
+            self._unthrottled = False
+            _hold_unthrottled(False)
 
     def __enter__(self) -> "LatencyProxy":
         self.start()

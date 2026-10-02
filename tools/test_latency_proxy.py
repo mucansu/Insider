@@ -8,6 +8,7 @@ Windows'ta `python3` yoksa `python` ya da `py -3`; tools/ci_local.sh `tools` ad�
 
 from __future__ import annotations
 
+import ctypes
 import os
 import signal
 import socket
@@ -20,6 +21,7 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import latency_proxy  # noqa: E402
 from latency_proxy import LatencyProxy, parse_addr  # noqa: E402
 
 TOLERANCE_MS = 15.0
@@ -193,6 +195,32 @@ class LatencyProxyTest(unittest.TestCase):
             self.assertEqual(proxy._last_due, {}, "akış sıra kaydı istemciyle birlikte silinmeli")
         finally:
             proxy.stop()
+
+    @unittest.skipUnless(WINDOWS, "Windows güç kısıtlaması (EcoQoS)")
+    def test_windows_power_throttling_opt_out(self) -> None:
+        # IS-012: kısıtlanan süreçte timeBeginPeriod(1) yok sayılır ve paketler ~11 ms geç çıkar. Proxy çalışırken
+        # süreç kısıtlamadan çıkmış olmalı (iç içe proxy'lerde sayılır); son proxy durunca sisteme geri verilir.
+        def control_mask() -> int:
+            k32 = ctypes.WinDLL("kernel32")
+            k32.GetCurrentProcess.restype = ctypes.c_void_p
+            k32.GetProcessInformation.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong]
+            st = latency_proxy._PowerThrottlingState(1, 0, 0)
+            ok = k32.GetProcessInformation(
+                k32.GetCurrentProcess(), latency_proxy._PROCESS_POWER_THROTTLING, ctypes.byref(st), ctypes.sizeof(st)
+            )
+            if not ok:
+                self.skipTest("GetProcessInformation(ProcessPowerThrottling) desteklenmiyor")
+            self.assertEqual(st.StateMask, 0, "denetlenen kısıtlar kapalı olmalı")
+            return st.ControlMask
+
+        ignore_timer = latency_proxy._THROTTLE_IGNORE_TIMER_RESOLUTION
+        self.assertEqual(control_mask() & ignore_timer, 0)
+        with LatencyProxy(target=("127.0.0.1", self.echo.port), delay_ms=1):
+            self.assertTrue(control_mask() & ignore_timer)
+            with LatencyProxy(target=("127.0.0.1", self.echo.port), delay_ms=1):
+                self.assertTrue(control_mask() & ignore_timer)
+            self.assertTrue(control_mask() & ignore_timer, "iç proxy durunca dış proxy hâlâ kısıtsız")
+        self.assertEqual(control_mask(), 0, "son proxy durunca karar sisteme geri verilir")
 
     def test_full_loss_drops_everything(self) -> None:
         with LatencyProxy(target=("127.0.0.1", self.echo.port), loss=1.0) as proxy:
