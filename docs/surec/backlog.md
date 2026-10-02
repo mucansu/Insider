@@ -31,8 +31,8 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
 | IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Bitti | 918d0cd |
 | IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Sürüyor (t2; denetci should-fix: Linux paketi çalıştırma izni) | |
-| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Denetimde (2026-10-02; worktree) | |
-| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Hazır | |
+| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
+| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Sürüyor (2026-10-02; worktree) | |
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
@@ -209,15 +209,16 @@ Sıra = oynanabilir dilime en kısa yol (Fable önerisi, IS-007 A). **2a çirkin
 
 | ID | Başlık | EP | Sahip | Öncelik | Büyüklük | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
-| US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Denetimde (2026-10-02; worktree) | |
-| US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Denetimde (2026-10-02; worktree) | |
+| US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
+| US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Bitti (dal `faz2/US-007`, Faz 1 checkpoint'inden sonra dev'e) | 3280e78 |
 | US-008 | Gözlemci v0 — bakkal sahibi + yoldan geçenler (KR-020; kart Fable revizyonuyla yeniden yazılacak): fark et → şüphe → seslen/bağır → mahalleli gelir; muhafız/kamera ileri kademelere | 2 | oynanis | P1 | M | US-006, US-007, IS-021 | Backlog (yeniden tanım) | |
-| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing + görsel halka + T1 kilit (arka kapı maymuncuk) | 2 | oynanis | P1 | S | US-006 | Backlog | |
+| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
 | US-010 | Bakkala uygun etkileşimler (oyalama, dikkat dağıtma, müşteri kılığı) — sindirme/düğme yok (KR-020; Fable revizyonuyla) | 2 | oynanis | P1 | M | US-008 | Backlog (yeniden tanım) | |
 | US-011 | Görüş sisi (ekip paylaşımlı) + okunabilirlik işaretleri (koni, halka, ?/!) | 2 | seviye | P1 | S | US-006 | Backlog | |
 | US-012 | Soygun sonucu: çanta, arka oda nakdi, kaçış, kazan/kaybet, yakalanma (K3), aracı oranı | 2 | oynanis | P1 | S | US-008, US-010 | Backlog | |
 | US-013 | İş sonu ekranı + uyarı kademesi HUD + kayıp ekranı | 2 | arayuz | P1 | S | US-012 (sözleşme önce) | Backlog | |
-| US-014 | Karakter kuklası v0 (GDD §14.1) — oyuncu, tezgâhtar, muhafız | 2 | oynanis (görsel) | P1 | M | US-004 | Backlog | |
+| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (2026-10-02; worktree) | |
+| IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
 | IS-015 | Oyun testi botları (GB-01) + 150 ms 20 dk dayanıklılık + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog | |
 | IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Sürüyor (2026-10-02) | |
@@ -255,6 +256,40 @@ EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S3, S6, S11 · Bağımlıl
 **Dokunulacak:** entities/npc/** (guard, brain, components'e yalnız ekleme), core/fsm.gd, core/guard_rules.gd (gerekirse), data/npc/**, autoload/game.gd (yalnız uyarı kademesi S3 eki), entities/player/** (yalnız `captured` durumu ve girdi kesme), entities/props/door.gd (yalnız AC7 nit'i), levels/store_a.tscn (yalnız NPCs altına muhafız yerleşimi), tests/unit/test_guard*.gd, tests/unit/test_fsm*.gd, tests/net/guard_detect.json, tests/net/bots/**
 **Dokunulmayacak:** autoload/{net,args}.gd, ui/**, levels/ (NPCs dışı), project.godot, tools/**
 **Oku:** mimari.md S2, S3, S6, S11 · GDD §6, §12 · muhafiz-davranisi.md · KR-019
+
+### US-009 — Gürültü v0
+EP-02 · P1 · S · Sahip: oynanis · Sözleşme: S8, S2, §6 · Bağımlılık: US-005 (US-006'ya bağımlı değil: dinleyici sinyal yayar, şüpheye bağlama gözlemci kalemi US-008'de)
+**Hikâye:** Oyuncu olarak koşarken, kapıyı çarparken ya da kasayı boşaltırken çıkardığım sesin bir halka olarak görünmesini ve yakındakilerin onu duyabilmesini istiyorum; sızarken ses çıkarmamalıyım.
+**Kabul kriterleri:**
+- AC1 `autoload/noise.gd` (`NoiseBus`, S8) gerçek uygulama: `emit_noise(pos, radius, kind, source_peer)`; istemciden çağrılırsa host'a iletilir (gönderen kimliği `get_remote_sender_id`; istemci başka peer adına ses üretemez, konum host'un bildiği aktör konumuna kenetlenir/doğrulanır); host `noise_listener` grubundaki düğümlerin `hear_noise(pos, radius, kind)`'ını çağırır ve herkese görsel halka olayı yollar.
+- AC2 `data/noise_profile.tres` (S10 kalıbı): yürüme 0, sızma 0, koşma 120 (adım başına, en fazla ~3 Hz), kapı 160, kasa boşaltma 90 (başlangıç değerleri S8); `core/noise_rules.gd` (düğümsüz): duvar arkası zayıflama (görüş hattı yoksa yarıçap ×0,5 — host fizik sorgusu bileşende, kural core'da), mesafe kontrolü.
+- AC3 Yayımcılar: oyuncu (koşu adımları; yalnız yerel oyuncu yayar, host doğrular), kapı (aç/kapa), kasa (boşaltma tamamlanınca ve sürerken düşük oranla — profil). Mevcut US-004/US-005 davranışı değişmez.
+- AC4 `entities/npc/components/hearing.gd` (`Hearing`, S11): `noise_listener` grubunda; duyunca `heard(pos: Vector2, radius: float, kind: StringName)` sinyali (yalnız host); şüpheye bağlama US-008.
+- AC5 Görsel halka (tüm peer'larda): genişleyen halka 0,4 sn, renk ThemeTokens (GAMEPLAY_* ya da noir FG — KR-019), ≥ 22 px okunurluk (GDD §14.1 kural 2); "hareket azaltma"da da görünür.
+- AC6 Testler: core kural birim testleri; bileşen testi (duvar arkası zayıflama gerçek fizik ışınıyla); ağ senaryosu `tests/net/noise_ring.json` (koşan istemci → host ve diğer istemci halka olayını alır, sızan → hiç; test dinleyicisi `heard` sayar; 0 ve 150 ms); hile: istemcinin başka peer adına ya da uzak konumda ses üretemediği birim testi.
+**Dokunulacak:** autoload/noise.gd, core/noise_rules.gd, data/noise_profile.{gd,tres}, entities/npc/components/hearing.gd, entities/fx/** (halka), entities/player/player.gd (yalnız gürültü yayımı), entities/props/{door,register}.gd (yalnız yayım), tests/unit/test_noise*.gd, tests/net/noise_ring.json, tests/net/bots/**, tests/fixtures/** (yalnız yeni)
+**Dokunulmayacak:** autoload/{net,args,game}.gd, ui/**, levels/**, project.godot, tools/**, entities/player/player_visual.gd ve kukla dosyaları (paralel US-014), core/{perception,suspicion}.gd
+**Oku:** mimari.md S8, S2, S11, §6 · GDD §6, §12 · KR-019, KR-020
+
+### US-014 — Karakter kuklası v0 (oyuncu)
+EP-02 · P1 · M · Sahip: oynanis (görsel) · Sözleşme: §6 (görsel katman yalnız durum okur), S9 · Bağımlılık: US-004
+**Hikâye:** Oyuncu olarak karakterimin ve arkadaşlarımın anime zarafetinde, akıcı, yumuşak animasyonlu şirin kuklalar olarak görünmesini; kipimin (sız/yürü/koş) siluetten okunmasını istiyorum.
+**Kabul kriterleri** (GDD §14.1 tümü; değerler `data/puppet_tuning.tres`):
+- AC1 `entities/player/puppet/` altında prosedürel kukla (iri baş + yüz/gözler/parıltı/yanak, başlık yuvası, küçük gövde, iki el, atkı verlet zinciri 6 parça); oyuncunun mevcut yer tutucu görselinin yerini alır; atkı rengi `ThemeTokens.PLAYER_COLORS[slot]`; ad etiketi ve etkileşim göstergesi (IS-014) korunur, sabit bağlantı noktasında ve animasyondan bağımsız.
+- AC2 Animasyonlar: yumuşatma + yay/aşma, kalkış/duruş hazırlık-devam, ezilme-esneme, yürüyüşte sekme + eğilme + karşıt el salınımı, sızmada çömelme, koşuda uzama + toz, beklemede nefes + göz kırpma + bakınma, etkileşimde gövde 0,95; tepki balonları ("?"/"!") için çağrılabilir API (NPC'ler sonra kullanır).
+- AC3 Yalnız durum okur: kip, hız, yön, etkileşim durumu (yerelde girdi değil durum; uzak kopyada ara değerlenmiş durumdan); çarpışma yarıçapı 12 ve menziller değişmez; görsel aşma ≤ 6 px; bağımlılık yönü testi (kukla mantık/ağ betiklerine başvurmaz).
+- AC4 Hareket azaltma bayrağı (ayar API'si; UI sonra): sekme, eğilme, toz kapanır.
+- AC5 Testler: parametre okuma, kip → siluet ölçeği/çömelme eşlemesi, yay/yumuşatma adım boyundan bağımsız (sabit adım), uzak kopyada tampon sıfırlanınca "pop" yok (konum/ölçek sıçraması sınırı), bağımlılık yönü. US-004 testleri ve senaryoları yeşil. Görsel doğrulama IS-022 aracıyla (bitince) üç kip ekran görüntüsü — kalem raporunda varsa ekle, yoksa koordinatör sonra çeker.
+**Dokunulacak:** entities/player/puppet/** (yeni), entities/player/player_visual.gd, entities/player/player.tscn (yalnız görsel düğüm), data/puppet_tuning.{gd,tres}, tests/unit/test_puppet*.gd
+**Dokunulmayacak:** entities/player/{player,player_input,player_motion,snapshot_buffer,player_interaction}.gd (davranış), autoload/**, ui/**, levels/**, core/**, project.godot, tools/**
+**Oku:** GDD §14, §14.1 · docs/tasarim/kukla-denemesi.html · mimari §6, S9 · KR-017
+
+### IS-022 — Ekran görüntüsü aracı
+EP-02 · P1 · S · Sahip: cekirdek · Sözleşme: S6 · Bağımlılık: —
+**Amaç:** Görsel kalemlerin (kukla, okunabilirlik, sis, HUD) ve kullanıcıya ilerleme raporlarının ekran görüntüsüyle doğrulanması; Windows'ta GPU'lu gerçek pencere (headless renderer görüntü üretmez).
+**Kabul:** (1) S6'ya argümanlar: `--screenshot-at=SN[,SN…]` ve `--screenshot-dir=YOL` (+ isteğe bağlı `--window-size=1280x720`): verilen anlarda viewport görüntüsü PNG olarak yazılır, sonra normal akış (`--quit-after`) sürer. (2) `tools/screenshot.py` (ya da net_smoke'a `screenshots` seçeneği): bir senaryo/seviye + botlarla host (ve istemciler) GPU'lu pencerede açılır, istenen peer(ler)in görüntüleri `build/screens/<ad>/` altına toplanır; Windows'ta (Git Bash) çalışır; headless/CI ortamında açıkça "atlandı" der ve 0 döner. (3) Örnek: store_a'da 3 oyuncu (yürü/sız/koş botları) için 3 an; PNG'ler 1280×720, boş/siyah değil (piksel varyansı denetimi). (4) Birim test: argüman ayrıştırma ve zamanlama; mevcut senaryolar ve ci_local yeşil. (5) README'ye kısa kullanım.
+**Dokunulacak:** autoload/args.gd (yalnız yeni argümanlar), main.gd (yalnız görüntü alma), tools/screenshot.py (yeni) ya da tools/net_smoke.py (yalnız seçenek), tests/unit/test_args*.gd / test_screenshot*.gd, README.md (yalnız bölüm)
+**Dokunulmayacak:** entities/**, levels/**, ui/**, core/**, project.godot, tests/net/** (paralel IS-013), tools/{latency_proxy,soak}.*
 
 ### US-007 — Bakkal v1
 EP-02 · P1 · S · Sahip: seviye · Sözleşme: S4 · Bağımlılık: US-002 · K1, K2

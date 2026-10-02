@@ -1,6 +1,6 @@
 # Insiders — Oyun Tasarım Belgesi (GDD)
 
-Durum: v0.2 taslak, MVP öncesi (IS-007 A, 2026-10-02: §14.1 kukla stili KR-017, §7.6 alternatif giriş GB-02, Faz 1'de kesinleşen sayılar). Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
+Durum: v0.3 taslak, MVP öncesi (IS-021, 2026-10-02: KR-020 senaryo bazlı tehdit modeli — §9.1 kademe tablosu, §9.2 mekân nüfusu, §9.3 bakkal tasarımı; §6.1 sivil gözlemci çarpanları; §15 MVP metni. Önceki: IS-007 A — §14.1 kukla stili KR-017, §7.6 alternatif giriş GB-02). Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
 Teknik mimari (sınıf/dosya yapısı) ayrı belgede; burada yalnız tasarımı etkileyen teknik kurallar var.
 
 ## 1. Konumlandırma
@@ -46,7 +46,7 @@ Amaç: ekibin hedef hakkında bilgi toplaması; bilgi oyun tarafından değil oy
 
 ### 4.1 Üç paralel rol (kimse boş beklemez)
 - İçerideki (müşteri): hedefe sıradan müşteri olarak girer. Gerçek bir "işi" vardır (sıraya gir, form doldur, para boz); iş, oyalanmanın meşru gerekçesidir ve bitince kalma süresi şüphe üretir. Görüş hattındakini görür: kamera, muhafız, kapı, kasa, kart taşıyan personel, personel alanı kapıları.
-- Dışarıdaki (minibüs/sokak): arka kapı, kurye/para transferi saatleri, vardiya değişimi, çatı erişimi, polis devriyesi periyodu. Dürbün kullanır. Araç uzun süre park ederse park görevlisi/polis şüphesi.
+- Dışarıdaki (minibüs/sokak): arka kapı, kurye/para transferi saatleri, vardiya değişimi, çatı erişimi, polis devriyesi periyodu (T2+; T1'de yoldan geçen yoğunluğu ve sahibin ajandası, §9.3). Dürbün kullanır. Araç uzun süre park ederse park görevlisi/polis şüphesi.
 - Hat (telefon/ağ, MVP sonrası): sosyal mühendislik mini diyalogları; personel adı, vardiya listesi, alarm firması, bakım randevusu (kılık için), insider bulma. Yanlış soru şüphe ve ısı üretir.
 
 ### 4.2 Hafıza kuralı
