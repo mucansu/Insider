@@ -6,9 +6,10 @@ Faz 1 — İki kişi bakkalda (EP-01). Yerel geliştirme: `C:\Users\Turkuaz\OneD
 ## Kalemler
 - Bitti (Faz 1): US-001 ağ çekirdeği · US-002 bakkal · US-003 menü/HUD/tema · IS-008 · IS-009 · IS-010 (KR-018) · IS-011 Windows yerel geliştirme (8124e82) · US-004 oyuncu karakteri (a88d9c1) · US-005 etkileşim + kasa + kapı (e32adf7)
 - Sürüyor: IS-012 gecikme proxy testinin Windows kararsızlığı (altyapi, 2026-10-02)
-- Sürüyor: IS-013 Faz 1 çıkış senaryoları (cekirdek, worktree, 2026-10-02) · IS-007 (A) GDD güncellemeleri + Faz 2 kapsam önerisi (tasarim, 2026-10-02)
+- Sürüyor: IS-013 Faz 1 çıkış senaryoları (cekirdek, worktree, 2026-10-02) · IS-007 (A) Bitti (a30c69c; GDD v0.2)
 - Sürüyor (worktree): IS-005 build (altyapi, 2026-10-02) · IS-014 US-005 nit'leri (oynanis, 2026-10-02)
 - Sırada: IS-007 (B) Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
+- Faz 2 (erken başlangıç, worktree): Sürüyor US-006 algı çekirdeği (oynanis) · US-007 bakkal v1 (seviye); plan backlog §2b, kararlar KR-019 (geçici)
 - Paralellik (kullanıcı 2026-10-02): ajan sınırı yok; koordinatör makine yüküne göre ~4-5 paralel kod paketi, her biri worktree'de.
 
 ## Kullanıcıdan bekleyen

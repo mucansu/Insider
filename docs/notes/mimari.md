@@ -125,6 +125,7 @@ Autoload adı `NoiseBus`'tır: `Noise` Godot'un yerleşik sınıfıyla çakış�
 - Ayar dosyaları (ör. `data/player_tuning.tres`) katalog değildir; aynı `class_name … extends Resource` kalıbını kullanır.
 
 ### S11 — NPC bileşenleri (Faz 2, KR-018)
+Faz 2 eki (KR-019, US-006/US-007): görüş hattı world katmanıyla sorgulanır; `see_through` grubundaki gövdeler (camlar) görüşü geçirir, raflar keser. Şüphe/algı hesapları `core/perception.gd`, `core/suspicion.gd` (düğümsüz; görüş hattı sonucu girdi). Ayarlar `data/npc/perception_tuning.tres`. Algı yalnız host'ta; istemciye özet durum (seviye, yön) çoğaltılır.
 Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc/components/` altında `Perception` (koni + görüş hattı → görünürlük), `Suspicion` (oyuncu başına 0-100, `threshold_reached(peer_id, level)` sinyali), `Hearing` (`noise_listener`, S8), `Patrol`. Davranış `core/fsm.gd` (küçük durum makinesi) + NPC türü başına bir "beyin" betiği (`brain_guard.gd`, `brain_civilian.gd`); kamera = hareketsiz NPC sahnesi. Bileşenler yalnız host'ta işler; senkronlanan durum (yön, kademe) istemcide çizilir. Yeni NPC = sahne + beyin betiği; algı kodu değişmez.
 
 ## 4. Fizik katmanları (project.godot)
