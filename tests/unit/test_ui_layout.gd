@@ -31,6 +31,7 @@ func test_main_menu_fits() -> void:
 		await _settle()
 		is_true((menu.get_node("%ErrorPanel") as Control).visible, label + ": hata görünür")
 		_check_fits(menu, size, label + " form+hata")
+		is_true((menu.get_node("%VisionOption") as Control).visible, label + ": görüş seçimi görünür")
 		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
 			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
 			menu.get_node("%ErrorPanel")], label + " form")
@@ -62,6 +63,7 @@ func test_hud_fits() -> void:
 		game.roster = roster
 		net.my_peer_id = 3
 		game.players_changed.emit()
+		(game as Fakes.FakeVisionGame).player_exposure_changed.emit(3, 2)  # en uzun rozet metni
 		game.team_cash_changed.emit(1999999999)
 		net.ping_ms = 9999
 		hud.refresh_ping()
@@ -82,7 +84,8 @@ func test_hud_fits() -> void:
 		_check_fonts(hud.get_node("%Root"), label + " HUD")
 		var top: String = "Root/Frame/Layout/Top/"
 		_check_disjoint([hud.get_node(top + "CashPanel"), hud.get_node("%Toasts"), hud.get_node(top + "Right"),
-			hud.get_node("%Interaction"), hud.get_node("%AlertLadder")], label + " HUD blokları")
+			hud.get_node("%Interaction"), hud.get_node("%AlertLadder"), hud.get_node("%ExposureBadge")], label + " HUD blokları")
+		is_true((hud.get_node("%ExposureBadge") as Control).visible, label + ": maruziyet rozeti görünür")
 		# US-013: köşe ögeleri ve merdiven haritayı az örter (en uzun içerikle bile).
 		var covered: float = 0.0
 		for block: Node in [hud.get_node(top + "CashPanel"), hud.get_node(top + "Right/PlayersPanel"), hud.get_node("%AlertLadder")]:
@@ -162,8 +165,9 @@ func _viewport(size: Vector2i) -> SubViewport:
 	return vp
 
 
+## Sahte Game görüş ekini taşır (US-011c): menüde görüş seçimi, HUD'da maruziyet rozeti düzene girer.
 func _open_menu(size: Vector2i) -> Dictionary:
-	var pair: Array = Fakes.make_pair(self)
+	var pair: Array = Fakes.make_pair(self, true)
 	var menu: MainMenu = (load("res://ui/main_menu.tscn") as PackedScene).instantiate() as MainMenu
 	menu.net = pair[0]
 	menu.game = pair[1]
@@ -173,7 +177,7 @@ func _open_menu(size: Vector2i) -> Dictionary:
 
 
 func _open_hud(size: Vector2i) -> Dictionary:
-	var pair: Array = Fakes.make_pair(self)
+	var pair: Array = Fakes.make_pair(self, true)
 	var hud: Hud = (load("res://ui/hud.tscn") as PackedScene).instantiate() as Hud
 	hud.net = pair[0]
 	hud.game = pair[1]

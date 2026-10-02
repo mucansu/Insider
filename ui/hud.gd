@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Oyun içi HUD (US-003 AC2, AC3): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi,
 ## etkileşim istemi ("[E] eylem", tuş adı etkin cihaza göre) ve ilerlemesi, duraklat menüsü. Game, seviye yüklenince Game.HUD_SCENE olarak ekler (S3).
 ## US-013: uyarı merdiveni (ui/alert_ladder.gd) ve iş sonu ekranı (ui/heist_end.gd), S3 ekinden.
+## US-011c: maruziyet rozeti (ui/exposure_badge.gd) ve ekip işaretleri (ui/team_markers.gd), S3 eki (mimari.md, US-011b/c) üyelerinden.
 ## Yalnız S1/S3 sinyal ve fonksiyonlarını, yerel oyuncunun S7 sinyallerini okur. Testler `net` ve
 ## `game`'i sahneye eklemeden önce sahte nesnelerle değiştirir; zaman `advance()` ile ilerletilebilir.
 
@@ -58,6 +59,8 @@ var _leaving: bool = false
 @onready var _ping_timer: Timer = %PingTimer
 @onready var _alert_ladder: AlertLadder = %AlertLadder
 @onready var _heist_end: HeistEnd = %HeistEnd
+@onready var _exposure_badge: ExposureBadge = %ExposureBadge
+@onready var _team_markers: TeamMarkers = %TeamMarkers
 
 
 func _ready() -> void:
@@ -84,6 +87,10 @@ func _ready() -> void:
 	_heist_end.opened.connect(_pause_menu.close)
 	_heist_end.menu_requested.connect(_on_leave_requested)
 	_heist_end.bind(game, net)
+	_exposure_badge.bind(game, net)
+	_team_markers.avoid = [$Root/Frame/Layout/Top/CashPanel as Control, $Root/Frame/Layout/Top/Right as Control,
+		_alert_ladder, _exposure_badge, _prompt, _interaction]
+	_team_markers.bind(game, net)
 
 
 func _process(delta: float) -> void:
@@ -110,6 +117,7 @@ func advance(delta: float) -> void:
 	_tick_interaction(delta)
 	_tick_toasts(delta)
 	_alert_ladder.advance(delta)
+	_team_markers.advance(delta)
 
 
 func toggle_pause() -> void:

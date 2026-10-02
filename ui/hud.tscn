@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" uid="uid://b4gyl0km8eqxx" path="res://ui/pause_menu.tscn" id="3_pause"]
 [ext_resource type="PackedScene" uid="uid://c55f072l2hflo" path="res://ui/alert_ladder.tscn" id="4_ladder"]
 [ext_resource type="PackedScene" uid="uid://dfscna6q7c7gy" path="res://ui/heist_end.tscn" id="5_end"]
+[ext_resource type="PackedScene" path="res://ui/exposure_badge.tscn" id="6_badge"]
+[ext_resource type="Script" path="res://ui/team_markers.gd" id="7_markers"]
 
 [node name="Hud" type="CanvasLayer"]
 layer = 10
@@ -163,6 +165,21 @@ layout_mode = 2
 size_flags_horizontal = 4
 size_flags_vertical = 0
 mouse_filter = 2
+
+[node name="ExposureBadge" parent="Root/Frame" instance=ExtResource("6_badge")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="TeamMarkers" type="Control" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("7_markers")
 
 [node name="PauseMenu" parent="Root" instance=ExtResource("3_pause")]
 unique_name_in_owner = true

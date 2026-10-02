@@ -14,6 +14,10 @@ MENU_ADDRESS_PLACEHOLDER,ör. 100.64.0.2,e.g. 100.64.0.2
 MENU_PORT_LABEL,PORT,PORT
 MENU_HOST_BUTTON,Host ol,Host
 MENU_JOIN_BUTTON,Katıl,Join
+MENU_VISION_LABEL,GÖRÜŞ,VISION
+MENU_VISION_OMNI,Çevresel 360°,All-round 360°
+MENU_VISION_DIRECTIONAL,Yönlü,Directional
+MENU_VISION_HINT,Herkese aynı. Yönlü: fare / sağ çubuk.,Same for all. Directional: your aim.
 MENU_QUIT_BUTTON,Çıkış,Quit
 MENU_CANCEL_BUTTON,Vazgeç,Cancel
 MENU_CONNECTING,%s:%d adresine bağlanılıyor…,Connecting to %s:%d…
@@ -55,6 +59,9 @@ ALERT_T1_4,—,—
 ALERT_T1_5,Polis,Police
 HUD_ALERT_LEVEL,%d · %s,%d · %s
 HUD_ALERT_TIMER,Polis gelir: %s,Police in %s
+HUD_EXPOSURE_HIDDEN,Gizli,Hidden
+HUD_EXPOSURE_VISIBLE,Görünür,Visible
+HUD_EXPOSURE_SEEN,Görüldü,Spotted
 END_DURATION_LABEL,SÜRE,TIME
 END_PAYOUT_LABEL,ÖDEME,PAYOUT
 END_LOOT,Ganimet,Loot

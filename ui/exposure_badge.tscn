@@ -1,0 +1,29 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/exposure_badge.gd" id="1_badge"]
+[ext_resource type="Script" path="res://ui/eye_icon.gd" id="2_eye"]
+
+[node name="ExposureBadge" type="PanelContainer"]
+size_flags_horizontal = 0
+size_flags_vertical = 8
+mouse_filter = 2
+theme_type_variation = &"HudChip"
+script = ExtResource("1_badge")
+
+[node name="Box" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="EyeIcon" type="Control" parent="Box"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(28, 28)
+layout_mode = 2
+size_flags_vertical = 4
+mouse_filter = 2
+script = ExtResource("2_eye")
+
+[node name="ExposureLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+vertical_alignment = 1
