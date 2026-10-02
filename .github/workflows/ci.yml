@@ -1,5 +1,7 @@
 # Uzak CI (mimari.md §5): tools/ci_local.sh ile aynı adımlar, aynı sırayla.
 # Adımlar ci_local.sh'tan tek tek çağrılır; adım eklenir/değişirse ikisi birlikte güncellenir.
+# dev ve main push'u: ci işi (godot import unit tools net). Yalnız main push'u: ci yeşilse build işi
+# (`tools/ci_local.sh godot import export`) Windows + Linux build'lerini artifact olarak yükler (IS-005).
 name: CI
 
 on:
@@ -47,3 +49,56 @@ jobs:
 
       - name: Ağ duman senaryoları (0 ve 150 ms)
         run: bash tools/ci_local.sh net
+
+  build:
+    name: Windows + Linux build
+    needs: ci
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Godot önbelleği
+        uses: actions/cache@v6
+        with:
+          path: .tools
+          key: godot-${{ runner.os }}-${{ hashFiles('tools/get_godot.sh') }}
+
+      # Şablonlar (~1,3 GB arşivden yalnız Windows/Linux x86_64) kullanıcı veri dizinine kurulur. Anahtar yalnız
+      # şablon sürümüne ve arşiv özetine bağlı (export.sh'ın geri kalanı değişince yeniden indirilmez).
+      - name: Export şablonları önbellek anahtarı
+        id: templates
+        run: echo "key=$(grep -E '^TEMPLATES_(VERSION|TPZ_SHA512)=' tools/export.sh | sha256sum | cut -c1-16)" >> "$GITHUB_OUTPUT"
+
+      - name: Export şablonları önbelleği
+        uses: actions/cache@v6
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: godot-templates-${{ runner.os }}-${{ steps.templates.outputs.key }}
+
+      - name: Godot getir
+        run: bash tools/ci_local.sh godot
+
+      - name: İçe aktarma (hata/uyarı yok)
+        run: bash tools/ci_local.sh import
+
+      - name: Build (Windows + Linux) ve Linux build'iyle duman koşusu
+        run: bash tools/ci_local.sh export
+
+      - name: Windows build'ini yükle
+        uses: actions/upload-artifact@v7
+        with:
+          name: insiders-windows-x86_64-${{ github.sha }}
+          path: build/windows/
+          if-no-files-found: error
+          retention-days: 30
+
+      # Zip içinde çalıştırma izni kaybolmasın diye Linux build'i tar.gz olarak yüklenir.
+      - name: Linux build'ini yükle
+        uses: actions/upload-artifact@v7
+        with:
+          name: insiders-linux-x86_64-${{ github.sha }}
+          path: build/Insiders-linux-x86_64.tar.gz
+          if-no-files-found: error
+          retention-days: 30

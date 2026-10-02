@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → araç testleri (Python) →
 # ağ duman senaryoları (0 ve 150 ms). İlk hatada sıfır olmayan kodla çıkar. Push öncesi yeşil olmalı.
-# Kullanım: tools/ci_local.sh [godot|import|unit|tools|net ...]   (adım verilmezse hepsi, bu sırayla)
+# Kullanım: tools/ci_local.sh [godot|import|unit|tools|net|export ...]
+#   Adım verilmezse godot import unit tools net (bu sırayla; dev ve main push'unda CI de bunları koşar).
+#   export yalnız açıkça istenir: tools/export.sh (Windows + Linux build'i build/'e, bu makinenin build'iyle
+#   duman koşusu); CI bunu yalnız main push'unda `godot import export` olarak koşar ve build'leri yükler.
 # Python: python3 → python → py -3 sırasıyla ilk >= 3.10 olan (Windows'ta Git Bash ile de çalışır).
 # .github/workflows/ci.yml aynı adımları aynı sırayla bu betikle koşar; biri değişirse diğeri de.
 set -euo pipefail
@@ -68,6 +71,11 @@ step_tools() {
 	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
 }
 
+# Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.
+step_export() {
+	bash tools/export.sh
+}
+
 step_net() {
 	shopt -s nullglob
 	local scenarios=(tests/net/*.json)
@@ -96,9 +104,9 @@ steps=("$@")
 started=$SECONDS
 for step in "${steps[@]}"; do
 	case "$step" in
-	godot | import | unit | tools | net) ;;
+	godot | import | unit | tools | net | export) ;;
 	*)
-		echo "Bilinmeyen adım: $step (godot|import|unit|tools|net)" >&2
+		echo "Bilinmeyen adım: $step (godot|import|unit|tools|net|export)" >&2
 		exit 2
 		;;
 	esac
