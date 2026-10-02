@@ -87,7 +87,7 @@ Kök `Level` (`levels/level.gd`, `class_name Level extends Node2D`, build_levels
 - **Üretim kuralı (US-002):** seviyeler `levels/layouts/<ad>.txt` ASCII düzeninden `levels/tools/build_levels.gd` ile üretilir (`$GODOT --headless --path . -s res://levels/tools/build_levels.gd`); `.tscn`'nin `Walls`/`Tiles`/`SpawnPoints`/`Markers` kısmı elle düzenlenmez, düzen değişikliği .txt'de yapılıp yeniden üretilir. `Players`, `Props`, `NPCs` altına eklenen düğümler yeniden üretimde korunur.
 - Ek düğüm `Tiles` (`LevelLayout`, `levels/level_layout.gd`): zemin/duvar çizimi ve ızgara bilgisi.
 - Kapı işaretleri (`FrontDoor`, `BackDoor`, `BackroomDoor` …): konum = 1 karoluk boşluğun merkezi; dönüş 0° → yatay duvarda, 90° → dikey duvarda.
-- Çarpışma şekil adları: `Bound*`, `Wall*`, `Window*` (Faz 2'de görüşü geçirir), `Shelf*`, `Counter*`.
+- Çarpışma şekil adları: `Bound*`, `Wall*`, `Window*` (Faz 2'de görüşü geçirir), `Shelf*`, `Counter*`, `Cooler*` (içecek dolabı, lejant `I`), `Crate*` (koli yığını, lejant `G`) — US-033; hepsi world katmanında (hem çarpışır hem görüşü keser), görüş ızgarası (US-011a) bunları katı sayar (`LevelLayout.is_solid`).
 
 ### S5 — Girdi eylemleri (project.godot, altyapi tanımlar)
 `move_up/down/left/right` (WASD + oklar + sol çubuk) · `sprint` (Shift) · `sneak` (Ctrl) · `interact` (E; basılı tut) · `intimidate` (Q) · `pause` (Esc + Start; IS-009) · `toggle_debug` (F3) · `ui_*` varsayılanlar (`ui_accept` + gamepad A, `ui_cancel` + gamepad B; IS-009). Gamepad eşlemeleri aynı eylemlere eklenir. Oyuncu girdisi doğrudan `Input` değil **`PlayerInput`** soyutlamasından okunur (S6 bot girdisi için).
