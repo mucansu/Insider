@@ -1,0 +1,24 @@
+{
+  "_doc": "IS-026: Net.get_ping_ms = max(yankı penceresinin medyanı, yanıtsız ikinci en eski isteğin yaşı); ayrı güvenilmez kanal; her iki yönde (istemci→host ping_ms.1, host→istemci ping_ms.<id>) ölçülür, en az 1 ms ve kare takılmasıyla şişmez: 0 ms'de ~1 kare (60 fps ≈ 17-33), --latency-ms 150'de ~150-170 (alt sınır net_smoke LATENCY_PROOF_RATIO). Üst sınır koşunun nominal RTT'si + 40 ms (0 ms'de <= 40, 150 ms'de <= 190). Kayıp ping'e ve takılmaya dayanıklılık birim testte (test_net.gd test_ping_stall_*); headless 60 fps'te eski ENet RTT de bu sınırı geçer (kare beklemesi küçük). Döküm ping.<id>.source == \"ping\" ve samples >= 8: değer yankı ölçümünden gelir (taşıma RTT'sine düşüş yakalanır). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/empty_level.tscn",
+  "player_scene": "res://tests/fixtures/dummy_player.tscn",
+  "clients": 2,
+  "duration": 6,
+  "expect": [
+    {"between": ["c1.ping_ms.1", 1, "$rtt+40"]},
+    {"between": ["c2.ping_ms.1", 1, "$rtt+40"]},
+    {"between": ["host.ping_ms.$c1", 1, "$rtt+40"]},
+    {"between": ["host.ping_ms.$c2", 1, "$rtt+40"]},
+    {"len": ["c1.ping_ms", 1]},
+    {"len": ["host.ping_ms", 2]},
+    {"eq": ["c1.ping.1.source", "ping"]},
+    {"eq": ["c2.ping.1.source", "ping"]},
+    {"eq": ["host.ping.$c1.source", "ping"]},
+    {"eq": ["host.ping.$c2.source", "ping"]},
+    {"between": ["c1.ping.1.samples", 8, 16]},
+    {"between": ["c2.ping.1.samples", 8, 16]},
+    {"between": ["host.ping.$c1.samples", 8, 16]},
+    {"between": ["host.ping.$c2.samples", 8, 16]},
+    {"eq": ["*.exit_reason", "quit_after"]}
+  ]
+}
