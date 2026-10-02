@@ -4,11 +4,13 @@ extends Control
 ## Net/Game'e yalnız S1/S3 sözleşmesiyle bağlanır; testler `net` ve `game`'i sahneye eklemeden önce
 ## sahte nesnelerle değiştirir. Seviye yüklenince (`level_loaded`) menü kendini kaldırır; host'ta seviye
 ## START_TIMEOUT_SEC içinde yüklenmezse oturum kapatılıp forma hatayla dönülür (Vazgeç de aynı yolu açar).
+## US-026: ad ve son katılınan adres ConnectInfo ayar dosyasından gelir ve host/katıl'da yazılır; host kartı
+## davet adresini (Kopyala) gösterir; katıl kartında Yapıştır ve "Gelişmiş" altında port.
 
 const SCENE_PATH := "res://ui/main_menu.tscn"
-const DEFAULT_PORT := 7777
-const MIN_PORT := 1024
-const MAX_PORT := 65535
+const DEFAULT_PORT := ConnectInfo.DEFAULT_PORT
+const MIN_PORT := ConnectInfo.MIN_PORT
+const MAX_PORT := ConnectInfo.MAX_PORT
 const MAX_NAME_LENGTH := 16
 ## Host'ta start_level sonrası level_loaded için beklenen en uzun süre (sn); sonra oturum kapatılır.
 const START_TIMEOUT_SEC := 10.0
@@ -22,6 +24,8 @@ var net: Object = Net
 var game: Object = Game
 ## Testler için: atanırsa Çıkış oyunu kapatmak yerine bunu çağırır.
 var quit_override: Callable
+## Testler için: () -> String; atanırsa Yapıştır sistem panosu yerine bunu okur.
+var clipboard_getter: Callable
 
 var state: State = State.IDLE
 ## STARTING durumunda geçen süre (sn).
@@ -34,6 +38,10 @@ var _starting_elapsed: float = 0.0
 @onready var _host_button: Button = %HostButton
 @onready var _join_address_edit: LineEdit = %JoinAddressEdit
 @onready var _join_port_edit: LineEdit = %JoinPortEdit
+@onready var _paste_button: Button = %PasteButton
+@onready var _advanced_button: Button = %AdvancedButton
+@onready var _advanced_grid: Control = %AdvancedGrid
+@onready var _host_invite: InvitePanel = %HostInvite
 @onready var _join_button: Button = %JoinButton
 @onready var _quit_button: Button = %QuitButton
 @onready var _cancel_button: Button = %CancelButton
@@ -59,12 +67,19 @@ func _ready() -> void:
 	_cancel_button.pressed.connect(_on_cancel_pressed)
 	_name_edit.text_submitted.connect(func(_t: String) -> void: _host_port_edit.grab_focus())
 	_host_port_edit.text_submitted.connect(func(_t: String) -> void: _on_host_pressed())
-	_join_address_edit.text_submitted.connect(func(_t: String) -> void: _join_port_edit.grab_focus())
+	_join_address_edit.text_submitted.connect(_on_address_submitted)
 	_join_port_edit.text_submitted.connect(func(_t: String) -> void: _on_join_pressed())
+	_paste_button.pressed.connect(_on_paste_pressed)
+	_advanced_button.toggled.connect(_on_advanced_toggled)
+	_host_port_edit.text_changed.connect(_on_host_port_changed)
+	_host_invite.focus_layout_changed.connect(_setup_focus)
+	_restore_settings()
 	net.connect(&"connected_to_host", _on_connected_to_host)
 	net.connect(&"connection_failed", _on_connection_failed)
 	net.connect(&"host_disconnected", _on_host_disconnected)
 	game.connect(&"level_loaded", _on_level_loaded)
+	for edit: LineEdit in [_name_edit, _host_port_edit, _join_address_edit, _join_port_edit]:
+		UiInput.arrows_move_focus(edit)
 	_setup_focus()
 	_set_state(State.IDLE)
 	_hide_error()
@@ -74,33 +89,13 @@ func _ready() -> void:
 	_focus_first()
 
 
-## "adres" ya da "adres:port" (IPv6 değilse); port yoksa `default_port`. Port geçersizse -1.
-static func parse_address(text: String, default_port: int) -> Dictionary:
-	var address: String = text.strip_edges()
-	var port: int = default_port
-	if address.count(":") == 1:
-		var parts: PackedStringArray = address.split(":")
-		address = parts[0].strip_edges()
-		port = parse_port(parts[1])
-	return {"address": address, "port": port}
-
-
-## Geçerli port ya da -1.
-static func parse_port(text: String) -> int:
-	var t: String = text.strip_edges()
-	if not t.is_valid_int():
-		return -1
-	var port: int = t.to_int()
-	return port if port >= MIN_PORT and port <= MAX_PORT else -1
-
-
 func _on_host_pressed() -> void:
 	if state != State.IDLE:
 		return
 	var player_name: String = _valid_name()
 	if player_name.is_empty():
 		return
-	var port: int = parse_port(_host_port_edit.text)
+	var port: int = ConnectInfo.parse_port(_host_port_edit.text)
 	if port < 0:
 		_fail(&"MENU_ERROR_PORT_INVALID", _host_port_edit)
 		return
@@ -111,6 +106,8 @@ func _on_host_pressed() -> void:
 		_show_error(tr(&"MENU_ERROR_HOST_FAILED") % port)
 		_host_port_edit.grab_focus()
 		return
+	ConnectInfo.hosted_port = port
+	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: player_name})
 	_set_state(State.STARTING)
 	_connecting_label.text = tr(&"MENU_STARTING")
 	game.call(&"start_level", Game.DEFAULT_LEVEL)
@@ -136,14 +133,23 @@ func _on_join_pressed() -> void:
 	var player_name: String = _valid_name()
 	if player_name.is_empty():
 		return
-	var target: Dictionary = parse_address(_join_address_edit.text, parse_port(_join_port_edit.text))
-	var address: String = target["address"]
-	var port: int = target["port"]
-	if address.is_empty():
+	# Tek ayrıştırıcı (ConnectInfo): adresteki port, Gelişmiş'teki porttan önce gelir.
+	var text: String = _join_address_edit.text.strip_edges()
+	if text.is_empty():
 		_fail(&"MENU_ERROR_ADDRESS_EMPTY", _join_address_edit)
 		return
-	if port < 0:
-		_fail(&"MENU_ERROR_PORT_INVALID", _join_port_edit)
+	var port_in_address: bool = text.count(":") == 1
+	var field_port: int = ConnectInfo.parse_port(_join_port_edit.text)
+	if not port_in_address and field_port < 0:
+		# Hatalı port yalnız Gelişmiş'teyse odak oraya; kapalıysa görünen alana (adres).
+		_fail(&"MENU_ERROR_PORT_INVALID", _join_port_edit if _advanced_grid.visible else _join_address_edit)
+		return
+	var target: Dictionary = ConnectInfo.parse_host_port(text, field_port)
+	var address: String = target["address"]
+	var port: int = target["port"]
+	if not target["ok"]:
+		var port_bad: bool = port_in_address and port < 0 and ConnectInfo.is_valid_host(address)
+		_fail(&"MENU_ERROR_PORT_INVALID" if port_bad else &"MENU_ERROR_ADDRESS_INVALID", _join_address_edit)
 		return
 	_hide_error()
 	game.call(&"set_local_name", player_name)
@@ -151,8 +157,56 @@ func _on_join_pressed() -> void:
 	if err != OK:
 		_fail(&"MENU_ERROR_JOIN_FAILED", _join_address_edit)
 		return
+	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: player_name,
+		ConnectInfo.KEY_ADDRESS: ConnectInfo.format_address(address, port)})
 	_set_state(State.CONNECTING)
 	_connecting_label.text = tr(&"MENU_CONNECTING") % [address, port]
+
+
+## Adres alanında Enter: port gizliyse doğrudan katıl, "Gelişmiş" açıksa porta geç.
+func _on_address_submitted(_text: String) -> void:
+	if _advanced_grid.visible:
+		_join_port_edit.grab_focus()
+	else:
+		_on_join_pressed()
+
+
+## Panodan "adres[:port]" alır (metnin içindeki ilk IPv4[:port] de olur); yoksa hata gösterir.
+func _on_paste_pressed() -> void:
+	if state != State.IDLE:
+		return
+	var found: Dictionary = ConnectInfo.find_invite(_read_clipboard())
+	if not found["ok"]:
+		_fail(&"MENU_ERROR_PASTE_INVALID", _paste_button)
+		return
+	_hide_error()
+	_join_address_edit.text = ConnectInfo.format_address(found["address"], found["port"])
+	_join_button.grab_focus()
+
+
+func _read_clipboard() -> String:
+	if clipboard_getter.is_valid():
+		return str(clipboard_getter.call())
+	if DisplayServer.has_feature(DisplayServer.FEATURE_CLIPBOARD):
+		return DisplayServer.clipboard_get()
+	return ""
+
+
+func _on_advanced_toggled(open: bool) -> void:
+	_advanced_grid.visible = open
+	_setup_focus()
+
+
+func _on_host_port_changed(text: String) -> void:
+	var port: int = ConnectInfo.parse_port(text)
+	_host_invite.port = port if port > 0 else DEFAULT_PORT
+
+
+## Son oturumun adı ve katılınan adresi alanlara yazılır (dosya yoksa/bozuksa alanlar boş kalır).
+func _restore_settings() -> void:
+	var saved: Dictionary = ConnectInfo.load_settings()
+	_name_edit.text = saved[ConnectInfo.KEY_NAME]
+	_join_address_edit.text = saved[ConnectInfo.KEY_ADDRESS]
 
 
 func _on_cancel_pressed() -> void:
@@ -232,25 +286,51 @@ func _set_state(value: State) -> void:
 		_cancel_button.grab_focus()
 
 
+## İlk açılışta ad alanı; ad ve son adres hatırlanıyorsa Katıl (tek tuşla katılım), yalnız ad varsa Host ol.
 func _focus_first() -> void:
 	if _name_edit.text.strip_edges().is_empty():
 		_name_edit.grab_focus()
+	elif not _join_address_edit.text.strip_edges().is_empty():
+		_join_button.grab_focus()
 	else:
 		_host_button.grab_focus()
 
 
-## Odak sırası (AC6): iki sütun (Host | Katıl); ad en üstte, Çıkış en altta.
+## Odak sırası (AC6): iki sütun (Host | Katıl); ad en üstte, Çıkış en altta. Satırlar: davet ↔ adres,
+## host portu ↔ Gelişmiş/port, Host ol ↔ Katıl. Yalnız görünen öğeler bağlanır; "Gelişmiş" açılıp
+## kapanınca (ya da davet bölümü değişince) yeniden kurulur.
 func _setup_focus() -> void:
-	UiInput.tab_ring([_name_edit, _host_port_edit, _host_button, _join_address_edit, _join_port_edit, _join_button, _quit_button])
-	UiInput.vertical([_name_edit, _host_port_edit, _host_button, _quit_button])
-	UiInput.vertical([_join_address_edit, _join_port_edit, _join_button], false)
+	var invite: Array[Control] = _host_invite.focus_controls()
+	var left: Array[Control] = [_name_edit]
+	left.append_array(invite)
+	left.append_array([_host_port_edit, _host_button, _quit_button] as Array[Control])
+	var right: Array[Control] = [_join_address_edit, _advanced_button]
+	if _advanced_grid.visible:
+		right.append(_join_port_edit)
+	right.append(_join_button)
+	var ring: Array[Control] = [_name_edit]
+	ring.append_array(invite)
+	ring.append_array([_host_port_edit, _host_button, _join_address_edit, _paste_button, _advanced_button] as Array[Control])
+	if _advanced_grid.visible:
+		ring.append(_join_port_edit)
+	ring.append_array([_join_button, _quit_button] as Array[Control])
+	UiInput.tab_ring(ring)
+	UiInput.vertical(left)
+	UiInput.vertical(right, false)
 	UiInput.link(_join_address_edit, SIDE_TOP, _name_edit)
 	UiInput.link(_join_button, SIDE_BOTTOM, _quit_button)
-	UiInput.link(_host_port_edit, SIDE_RIGHT, _join_address_edit)
-	UiInput.link(_host_button, SIDE_RIGHT, _join_button)
-	UiInput.link(_join_address_edit, SIDE_LEFT, _host_port_edit)
+	var invite_last: Control = invite[invite.size() - 1]
+	for c: Control in invite:
+		UiInput.link(c, SIDE_RIGHT, _join_address_edit)
+	UiInput.link(_join_address_edit, SIDE_LEFT, invite_last)
+	UiInput.link(_join_address_edit, SIDE_RIGHT, _paste_button)
+	# Yapıştır adres alanıyla aynı satırda: sol adres, yukarı ad, aşağı Gelişmiş.
+	UiInput.link(_paste_button, SIDE_LEFT, _join_address_edit)
+	UiInput.link(_paste_button, SIDE_TOP, _name_edit)
+	UiInput.link(_paste_button, SIDE_BOTTOM, _advanced_button)
+	UiInput.link(_host_port_edit, SIDE_RIGHT, _advanced_button)
+	UiInput.link(_advanced_button, SIDE_LEFT, _host_port_edit)
 	UiInput.link(_join_port_edit, SIDE_LEFT, _host_port_edit)
+	UiInput.link(_host_button, SIDE_RIGHT, _join_button)
 	UiInput.link(_join_button, SIDE_LEFT, _host_button)
 	UiInput.vertical([_cancel_button])
-	for edit: LineEdit in [_name_edit, _host_port_edit, _join_address_edit, _join_port_edit]:
-		UiInput.arrows_move_focus(edit)

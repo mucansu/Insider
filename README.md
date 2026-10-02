@@ -43,10 +43,15 @@ yönlendirme gerekmesin diye herkes aynı [Tailscale](https://tailscale.com/down
 
 1. **Herkes** Tailscale'i kurup oturum açar. Host arkadaşlarını kendi tailnet'ine davet eder (yönetim panelinde
    **Users → Invite users**) ya da yalnız kendi makinesini paylaşır (**Machines → … → Share**).
-2. **Host** kendi Tailscale adresini öğrenir: tepsi simgesindeki makine adı (100.x.y.z) ya da `tailscale ip -4`.
-3. **Host** oyunu açar, adını yazar, **Host ol** (port 7777). Güvenlik duvarı sorarsa izin verir.
-4. **Arkadaşlar** oyunu açar, **Katıl** bölümünde adrese host'un `100.x.y.z` adresini (MagicDNS açıksa makine adı
-   da olur), porta `7777` yazar.
+2. **Host** oyunu açar, adını yazar; **Oturumu sen aç** kartında davet adresini görür (`100.x.y.z:7777`;
+   Tailscale önce gelir) ve **Kopyala** ile arkadaşlarına (Discord vb.) gönderir. Kart "Tailscale yok" diyorsa
+   Tailscale çalışmıyordur; adres yine de `tailscale ip -4` ile öğrenilebilir. Oyunda da Esc menüsünde aynı
+   adres ve **Kopyala** vardır.
+3. **Host** **Host ol**'a basar (port 7777). Güvenlik duvarı sorarsa izin verir.
+4. **Arkadaşlar** oyunu açar, gelen adresi kopyalayıp **Katıl** kartında **Yapıştır**'a basar (adres alanına
+   `100.x.y.z` ya da `100.x.y.z:7777`, MagicDNS açıksa makine adı da yazılabilir), sonra **Katıl**. Port yalnız
+   **Gelişmiş** altındadır (varsayılan 7777); adres `adres:port` biçimindeyse oradaki port geçerlidir. Ad ve son
+   katılınan adres hatırlanır: sonraki açılışta tek tuşla katılınır.
 5. Bağlanmıyorsa: `tailscale ping <host-adı>` yanıt veriyor mu? Host'ta güvenlik duvarı izni (Insiders, gelen
    UDP 7777) var mı? Herkes aynı build'i mi kullanıyor (protokol sürümü farklıysa host bağlantıyı reddeder)?
    `tailscale status` satırında `relay` görünüyorsa trafik Tailscale aktarıcısından geçiyor: oyun çalışır ama ping

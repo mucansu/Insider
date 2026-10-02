@@ -10,6 +10,9 @@ const LOCALES: Array[String] = ["tr", "en"]
 const LONG_NAME := "WWWWWWWWWWWWWWWW"
 ## Bir piksel altı yuvarlama payı.
 const EPSILON := 0.5
+## En kalabalık davet bölümü (US-026): Tailscale yok (not satırı) ve en çok adayla, en uzun adresler.
+const WORST_ADDRESSES: Array[String] = ["192.168.100.100", "172.31.255.255", "10.100.100.100", "192.168.200.200",
+	"10.200.200.200", "172.16.100.100"]
 const SETTLE_FRAMES := 3
 
 
@@ -29,6 +32,16 @@ func test_main_menu_fits() -> void:
 		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
 			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
 			menu.get_node("%ErrorPanel")], label + " form")
+		# US-026: "Gelişmiş" açık (port görünür), davet notu görünür, en uzun yapıştırma hatası.
+		is_true((menu.get_node("%HostInvite").get_node("%NoteLabel") as Control).visible, label + ": davet notu")
+		(menu.get_node("%AdvancedButton") as Button).button_pressed = true
+		menu.clipboard_getter = func() -> String: return ""
+		(menu.get_node("%PasteButton") as Button).pressed.emit()
+		await _settle()
+		_check_fits(menu, size, label + " form+gelişmiş+hata")
+		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
+			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
+			menu.get_node("%ErrorPanel")], label + " form+gelişmiş")
 		# Bağlanıyor, en uzun adresle.
 		(menu.get_node("%JoinAddressEdit") as LineEdit).text = "w".repeat(60) + ".example.ts.net"
 		(menu.get_node("%JoinButton") as Button).pressed.emit()
@@ -42,6 +55,27 @@ func test_main_menu_fits() -> void:
 		await _settle()
 		eq(menu.state, MainMenu.State.STARTING, label)
 		_check_fits(menu, size, label + " host açılıyor")
+	)
+
+
+func test_pause_invite_fits() -> void:
+	# US-026: host'ta duraklat menüsü, davet listesi açık, en çok adayla (Tailscale yok → not satırı).
+	await _each_variant(func(size: Vector2i, label: String) -> void:
+		var ctx: Dictionary = await _open_hud(size)
+		var hud: Hud = ctx["hud"]
+		var net: Fakes.FakeNet = ctx["net"]
+		net.hosting = true
+		var pause: PauseMenu = hud.get_node("%PauseMenu") as PauseMenu
+		pause.net = net
+		var invite: InvitePanel = pause.get_node("%Invite") as InvitePanel
+		invite.addresses_provider = func() -> PackedStringArray: return PackedStringArray(WORST_ADDRESSES)
+		ConnectInfo.hosted_port = ConnectInfo.MAX_PORT
+		hud.toggle_pause()
+		(invite.get_node("%AddressButton") as Button).button_pressed = true
+		await _settle()
+		is_true(invite.visible and invite.is_list_open(), label + ": davet listesi açık")
+		_check_fits(pause, size, label + " duraklat+davet")
+		ConnectInfo.hosted_port = 0
 	)
 
 
@@ -113,6 +147,8 @@ func _open_menu(size: Vector2i) -> Dictionary:
 	var menu: MainMenu = (load("res://ui/main_menu.tscn") as PackedScene).instantiate() as MainMenu
 	menu.net = pair[0]
 	menu.game = pair[1]
+	(menu.get_node("%HostInvite") as InvitePanel).addresses_provider = func() -> PackedStringArray:
+		return PackedStringArray(WORST_ADDRESSES)
 	_viewport(size).add_child(menu)
 	await _settle()
 	return {"menu": menu, "net": pair[0], "game": pair[1]}
