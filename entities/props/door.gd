@@ -16,7 +16,7 @@ extends Node2D
 
 const DEF_PATH := "res://data/props/door.tres"
 ## Kapanmayı engelleyen gövdelerin fizik katmanı: players (mimari.md §4, 2. katman).
-const BLOCKER_LAYERS := 1 << 1
+const BLOCKER_LAYERS := PhysicsLayers.PLAYERS
 
 @export var def: PropDef
 
