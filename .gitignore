@@ -9,3 +9,6 @@ build/
 *.tmp
 # Python
 __pycache__/
+
+# Ajan worktree'leri (Claude Code)
+.claude/worktrees/

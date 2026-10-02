@@ -62,7 +62,7 @@ tasarim ajanı (Fable) oyunun gidişatını belirli noktalarda değerlendirir; s
 
 ## 6. Paralellik ve worktree
 - Varsayılan sıralı, ana çalışma ağacında (repo kökü, dev).
-- Paralel paket: kalem başına worktree `git worktree add ../insiders-wt/<kalem> -b wt/<kalem> dev`; ajan yalnız o yolda çalışır; denetci aynı worktree'de denetler; PASS sonrası koordinatör worktree'de kimlik önekli commit'i atar, dev'e `git merge --no-ff wt/<kalem>` (dosya kümeleri ayrık olduğu için çakışmasız), worktree ve branch silinir.
+- Paralel paket: kalem başına worktree — Agent aracının `isolation: "worktree"` seçeneği `.claude/worktrees/agent-<id>` altında `worktree-agent-<id>` dalı açar; taban `.claude/settings.json` `worktree.baseRef = head` ile ana checkout'un HEAD'i (dev). Faz entegrasyon dalında (ör. `faz2-int`, worktree `.claude/worktrees/faz2-int`) çalışan paket işe `git reset -q --hard <dal>` ile başlar. Ajan yalnız o yolda çalışır; denetci aynı worktree'de denetler; PASS sonrası koordinatör worktree'de kimlik önekli commit'i atar ve hedef dala (`dev` ya da `faz2-int`) `git merge --no-ff` eder; ortak dosyalardaki (game.gd, player.gd, texts.csv, store_a.tscn, args.gd) çakışmaları koordinatör iki tarafın eklemelerini koruyarak çözer ve birleşik ağaçta import + unit koşar. Scratchpad'de her ajan BENZERSİZ alt klasör kullanır.
 - `project.godot`'u değiştiren iki paket aynı anda çalışmaz.
 
 ## 7. Faz plan / kapanış mesajı

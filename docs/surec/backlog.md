@@ -279,7 +279,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-049 | Deterministik zaman: `core/clock.gd` (sahte saat) — üretimde `Time.get_ticks_*` 8 yer, testlerde duvar saati döngüleri | 2 | cekirdek + oynanis | P2 | S | — | Backlog | |
 | IS-050 | Autoload test dikişleri (testlerin 33 özel üye erişimi → açık test API'si), IS-040 öncesi | 2 | cekirdek | P2 | S | — | Backlog | |
 | IS-051 | gdlint (gdtoolkit 4.5) yalnız `max-file-lines: 400` + adlandırma, `--check`; gdformat yok | 3 | altyapi | P3 | XS | — | Backlog | |
-| IS-052 | Süreç: worktree tabanı (ajan worktree'si güncel dalı alsın; ayar doğrulanıyor) + `.gitignore` `.claude/worktrees/` + surec.md §6 yol düzeltmesi (teknik/ajan-sureci.md) | 2 | koordinatör + altyapi | P1 | XS | — | Backlog | |
+| IS-052 | Süreç: worktree tabanı (ajan worktree'si güncel dalı alsın; ayar doğrulanıyor) + `.gitignore` `.claude/worktrees/` + surec.md §6 yol düzeltmesi (teknik/ajan-sureci.md) | 2 | koordinatör + altyapi | P1 | XS | — | Bitti (2026-10-02; koordinatör: settings.json baseRef, .gitignore, surec.md §6) | |
 | IS-053 | Süreç: ajan hook'ları v1 (PreToolUse: ajanlarda git commit/push, pano dosyaları ve Dokunulmayacak yollar engellenir; denetci yazamaz) | 2 | altyapi | P1 | S | IS-052 | Backlog | |
 | IS-054 | Süreç: denetim kontrol listesi v2 — M/ağ kalemlerinde çürütme ajanı 1-3 ajanın görmediği (holdout) test yazar + denetci 2-3 elle mutant uygular; denetci/çürütme effort xhigh | 2 | koordinatör | P1 | XS | — | Backlog | |
 | IS-055 | Süreç: pano lint (`tools/pano_check.py`: S-sayısı, kimlik tekilliği, durum değerleri, ölü yol) + ortak ajan kuralları tek kaynak + backlog §0 paket sınırı güncel | 2 | altyapi | P2 | S | — | Backlog | |
