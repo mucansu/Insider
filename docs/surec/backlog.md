@@ -36,7 +36,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Bitti (A: a30c69c; B: degerlendirmeler/faz-1.md, ON-01..09) | |
-| IS-027 | Test-1 görünüm cilası: kamera yakınlaştırma 1,5 (ayarlanabilir) + harita sınırına kenetleme, arka plan BG token'ı (ON-01, ON-07) | 1 | oynanis | P1 | XS | — | Sürüyor (2026-10-02; worktree) | |
+| IS-027 | Test-1 görünüm cilası: kamera yakınlaştırma 1,5 (ayarlanabilir) + harita sınırına kenetleme, arka plan BG token'ı (ON-01, ON-07) | 1 | oynanis | P1 | XS | — | Bitti | e99319b |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
 | IS-009 | Girdi haritası (`pause`, ui gamepad) + US-003 nit'leri | 1 | arayuz | P1 | S | US-003 | Bitti | 332fb08 |
 
