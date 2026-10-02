@@ -50,6 +50,7 @@ static func open(tree: SceneTree, error_key: StringName = &"") -> void:
 
 func _ready() -> void:
 	ThemeTokens.apply(self)
+	UiSfx.wire_buttons(self)
 	_name_edit.max_length = MAX_NAME_LENGTH
 	_host_port_edit.text = str(DEFAULT_PORT)
 	_join_port_edit.text = str(DEFAULT_PORT)

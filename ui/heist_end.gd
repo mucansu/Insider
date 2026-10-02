@@ -16,6 +16,9 @@ signal opened()
 
 ## Kayıp sonuçları: başlık uyarı renginde.
 const LOSS_OUTCOMES: Array[StringName] = [&"caught_all", &"police"]
+## Ses kataloğu olayları (data/sfx_catalog.tres; IS-024).
+const STINGER_WIN := &"stinger_success"
+const STINGER_LOSS := &"stinger_caught"
 const OUTCOME_KEY_PREFIX := "END_OUTCOME_"
 const NOTE_KEY_PREFIX := "NOTE_"
 const DESC_SUFFIX := "_DESC"
@@ -47,6 +50,7 @@ var _result: Dictionary = {}
 
 func _ready() -> void:
 	ThemeTokens.apply(self)
+	UiSfx.wire_buttons(self)
 	hide()
 	UiInput.block_gameplay_while_visible(self)
 	_retry_button.pressed.connect(_on_retry_pressed)
@@ -95,6 +99,7 @@ func show_result(value: Dictionary) -> void:
 	show()
 	opened.emit()
 	(_retry_button if _retry_button.visible else _menu_button).grab_focus()
+	UiSfx.of(self).play_event(stinger_event())  # odak tikinden sonra: stinger kesilmesin
 
 
 ## "Bir daha" sunulabilir mi: Game S3 ekindeki yeniden başlatma isteğini taşıyor.
@@ -118,6 +123,11 @@ func _on_retry_pressed() -> void:
 
 func outcome() -> StringName:
 	return StringName(str(_result.get("outcome", "")))
+
+
+## Açılış vurgusu (IS-024; ses-ve-sfx §1 kural 5): kayıpta yakalanma stinger'ı, değilse kısa olumlu jingle.
+func stinger_event() -> StringName:
+	return STINGER_LOSS if LOSS_OUTCOMES.has(outcome()) else STINGER_WIN
 
 
 func _fill_header() -> void:

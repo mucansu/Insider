@@ -42,6 +42,7 @@ func _ready() -> void:
 	_interactable.completed.connect(_on_completed)
 	_interactable.start_blocker = is_closing_blocked
 	_start_open = is_open
+	SfxEmitter.of(self)  # IS-024: ilk eşitleme (taban durum) sessiz kalsın diye çalar baştan kurulur
 	_apply(false)
 	add_to_group(PropDump.GROUP)
 	PropDump.register()
@@ -97,6 +98,7 @@ func dump_state() -> Dictionary:
 		"consistent": is_open == (_start_open != (_flips % 2 == 1)),
 		"visible_delay_ms": (_seen_at - changed_at) * 1000.0 if _seen_at >= 0.0 else -1.0,
 		"interact": _interactable.stats(),
+		"sfx": SfxEmitter.of(self).stats(),
 	}
 
 
@@ -115,6 +117,7 @@ func _set_open(value: bool) -> void:
 	_flips += 1
 	_seen_at = PropDump.wall_time()
 	_apply(true)
+	SfxEmitter.play_on_change(self, &"door_open" if is_open else &"door_close")  # IS-024: yerel ses
 
 
 ## `deferred`: fizik geri çağrısı ya da ağ eşitlemesi sırasında şekil bir sonraki boşta değişir.

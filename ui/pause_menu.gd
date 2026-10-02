@@ -13,6 +13,7 @@ signal leave_requested()
 
 func _ready() -> void:
 	ThemeTokens.apply(self)
+	UiSfx.wire_buttons(self)
 	hide()
 	UiInput.block_gameplay_while_visible(self)
 	_resume_button.pressed.connect(close)
