@@ -140,6 +140,7 @@ Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc
 1 `world` (duvar, kapalı kapı) · 2 `players` · 3 `npcs` · 4 `interactables` · 5 `triggers` (bölge alanları) · 6 `vision_block` (görüşü kesen ama yürünebilen; Faz 2).
 
 - **Birim:** `godot --headless --path . -s res://tests/run_tests.gd` → `tests/unit/test_*.gd` içindeki `test_*` metotları; doğrulamalar `tests/t.gd`; çıkış kodu 0/1.
+- **Performans dökümü (IS-067, S6 eki):** Args `--perf` (bayrak), `--perf-seconds=N` (1-600, varsayılan 10); döküm `"render"`: fps (ort, en düşük, %1), kare p50/p95/p99, draw call/nesne/ilkel, `process_ms`/`physics_ms` (kendi ölçümü: process_frame → son `_process`), `process_total_ms` (process_frame → frame_pre_draw; yalnız pencereli), motor `process_max_1s_ms`/`physics_max_1s_ms`, viewport CPU/GPU ms, adapter/vendor/api/driver/ekran; headless'ta `headless:true, valid:false`. `--perf` pencerede otomasyonun 60 FPS sınırını kaldırır. Araç `tools/perf_run.py` (CI dışı), arkadaşlar için build yanında `perf_dump.bat`. Kod `perf_probe.gd` (main'in yanında).
 - **Gönderim ilkesi (S2 eki):** tek RPC yükü ≤ 1 KB (Tailscale MTU 1280; ENet MTU'yu aşanı parçalayıp güvenilire çevirir).
 - **Ağ duman:** S6; her ağ davranışı en az bir senaryo taşır; senaryolar 0 ms ve 150 ms RTT ile geçer.
 - **İçe aktarma temizliği:** `godot --headless --path . --import` hata/uyarı-hata vermez.
