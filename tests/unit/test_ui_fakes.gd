@@ -4,29 +4,10 @@ extends TestCase
 ## Buradaki testler: sahteler gerçek autoload betikleriyle aynı imzayı taşır; ui/ betikleri Net/Game'de
 ## yalnız S1/S3 sözleşmesindeki sinyal ve fonksiyonları kullanır (mimari.md §6).
 
-## S1 ve S3'teki genel adlar (docs/notes/mimari.md).
-const CONTRACT := {
-	"Net": [
-		"peer_connected", "peer_disconnected", "connected_to_host", "connection_failed", "host_disconnected",
-		"host", "join", "leave", "is_host", "is_online", "local_peer_id", "get_ping_ms",
-	],
-	"Game": [
-		"players_changed", "local_player_changed", "team_cash_changed", "level_loaded", "session_event",
-		"set_local_name", "players", "local_player", "start_level", "current_level", "add_team_cash",
-		"team_cash", "raise_session_event", "register_dump_provider", "collect_dump",
-		# S3 eki (Faz 2, KR-021; US-008/US-012/US-013).
-		"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result",
-		"request_restart", "venue_tier",
-		# S3 eki (mimari.md, US-011b/c; Faz 2): görüş kipi ve maruziyet.
-		"player_exposure_changed", "player_exposure", "player_world_position", "vision_mode", "set_vision_mode",
-	],
-}
-## Sözleşmede olup gerçek autoload'a henüz gelmemiş üyeler (S3 eki: US-008/US-012/US-011b yazacak). Gerçek betikte
-## yoksa varlık/imza denetimi atlanır; geldiğinde sahteyle aynı imzayı taşımalıdır (denetim kendiliğinden açılır).
-const PENDING := {"Game": [
-	"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result", "request_restart", "venue_tier",
-	"player_exposure_changed", "player_exposure", "player_world_position", "vision_mode", "set_vision_mode",
-]}
+## S1 ve S3'teki genel adlar ve henüz gerçek autoload'a gelmemiş (PENDING) üyeler tek kaynakta: tests/contracts.gd
+## (IS-039; test_smoke.gd de imzaları oradan okur). PENDING üye gerçek betikte yoksa varlık/imza denetimi atlanır;
+## geldiğinde sahteyle aynı imzayı taşımalıdır (denetim kendiliğinden açılır).
+const Contracts := preload("res://tests/contracts.gd")
 const REAL_SCRIPTS := {"Net": "res://autoload/net.gd", "Game": "res://autoload/game.gd"}
 ## ui/ betiklerinde bağımlılık değişkeni adı -> autoload.
 const UI_VARS := {"net": "Net", "game": "Game"}
@@ -197,7 +178,7 @@ func test_fakes_match_real_autoload_signatures() -> void:
 		var real_surface: Dictionary = _surface(real)
 		for entry: String in _surface(fake):
 			var member: String = entry.get_slice("/", 0)
-			if not is_true((CONTRACT[autoload_name] as Array).has(member), "%s sahtesinde sözleşme dışı üye: %s" % [autoload_name, member]):
+			if not is_true(Contracts.names(autoload_name).has(member), "%s sahtesinde sözleşme dışı üye: %s" % [autoload_name, member]):
 				continue
 			if _pending(autoload_name, member) and not _has_member(real_surface, member):
 				continue  # sözleşmeli ama gerçek betiğe henüz gelmedi
@@ -219,7 +200,7 @@ func test_ui_uses_only_contract_members() -> void:
 	for key: String in used:
 		var autoload_name: String = key.get_slice(".", 0)
 		var member: String = key.get_slice(".", 1)
-		is_true((CONTRACT[autoload_name] as Array).has(member), "%s sözleşmede yok (%s)" % [key, used[key]])
+		is_true(Contracts.names(autoload_name).has(member), "%s sözleşmede yok (%s)" % [key, used[key]])
 		var real: Script = load(REAL_SCRIPTS[autoload_name]) as Script
 		var names: Dictionary = {}
 		for entry: String in _surface(real):
@@ -230,7 +211,7 @@ func test_ui_uses_only_contract_members() -> void:
 # --- yardımcılar ---
 
 static func _pending(autoload_name: String, member: String) -> bool:
-	return (PENDING.get(autoload_name, []) as Array).has(member)
+	return Contracts.is_pending(autoload_name, member)
 
 
 static func _has_member(surface: Dictionary, member: String) -> bool:
