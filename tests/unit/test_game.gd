@@ -240,8 +240,9 @@ func test_leave_during_handshake_cleans_up() -> void:
 	api.auth_callback = func(peer_id: int, _data: PackedByteArray) -> void:
 		if accept[0]:
 			api.complete_auth(peer_id)
-	api.peer_authenticating.connect(func(peer_id: int) -> void:
-		api.send_auth(peer_id, var_to_bytes({"v": Game.PROTOCOL_VERSION, "level": LEVEL})))
+	var on_authenticating: Callable = func(peer_id: int) -> void:
+		api.send_auth(peer_id, var_to_bytes({"v": Game.PROTOCOL_VERSION, "level": LEVEL}))
+	api.peer_authenticating.connect(on_authenticating)
 	api.multiplayer_peer = server
 	var connected: Array[bool] = [false]
 	var on_connected: Callable = func() -> void: connected[0] = true
@@ -276,6 +277,10 @@ func test_leave_during_handshake_cleans_up() -> void:
 	is_true(Game.current_level() == null)
 	server.close()
 	api.multiplayer_peer = OfflineMultiplayerPeer.new()
+	# IS-029: iki lambda da `api`yi yakalıyor ve `api` üzerinde saklanıyor (döngü); kırılmazsa
+	# SceneMultiplayer, test örneği ve betikleri çıkışta sızar ("leaked"/"still in use").
+	api.auth_callback = Callable()
+	api.peer_authenticating.disconnect(on_authenticating)
 	tree().set_multiplayer(null, fake_root.get_path())
 	fake_root.queue_free()
 	await tree().process_frame

@@ -20,7 +20,7 @@ Steam'de arkadaş davetiyle oynanan, 3 kişilik (2-4) online co-op, 2D üstten s
 | surec/geri-bildirim.md | Kullanıcı/oyun testi geri bildirimi geldiğinde |
 | surec/oneriler.md | Fable tasarım önerileri (ON); faz planı hazırlarken |
 | tasarim/degerlendirmeler/ | Fable'ın faz değerlendirme raporları |
-| notes/assetler.md | (Faz 4'te açılır) dış asset kaynakları ve lisansları |
+| notes/assetler.md | dış asset kaynakları, lisansları ve yer tutucu durumu (IS-024'ten beri; ses kataloğu `data/sfx_catalog.tres`) |
 
 ## Ortak kararlar (ayrıntı kararlar.md)
 - Konsept KR-001 · Steam online, 3 kişi, 2 İsveç + 1 Türkiye KR-002 · 2D önce KR-003 · hafızaya dayalı keşif KR-004 · noir ton + kozmetik ton seçimi KR-005 · minimal çatışma KR-006 · Godot 4.7.2 + GDScript KR-007 · host yetkili ağ KR-008 · test yöntemi KR-009 · süreç KR-010 · faz planı KR-015.

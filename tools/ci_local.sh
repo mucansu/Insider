@@ -42,8 +42,30 @@ step_import() {
 	echo "İçe aktarma temiz."
 }
 
+# Birim testler. Koşucu çıkış kodunu verir; motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
+# kaynak, RID: "... leaked at exit" / "... still in use at exit") koşucudan sonra geldiğinden burada
+# yakalanır: biri bile varsa adım başarısız ve kaynaklar --verbose ikinci koşuyla listelenir (IS-029).
+# (import adımı bu satırları zaten genel ERROR/WARNING kuralıyla yakalar.)
+LEAK_PATTERN='(leaked|still in use) at exit'
 step_unit() {
-	"$GODOT" --headless --path . -s res://tests/run_tests.gd
+	local log code
+	log="$(mktemp)"
+	set +e
+	"$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee "$log"
+	code=${PIPESTATUS[0]}
+	set -e
+	local leaks
+	leaks="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "$LEAK_PATTERN" || true)"
+	rm -f "$log"
+	((code == 0)) || return "$code"
+	if [[ -n "$leaks" ]]; then
+		echo "Birim koşusu çıkışta sızıntı bıraktı:"
+		echo "$leaks"
+		echo "Kaynaklar (--verbose ikinci koşu; test başına izole etmek için -- --filter=METİN):"
+		"$GODOT" --headless --verbose --path . -s res://tests/run_tests.gd 2>&1 \
+			| sed 's/\x1b\[[0-9;]*m//g' | grep -E '^(Leaked instance|Resource still in use|Hint: Leaked)' || true
+		return 1
+	fi
 }
 
 # Python yorumlayıcısı (dizi: `py -3` iki sözcük). İlk kullanımda bulunur; yoksa adım başarısız.
