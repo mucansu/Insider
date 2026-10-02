@@ -5,12 +5,16 @@ extends RefCounted
 ## Oyun için anlamlı renkler (CashLabel, AlertLabel, AlertPanel) tondan değil ThemeTokens.GAMEPLAY_*'dan gelir.
 ##
 ## Tür varyasyonları (sahnelerde `theme_type_variation`):
-##   Label: TitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel
+##   Label: TitleLabel, AlertTitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel
 ##   Button: PrimaryButton · HSeparator: AccentSeparator · MarginContainer: HudFrame
-##   PanelContainer: CardPanel, HudPanel, ToastPanel, AlertPanel · Panel: BackgroundPanel, DimPanel
-##   VBoxContainer: LooseVBox · HBoxContainer: LooseHBox
+##   PanelContainer: CardPanel, HudPanel, HudChip, ToastPanel, AlertPanel, LadderStep, LadderStepActive
+##   Panel: BackgroundPanel, DimPanel · VBoxContainer: LooseVBox · HBoxContainer: LooseHBox
 
 const HUD_PANEL_ALPHA := 0.88
+## HUD köşe ögeleri (nakit, ekip, uyarı merdiveni; US-013): haritayı az örten dar panel. Alfa, en açık dünya
+## zemini (cam) üstünde bile MUTED ≥ 4,5 kalacak kadar yüksek (test_ui_theme: test_hud_chip_readable_over_world).
+const HUD_CHIP_ALPHA := 0.94
+const HUD_CHIP_PAD := Vector2i(10, 4)
 const TOAST_PANEL_ALPHA := 0.94
 const DIM_ALPHA := 0.78
 const SELECTION_ALPHA := 0.35
@@ -44,6 +48,9 @@ static func _labels(t: Theme, tone: Tone) -> void:
 	t.set_font(&"font", &"TitleLabel", title_font)
 	t.set_font_size(&"font_size", &"TitleLabel", tone.font_size_title)
 	t.set_color(&"font_color", &"TitleLabel", tone.fg_color)
+	# Kayıp sonucu başlığı (US-013 iş sonu ekranı): TitleLabel, uyarı renginde.
+	_variation(t, &"AlertTitleLabel", &"TitleLabel")
+	t.set_color(&"font_color", &"AlertTitleLabel", ThemeTokens.GAMEPLAY_ALERT)
 	_variation(t, &"HeadingLabel", &"Label")
 	t.set_font_size(&"font_size", &"HeadingLabel", tone.font_size_heading)
 	t.set_color(&"font_color", &"HeadingLabel", tone.fg_color)
@@ -121,6 +128,19 @@ static func _panels(t: Theme, tone: Tone) -> void:
 	t.set_stylebox(&"panel", &"ToastPanel", _stripe_box("toast", toast_bg, tone.accent_color, tone, TOAST_PAD))
 	_variation(t, &"AlertPanel", &"PanelContainer")
 	t.set_stylebox(&"panel", &"AlertPanel", _stripe_box("alert", tone.surface_color, ThemeTokens.GAMEPLAY_ALERT, tone, HUD_PAD))
+
+	_variation(t, &"HudChip", &"PanelContainer")
+	var chip_bg: Color = tone.surface_color
+	chip_bg.a = HUD_CHIP_ALPHA
+	var chip_line: Color = tone.line_color
+	chip_line.a = HUD_CHIP_ALPHA
+	t.set_stylebox(&"panel", &"HudChip", _box("hud_chip", chip_bg, chip_line, tone.border_width, tone, HUD_CHIP_PAD))
+	# Uyarı merdiveni kutuları (US-013): boş kutu MUTED çerçeve (metin dışı öge ≥ 3:1; LINE zeminde
+	# seçilmez), dolu kutu GAMEPLAY_ALERT dolgu. Boyut sahnede (≥ 22 px), iç boşluk yok.
+	_variation(t, &"LadderStep", &"PanelContainer")
+	t.set_stylebox(&"panel", &"LadderStep", _box("ladder_step", tone.bg_color, tone.muted_color, tone.focus_width, tone, Vector2i.ZERO))
+	_variation(t, &"LadderStepActive", &"PanelContainer")
+	t.set_stylebox(&"panel", &"LadderStepActive", _box("ladder_step_active", ThemeTokens.GAMEPLAY_ALERT, ThemeTokens.GAMEPLAY_ALERT, tone.focus_width, tone, Vector2i.ZERO))
 
 	_variation(t, &"BackgroundPanel", &"Panel")
 	t.set_stylebox(&"panel", &"BackgroundPanel", _box("background", tone.bg_color, tone.bg_color, 0, tone, Vector2i.ZERO))
