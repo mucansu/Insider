@@ -29,10 +29,12 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-010 | OOP/genişletilebilirlik (A) uygulaması: Level API, slot, bağımlılık yönü | 1 | cekirdek | P1 | S | US-001 | Bitti | f6bd55c |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
-| IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Hazır | |
-| IS-005 | Faz 1 çıkış testi + Windows/Linux build | 1 | altyapi | P1 | M | US-003, US-005 | Backlog | |
-| IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005 | Backlog | |
-| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | IS-005 | Backlog | |
+| IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Sürüyor (2026-10-02) | |
+| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005, IS-012 | Hazır (IS-012 sonrası) | |
+| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (2026-10-02; worktree) | |
+| IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Hazır | |
+| IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
+| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
 | IS-009 | Girdi haritası (`pause`, ui gamepad) + US-003 nit'leri | 1 | arayuz | P1 | S | US-003 | Bitti | 332fb08 |
 
@@ -136,11 +138,25 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 **Dokunulmayacak:** autoload/{net,args,game}.gd, ui/**, project.godot, levels/store_a.tscn'nin Props dışı
 **Oku:** mimari.md S2, S7 · GDD §6.3, §12
 
-### IS-005 — Faz 1 çıkış testi + Windows/Linux build
-EP-01 · P1 · M · Sahip: altyapi · Bağımlılık: US-003, US-005
-**Kabul:** (1) `tests/net/faz1_full.json`: host + 2 istemci store_a'da; biri arka kapıyı açar, biri kasayı boşaltır; tüm peer'larda team_cash 150; 0 ve 150 ms; ayrıca GDD §12 "sert ağ" profili (150 ms + 30 ms jitter + %1 kayıp) gerçek oyuncu sahnesiyle `store_walk` ve `faz1_full` için koşulur (KR günlüğü US-001). (2) `tools/soak.sh`: host + 2 bot 10 dk dolaşır, log'da hata/uyarı yok. (3) `export_presets.cfg` (Windows Desktop, Linux) + `tools/export.sh` export şablonlarını indirip `build/`'e iki platform çıktısı üretir; CI `main` push'unda build'leri artifact olarak yükler. (4) (`tools/test_latency_proxy.py`'nin ci_local'a eklenmesi IS-011'e taşındı) (entities/ kapsülleme taraması US-004'te `test_player_rules.gd` ile geldi; tekrar yazılmaz) gerçek oyuncu sahnesiyle geç katılma senaryosu (tampon boşken konuma dokunulmaz kuralı + Game yetiştirme akışı; geç katılan değişmiş prop durumunu — boş kasa, çevrilmiş kapı — alır (US-005 denetiminde geçici senaryoyla doğrulandı, kalıcılaştırılır); mevcut store_late_move `dummy_player` fikstürüyle koşuyor; US-004 inceleme nit'i); S4 Level API imzaları (tipleriyle) test_smoke CONTRACTS'a; net_smoke `known` ara düğümün zamanı kayıttan farklıysa çocukları aranmaz (IS-011 denetci nit'i); test_deps `uid://` ile ui başvurusunu da yakalar (IS-010 denetci nit'leri). (5) README'ye "Arkadaşla internet üzerinden (Tailscale)" ve "Build'i çalıştırma" bölümleri; renderer seçimi (Forward+ / Compatibility) arkadaş makineleri için değerlendirilir. (6) `tools/ci_local.sh` tüm senaryolarla yeşil.
-**Dokunulacak:** tests/net/faz1_full.json, tests/net/bots/**, tools/{soak,export}.sh, export_presets.cfg, .github/workflows/**, README.md, tools/ci_local.sh
-**Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**
+### IS-005 — Faz 1 build: Windows/Linux export, CI artifact, README
+EP-01 · P1 · S · Sahip: altyapi · Bağımlılık: US-005, IS-012 (altyapi tek paket) · Çıkış kriteri 5
+Not (2026-10-02): eski IS-005'in ağ senaryoları ve dayanıklılık kısmı IS-013'e (cekirdek) bölündü; bu kart build ve teslim kısmıdır.
+**Kabul:** (1) `export_presets.cfg` (Windows Desktop, Linux) + `tools/export.sh`: export şablonlarını (4.7.2, SHA doğrulamalı) indirip `build/`'e iki platform çıktısı üretir; Windows'ta (Git Bash) ve Linux'ta çalışır; üretilen Windows build'i headless `--quit-after` ile açılıp kapanır. (2) CI: `main` push'unda iki platform build'i artifact olarak yüklenir (dev push'unda yalnız ci_local adımları). (3) IS-010 denetci nit'leri: S4 Level API imzaları (tipleriyle) test_smoke CONTRACTS'a; test_deps `uid://` ile ui başvurusunu da yakalar. (4) README'ye "Arkadaşla internet üzerinden (Tailscale)" ve "Build'i çalıştırma" bölümleri; renderer seçimi (Forward+ / Compatibility) arkadaş makineleri için değerlendirilir, karar raporda "Karar gereken". (5) `tools/ci_local.sh` tam yeşil.
+**Dokunulacak:** export_presets.cfg, tools/export.sh, .github/workflows/**, README.md, tools/ci_local.sh (yalnız gerekirse), tests/unit/test_smoke.gd, tests/unit/test_deps*.gd, .gitignore
+**Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**, core/**, tests/net/**, tools/{net_smoke,latency_proxy}.py
+
+### IS-013 — Faz 1 çıkış senaryoları (tam soygun, sert ağ, dayanıklılık, geç katılma)
+EP-01 · P1 · M · Sahip: cekirdek · Sözleşme: S2, S6, S7 · Bağımlılık: US-005 · Çıkış kriterleri 1-4
+**Kabul:** (1) `tests/net/faz1_full.json`: store_a'da host + 2 istemci gerçek oyuncu sahnesiyle; biri arka kapıyı açar, biri kasayı tezgâh arkasından boşaltır; tüm peer'larda team_cash 150, kasa boş, kapı durumu eşit; kasa sonucunun her peer'da görünme gecikmesi ≤ RTT + 200 ms beklentiyle ölçülür (çıkış kriteri 3); hareket sırasında senkron farkı < 32 px (kriter 2); 0 ve 150 ms. (2) GDD §12 "sert ağ" profili (150 ms + 30 ms jitter + %1 kayıp) `store_walk` ve `faz1_full` için koşulur ve geçer (ci_local'ın varsayılan net adımına girmesi zorunlu değil; ayrı komut + raporda sonuç; kararsızsa "Karar gereken"). (3) `tools/soak.sh` (bash, Windows Git Bash + Linux): host + 2 bot 10 dk store_a'da dolaşır, kasa/kapı etkileşir; log'da ERROR/WARNING yok, süreçler temiz kapanır, bellek/oyuncu sayısı kararlı (dökümle); `--minutes N` ile kısa koşu. (4) Gerçek oyuncu sahnesiyle geç katılma senaryosu: geç gelen istemci diğer oyuncuları doğru konumda görür (tampon boşken konuma dokunulmaz) ve değişmiş prop durumunu (boş kasa, çevrilmiş kapı) alır; 0 ve 150 ms. (5) IS-011 nit'i: net_smoke `known` ara düğümün şimdiki oluşturma zamanı kayıttan farklıysa çocukları aranmaz (+ test). (6) Mevcut senaryolar ve `tools/ci_local.sh` tam yeşil.
+**Dokunulacak:** tests/net/{faz1_full,late_join_real}.json (ad serbest), tests/net/bots/**, tools/soak.sh, tools/net_smoke.py, tools/test_net_smoke.py, tests/fixtures/** (yalnız gerekirse)
+**Dokunulmayacak:** autoload/**, entities/**, core/**, levels/**, ui/**, project.godot, tools/{latency_proxy,test_latency_proxy}.py (paralel IS-012), tools/ci_local.sh, .github/**
+**Oku:** mimari.md S2, S6, S7 · GDD §12
+
+### IS-014 — US-005 nit'leri
+EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-005
+**Kabul:** (1) Koşuda taraf toleransı: host koşan oyuncuyu ~22 px geriden görür → `SIDE_TOLERANCE` koşu hızını da karşılar (ör. 24 px) ya da hıza bağlı; müşteri tarafı hâlâ red (birim test, en yakın müşteri konumu −26 px). (2) Kapı, kapı boşluğunda gövdesi olan bir oyuncu varken kapanmaz (host reddi `blocked`, istemcide istem yine görünür; birim + mevcut senaryolar yeşil); açma her zaman serbest. (3) Uzak oyuncunun "etkileşimde" göstergesi diğer peer'larda da çizilir (çoğaltılan küçük durum; ThemeTokens rengi). (4) `test_interaction_props.gd` özel üyelere (`_host_start`, `_host_cancel`, `_physics_process`) erişmez; genel API ya da test kancası (KR-018 §6). (5) ci_local tam yeşil; US-004/US-005 senaryoları geçer.
+**Dokunulacak:** core/interaction_rules.gd, entities/props/**, entities/player/** (yalnız etkileşim göstergesi), tests/unit/test_interaction*.gd, tests/net/{register_empty,door_sync,contention}.json (yalnız beklenti uyarlaması)
+**Dokunulmayacak:** autoload/**, ui/**, levels/**, project.godot, tools/**, tests/net/faz1_full.json ve IS-013 dosyaları
 
 ### IS-006 — Kullanıcı doğrulaması: iki makine + arkadaş oturumu
 EP-01 · P1 · S · Sahip: kullanıcı · Bağımlılık: IS-005
@@ -177,7 +193,8 @@ EP-01 · P1 · XS · Sahip: altyapi (latency_proxy'de yalnız zamanlama için ce
 **Dokunulmayacak:** tools/net_smoke.py, tests/**, autoload/**, entities/**, docs/**
 
 ### IS-007 — Faz 1 tasarım değerlendirmesi (Fable)
-EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: IS-005 (faz kapanışından önce)
+EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: (A) yok · (B) IS-005, IS-013 (faz kapanışından önce)
+İki adım (2026-10-02): **(A)** KR-017 → GDD §14 ve GB-02 → GDD §7/§9/§10 işlenir + Faz 2 kapsam önerisi (koordinatöre rapor; faz plan mesajına girdi). **(B)** `faz-1.md` değerlendirmesi IS-005/IS-013 sonuçlarıyla.
 **Kabul:** KR-017 animasyon/karakter stilini GDD §14'e (referans ilkeler, zamanlama aralıkları, okunabilirlik kuralları) ve GB-02'yi (havalandırma girişi, duvar patlatma, alttan kasa düşürme; ileri kademe + ekipman/yetenek kapılı) GDD §7/§9/§10'a işler: hangi kademede açıldığı, gereken ekipman/perk, gürültü ve zamanlama bedeli, keşifte nasıl fark edildiği. `docs/tasarim/degerlendirmeler/faz-1.md` surec.md §5a biçiminde yazılır (Faz 1 temel yapı olduğu için ağırlık: hareket hızları, etkileşim süreleri, bakkal yerleşimi ve online hissin GDD'ye uyumu; Faz 2-3 için erken uyarılar). Koordinatör önerileri oneriler.md'ye işler. Koordinatör okumasıyla kapanır.
 
 ## 3. Sonraki fazların kalemleri (Backlog; faz başında ayrıntılanır)
