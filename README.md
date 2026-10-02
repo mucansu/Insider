@@ -28,7 +28,8 @@ iletir.
 ```sh
 tools/export.sh                  # şablonlar → windows → linux → duman koşusu
 tools/export.sh windows          # yalnız bir adım: templates | windows | linux | smoke
-tools/ci_local.sh export         # aynı şey, yerel CI üzerinden
+tools/export.sh --debug windows smoke   # debug şablonuyla (test-* Release'leri böyle çıkar)
+tools/ci_local.sh export         # aynı şey, yerel CI üzerinden (debug için: EXPORT_DEBUG=1 tools/ci_local.sh export)
 ```
 
 - **Windows:** `build/windows/` klasörünü olduğu gibi kopyalayın, `Insiders.exe`'yi çift tıklayın. Oyun verisi
@@ -56,10 +57,21 @@ yönlendirme gerekmesin diye herkes aynı [Tailscale](https://tailscale.com/down
    (`makine.tailnet-adı.ts.net`; bunun için alıcının kendi tailnet'inde MagicDNS açık olmalı) ya da `100.x.y.z`
    adresi çalışır.
 4. **Host, ilk kez (bir kerelik):** Windows'un "izin ver" penceresinde **Özel** ve **Ortak** ağların **ikisini
-   de** işaretleyin. Yalnız Özel seçilirse Windows program için Ortak profilde bir **Engelle** kuralı da oluşturur
-   ve bu, izin kuralını ezer (Tailscale arabirimi Ortak profilde olabilir). Zaten yalnız Özel seçtiyseniz, yönetici
-   PowerShell'de önce o Engelle kuralını kaldırın, sonra exe'nin tam yoluyla gelen UDP 7777 izin kuralını ekleyin
-   (tüm profiller):
+   de** işaretleyin; pencereyi **iptal etmeyin**. Tailscale kendi ağ bağdaştırıcısını her açılışta **Özel** (Private)
+   profile alır ve `Tailscale-In` kuralıyla Tailscale adresinize gelen paketleri Özel profilde geçirir; yani
+   Tailscale üzerinden host olmak için ayrı izin kuralı çoğu zaman gerekmez. Asıl risk, Insiders.exe için **Özel
+   profilde bir Engelle kuralı**dır (pencere iptal edildiyse ya da yalnız Ortak seçildiyse Windows yazar): açık
+   Engelle kuralı her izin kuralını ezer ve Tailscale yolunu da keser. Yalnız Özel seçilirse Ortak profilde Engelle
+   oluşur; bu Tailscale'i etkilemez ama aynı yerel ağdan (Ortak profilli Wi-Fi/Ethernet) host olmayı engeller.
+   Durumu salt okunur komutlarla görün (PowerShell, yönetici gerekmez):
+
+   ```powershell
+   Get-NetConnectionProfile                     # Tailscale satırı NetworkCategory: Private olmalı
+   Get-NetFirewallRule -DisplayName *Insiders* | ft DisplayName,Action,Profile   # Block + Private/Any var mı?
+   ```
+
+   Engelle kuralı varsa yönetici PowerShell'de kaldırın, sonra exe'nin tam yoluyla gelen UDP 7777 izin kuralını
+   ekleyin (tüm profiller):
 
    ```powershell
    Get-NetFirewallApplicationFilter -Program "C:\yol\Insiders.exe" | Get-NetFirewallRule | Where-Object Action -eq Block | Remove-NetFirewallRule
@@ -78,14 +90,17 @@ yönlendirme gerekmesin diye herkes aynı [Tailscale](https://tailscale.com/down
    Konsol exe'siyle host olunuyorsa aynı adımları `Insiders.console.exe` için de yapın.
 5. **Bağlanmıyorsa:** `tailscale ping <host-adı-ya-da-100.x>` yanıt veriyor mu? `tailscale status` satırında
    `relay` görünüyorsa trafik Tailscale aktarıcısından geçiyor: oyun çalışır ama ping artar (`direct` için UDP'yi
-   engelleyen kurumsal/otel ağlarından kaçının). Host'ta 4. adımdaki kural var mı? Herkes aynı build'i mi
+   engelleyen kurumsal/otel ağlarından kaçının). Host'ta 4. adımdaki iki kontrol komutu ne diyor (Tailscale
+   Private mı, Insiders için Block kuralı var mı)? Herkes aynı build'i mi
    kullanıyor (protokol sürümü farklıysa host bağlantıyı reddeder)? Oyundaki ping göstergesi sürekli yüksekse
    `tailscale status`'a bakın.
 
 HUD ping'i gösterir; oyun 150 ms RTT'ye kadar akıcı kalacak şekilde test edilir (Faz 1 çıkış kriteri).
 
 **Test build'i notları:** Build imzasızdır; SmartScreen uyarırsa **Ek bilgi → Yine de çalıştır**. Sesler yer
-tutucudur (ya da henüz yoktur). **Sorun bildirirken** günlük dosyasını gönderin:
+tutucudur (ya da henüz yoktur). `test-*` Release zip'leri **debug build**'dir (debug şablonu): betik hataları
+(`SCRIPT ERROR: …` + iz) ve çökmeler (`CrashHandlerException …`) günlük dosyasına yazılır; release build bunları
+hiç yazmaz. **Sorun bildirirken** günlük dosyasını gönderin:
 `%APPDATA%\Godot\app_userdata\Insiders\logs\godot.log` (Linux: `~/.local/share/godot/app_userdata/Insiders/logs/`);
 her oturum yeni dosya açar, öncekiler tarihli adla aynı klasörde kalır.
 
