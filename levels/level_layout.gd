@@ -44,6 +44,12 @@ const SOLID_PREFIX := {
 	Kind.COUNTER: "Counter",
 }
 
+## Görüş sınıfları (US-011a; `Level.vision_cells` → VisionGrid.Cell). Katı: görüşü her zaman keser, ışın atılmaz,
+## yalnız komşuluktan görünür (yapı). Geçit: fizik sorgusu karar verir (cam geçirir, kapalı kapı keser).
+## Diğer türler açık. Yeni bir görüş engeli türü (ör. koli/kese) tek satırla SIGHT_SOLID'e eklenir.
+const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COUNTER]
+const SIGHT_PORTAL: Array[Kind] = [Kind.WINDOW, Kind.DOOR]
+
 # Çizgi kalınlıkları ve aralıklar (renkler tondan: ThemeTokens.tone()).
 const WALL_EDGE_WIDTH := 2.0
 const CURB_WIDTH := 2.0
@@ -171,17 +177,28 @@ static func edge_color(kind: Kind) -> Color:
 	return color_of(kind)
 
 
+## İki geçiş (çizim toplama, teknik/cizim-performans.md P1): önce bütün dolu dikdörtgenler (zemin, cam şeridi,
+## duvar kenarı, bordür, eşya dolgusu), sonra bütün çizgiler (sınır taraması, eşya dış çizgisi ve raf bölmeleri).
+## Komut türü sık değişmediği için toplu çizilir; çizgiler hiçbir dolgunun altında kalmaz (kenar taraması komşu
+## karoya en çok yarım çizgi kalınlığı taşar).
 func _draw() -> void:
 	var size: Vector2i = size_in_tiles()
 	for y: int in size.y:
 		for x: int in size.x:
-			_draw_cell(Vector2i(x, y))
+			_draw_cell_rects(Vector2i(x, y))
 	for kind: Kind in [Kind.SHELF, Kind.COUNTER]:
 		for cells: Rect2i in merged_rects(kind):
-			_draw_furniture(kind, cells)
+			draw_rect(shape_rect(kind, cells), color_of(kind))
+	for y: int in size.y:
+		for x: int in size.x:
+			if kind_at(Vector2i(x, y)) == Kind.BOUND:
+				_draw_hatch(Rect2(Vector2(x, y) * TILE, Vector2(TILE, TILE)))
+	for kind: Kind in [Kind.SHELF, Kind.COUNTER]:
+		for cells: Rect2i in merged_rects(kind):
+			_draw_furniture_lines(kind, cells)
 
 
-func _draw_cell(cell: Vector2i) -> void:
+func _draw_cell_rects(cell: Vector2i) -> void:
 	var kind: Kind = kind_at(cell)
 	var rect := Rect2(Vector2(cell) * TILE, Vector2(TILE, TILE))
 	draw_rect(rect, color_of(_ground_kind(cell, kind)))
@@ -192,26 +209,50 @@ func _draw_cell(cell: Vector2i) -> void:
 		else:
 			glass = Rect2(rect.get_center().x - GLASS_WIDTH / 2.0, rect.position.y, GLASS_WIDTH, TILE)
 		draw_rect(glass, edge_color(Kind.WINDOW))
-	if kind == Kind.BOUND:
-		_draw_hatch(rect)
-	elif kind == Kind.WALL or kind == Kind.WINDOW:
-		_draw_wall_edges(cell, rect)
+	if kind == Kind.WALL or kind == Kind.WINDOW:
+		_draw_wall_edges(cell)
 	elif kind == Kind.SIDEWALK:
 		_draw_curbs(cell, rect)
 
 
 ## Duvarın yürünebilir ya da eşyalı tarafına açık renk kenar: odalar üstten kalın ve net okunur.
-func _draw_wall_edges(cell: Vector2i, rect: Rect2) -> void:
-	var w: float = WALL_EDGE_WIDTH
+func _draw_wall_edges(cell: Vector2i) -> void:
 	var color: Color = edge_color(Kind.WALL)
+	for edge: Rect2 in wall_edge_rects(cell):
+		draw_rect(edge, color)
+
+
+## Duvar/cam karosunun kenar çizgileri (px, seviye koordinatı): yürünebilir ya da eşyalı komşuya bakan her kenar
+## için WALL_EDGE_WIDTH kalınlıkta şerit. Duvar ya da cam değilse boş. Seviye çizimi ve görüş sisinin krokisi
+## (US-011a, `FogLayer`) aynı çizgileri kullanır.
+func wall_edge_rects(cell: Vector2i) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var kind: Kind = kind_at(cell)
+	if kind != Kind.WALL and kind != Kind.WINDOW:
+		return out
+	var w: float = WALL_EDGE_WIDTH
+	var origin := Vector2(cell) * TILE
 	if _opens(cell + Vector2i.UP):
-		draw_rect(Rect2(rect.position, Vector2(TILE, w)), color)
+		out.append(Rect2(origin, Vector2(TILE, w)))
 	if _opens(cell + Vector2i.DOWN):
-		draw_rect(Rect2(rect.position + Vector2(0, TILE - w), Vector2(TILE, w)), color)
+		out.append(Rect2(origin + Vector2(0, TILE - w), Vector2(TILE, w)))
 	if _opens(cell + Vector2i.LEFT):
-		draw_rect(Rect2(rect.position, Vector2(w, TILE)), color)
+		out.append(Rect2(origin, Vector2(w, TILE)))
 	if _opens(cell + Vector2i.RIGHT):
-		draw_rect(Rect2(rect.position + Vector2(TILE - w, 0), Vector2(w, TILE)), color)
+		out.append(Rect2(origin + Vector2(TILE - w, 0), Vector2(w, TILE)))
+	return out
+
+
+## Kapı boşluğu karosunun eşik çizgisi (iki uç, px): boşluğu kesen duvar doğrultusunda, karo ortasından.
+## Kapı boşluğu değilse boş.
+func door_gap_segment(cell: Vector2i) -> PackedVector2Array:
+	if kind_at(cell) != Kind.DOOR:
+		return PackedVector2Array()
+	var c: Vector2 = cell_center(cell)
+	var half: float = TILE / 2.0
+	if _horizontal_wall(cell):
+		return PackedVector2Array([c - Vector2(half, 0), c + Vector2(half, 0)])
+	return PackedVector2Array([c - Vector2(0, half), c + Vector2(0, half)])
 
 
 ## Harita kenarı / komşu bina: çapraz tarama, yürünebilir dış alandan ayrı okunur.
@@ -239,9 +280,9 @@ func _draw_curbs(cell: Vector2i, rect: Rect2) -> void:
 		draw_rect(Rect2(rect.position + Vector2(TILE - w, 0), Vector2(w, TILE)), color)
 
 
-func _draw_furniture(kind: Kind, cells: Rect2i) -> void:
+## Eşyanın dış çizgisi ve raf bölmeleri (dolgu `_draw` dikdörtgen geçişinde).
+func _draw_furniture_lines(kind: Kind, cells: Rect2i) -> void:
 	var rect: Rect2 = shape_rect(kind, cells)
-	draw_rect(rect, color_of(kind))
 	draw_rect(rect, edge_color(kind), false, 1.0)
 	if kind == Kind.SHELF:
 		# Çift yüzlü raf: uzun eksen boyunca orta çizgi ve kısa bölmeler; duvardan ayrı okunur.

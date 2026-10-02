@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="VisionTuning" format=3]
+
+[ext_resource type="Script" uid="uid://2kqdex3pmav6" path="res://data/vision_tuning.gd" id="1_vtune"]
+
+[resource]
+script = ExtResource("1_vtune")
+view_radius = 288.0
+dark_radius = 128.0
+soft_edge_px = 32.0
+default_mode = 0
+cone_half_angle_deg = 45.0
+peripheral_half_angle_deg = 90.0
+peripheral_radius = 192.0
+near_radius = 64.0
+max_turn_deg_per_sec = 240.0
+update_interval_sec = 0.1
+memory_enabled = true
+transition_sec = 0.15
+edge_blur_px = 8.0

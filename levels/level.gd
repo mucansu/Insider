@@ -12,6 +12,9 @@ const _SPAWN_POINTS := ^"SpawnPoints"
 const _MARKERS := ^"Markers"
 const _ZONES := ^"Zones"
 const _NAVIGATION := ^"Navigation"
+const _TILES := ^"Tiles"
+## Görüş sisi katmanı (US-011a; çalışma anında `attach_fog` ekler, sahnede yoktur).
+const _FOG := ^"Fog"
 
 
 ## Oyuncu düğümlerinin kabı (Game üretir; düğüm adı peer kimliği).
@@ -75,6 +78,64 @@ func navigation_region() -> NavigationRegion2D:
 ## Kapı kapanınca `enabled = false` yapılır (kapı durumunu bağlayan sistem; US-008). Yoksa null.
 func door_link(door_name: StringName) -> NavigationLink2D:
 	return _child_of(_NAVIGATION, door_name) as NavigationLink2D
+
+
+## Karo düzeni (`Tiles`, LevelLayout); yoksa null.
+func layout() -> LevelLayout:
+	return get_node_or_null(_TILES) as LevelLayout
+
+
+## Görüş ızgarasının boyutu (karo; US-011a). Düzen yoksa sıfır.
+func vision_size() -> Vector2i:
+	var tiles: LevelLayout = layout()
+	return tiles.size_in_tiles() if tiles != null else Vector2i.ZERO
+
+
+## Görüş engel ızgarası (US-011a; `VisionGrid.Cell`, satır satır). Sınıflar `LevelLayout.SIGHT_SOLID` (duvar, sınır,
+## raf, tezgâh) ve `SIGHT_PORTAL` (kapı boşluğu, vitrin camı: fizik sorgusu karar verir); diğerleri açık.
+func vision_cells() -> PackedByteArray:
+	var out := PackedByteArray()
+	var tiles: LevelLayout = layout()
+	if tiles == null:
+		return out
+	var size: Vector2i = tiles.size_in_tiles()
+	out.resize(size.x * size.y)
+	for y: int in size.y:
+		for x: int in size.x:
+			out[y * size.x + x] = vision_cell_of(tiles.kind_at(Vector2i(x, y)))
+	return out
+
+
+## Karo türünün görüş sınıfı (`VisionGrid.Cell`).
+static func vision_cell_of(kind: LevelLayout.Kind) -> int:
+	if LevelLayout.SIGHT_SOLID.has(kind):
+		return VisionGrid.Cell.SOLID
+	if LevelLayout.SIGHT_PORTAL.has(kind):
+		return VisionGrid.Cell.PORTAL
+	return VisionGrid.Cell.OPEN
+
+
+## Görüş ayarları (`data/vision_tuning.tres`).
+func vision_tuning() -> VisionTuning:
+	return load(VisionTuning.PATH) as VisionTuning
+
+
+## Bu seviyenin görüş sisi katmanı (`attach_fog` ile kurulmuşsa); yoksa null.
+func fog_layer() -> FogLayer:
+	return get_node_or_null(_FOG) as FogLayer
+
+
+## Yerel oyuncunun görüş sisini kurar (US-011a; istemcide, yalnız yerel oyuncu için çağrılır) ve `observer`ı
+## izletir. Katman zaten varsa yalnız gözlemci değişir (hafıza korunur). Seviye ağaçta olmalı (fizik sorgusu).
+func attach_fog(observer: Node2D) -> FogLayer:
+	var fog: FogLayer = fog_layer()
+	if fog == null:
+		fog = FogLayer.new()
+		fog.name = String(_FOG)
+		add_child(fog)
+		fog.setup_from_level(self)
+	fog.follow(observer)
+	return fog
 
 
 ## `container` altındaki doğrudan çocuk; yol parçası içeren ad ("../Players" gibi) kabul edilmez.
