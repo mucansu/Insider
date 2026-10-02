@@ -77,6 +77,20 @@ const SCREEN_MARGIN := 20
 const GAMEPLAY_ALERT := Color("#d8453a")
 const GAMEPLAY_CASH := Color("#58b368")
 
+# --- görüş sisi (US-011a; GDD §6.5): karo tonları, levels/fog/fog_layer ---
+## Sis tonu = BG + alfa ile üstüne bindirme; doygunluk çarpanı alttaki görüntüye önce uygulanır.
+## Bilinmeyen: opak düz ton (içerik sızmaz); yalnız kroki (duvar kenarı, kapı eşiği) sisin üstünde çizilir.
+const GAMEPLAY_FOG_UNKNOWN := Color(BG.r, BG.g, BG.b, 1.0)
+const GAMEPLAY_FOG_UNKNOWN_SATURATION := 1.0
+## Hafıza: bu fazda görülmüş, şu an görülmeyen (yapı ve mobilya son görülen hâliyle, soluk).
+const GAMEPLAY_FOG_MEMORY := Color(BG.r, BG.g, BG.b, 0.55)
+const GAMEPLAY_FOG_MEMORY_SATURATION := 0.5
+## Çevresel (yalnız yönlü kip): net koninin yanları.
+const GAMEPLAY_FOG_PERIPHERAL := Color(BG.r, BG.g, BG.b, 0.30)
+const GAMEPLAY_FOG_PERIPHERAL_SATURATION := 0.6
+## Karanlık bölge taraması (45°; görüş hattında bile hafıza tonundaki karanlık karolar): MUTED, α 0,35.
+const GAMEPLAY_FOG_DARK_HATCH := Color(MUTED.r, MUTED.g, MUTED.b, 0.35)
+
 ## Oyuncu renkleri, katılım sırasıyla (en fazla 4 oyuncu).
 const PLAYER_COLORS: Array[Color] = [
 	Color("#4f9ddf"),
