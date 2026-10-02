@@ -1,24 +1,29 @@
 # Durum (2026-10-02, yerel oturum)
 
 ## Aktif faz
-Faz 1 — İki kişi bakkalda (EP-01). Yerel geliştirme: `C:\Users\Turkuaz\OneDrive\Desktop\Insider` (Windows 11, Git Bash, Godot 4.7.2 win64); buluttan devir tamamlandı (devir.md silindi).
+Faz 1 — İki kişi bakkalda (EP-01): kod kalemleri bitti, test-1 checkpoint'i hazırlanıyor. Faz 2 — Gizlilik (bakkal) erken başladı (KR-020: faz sonu beklemesi askıda). Yerel geliştirme: `C:\Users\Turkuaz\OneDrive\Desktop\Insider` (Windows 11, Git Bash, Godot 4.7.2 win64, renderer Compatibility).
 
-## Kalemler
-- Bitti (Faz 1): US-001 ağ çekirdeği · US-002 bakkal · US-003 menü/HUD/tema · IS-008 · IS-009 · IS-010 (KR-018) · IS-011 Windows yerel geliştirme (8124e82) · US-004 oyuncu karakteri (a88d9c1) · US-005 etkileşim + kasa + kapı (e32adf7)
-- Bitti: IS-012 (918d0cd) · IS-014 (0d215b5) — push bekliyor
-- Denetimde: IS-013 Faz 1 çıkış senaryoları (faz1_full, late_join_real, soak 10 dk PASS; sert ağ yalnız ölçüm) · IS-007 (A) Bitti (a30c69c; GDD v0.2)
-- Denetimde: IS-005 build (Windows 109 MB / Linux 74 MB, smoke host+istemci; main push'unda CI artifact) · Hazır: IS-019 renderer Compatibility · IS-014 Bitti (0d215b5; push bekliyor)
-- Sırada: IS-007 (B) Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
-- KR-020 (kullanıcı): öncelik aramızda oynanabilir MVP; test checkpoint'leri main + `test-N`; bakkalda güvenlik yok (polis/muhafız/düğme/silah yok; sahibi bağırır, mahalleli gelir) → IS-021 Fable bakkal/kademe revizyonu; Steam işleri sona.
-- KR-021 (geçici): bakkal tasarımı GDD v0.3 (sahip ajandası, sorgu/bağırış/mahalleli, tutma+ÇEK, müşteri/yoldan geçen nüfusu); Faz 2 kalemleri §2b; entegrasyon dalı `faz2`.
-- Faz 2 (erken başlangıç, worktree): Denetimde US-006 algı çekirdeği · Bitti US-007 (dal faz2/US-007) · Sürüyor (worktree) US-009 gürültü, US-014 kukla, IS-022 ekran görüntüsü, IS-019 renderer · IS-021 Fable bakkal/kademe revizyonu; plan backlog §2b, kararlar KR-019 (geçici)
-- Paralellik (kullanıcı 2026-10-02): ajan sınırı yok; koordinatör makine yüküne göre ~4-5 paralel kod paketi, her biri worktree'de.
+## Faz 1
+- Bitti: US-001..US-005 · IS-005 build · IS-007 (A GDD v0.2/v0.3, B faz-1 değerlendirmesi) · IS-008..IS-014 · IS-019 renderer · IS-013 çıkış senaryoları (afe5b6b).
+- test-1 öncesi: IS-026 yerel ping ölçümü (cekirdek, worktree) · IS-027 kamera yakınlaştırma/sınır + arka plan (oynanis, worktree).
+- Checkpoint: IS-026 + IS-027 → dev → ci_local → main ff + `faz-1` + `test-1` etiketi → push (CI main'de Windows/Linux build).
+- Kullanıcı doğrulaması (IS-006): test-1 gözlem listesi + anket `docs/tasarim/degerlendirmeler/faz-1.md`.
+
+## Faz 2 (entegrasyon dalı `faz2-int`; plan backlog §2b, KR-019/020/021)
+- faz2-int'te: US-007 bakkal v1 · IS-023 nüfus işaretleri.
+- Denetimde: US-006 t2 algı çekirdeği · US-013 iş sonu + uyarı HUD.
+- Sürüyor (worktree): US-009 gürültü · US-014 kukla v0 · IS-022 t2 ekran görüntüsü aracı.
+- Sırada (2a): US-008 bakkal sahibi (US-006 sonrası) → US-010 → US-012 → US-016 → IS-024 SFX → IS-017 oyun testi (test-2).
+
+## Araştırma
+- `docs/arastirma/`: steam-yayin, pazarlama-satis, yontem, tuzaklar, steam-ag, ad-adaylari (öneri Mapless, yedek Heistmind).
+- `docs/tasarim/arastirma/`: Fable 1-3. tur + faz2-bakkal-kalemleri.
 
 ## Kullanıcıdan bekleyen
-- (Tamam) GitHub reposu: https://github.com/mucansu/Insider (private). Uzak CI'ın IS-011 sonrası Linux'ta yeşil olduğu kullanıcı tarafından Actions'ta kontrol edilecek (yerelde `gh` yok).
-- (Tamam) Yerel kurulum: Godot 4.7.2 win64 `C:\Users\Turkuaz\OneDrive\Desktop\godot` (yerel `GODOT`: `.claude/settings.local.json`).
-- KR-013 (oyun adı), KR-014 (Steamworks) — Faz 5'te.
-- Animasyon denemesi geri bildirimi (kaydırıcı değerleri) → Faz 2 karakter kuklası.
+- Test-1 (arkadaşlarla) ve sonuç/video bildirimi.
+- KR-019/KR-021 geçici tasarım kararlarına itiraz (varsa); ad seçimi (Mapless/Heistmind).
+- İsteğe bağlı: kodsuz keşif ön testi (`docs/tasarim/arastirma/kesif-on-testi.md`).
+- KR-014 Steamworks — sona kaydı (KR-020).
 
 ## Son kapanış
 Faz 0 — 2026-10-01: IS-001..IS-004 Bitti.

@@ -69,6 +69,7 @@ func test_missing_children_are_safe() -> void:
 	is_true(level.marker(&"Exit") == null)
 	eq(level.marker_sequence(&"StreetRoute").size(), 0)
 	is_true(level.zone(&"EscapeZone") == null and level.navigation_region() == null and level.door_link(&"BackDoor") == null)
+	eq(level.map_rect(), Rect2(), "Tiles yoksa harita dikdörtgeni boş")
 
 
 func test_sequence_zone_and_navigation_lookup() -> void:
@@ -102,6 +103,28 @@ func test_sequence_zone_and_navigation_lookup() -> void:
 	is_true(store.zone(&"EscapeZone") != null and store.navigation_region() != null, "store_a: EscapeZone ve Navigation")
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		is_true(store.door_link(door) != null, "store_a: %s bağı" % door)
+
+
+## IS-027: harita dikdörtgeni = Tiles ızgarasının tamamı (sınır dolgusu dahil), köke göre.
+func test_map_rect() -> void:
+	var store: Level = autofree((load(LEVELS[0]) as PackedScene).instantiate()) as Level
+	store.position = Vector2(500, 500)  # kökün kendi dönüşümü dahil değil
+	eq(store.map_rect(), Rect2(0, 0, 960, 640), "store_a 30×20 karo")
+	var arena: Level = autofree((load(LEVELS[1]) as PackedScene).instantiate()) as Level
+	var tiles: LevelLayout = arena.get_node("Tiles") as LevelLayout
+	eq(arena.map_rect().size, Vector2(tiles.size_in_tiles() * LevelLayout.TILE), "test_arena ızgarası")
+	var fixture: Level = autofree((load(LEVELS[2]) as PackedScene).instantiate()) as Level
+	eq(fixture.map_rect(), Rect2(), "Tiles'sız fikstür")
+	# Kaydırılmış Tiles ve boş ızgara.
+	var level: Level = autofree(Level.new()) as Level
+	var layout := LevelLayout.new()
+	layout.name = "Tiles"
+	layout.position = Vector2(64, -32)
+	layout.rows = PackedStringArray(["%%%", "%.%"])
+	level.add_child(layout)
+	eq(level.map_rect(), Rect2(64, -32, 96, 64))
+	layout.rows = PackedStringArray()
+	eq(level.map_rect(), Rect2(), "boş ızgara")
 
 
 func test_builder_assigns_level_root_and_stays_idempotent() -> void:

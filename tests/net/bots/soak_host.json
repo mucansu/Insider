@@ -1,0 +1,24 @@
+{
+  "_doc": "Dayanıklılık botu, host (IS-013; tests/net/soak/store_a.json, tools/soak.sh). Giriş: register_c1 rotası, kasayı 3,5 sn tutup boşalt. Tur (loop; net_smoke açar, Godot tek başına bir tur oynar): güney duvarına in, duvar boyunca koşarak doğu duvarına (A), yukarı personel alanından iç duvara (B), sola tezgâha (C), sızarak güney duvarına (D), duvar boyunca batı duvarına yürü (E; kapalı/açık ön kapının önünden geçer), dur. Her bacak duvar/tezgâh hizalı: tur hep aynı köşeden başlar.",
+  "loop": {"from": 14.0, "period": 14.5},
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.8, "move": [1, 0]},
+    {"t": 7.3, "move": [0, -1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 9.4, "move": [0, 1]},
+    {"t": 9.88, "move": [0, 0]},
+    {"t": 10.2, "hold": "interact", "dur": 3.5},
+    {"t": 14.01, "move": [0, 1]},
+    {"t": 15.01, "move": [1, 0]},
+    {"t": 15.01, "hold": "sprint", "dur": 3.4},
+    {"t": 18.41, "move": [0, -1]},
+    {"t": 19.71, "move": [-1, 0]},
+    {"t": 20.81, "move": [0, 1]},
+    {"t": 20.81, "hold": "sneak", "dur": 2.3},
+    {"t": 23.11, "move": [-1, 0]},
+    {"t": 27.11, "move": [0, 0]}
+  ]
+}

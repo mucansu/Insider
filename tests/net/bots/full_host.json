@@ -1,0 +1,20 @@
+{
+  "_doc": "faz1_full.json host botu (IS-013): kaldırımda sağa, ön kapıdan girip raf dibine kadar yukarı, satış alanında raf/tezgâh/duvar hizalı tur (yürü + sız): istemciler etkileşirken hep hareketli; 20. sn'de durur.",
+  "steps": [
+    {"t": 0.3, "move": [1, 0]},
+    {"t": 2.15, "move": [0, -1]},
+    {"t": 5.0, "move": [0, 1]},
+    {"t": 6.0, "move": [1, 0]},
+    {"t": 7.4, "move": [0, 1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 10.4, "move": [0, -1]},
+    {"t": 11.2, "move": [1, 0]},
+    {"t": 12.2, "move": [0, -1]},
+    {"t": 12.2, "hold": "sneak", "dur": 1.5},
+    {"t": 13.7, "move": [-1, 0]},
+    {"t": 15.5, "move": [0, 1]},
+    {"t": 16.5, "move": [1, 0]},
+    {"t": 18.5, "move": [0, -1]},
+    {"t": 20.0, "move": [0, 0]}
+  ]
+}

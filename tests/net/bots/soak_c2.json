@@ -1,0 +1,20 @@
+{
+  "_doc": "Dayanıklılık botu, c2 (IS-013; tests/net/soak/store_a.json). Giriş: faz1_full c2 rotasıyla arka sokakta kapalı arka kapının önüne. Tur: kapıyı aç, kapıdan arka odaya in (duvar), bekle, kapıdan arka sokağın kuzey sınırına çık, dur (sınıra iten hız sönsün), kapının önüne in (kapı merkezine ~31 px), (kapıdan çıkalı 1,5 sn'den fazla olunca) kapıyı kapat: tur sonunda kapı başlangıç durumunda (kapalı).",
+  "loop": {"from": 12.8, "period": 8.0},
+  "steps": [
+    {"t": 0.2, "move": [1, 0]},
+    {"t": 5.8, "move": [0, -1]},
+    {"t": 9.6, "move": [-1, 0]},
+    {"t": 11.47, "move": [0, 0]},
+    {"t": 11.8, "move": [0, 1]},
+    {"t": 12.5, "move": [0, 0]},
+    {"t": 12.81, "press": "interact"},
+    {"t": 13.41, "move": [0, 1]},
+    {"t": 15.21, "move": [0, 0]},
+    {"t": 16.21, "move": [0, -1]},
+    {"t": 18.01, "move": [0, 0]},
+    {"t": 18.31, "move": [0, 1]},
+    {"t": 18.59, "move": [0, 0]},
+    {"t": 19.01, "press": "interact"}
+  ]
+}

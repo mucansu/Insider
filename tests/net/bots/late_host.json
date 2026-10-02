@@ -1,0 +1,17 @@
+{
+  "_doc": "late_join_real.json host botu (IS-013): register_c1 rotası (ön kapıdan gir, tezgâh ucundan personel tarafına dolan, kasanın yanına in), 3,5 sn tutup kasayı boşalt; c2 katılırken kasanın yanında hareketsiz bekle (20. sn), sonra güney duvarına in ve duvar boyunca sola yürü (kapalı ön kapının önünden geçer), dur.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.8, "move": [1, 0]},
+    {"t": 7.3, "move": [0, -1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 9.4, "move": [0, 1]},
+    {"t": 9.88, "move": [0, 0]},
+    {"t": 10.2, "hold": "interact", "dur": 3.5},
+    {"t": 20.0, "move": [0, 1]},
+    {"t": 20.8, "move": [-1, 0]},
+    {"t": 22.3, "move": [0, 0]}
+  ]
+}

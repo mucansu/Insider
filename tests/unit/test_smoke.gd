@@ -1,6 +1,6 @@
 extends TestCase
 ## Proje iskeleti duman testi (IS-003): proje ayarları, S5 girdi eylemleri, §4 fizik katmanları,
-## autoload'lar ve S1/S3/S8 sözleşme imzaları, çeviri kaydı, tema token'ları, ana sahne ve
+## autoload'lar ve S1/S3/S8 sözleşme imzaları, S4 Level API imzaları (IS-005), çeviri kaydı, tema token'ları, ana sahne ve
 ## projedeki tüm betiklerin derlenmesi (statik tipleme hataları içe aktarmada görünmediği için).
 
 const ACTIONS: Array[StringName] = [
@@ -56,7 +56,17 @@ const CONTRACTS := {
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
 	],
+	# S4 Level API (autoload değil; betik yolu LEVEL_SCRIPT, sınıf adı ve taban ayrıca denetlenir).
+	"Level": [
+		"func players_root() -> Node2D",
+		"func props_root() -> Node2D",
+		"func npcs_root() -> Node2D",
+		"func spawn_count() -> int",
+		"func spawn_position(index: int) -> Vector2",
+		"func marker(marker_name: StringName) -> Node2D",
+	],
 }
+const LEVEL_SCRIPT := "res://levels/level.gd"
 
 
 func test_project_settings() -> void:
@@ -68,6 +78,16 @@ func test_project_settings() -> void:
 	eq(ProjectSettings.get_setting("display/window/stretch/aspect"), "expand")
 	eq(ProjectSettings.get_setting("physics/common/physics_ticks_per_second"), 60)
 	eq(ProjectSettings.get_setting("debug/gdscript/warnings/untyped_declaration"), 2, "tipsiz bildirim hata olmalı")
+
+
+## IS-019: renderer Compatibility (GL 3.3) — masaüstü ve mobil karşılığı; Forward+ özellik etiketi kalmaz.
+func test_renderer_is_compatibility() -> void:
+	eq(ProjectSettings.get_setting("rendering/renderer/rendering_method"), "gl_compatibility")
+	eq(ProjectSettings.get_setting("rendering/renderer/rendering_method.mobile"), "gl_compatibility")
+	var features: PackedStringArray = ProjectSettings.get_setting("application/config/features")
+	has(features, "GL Compatibility")
+	is_false(features.has("Forward Plus"), "Forward+ etiketi kalmamalı")
+	is_false(features.has("Mobile"), "Mobile etiketi olmamalı")
 
 
 func test_physics_layer_names() -> void:
@@ -140,6 +160,23 @@ func test_autoloads_and_contracts() -> void:
 		var surface: PackedStringArray = _surface(script)
 		for line: String in CONTRACTS[autoload_name]:
 			is_true(surface.has(line), "%s sözleşmesinde eksik ya da farklı: %s" % [autoload_name, line])
+
+
+func test_level_contract() -> void:
+	# S4: kök `class_name Level extends Node2D`; çekirdek seviyeye yalnız bu API ile erişir.
+	var script: Script = load(LEVEL_SCRIPT) as Script
+	if not is_true(script != null, "yüklenemedi: " + LEVEL_SCRIPT):
+		return
+	eq(script.get_global_name(), &"Level", "S4 sınıf adı")
+	eq(script.get_instance_base_type(), &"Node2D", "S4 taban sınıfı")
+	var surface: PackedStringArray = _surface(script)
+	for line: String in CONTRACTS["Level"]:
+		is_true(surface.has(line), "Level sözleşmesinde eksik ya da farklı: " + line)
+	# Denetimin kendisi: imza tipi değişirse yakalanır.
+	var mutant := GDScript.new()
+	mutant.source_code = "extends Node2D\nfunc spawn_position(index: float) -> Vector2:\n\treturn Vector2.ZERO\n"
+	eq(mutant.reload(), OK)
+	is_false(_surface(mutant).has("func spawn_position(index: int) -> Vector2"), "tip farkı yakalanmalı")
 
 
 func test_autoloads_callable_by_name() -> void:

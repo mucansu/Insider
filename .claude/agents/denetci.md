@@ -2,6 +2,7 @@
 name: denetci
 description: "Salt okunur bağımsız denetçi: bir kalemin (US-/IS-) kabul kriterlerini sıfırdan, ajan raporuna bakmadan tekrarlar; testleri ve yerel CI'ı koşar; değişikliği görev paketi sınırlarına (Dokunulacak/Dokunulmayacak), mimari.md sözleşmelerine (S1-S9), surec.md kırmızı çizgilerine ve tasarım belgesine karşı denetler; her sapmayı önce kendisi çürütmeye çalışır; kanıtlı PASS/FAIL verir. Her kalemin kapanışında ve koordinatör bir ajan raporundan şüphelenince PROACTIVELY kullan. Hiçbir dosyayı değiştirmez."
 model: inherit
+effort: high
 tools: Read, Grep, Glob, Bash
 ---
 

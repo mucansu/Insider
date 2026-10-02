@@ -30,12 +30,13 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
 | IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Bitti | 918d0cd |
-| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Sürüyor (t2; denetci should-fix: Linux paketi çalıştırma izni) | |
-| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
-| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Sürüyor (2026-10-02; worktree) | |
+| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Bitti | 9594144 |
+| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Bitti | afe5b6b |
+| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Bitti | b985e8b |
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
-| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
+| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Bitti (A: a30c69c; B: degerlendirmeler/faz-1.md, ON-01..09) | |
+| IS-027 | Test-1 görünüm cilası: kamera yakınlaştırma 1,5 (ayarlanabilir) + harita sınırına kenetleme, arka plan BG token'ı (ON-01, ON-07) | 1 | oynanis | P1 | XS | — | Bitti | e99319b |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
 | IS-009 | Girdi haritası (`pause`, ui gamepad) + US-003 nit'leri | 1 | arayuz | P1 | S | US-003 | Bitti | 332fb08 |
 
@@ -159,6 +160,12 @@ EP-01 · P2 · XS · Sahip: altyapi · Bağımlılık: IS-005
 **Dokunulacak:** project.godot (yalnız renderer), tests/unit/test_smoke.gd
 **Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**, core/**, tools/**
 
+### IS-027 — Test-1 görünüm cilası
+EP-01 · P1 · XS · Sahip: oynanis (main.gd'de yalnız temizleme rengi için cekirdek alanına istisna) · Bağımlılık: — · Fable Faz 1 değerlendirmesi ON-01, ON-07
+**Kabul:** (1) Yerel oyuncu kamerası yakınlaştırması `data/player_tuning.tres` `camera_zoom` = 1,5 (ayarlanabilir; geliştirici argümanı `--camera-zoom=X` ile test-1'de 1,0/1,5 karşılaştırılabilir — Args'ta yalnız bu argüman). (2) Kamera `Level` sınırlarına (S4 API'sinde yoksa ekle: oynanabilir alan dikdörtgeni; harita kenarı dolgusu dahil) `limit_*` ile kenetlenir; harita ekrandan küçükse ortalanır; gri boşluk yok. (3) Viewport temizleme rengi ThemeTokens BG (noir `bg_color`); test. (4) US-004/US-005 senaryoları ve ci_local yeşil; ekran görüntüsü kanıtı (GUI exe ile pencereli kısa koşu ya da IS-022 aracı varsa) 1,0 ve 1,5 için.
+**Dokunulacak:** entities/player/player.gd ve player.tscn (yalnız kamera), data/player_tuning.tres, levels/level.gd (yalnız sınır API'si; S4 eki), autoload/args.gd (yalnız `--camera-zoom`), main.gd (yalnız temizleme rengi), tests/unit/test_player*.gd, tests/unit/test_levels_api.gd
+**Dokunulmayacak:** ui/**, core/**, entities/props/**, levels/*.tscn ve layouts, tools/**, project.godot
+
 ### IS-014 — US-005 nit'leri
 EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-005
 **Kabul:** (1) Koşuda taraf toleransı: host koşan oyuncuyu ~22 px geriden görür → `SIDE_TOLERANCE` koşu hızını da karşılar (ör. 24 px) ya da hıza bağlı; müşteri tarafı hâlâ red (birim test, en yakın müşteri konumu −26 px). (2) Kapı, kapı boşluğunda gövdesi olan bir oyuncu varken kapanmaz (host reddi `blocked`, istemcide istem yine görünür; birim + mevcut senaryolar yeşil); açma her zaman serbest. (3) Uzak oyuncunun "etkileşimde" göstergesi diğer peer'larda da çizilir (çoğaltılan küçük durum; ThemeTokens rengi). (4) `test_interaction_props.gd` özel üyelere (`_host_start`, `_host_cancel`, `_physics_process`) erişmez; genel API ya da test kancası (KR-018 §6). (5) ci_local tam yeşil; US-004/US-005 senaryoları geçer.
@@ -167,7 +174,7 @@ EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 
 ### IS-006 — Kullanıcı doğrulaması: iki makine + arkadaş oturumu
 EP-01 · P1 · S · Sahip: kullanıcı · Bağımlılık: IS-005
-**Kabul:** Kullanıcı build'i (ya da editörü) iki pencerede çalıştırıp host/katıl, yürüme ve kasa boşaltmayı dener (US-004: hareket hissi, koşu halkası/sızma dolgusu, ad etiketi okunurluğu, kamera yalnız kendi karakterinde, Esc menüsü açıkken yürümeme, gamepad kısmi hız; 120/144 Hz ekranda yerel oyuncuda takılma var mı — varsa `physics_interpolation` kararı); bir arkadaşla Tailscale üzerinden bağlanır (≤ 5 sn), 10 dk oynar; his notları GB olarak yazılır. Faz kapanışını engellemez; Engelli(kullanıcı-cihaz) olarak taşınır.
+**Kabul:** Kullanıcı build'i (ya da editörü) iki pencerede çalıştırıp host/katıl, yürüme ve kasa boşaltmayı dener (US-004: hareket hissi, koşu halkası/sızma dolgusu, ad etiketi okunurluğu, kamera yalnız kendi karakterinde, Esc menüsü açıkken yürümeme, gamepad kısmi hız; 120/144 Hz ekranda yerel oyuncuda takılma var mı — varsa `physics_interpolation` kararı; IS-019: build arkadaş makinesinde açılıyor mu, görüntü bozuk mu — özellikle eski/tümleşik GPU'da OpenGL 3.3; IS-005: Linux paketi gerçek Linux'ta `./Insiders.x86_64` ile açılıyor mu, Windows'ta SmartScreen/güvenlik duvarı uyarıları); bir arkadaşla Tailscale üzerinden bağlanır (≤ 5 sn), 10 dk oynar; his notları GB olarak yazılır. Faz kapanışını engellemez; Engelli(kullanıcı-cihaz) olarak taşınır.
 
 ### IS-008 — Seviye renklerini ThemeTokens'a taşı
 EP-01 · P2 · XS · Sahip: seviye · Bağımlılık: US-002, US-003
@@ -206,27 +213,35 @@ EP-01 · P1 · S · Sahip: tasarim · Bağımlılık: (A) yok · (B) IS-005, IS-
 
 ## 2b. Faz 2 kalemleri (EP-02 — Gizlilik, bakkal; plan 2026-10-02, KR-019/020/021)
 Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md` §2 · US-016 → §3 · US-010 → §4 · IS-023 → §5 (taslakta "IS-022" yazılı) · US-009/US-011/US-012/US-013/IS-015 AC değişiklikleri → §6. Kartlar GDD v0.3 §6.1, §9.1-9.3'e dayanır.
-**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
+**2a çirkin dilim** (sıra): US-006 → US-007 → IS-023 → US-008 → US-009 → US-010 → US-012 → US-016 → US-013 asgari → SFX → IS-017a oyun testi. **2b:** US-011, US-014 (NPC başlıkları), IS-015, US-015, raf değerlileri. Faz 2 kod kalemleri `faz2-int` entegrasyon dalında birleşir; Faz 1 checkpoint'inden sonra dev'e.
 
 | ID | Başlık | EP | Sahip | Öncelik | Büyüklük | Bağımlılık | Durum | Commit |
 |---|---|---|---|---|---|---|---|---|
-| US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
+| US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Bitti (faz2-int) | 6e3f782 |
 | US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Bitti (dal `faz2/US-007`, Faz 1 checkpoint'inden sonra dev'e) | 3280e78 |
-| IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Sürüyor (2026-10-02; faz2) | |
-| US-008 | Bakkal sahibi v0: Agenda + sivil çarpan + sorgu/bağırış/tutma + ÇEK kurtarma + mahalleli (chaser) + polis sayacı | 2 | oynanis | P1 | M | US-006, US-007, IS-023 | Hazır (US-006 t2 sonrası) | |
-| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
+| IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Bitti (faz2-int) | ce9cfc2 |
+| US-008 | Bakkal sahibi v0: Agenda + sivil çarpan + sorgu/bağırış/tutma + ÇEK kurtarma + mahalleli (chaser) + polis sayacı | 2 | oynanis | P1 | M | US-006, US-007, IS-023 | Sürüyor (2026-10-02; faz2-int) | |
+| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (t2; çift kasa sesi, tempo sınırı, LOS hizalama) | |
 | US-010 | Bakkal etkileşimleri: SATIN AL, OYALA, ARKA ODAYA GÖNDER, DİKKAT DAĞIT, oyalanma sayacı | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
-| US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught | 2 | oynanis | P1 | S | US-008 | Backlog | |
+| US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught (US-008 olaylarına sahte sinyallerle; bağlama birleşmede) | 2 | oynanis | P1 | S | US-008 | Sürüyor (2026-10-02; faz2-int) | |
 | US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
-| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Sürüyor (2026-10-02; faz2) | |
-| IS-024 | 2a SFX: 5-6 yer tutucu ses (zil, ?, !, bağırış, kapı, kasa) — CC0, assetler.md kaydı | 2 | arayuz | P1 | XS | US-008 (olay adları) | Backlog | |
+| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Bitti (faz2-int) | c8c699f |
+| IS-024 | 2a SFX: yer tutucu sesler (CC0 indirme, kullanıcı izni) + ses kataloğu + SfxEmitter; kapı/kasa/UI bağlı, sahip/adım anahtarları US-008/US-009'a | 2 | arayuz | P1 | S | — | Sürüyor (2026-10-02; faz2-int) | |
+| IS-030 | Yer tutucu seslerin üretilmiş (AI) seslerle değiştirilmesi + Türkçe bakkal/mahalleli ses satırları (kullanıcı kaydı ya da üretim); assetler.md + Steam AI bildirimi işaretleri | 4 | arayuz | P2 | S | IS-024 | Backlog (kullanıcı notu) | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
-| US-011 | Görüş sisi + okunabilirlik (sahip görev ikonu, koniler, ?/! balonları) | 2 | seviye | P2 | S | US-008 | Backlog (2b) | |
-| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (2026-10-02; worktree) | |
+| US-011a | Görüş: VisionGrid (core, düğümsüz) + sis katmanı (üç ton) + görüş ayarları — gorus-sis-hafiza.md §6 AC1, AC2, AC9, AC10 (seviye payı) | 2 | seviye | P1 | M | US-006 | Sürüyor (2026-10-02; faz2-int) | |
+| US-011b | Görüş: bakış yönü (fare/sağ çubuk, look_dir 20 Hz), NPC görünürlük kapısı + hayalet + çevresel siluet, kukla baş/göz, noise_ring çizim koşulu, Game.player_exposure/vision_mode — §6 AC3, AC4, AC6 (Game), AC7 | 2 | oynanis | P1 | M | US-011a, US-008, US-014, US-009 | Backlog | |
+| US-011c | Görüş: HUD maruziyet rozeti, görüldü ikonu, ekip kenar oku, lobi "Görüş" seçimi, i18n (FOG token'ları US-011a'da) — §6 AC5 (UI), AC6 (UI) | 2 | arayuz | P1 | S | — (FakeGame) | Sürüyor (2026-10-02; faz2-int) | |
+| US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
+| IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Sürüyor (2026-10-02; dev) | |
+| IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
+| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
 | IS-015 | Oyun testi botları (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
-| IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
-| IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
+| IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
+| IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Bitti (dev) | fac4488 |
+| IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
+| IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Sürüyor (t3; medyan kestirim — jitter altında düşük gösterim) | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
 | IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |

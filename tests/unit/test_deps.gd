@@ -3,7 +3,8 @@ extends TestCase
 ## ne `ui/` yolu (preload/load dizesi) ne de ui/ sınıf adı (ThemeTokens, UiInput, MainMenu, ThemeBuilder, Tone
 ## ve ui/ altındaki diğer class_name'ler). Tek bilinçli istisna Game'in HUD'u yol dizesinden `load()` ile eklemesi
 ## (`HUD_SCENE` sabiti; derleme bağımlılığı yok, S3). Yorumlar taranmaz; dizeler taranır (dinamik başvuru da
-## bağımlılıktır). Sınır: çok satırlı (""") dize içindeki `#` yorum sayılır.
+## bağımlılıktır). `uid://` başvuruları ResourceUID ile yola çözülür: ui/ altına çıkan ya da çözülemeyen uid
+## (gizli/bayat başvuru) ihlaldir (IS-005). Sınır: çok satırlı (""") dize içindeki `#` yorum sayılır.
 
 const SCANNED_DIRS: Array[String] = ["res://core", "res://autoload"]
 const UI_DIR := "res://ui/"
@@ -68,6 +69,31 @@ func test_scanner_detects_mutations() -> void:
 	eq(violations(GAME, source.replace("load(HUD_SCENE)", "load(\"res://ui/hud.tscn\")"), names).size(), 1)
 
 
+func test_scanner_resolves_uid_references() -> void:
+	var names: PackedStringArray = ui_class_names()
+	var ui_uid: String = _uid_text("res://ui/hud.tscn")
+	var level_uid: String = _uid_text("res://levels/store_a.tscn")
+	if not is_true(ui_uid.begins_with("uid://") and level_uid.begins_with("uid://"), "uid bulunamadı (içe aktarma?)"):
+		return
+	var caught: Array[String] = [
+		"var hud: PackedScene = load(\"%s\")" % ui_uid,
+		"const HUD := preload(\"%s\")" % ui_uid,
+		"var u := \"%s\"  # yorum" % ui_uid,
+		"var stale := load(\"uid://zzzzzzzzzzzzz\")",  # çözülemeyen uid
+	]
+	for line: String in caught:
+		eq(violations(GAME, line, names).size(), 1, "yakalanmalı: " + line)
+	var clean: Array[String] = [
+		"var level: PackedScene = load(\"%s\")" % level_uid,
+		"var x := 1  # %s yorumda" % ui_uid,
+	]
+	for line: String in clean:
+		eq(violations(GAME, line, names).size(), 0, "temiz sayılmalı: " + line)
+	# Gerçek dosyaya mutasyon: HUD yolunun yerine uid'si yazılırsa da yakalanır.
+	var source: String = FileAccess.get_file_as_string(GAME)
+	eq(violations(GAME, source.replace("load(HUD_SCENE)", "load(\"%s\")" % ui_uid), names).size(), 1)
+
+
 ## ui/ altındaki betiklerin class_name'leri.
 static func ui_class_names() -> PackedStringArray:
 	var out: PackedStringArray = []
@@ -91,9 +117,26 @@ static func violations(path: String, source: String, class_names: PackedStringAr
 		if allowed.has(lines[i].strip_edges()):
 			continue
 		var code: String = strip_comment(lines[i])
-		if ui_path.search(code) != null or classes.search(code) != null:
+		if ui_path.search(code) != null or classes.search(code) != null or _has_ui_uid(code):
 			out.append("%d: %s" % [i + 1, lines[i].strip_edges()])
 	return out
+
+
+## Koddaki `uid://` başvurularından biri ui/ altına çözülüyor ya da hiç çözülmüyorsa true.
+static func _has_ui_uid(code: String) -> bool:
+	var uid := RegEx.create_from_string("uid://[0-9a-z]+")
+	for m: RegExMatch in uid.search_all(code):
+		var id: int = ResourceUID.text_to_id(m.get_string())
+		if id == ResourceUID.INVALID_ID or not ResourceUID.has_id(id):
+			return true
+		if ResourceUID.get_id_path(id).begins_with(UI_DIR):
+			return true
+	return false
+
+
+static func _uid_text(path: String) -> String:
+	var id: int = ResourceLoader.get_resource_uid(path)
+	return ResourceUID.id_to_text(id) if id != ResourceUID.INVALID_ID else ""
 
 
 ## Satırdan dize dışındaki ilk `#`'tan sonrasını atar (tek satırlık "..." / '...' dizeleri, kaçışlarla).

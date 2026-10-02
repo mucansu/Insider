@@ -1,0 +1,16 @@
+{
+  "_doc": "Dayanıklılık botu, c1 (IS-013; tests/net/soak/store_a.json). Giriş: caddenin dibine in (sınır). Tur: cadde dibinde batı sınırına, sağa ön kapı hizasına, yukarı kapının önüne; kapıya iki kez bas (kapat, aç: tur sonunda kapı başlangıç durumunda), açık kapıdan girip rafa kadar yukarı, kapıdan çıkıp cadde dibine kadar aşağı, dur.",
+  "loop": {"from": 1.2, "period": 15.0},
+  "steps": [
+    {"t": 0.2, "move": [0, 1]},
+    {"t": 1.21, "move": [-1, 0]},
+    {"t": 4.01, "move": [1, 0]},
+    {"t": 6.41, "move": [0, -1]},
+    {"t": 7.21, "move": [0, 0]},
+    {"t": 7.51, "press": "interact"},
+    {"t": 9.01, "press": "interact"},
+    {"t": 9.51, "move": [0, -1]},
+    {"t": 12.11, "move": [0, 1]},
+    {"t": 15.51, "move": [0, 0]}
+  ]
+}

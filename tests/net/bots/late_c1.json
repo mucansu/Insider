@@ -1,0 +1,12 @@
+{
+  "_doc": "late_join_real.json c1 botu (IS-013): kaldırımın soluna (sınır), sağa ön kapının önüne, 8. sn'de açık ön kapıyı kapat (host çoktan içeride); c2 katılırken hareketsiz bekle, 21. sn'de kaldırımda sola yürü (sınır), dur.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.25, "move": [0, 0]},
+    {"t": 8.0, "press": "interact"},
+    {"t": 21.0, "move": [-1, 0]},
+    {"t": 24.0, "move": [0, 0]}
+  ]
+}

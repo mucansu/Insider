@@ -1,0 +1,8 @@
+{
+  "_doc": "late_join_real.json c2 botu (IS-013, geç katılan): 1 sn bekle, caddeye in (sınır), sağa yürü, dur.",
+  "steps": [
+    {"t": 1.0, "move": [0, 1]},
+    {"t": 2.0, "move": [1, 0]},
+    {"t": 4.0, "move": [0, 0]}
+  ]
+}

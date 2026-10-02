@@ -15,6 +15,8 @@ Kullanıcı yalnızca koordinatörle muhatap olur. Koordinatör = Claude Code an
 
 Ortak yüzeyler: `project.godot` yalnız altyapi'nin (başka ajanın ihtiyacı → "Karar gereken" ya da kalem); `i18n/texts.csv` satır ekleme herkese serbest, mevcut satırı değiştirmek arayuz'un; `data/` dosyası onu tanımlayan ajanın; seviyeye nesne yerleştirme kalemin Dokunulacak listesinde açıkça yazıyorsa içerik sahibi ajan yapabilir. Testler modül sahibine aittir. `docs/**` koordinatörün (tasarim/ hariç).
 
+Düşünme seviyesi (2026-10-02, kullanıcı onayı): denetci, cekirdek ve tasarim `effort: high` (hata bulma, ağ/yetki kodu, tasarım derinliği); diğerleri varsayılan.
+
 Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda değil. Sözleşme değişikliği koordinatör kararıdır, önce dokümana yazılır.
 
 ## Ortak ajan kuralları (her ajan dosyasında tekrarlanır)
