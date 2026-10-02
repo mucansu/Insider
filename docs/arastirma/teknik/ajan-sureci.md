@@ -115,3 +115,208 @@ Süreç tasarımı (surec.md, ajanlar.md, CLAUDE.md, .claude/agents/*.md, .claud
 23. Thoughtworks Radar Vol. 34 — Codebase cognitive debt — https://www.thoughtworks.com/radar/techniques/codebase-cognitive-debt
 24. Claude Agent SDK — Building agents (gather context → act → verify; kural tabanlı > LLM-yargıç) — https://claude.com/blog/building-agents-with-the-claude-agent-sdk
 25. gdtoolkit (gdlint/gdformat, Godot 4) — https://github.com/Scony/godot-gdscript-toolkit
+
+## Tur 2 — 2026-10-02
+
+### Kapsam
+Tur 1 kararlarının (IS-052..IS-056) somutlaştırılması: (1) IS-054 denetim kontrol listesi v2 — holdout test nerede/nasıl, boz-yakala (mutant) seçimi, denetci.md'ye eklenecek metin; (2) koordinatör darboğazı (R5) için `/paket`, `/kapat`, `/dalga` skill iskeletleri (Claude Code skill biçimi belgeden doğrulandı); (3) kart dosyaları (R8) maliyet/fayda ve geçiş planı; (4) eşzamanlı 20 alt ajan sınırı altında önceliklendirme; (5) `pano:` commit oranı. Belgeler 2026-10-02'de okundu; Claude Code sürüm notları (v2.1.1xx-2xx) olduğu gibi aktarıldı.
+
+### Mevcut durum (dosya:satır)
+- **Denetim:** `denetci.md:6` tools Read/Grep/Glob/Bash; `:9` "dosya değiştirmez, /tmp altında kendi dizini"; `:12-18` kontrol listesi — madde 5'te "testi geçmek için özel durum yazılmış mı" var, "testler kırılan kodu yakalıyor mu" (mutant) ve holdout yok. Çürütmeli inceleme için ajan dosyası yok (`.claude/agents/` 8 dosya; "inceleme/çürütme" yok) → her seferinde koordinatör istem yazıyor [?].
+- **Test koşucusu:** `tests/run_tests.gd:80` `DirAccess.get_files_at(UNIT_DIR)` — yalnız `tests/unit/` düz dizini, alt dizin taranmaz; dosya adı `test_*.gd` olmalı (`:81`). `ci_local.sh:50-54` unit adımı aynı koşucu → holdout dosyası `tests/unit/test_<kalem>_holdout.gd` adıyla konursa ek CI adımı gerekmez.
+- **Skill/hook:** `.claude/skills/` ve `.claude/hooks/` yok; `settings.json:1-19` izinler + `worktree.baseRef: head` (IS-052 uygulanmış). `git worktree list` 22 satır, 17 `worktree-agent-*` dalı.
+- **Kart yükü:** `backlog.md` 376 satır / 72,9k karakter (≈ 20-25k token [?]); 101 kimlik satırı, 26 tam `###` kartı; Faz 2 kart metinleri zaten ayrı dosyada (`backlog.md:215` → `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md`) → kart düzeni fiilen iki yerli. Bir ajanın açılışta okuyabileceği doküman toplamı 194k karakter (backlog + mimari + GDD + ajanlar + surec + CLAUDE.md + index) ≈ 60k+ token [?].
+- **Pano bayatlığı (kanıt):** `durum.md:17-18` US-006/US-013 "Denetimde", US-009/US-014/IS-022 "Sürüyor" yazarken `backlog.md:220,228,238,242` Bitti, `:224` t2. "Her durum geçişini anında yaz" kuralı durum.md'de tutmuyor; backlog satırı tutuyor. Son 60 commit'in 44'ü `pano:` (%73); 13:00 saatinde 25 commit / 20 pano.
+- **Süreç belgesi:** `surec.md:65` §6 güncel (IS-052); `ajanlar.md:62` hâlâ `../insiders-wt/<kalem>` diyor (IS-055 pano lint adayı).
+
+### En iyi uygulamalar ve seçenekler
+1. **Holdout testi — kim, ne zaman, nerede.** [O] SpecBench'in ölçtüğü boşluk "görünür testleri geçen, gizli testlerde düşen" koddur [10]; Anthropic "doğrulayan ajan işi yapan ajan olmasın, taze bağlamla çürütmeye çalışsın" der [1]; Trail of Bits "kazara davranışı teste dondurma" uyarısı yapar [13]. Gizleme seçenekleri:
+   - (a) **Sıra ile gizleme** [G, önerilen]: holdout kalem **Denetimde**'ye geçince, ajan raporunu verdikten sonra yazılır; ajanın worktree'si o ana kadar ki anlık görüntüdür, dosyayı görmemiştir. t2'de görür — istenen budur; o aşamada koruma hook'tur ("holdout dosyasını değiştirme/silme" deny). Artı: sıfır altyapı, mevcut unit koşucusu/CI olduğu gibi. Eksi: duvar saati seri (yazma Denetimde başlar); çözüm: çürütme ajanı Sürüyor sırasında **başka worktree'de** paralel yazar, koordinatör Denetimde'de kopyalar.
+   - (b) Repo dışı saklama + CI'da kopyalama: gizlilik uzun sürer ama test kalıcı regresyon olamaz, CI karmaşıklaşır — hayır [G].
+   - (c) Ayrı `holdout/<kalem>` dalı: (a)'nın pahalı hâli — hayır [G].
+   - **Körlük kuralı** [G]: holdout, ürün kodunu okumadan yalnız kart AC'si + mimari.md sözleşmesi (S-n imzaları) + GDD bölümünden yazılır; kodu okuyan test ajanın varsayımlarını kopyalar (kendini tercih yanlılığı [9]). Sözleşmelerin mimari.md'de yaşaması bunu mümkün kılar. Holdout düşünce önce testin AC'yi doğru okuyup okumadığı koordinatörce kontrol edilir (test de hatalı olabilir), sonra t2.
+   - **Kalıcılık:** holdout `tests/unit/test_<kalem>_holdout.gd` olarak kalır (normal regresyon); tur 1'in "görünürlük zamanla azalır" sorusu böylece düşer — her yeni kalem kendi taze holdout'unu alır.
+2. **Mutant seçimi (elle boz-yakala) sezgileri.** [O] PIT varsayılan seti: sınır (`<`↔`<=`), koşul tersine, dönüş değeri (true/false/0/null/boş), void çağrı silme, artım/azalım tersine, aritmetik değişimi [26]; Stryker aynı sınıflar + blok boşaltma + dize literal boşaltma [27]. Trail of Bits şiddet sırası: ifade/dal silme (yüksek: "bu dal hiç test edilmiyor") > satır yorumlama (orta: yan etki doğrulanmamış) > operatör değişimi (düşük); aynı satırda yüksek şiddetli mutant yakalanmıyorsa düşükleri atla [13]. GDScript için araç yok [?]; elle 2-3 mutant ölçeklenir.
+   - **Bizim koda çeviri** [G] — diff'te şunlardan birer tane, öncelik sırasıyla, en fazla 3: (M-ağ) RPC/sinyal çağrısını sil ya da `multiplayer.is_server()`/yetki koşulunu kaldır (S2 kırmızı çizgi); (M-eşik) yeni sabit/eşik ±1 birim ya da ±%20 (`SIDE_TOLERANCE 24`, 0,2 sn pay gibi); (M-dal) yeni `if` dalını tersine çevir ya da erken `return`; (M-dönüş) bool dönüşü sabitle; (M-metin) `tr()` anahtarını değiştir (S9). Zaman kısıtlıysa yalnız M-ağ ve M-dal.
+   - **Uygulama yolu** (denetci "dosya değiştirmez"): (i) worktree'nin **kopyasında** çalış: `cp -r <worktree> <scratchpad>/<kalem>-mut/` (`.godot/` dahil), orada düzenle, `--headless --path . -s res://tests/run_tests.gd -- --filter=<modül>` koş, sonunda sil [G; `.godot/` kopyasının import'suz geçerli olduğu doğrulanmalı [?], değilse `--import` + süre ölçümü]; (ii) aynı ağaçta `git stash`/`checkout --` ile geri alma — kural ihlali, paralel ajan riski, hayır; (iii) ayrı "mutant" ajanı — fazla.
+   - **Sonuç kuralı** [G]: yakalanmayan mutant = should-fix ("test eksik: <mutant> için beklenti yaz"); koordinatör davranışın bilerek test dışı olduğuna karar verirse nit + günlük satırı. Rapor alanı: `Boz-yakala: n/m — M1 door.gd:88 '<'→'<=' → test_interaction_door_block FAIL (yakalandı) · M2 … (kaçtı)`.
+3. **Skill biçimi** [O][6]: `.claude/skills/<ad>/SKILL.md`; frontmatter alanları `name`, `description`, `disable-model-invocation: true` (yalnız `/ad` ile çağrılır), `user-invocable`, `allowed-tools` (o turda sormadan izinli; ör. `Bash(git merge --no-ff *)`), `disallowed-tools`, `argument-hint`, `arguments` (adlı), `model`, `effort`, `context: fork` + `agent`, `hooks` (skill çağrılınca kaydedilir, `once: true` ilk başarılı koşudan sonra kalkar), `paths`, `shell: bash|powershell`. Yer tutucular `$ARGUMENTS`, `$0`/`$1`, `$ad`, `${CLAUDE_SESSION_ID}`, `${CLAUDE_PROJECT_DIR}` (v2.1.196+). `` !`komut` `` içerik modele gitmeden koşar, çıktısı yerine konur; argümanlar komuttan önce yerine konur; `disable-model-invocation` ile de çalışır; sıfır-dışı çıkış **tüm çağrıyı iptal eder** (`|| true`); yalnız `bash` yoksa PowerShell. SKILL.md < 500 satır, ayrıntı yan dosyada; yüklenen içerik oturum boyunca bağlamda kalır (her satır tekrarlayan maliyet). Tuzak [G]: skill `$0` yerine koyar → `awk '{print $0}'` gibi kabuk komutları bozulur; kart çıkarmayı `tools/kart.py $ARGUMENTS` gibi bir yardımcıya ver.
+4. **Kart dosyaları** [O]: Backlog.md aracı kalem başına Markdown dosyası (`backlog/tasks/`), ajan odaklı; gerekçe "biten kalem neyin neden denendiğinin kalıcı kaydı, sonraki ajana okunur" [28]. Beads kayıt başına JSONL + hash kimlik; gerekçe paralel ajan yazımlarında birleştirme çakışması, bağımlılık grafiği, `bd ready` (engeli olmayan iş) sorgusu [29]. Bizde yalnız koordinatör yazar → çakışma gerekçesi geçersiz; geçerli olan **okuma maliyeti** (ajan tek kart okur) ve **paket üretimi** (`/paket` tek dosyayı gömer).
+5. **Eşzamanlılık sınırı** [O][4]: varsayılan 20; aşınca Agent çağrısı `Concurrent subagent limit reached` ile **düşer, kuyruk yok**, "tekrar deneme" denir; ayar `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`; biten alt ajanı sürdürmek (resume) sınırı saymaz; `ultracode` oturumları muaf. Dinamik iş akışları ayrı havuz: 16 eşzamanlı (CPU'ya göre azalır), `CLAUDE_CODE_WORKFLOW_MAX_CONCURRENT_AGENTS` (v2.1.269+), çalıştırma başına 1.000 ajan, > 25 ajan/1,5M token'da "Large workflow" uyarısı [19]. Üçüncü taraf yazılar "fazlası kuyruğa girer" diyor [34] — resmî belgeyle çelişiyor, belge esas [?]. Önceliklendirme kaynakları: DORA WIP sınırı — "bitir, sonra çek"; sınıra gelince önce bir kart ileri sütuna geçmeli [30]; WSJF = gecikme maliyeti / süre, kısa ve pahalı-gecikenler önce [31]; kuyruk kuramı: kısa iş önce (SJF) ortalama bekleme süresini düşürür [32]; Anthropic derleyici deneyi: görev kilidi + bağımlılık sırası [22]. Bizde gerçek darboğaz 20 değil, **CPU/RAM**: her kod worktree'si kendi Godot import + unit koşusunu yapar (ci_local adım süreleri ölçülmedi [?]).
+6. **Pano yazma vs commit** [G]: "anında yaz" (dosya, çökmeye dayanıklı, sonraki oturum okur) ile "anında commit" (tarih) ayrı şeylerdir; CLAUDE.md yalnız ilkini ister, uygulama ikincisini de yapıyor. Worktree'deki ajanlar ana ağacın commit'lenmemiş panosunu zaten görmez (anlık görüntü) → anlık pano commit'inin ajanlara faydası yok; tüketicisi yalnız gelecekteki oturum/başka makine ve faz kapanış tarihi. Anthropic uzun koşan ajan düzeneğinde ilerleme dosyası sık güncellenir, commit özellik başınadır [2].
+
+### Bizim yapımıza uygunluk
+- Holdout (1a) + hook koruması, IS-053'ün hook paketine bir satır ekler (`tests/unit/*_holdout.gd` Edit/Write deny — kod ajanlarında); yeni ajan dosyası `curutme.md` (Write yalnız holdout kalıbına; hook ile) bugünkü "her seferinde istem yaz" yükünü kaldırır. Koşucu düz dizin taradığından dosya adı kuralı yeterli; `run_tests.gd` değişmez.
+- Mutant uygulaması (2-i) denetci'nin "dosya değiştirmez" kuralını korur (kopya, scratchpad); IS-053 hook'u scratchpad yoluna Edit/Write izni vermeli (yalnız `<scratchpad>/**`).
+- Skill'ler yalnız koordinatörün oturumunda çalışır (alt ajanlar `/paket` çağırmaz); `disable-model-invocation` ile otomatik tetiklenmez. `/kapat` push yapmaz (push `settings.json` allow listesinde, ayrı adım) — "ajan commit atmaz" kuralına dokunmaz.
+- Kart dosyaları Faz 2'de fiilen başladı (faz2-bakkal-kalemleri.md); standartlaştırma = yeni kalemler için kural + yardımcı betik, geçmiş kartlar taşınmaz.
+- Önceliklendirme kuralı KR-020 (önce aramızda MVP) ve "ajan sınırı yok" kararıyla uyumlu: sınır değil sıra; makine yükü ölçülünce kod paketi tavanı buna göre.
+
+### Bulgular
+**Doğru yaptıklarımız**
+- Sözleşmelerin mimari.md'de yaşaması holdout'un "kör" (kodu okumadan) yazılmasını mümkün kılıyor; çoğu projede bu yok.
+- Unit koşucusu dosya adıyla keşif yapıyor → holdout için ek altyapı gerekmiyor; CI otomatik koşar.
+- Faz 2 kartlarını ayrı dosyaya almak (faz2-bakkal-kalemleri.md) R8'in yarısını zaten çözmüş.
+- IS-052 uygulanmış: `worktree.baseRef: head`, surec §6 gerçek akış.
+
+**Saptığımız yerler / riskler**
+- **R13 — durum.md bayat, backlog güncel.** İki yerde durum tutuluyor, biri sürükleniyor (`durum.md:17-18` ↔ `backlog.md:220-242`). Sürüyor/Denetimde listesi üretilebilir bilgi; elle yazılması hem pano commit sayısını hem tutarsızlığı artırıyor.
+- **R14 — Çürütme ajanı tanımsız.** Her M/ağ kaleminde koordinatör istemi yeniden yazıyor; holdout/mutant kuralları bir ajan dosyasına bağlanmadıkça tutarlı uygulanmaz.
+- **R15 — Mutant uygulaması denetci kuralıyla çelişir.** "Elle mutant" kalemde (IS-054) yöntem yazılmazsa denetci ya kuralı bozar ya atlar.
+- **R16 — `$0` çakışması.** Skill içindeki `` !`awk … $0` `` kalıpları sessizce bozulur; belgede uyarı yok.
+- **R17 — Sınır aşımında kuyruk yok.** 20'nin üstünde Agent çağrısı düşer; koordinatör "tekrar deneme" uyarısı alır; araştırma/tasarım ajanları slot tutarken denetim bekleyebilir.
+- **R18 — ajanlar.md:62** eski worktree yolu (IS-055'e).
+
+### IS-054 için denetci.md ek metni (öneri; dosyaya koordinatör işler)
+```
+8. Boz-yakala ve holdout (M kalem, ağ/yetki kodu, `core/`/`autoload/` değişen her kalem):
+   a. Holdout: `tests/unit/test_<kalem>_holdout.gd` varsa ajanın diff'inde olmadığını doğrula
+      (`git log --diff-filter=A -- <dosya>` koordinatör commit'i; ajan dalında değişiklik yok). Yoksa raporda
+      "holdout yok" yaz (M/ağ kalemde should-fix).
+   b. Mutant seç (en fazla 3, diff'ten, sırayla): RPC/sinyal/yetki koşulu silme → yeni eşik ±1 birim → yeni `if`
+      dalı tersine / erken return → bool dönüş sabitleme → tr() anahtarı değişimi.
+   c. Uygula: worktree'yi `<scratchpad>/<kalem>-mut/` altına kopyala (`.godot/` dahil), mutantı orada yaz,
+      `--headless --path . -s res://tests/run_tests.gd -- --filter=<modül>` koş, kopyayı sil. İzlenen ağaca dokunma.
+   d. Sonuç: her mutant için "yakalandı (hangi test)" ya da "kaçtı". Kaçan mutant = should-fix
+      ("test eksik: …"); koordinatör bilerek test dışı derse nit.
+   e. Rapor satırı: `Boz-yakala: n/m — M1 <dosya:satır> <değişim> → <test> FAIL · M2 …`.
+   f. Çürütme ajanı holdout yazdıysa raporunu OKUMA; yalnız dosyanın koştuğunu ve sonucunu bildir.
+   g. Mutant/holdout için üretim kodunu "düzeltme" önerme; yalnız test boşluğunu yaz.
+```
+
+### `curutme` ajanı iskeleti (öneri; `.claude/agents/curutme.md`)
+```
+---
+name: curutme
+description: "Kör holdout testi yazarı ve çürütmeli inceleyici: ajanın kodunu okumadan kart AC'si + mimari S-n sözleşmesi + GDD'den 1-3 holdout birim testi yazar (tests/unit/test_<kalem>_holdout.gd), koşar; M/ağ kalemde diff'i AC'ye karşı çürütür. Yalnız holdout dosyasını yazar."
+model: inherit
+effort: xhigh
+tools: Read, Grep, Glob, Bash, Write
+hooks:
+  PreToolUse:
+    - matcher: "Write|Edit"
+      hooks:
+        - type: command
+          command: "python .claude/hooks/only_holdout.py"   # tool_input.file_path tests/unit/test_*_holdout.gd değilse exit 2
+---
+Önce kart (Dokunulacak, AC, Sözleşme), mimari.md S-n ve GDD bölümünü oku. Ürün kodunu (entities/, core/, autoload/, ui/, levels/) OKUMA;
+imzalar sözleşmeden. Her AC için en az bir beklenti; sınır (eşik ±1), yetki (istemci dener → host reddeder), zaman (0/150 ms) açıları.
+Testi koş; düşerse önce kendi okumanı sorgula (AC yanlış mı okundu?). Rapor: Kalem: … / Holdout: dosya + n test + sonuç / Okuduğum dosyalar / Karar gereken.
+```
+
+### Skill iskeletleri (öneri; dosyaya yazılmadı)
+**`/paket US-nnn`** — `.claude/skills/paket/SKILL.md`
+```
+---
+name: paket
+description: Kalem kartından Ek 1 görev paketi üretir (ajan adı, çalışma yolu, çakışma kontrolü).
+disable-model-invocation: true
+argument-hint: "[US-nnn|IS-nnn]"
+allowed-tools: Bash(python tools/kart.py *) Bash(git worktree list) Bash(git status *)
+---
+## Kart
+!`python tools/kart.py show $ARGUMENTS`          # tablo satırı + ### bölümü ya da docs/surec/kartlar/<ID>.md; yoksa exit 1 → çağrı iptal
+## Sürüyor kalemler ve dosya kümeleri
+!`python tools/kart.py active --files`           # Sürüyor/Denetimde kalemlerin Dokunulacak listeleri
+## Worktree'ler
+!`git worktree list`
+## Görev
+1. DoR eksikse (AC, Dokunulacak, Sözleşme, Oku) dur ve eksiği listele; paket üretme.
+2. Dokunulacak ∩ aktif kalemlerin Dokunulacak'ı boş değilse "ayrıklık ihlali" yaz ve dur (ortak dosyalar: game.gd, player.gd, texts.csv, store_a.tscn → birleştirme koordinatörde, surec §6).
+3. surec.md Ek 1 gövdesini kartla doldur: ajan = kartın Sahip sütunu; çalışma yolu = "worktree (isolation)"; Bağlam'a ilgili KR'ler ve paralel kümeler; rapor beklentisi.
+4. Çıktı: yalnız paket metni + "Agent(subagent_type=<ajan>, isolation=worktree)" satırı. Agent'ı sen çağırma; backlog/durum'a yazma (koordinatör yapar).
+```
+**`/kapat US-nnn`** — `.claude/skills/kapat/SKILL.md`
+```
+---
+name: kapat
+description: PASS almış kalemi DoD listesine göre kapatır — commit (worktree'de), hedef dala --no-ff birleştirme, ci_local, pano satırları. Push yapmaz.
+disable-model-invocation: true
+argument-hint: "[US-nnn] [worktree-yolu] [hedef-dal]"
+arguments: [kalem, yol, dal]
+allowed-tools: Bash(git -C * status *) Bash(git -C * diff *) Bash(git -C * log *) Bash(tools/ci_local.sh) Bash(python tools/kart.py *)
+---
+## Değişen dosyalar
+!`git -C "$yol" status --short && git -C "$yol" diff --name-only "$dal"...HEAD`
+## Kart
+!`python tools/kart.py show $kalem`
+## DoD (surec.md §4) — her madde için kanıt iste, eksikse DUR ve listele; commit atma:
+1. Denetci raporu "Sonuç: PASS" (koordinatör yapıştırır; M/ağ kalemde Boz-yakala satırı ve holdout var).
+2. Değişen dosyalar ⊆ Dokunulacak (+ makul yardımcı: .uid, .import); Dokunulmayacak'a düşen → DUR.
+3. "Karar gereken" boş; doküman güncel (sözleşme → mimari.md; tasarım → GDD).
+4. Adımlar (onaydan sonra, sırayla): worktree'de `git add` yalnız kart dosyaları + test + doküman → `git commit -m "<kalem>: <özet>"` →
+   ana ağaçta `git merge --no-ff <worktree dalı>` (çakışma → iki tarafın eklemeleri; şüphede DUR) → `tools/ci_local.sh` → yeşilse
+   backlog satırı Bitti + hash (tools/kart.py set-status) → durum.md yenile → tek `pano:` commit. Push ayrı komut (koordinatör).
+```
+**`/dalga <rapor-yolu>`** — `.claude/skills/dalga/SKILL.md`
+```
+---
+name: dalga
+description: Araştırma/tasarım raporunun öneri tablosunu backlog kalem adaylarına çevirir (kimlik, satır, kart taslağı); yazmadan önce listeler.
+disable-model-invocation: true
+argument-hint: "[docs/arastirma/.../dosya.md]"
+allowed-tools: Bash(python tools/kart.py *)
+---
+## Rapor
+!`python tools/kart.py extract-oneriler "$ARGUMENTS"`   # "### Öneriler" tablosunu satır satır (Ne/Neden/Ö/Maliyet/Sahip/AC) verir
+## Mevcut kimlikler ve Bekleyen KR'ler
+!`python tools/kart.py next-id && python tools/kart.py pending-kr`
+## Görev
+1. Her öneri → ya mevcut kaleme ek (kimliğini yaz) ya yeni kalem: `| IS-nnn | başlık | faz | sahip | Ö | B | bağımlılık | Backlog | |` satırı + kart taslağı (DoR alanları, AC'ler rapordan).
+2. "Karar gereken" işaretli öneriler kalem değil KR adayı: kararlar.md Bekleyen satırı taslağı.
+3. Çıktı: iki blok (backlog satırları; kart taslakları docs/surec/kartlar/<ID>.md) + KR adayları. Dosyaya yazma; koordinatör onaylayınca yazar (ya da `--write` ikinci çağrı).
+```
+
+### Kart dosyaları (R8): maliyet/fayda ve geçiş planı [G]
+- **Fayda:** ajan açılışında backlog yerine tek kart (≈ 20-25k → ≈ 0,5-1k token [?]); `/paket` tek dosyayı gömer; kart bütünü git geçmişinde kalem başına izlenir; pano lint "satır var, kart yok" denetimi yapabilir. Bitti kartlar "ne denendi, neden" kaydı olarak kalır [28].
+- **Maliyet (S):** `docs/surec/kartlar/<ID>.md` kuralı + surec §3/Ek 1 + project-index satırı (XS); `tools/kart.py` (show / active --files / set-status / next-id; ≈ 100-150 satır Python, testli; XS-S); durum iki yerde kalmasın: **durum yalnız backlog tablo satırında**, kart DoR alanlarını taşır (satır ↔ kart tek yönlü bağ).
+- **Geçiş:** (1) bugünden itibaren yeni kalemler kart dosyasıyla açılır; (2) Hazır/Sürüyor Faz 2 kartları (faz2-bakkal-kalemleri.md §2-5 ve backlog `###` 305-367) taşınır, kaynakta "→ kartlar/<ID>.md" bırakılır; (3) Bitti kartlar taşınmaz (arşiv; backlog.md'de kalır); (4) IS-055 lint'e "tablo satırı ↔ kart dosyası" ve "kart yolu ölü değil" kuralları. Beads tarzı veri tabanı/JSONL gerekmez: tek yazar, 100 kalem ölçeği [G].
+
+### 20 eşzamanlı ajan altında önceliklendirme kuralı [G; kaynak 4, 19, 22, 30-32]
+1. **Önce boşalt, sonra çek** (Kanban): Denetimde kuyruğu (denetci, curutme, holdout) her zaman önce başlar — kısa işler (dakikalar) slotu hızlı boşaltır (SJF) ve Bitti sayısını artırır (WIP düşer).
+2. **Kritik yol** (WSJF/gecikme maliyeti): bağımlılık zincirinin başındaki Hazır kalem (bugün US-008 → US-010 → US-012 → US-016) bağımsız P1'lerden önce; zincirde bekleyen her kalem gecikme maliyeti taşır.
+3. **Slot bütçesi** (20'den): denetim/çürütme rezervi 4 (asla araştırmaya verilmez) · kod paketleri ≤ makine ölçümüne göre (ilk tahmin 5-6; her biri Godot import + unit koşar) · tasarım/araştırma boşlukta, en çok 6, `run_in_background` · yedek 4. Dinamik iş akışı (mimari tur) kendi havuzunda (16), ama CPU ortak.
+4. **Sınır hatasında** tekrar deneme yok (belge [4]); bir denetim bitince (tamamlanma bildirimi) sıradaki başlar. Araştırma ajanları "slot doluysa ertele" sınıfı.
+5. **Bağımlılık sırasıyla birleştir**; aynı ortak dosyaya (game.gd, player.gd, texts.csv, store_a.tscn) dokunan iki paket aynı dalgada açılmaz (surec §6).
+6. **Ölçüm:** ci_local adım süreleri (import/unit/net) ve paralel 2-4 Godot sürecinde süre artışı bir kez ölçülüp günlüğe; kod paketi tavanı bu sayıdan.
+
+### Pano commit oranı [G]
+- **Kural ayrımı:** "her durum geçişini anında yaz" = **dosyaya** (backlog satırı; durum.md üretilir). Commit: (a) her kalem commit'inin hemen ardından tek `pano:` (merge + pano çifti; `/kapat` yapar), (b) dalga açılışında bir kez (Sürüyor'a geçen kartlar toplu), (c) oturum durması/kapanışı, (d) 30 dk'da bir en fazla bir. Hedef: `pano:` ≤ kalem commit sayısı (tur 1 öneri 5 AC3; bugün 44/16).
+- **durum.md üretilsin:** Sürüyor/Denetimde/Denetimde-t2 listesi backlog satırlarından (`tools/kart.py durum`), elle yalnız "Kullanıcıdan bekleyen" ve "Son kapanış"; R13 kökten kapanır. CLAUDE.md satırı "her durum geçişini backlog satırına anında yaz; durum.md üretilir, commit `/kapat`/dalga/kapanışta" diye güncellenir (karar gereken: CLAUDE.md değişikliği).
+- Risk yok: dosya diskte; commit'lenmemiş pano yalnız tarihte gecikir. Worktree ajanları zaten anlık görüntü görür; paket kartı gömdüğü için bayat backlog'u okumaz.
+
+### Öneriler
+| # | Ne | Ö | Maliyet | Sahip | Kalem / AC |
+|---|---|---|---|---|---|
+| 13 | **IS-054 somut:** denetci.md madde 8 (yukarıdaki metin) + `curutme.md` ajanı + IS-053 hook'una `*_holdout.gd` deny (kod ajanları) ve scratchpad Write izni (denetci) + `.claude/hooks/only_holdout.py` | P1 | S | koordinatör (metin) + altyapi (hook) | AC1 bir M kalemde holdout dosyası koordinatör commit'inde, ajan diff'inde yok · AC2 denetci raporunda `Boz-yakala: n/m` satırı, ≥ 1 kaçan mutant should-fix'e dönüştü ya da hepsi yakalandı · AC3 kopya-worktree yöntemi `.godot/` kopyasıyla çalışıyor ya da `--import` süresi günlükte |
+| 14 | **`tools/kart.py` + kart dosyaları:** show/active/set-status/next-id/durum; `docs/surec/kartlar/`; surec §3/Ek 1, project-index | P2 | S | altyapi (betik) + koordinatör (kural) | AC1 yeni kalem tek dosyada, backlog yalnız satır · AC2 `kart.py active --files` Sürüyor kalemlerin Dokunulacak kesişimini raporlar · AC3 `kart.py durum` çıktısı durum.md'nin Faz bölümlerini üretir |
+| 15 | **Skill üçlüsü** `/paket`, `/kapat`, `/dalga` (iskeletler yukarıda; 14'e bağlı) | P2 | S | koordinatör | AC1 `/paket` Ek 1 ile birebir, ayrıklık ihlalinde durur · AC2 `/kapat` eksik DoD'de commit atmaz, PASS'ta merge + ci + tek pano commit · AC3 bir dalgada `pano:` ≤ kalem commit sayısı |
+| 16 | **Önceliklendirme kuralı** surec §6'ya 6 madde + ci_local adım süreleri ve 2-4 paralel Godot ölçümü | P2 | XS | koordinatör + altyapi (ölçüm) | AC1 §6'da slot bütçesi ve sıra · AC2 ölçüm günlükte, kod paketi tavanı sayıyla |
+| 17 | **Pano kuralı:** CLAUDE.md satırı + durum.md üretimi (14'e bağlı) | P2 | XS | koordinatör | AC1 durum.md Faz bölümleri üretilmiş, elle bölüm ayrı · AC2 bir günde pano/kalem commit oranı ≤ 1 |
+| 18 | ajanlar.md:62 worktree yolu düzeltmesi → IS-055 lint listesine | P3 | XS | koordinatör | — |
+
+**Karar gereken**
+- CLAUDE.md "her durum geçişini anında yaz" satırının "dosyaya yaz, commit toplu" diye netleştirilmesi (öneri 17) — CLAUDE.md değişikliği kullanıcı/koordinatör kararı.
+- Çürütme ajanı `effort: xhigh` (IS-054 kartında var) + `model: inherit`; Opus denetci kararı tur 1'deki gibi ertelenmiş kalır.
+- Holdout "kör" kuralı istem düzeyinde mi, hook ile (Read deny `entities/**` vb.) mi — öneri istem + raporda "okuduğum dosyalar" listesi (hook fazla katı; sözleşme dışı imzalar gerekebilir).
+- `/dalga` adı tur 1'de "pano toplu commit" anlamındaydı; bu turda koordinatör tanımı (rapor → kalem) esas alındı.
+
+### Bir sonraki tur için açık sorular
+- `.godot/` dizini kopyalanan worktree'de import'suz geçerli mi (mutant koşusu süresi); değilse `--import` kaç saniye? [?]
+- IS-053 hook'ları Windows/Git Bash'te `cwd` worktree'yi doğru veriyor mu (tur 1 sorusu açık).
+- Skill `allowed-tools` kalıplarının `git -C <yol>` biçimiyle eşleşmesi (`Bash(git -C * status *)`) doğrulanmalı [?].
+- 2-4 paralel Godot import+unit süresi ölçümü (öneri 16 AC2) — kod paketi tavanı.
+- Holdout'un "AC yanlış okundu" oranı: 3 kalem sonra sayı (test hatası vs kod hatası).
+
+### Kaynaklar (tur 2 ekleri)
+26. PIT — varsayılan mutator seti — https://pitest.org/quickstart/mutators/
+27. Stryker — desteklenen mutator'lar — https://stryker-mutator.io/docs/mutation-testing-elements/supported-mutators/
+28. Backlog.md (MrLesk) — kalem başına Markdown dosyası, ajan odaklı — https://github.com/MrLesk/Backlog.md
+29. Beads (steveyegge) — kayıt başına JSONL, hash kimlik, `bd ready` — https://github.com/steveyegge/beads
+30. DORA — WIP limits — https://dora.dev/capabilities/wip-limits/
+31. SAFe — WSJF (gecikme maliyeti / süre) — https://v5.scaledagileframework.com/?p=22083
+32. Kanban Tool — kuyruk kuramı (SJF, FIFO) — https://kanbantool.com/kanban-guide/queuing-theory
+33. Claude Code — Skills (frontmatter, `!`komut``, `$ARGUMENTS`, 500 satır) — https://code.claude.com/docs/en/skills (tur 1 [6] ile aynı sayfa; bu turda alan alan doğrulandı)
+34. startdebugging.net — "2.1.213 caps runaway subagent fleets" (kuyruk iddiası; belgeyle çelişir) — https://startdebugging.net/2026/07/claude-code-2-1-213-caps-runaway-subagent-fleets/
+35. Claude Code — Sub-agents: eşzamanlılık 20, `CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS`, kuyruk yok — https://code.claude.com/docs/en/sub-agents (tur 1 [4])
+36. Claude Code — Dynamic workflows: 16 eşzamanlı, 1.000/çalıştırma, Large workflow uyarısı — https://code.claude.com/docs/en/workflows (tur 1 [19])
