@@ -211,15 +211,16 @@ Sıra = oynanabilir dilime en kısa yol (Fable önerisi, IS-007 A). **2a çirkin
 |---|---|---|---|---|---|---|---|---|
 | US-006 | Algı çekirdeği: koni + görüş hattı + şüphe (core) + Perception/Suspicion bileşenleri | 2 | oynanis | P1 | M | US-005 | Denetimde (2026-10-02; worktree) | |
 | US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Denetimde (2026-10-02; worktree) | |
-| US-008 | Muhafız v0 (devriye polisi): FSM + devriye + inceleme/tespit + telsiz → uyarı kademesi 0-3; kamera = hareketsiz muhafız | 2 | oynanis | P1 | M | US-006, US-007 | Backlog | |
+| US-008 | Gözlemci v0 — bakkal sahibi + yoldan geçenler (KR-020; kart Fable revizyonuyla yeniden yazılacak): fark et → şüphe → seslen/bağır → mahalleli gelir; muhafız/kamera ileri kademelere | 2 | oynanis | P1 | M | US-006, US-007, IS-021 | Backlog (yeniden tanım) | |
 | US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing + görsel halka + T1 kilit (arka kapı maymuncuk) | 2 | oynanis | P1 | S | US-006 | Backlog | |
-| US-010 | Tezgâhtar + sindirme (Q) + tezgâh altı düğme → sessiz alarm | 2 | oynanis | P1 | M | US-008 | Backlog | |
+| US-010 | Bakkala uygun etkileşimler (oyalama, dikkat dağıtma, müşteri kılığı) — sindirme/düğme yok (KR-020; Fable revizyonuyla) | 2 | oynanis | P1 | M | US-008 | Backlog (yeniden tanım) | |
 | US-011 | Görüş sisi (ekip paylaşımlı) + okunabilirlik işaretleri (koni, halka, ?/!) | 2 | seviye | P1 | S | US-006 | Backlog | |
 | US-012 | Soygun sonucu: çanta, arka oda nakdi, kaçış, kazan/kaybet, yakalanma (K3), aracı oranı | 2 | oynanis | P1 | S | US-008, US-010 | Backlog | |
 | US-013 | İş sonu ekranı + uyarı kademesi HUD + kayıp ekranı | 2 | arayuz | P1 | S | US-012 (sözleşme önce) | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — oyuncu, tezgâhtar, muhafız | 2 | oynanis (görsel) | P1 | M | US-004 | Backlog | |
 | IS-015 | Oyun testi botları (GB-01) + 150 ms 20 dk dayanıklılık + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog | |
-| IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) | 2 | cekirdek + kullanıcı | P1 | S | — | Backlog | |
+| IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) — KR-020 ile sona kaydı | 5 | cekirdek + kullanıcı | P3 | S | — | Backlog (ertelendi) | |
+| IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Sürüyor (2026-10-02) | |
 | IS-017 | Faz 2 kullanıcı oyun testi (3 arkadaş, 3 koşu, ≥ 2 "tekrar") | 2 | kullanıcı | P1 | S | US-013, US-014 | Backlog | |
 | US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
@@ -238,7 +239,7 @@ EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S11, §6 · Bağımlılık
 **Dokunulmayacak:** autoload/**, entities/player/**, entities/props/**, levels/**, ui/**, project.godot, tools/**
 **Oku:** mimari.md S2, S11, §4, §6 · GDD §5-6 (gizlilik, görüş), §12 · KR-019
 
-### US-008 — Muhafız v0 (devriye polisi)
+### US-008 — (ESKİ TASLAK, KR-020 ile geçersiz: bakkalda polis/muhafız yok; IS-021 sonrası yeniden yazılır. FSM/adalet AC'leri gözlemci için yeniden kullanılır)
 EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S3, S6, S11 · Bağımlılık: US-006, US-007 · 2a dilimi (kamera iskeleti 2b'de tamamlanır)
 **Hikâye:** Oyuncu olarak dışarıda devriye gezen polisin camdan beni fark edip şüphelenmesini, inceleyip son gördüğü yere gelmesini, telsizle durumu yükseltmesini ve kaçarsam aramayı bırakmasını istiyorum; ne olduğunu her an okuyabilmeliyim.
 **Kabul kriterleri** (sayılar ve FSM: `docs/tasarim/arastirma/muhafiz-davranisi.md`; ayarlar veride):
