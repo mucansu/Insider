@@ -11,10 +11,10 @@ const LEVELS: Array[String] = [STORE, ARENA]
 
 const TILE := 32
 const CHAR_RADIUS := 12.0       # karakter çapı ~24 px (S4)
-const WORLD_LAYER := 1          # §4 katman 1
-const PLAYERS_LAYER := 1 << 1   # §4 katman 2
-const TRIGGERS_LAYER := 1 << 4  # §4 katman 5
-const SEE_THROUGH := &"see_through"
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 katman 1
+const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4 katman 2
+const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4 katman 5
+const SEE_THROUGH := PhysicsLayers.SEE_THROUGH_GROUP
 const ARRIVE := 2.0             # yol sonu hedefe bu kadar yakınsa "ulaştı"
 const DOOR_PASS := TILE + 1.0   # kapı bağı uçları kapı merkezinden bir karo ötede
 
@@ -187,7 +187,8 @@ func test_zones_disjoint_and_partition_interior() -> void:
 			if not POPULATION_ZONES.has(StringName(owner_of[cell])):
 				continue
 			var kind: LevelLayout.Kind = tiles.kind_at(cell)
-			if not [LevelLayout.Kind.FLOOR, LevelLayout.Kind.BACKROOM, LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER].has(kind):
+			if not [LevelLayout.Kind.FLOOR, LevelLayout.Kind.BACKROOM, LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER,
+					LevelLayout.Kind.COOLER, LevelLayout.Kind.CRATE].has(kind):
 				bad_ground.append("%s %s" % [cell, LevelLayout.Kind.keys()[kind]])
 		is_true(bad_ground.is_empty(), "%s: nüfus bölgesi iç zemin dışında: %s" % [path, ", ".join(bad_ground)])
 		for i: int in level.spawn_count():

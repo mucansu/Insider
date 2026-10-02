@@ -32,7 +32,7 @@ const LAYOUT_SCRIPT := preload("res://levels/level_layout.gd")
 const LEVEL_SCRIPT := preload("res://levels/level.gd")
 const SOLID_ORDER: Array[LevelLayout.Kind] = [
 	LevelLayout.Kind.BOUND, LevelLayout.Kind.WALL, LevelLayout.Kind.WINDOW,
-	LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER,
+	LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER, LevelLayout.Kind.COOLER, LevelLayout.Kind.CRATE,
 ]
 
 
@@ -258,7 +258,8 @@ static func _zone_rect(cells: Array, marker_cells: Array) -> Rect2i:
 	return rect if covered == rect.get_area() else Rect2i()
 
 
-## Çarpışma şekilleri: tür başına birleştirilmiş dikdörtgenler, adları <Önek><n> (Bound/Wall/Window/Shelf/Counter).
+## Çarpışma şekilleri: tür başına birleştirilmiş dikdörtgenler, adları <Önek><n> (Bound/Wall/Window/Shelf/Counter;
+## US-033: Cooler/Crate — dolu engel, world katmanında `Walls` şekli: çarpışır ve görüşü keser).
 ## Camlar (`Window<n>`) ayrı StaticBody2D + `Shape` çocuğudur ve `see_through` grubundadır: görüş hattı sorgusu
 ## çarpışanı gövde olarak döndürdüğünden camı duvardan ayırmak için ayrı gövde gerekir (KR-019 K1).
 static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:

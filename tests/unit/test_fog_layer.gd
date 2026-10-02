@@ -58,6 +58,9 @@ func test_level_vision_api() -> void:
 		Vector2i(17, 5): VisionGrid.Cell.OPEN,  # arka oda
 		Vector2i(6, 15): VisionGrid.Cell.OPEN,  # kaldırım
 		Vector2i(26, 18): VisionGrid.Cell.OPEN,  # cadde
+		Vector2i(13, 6): VisionGrid.Cell.SOLID,  # içecek dolabı (US-033)
+		Vector2i(20, 6): VisionGrid.Cell.SOLID,  # arka oda kolisi (US-033)
+		Vector2i(21, 2): VisionGrid.Cell.SOLID,  # ara sokak kolisi (US-033)
 	}
 	for cell: Vector2i in expect:
 		eq(cells[cell.y * 30 + cell.x], expect[cell], "görüş sınıfı %s" % cell)
@@ -119,6 +122,27 @@ func test_wall_and_shelf_block() -> void:
 	for x: int in range(2, 14):
 		ne(fog.state_at(Vector2i(x, 5)), VisionGrid.State.VISIBLE, "arka ara sokaktan satış alanı (%d,5) görünmez" % x)
 	eq(fog.state_at(Vector2i(5, 3)), VisionGrid.State.VISIBLE, "kuzey duvarı komşuluktan görünür")
+
+
+## US-033: dolap ve koliler görüş ızgarasında katı; arkaları görünmez (BackroomSpot'tan kese, StreetRoute5'ten
+## arka kapıyı açanın karosu, koridordan dolabın arkasındaki duvar), kontrol karoları görünür.
+func test_cover_obstacles_hide_behind() -> void:
+	var level: Level = await _store()
+	var me: Node2D = _observer(level, Vector2i(18, 5))
+	var fog: FogLayer = level.attach_fog(me)
+	for cell: Vector2i in [Vector2i(21, 6), Vector2i(21, 7)]:
+		ne(fog.state_at(cell), VisionGrid.State.VISIBLE, "BackroomSpot'tan kese %s görünmez" % cell)
+	for cell: Vector2i in [Vector2i(19, 7), Vector2i(21, 5), Vector2i(20, 6)]:
+		eq(fog.state_at(cell), VisionGrid.State.VISIBLE, "BackroomSpot'tan %s görünür" % cell)
+	_move(fog, me, Vector2i(19, 7))
+	eq(fog.state_at(Vector2i(21, 7)), VisionGrid.State.VISIBLE, "iç kapıdan giren kesenin ağzını görür")
+	_move(fog, me, Vector2i(23, 2))
+	ne(fog.state_at(Vector2i(20, 2)), VisionGrid.State.VISIBLE, "StreetRoute5'ten arka kapının önü koli arkasında")
+	_move(fog, me, Vector2i(20, 1))
+	eq(fog.state_at(Vector2i(20, 2)), VisionGrid.State.VISIBLE, "StreetRoute6'dan arka kapının önü görünür")
+	_move(fog, me, Vector2i(11, 6))
+	eq(fog.state_at(Vector2i(13, 6)), VisionGrid.State.VISIBLE, "dolap (yapı) görünür")
+	ne(fog.state_at(Vector2i(14, 6)), VisionGrid.State.VISIBLE, "dolabın arkasındaki duvar görünmez")
 
 
 ## Kapalı arka kapı görüşü keser; açılınca arkası ≤ 100 ms'de (bir güncelleme aralığı) görünen olur.

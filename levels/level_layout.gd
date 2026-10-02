@@ -15,12 +15,13 @@ extends Node2D
 ##   .  iç zemin (satış alanı)                            :  arka oda zemini
 ##   ,  kaldırım / ara sokak                              _  cadde
 ##   S  raf (çarpışır, engel)                             T  tezgâh (çarpışır)
+##   I  içecek dolabı (çarpışır, görüşü keser; US-033)   G  koli yığını (çarpışır, görüşü keser; US-033)
 
 const TILE := 32
 ## Raf ve tezgâh şekillerinin karo kenarından içe payı (px); çizim ve çarpışma aynı payı kullanır.
 const FURNITURE_INSET := 2.0
 
-enum Kind { BOUND, WALL, WINDOW, DOOR, FLOOR, BACKROOM, SIDEWALK, STREET, SHELF, COUNTER }
+enum Kind { BOUND, WALL, WINDOW, DOOR, FLOOR, BACKROOM, SIDEWALK, STREET, SHELF, COUNTER, COOLER, CRATE }
 
 const LEGEND := {
 	"%": Kind.BOUND,
@@ -33,21 +34,26 @@ const LEGEND := {
 	"_": Kind.STREET,
 	"S": Kind.SHELF,
 	"T": Kind.COUNTER,
+	"I": Kind.COOLER,
+	"G": Kind.CRATE,
 }
 
 ## Çarpışan türler ve `Walls` altındaki şekil adı öneki (Window*: Faz 2 görüş sistemi camı ayırt eder).
+## Dolap ve koli (US-033) dolu engeldir: çarpışır ve görüşü keser, raf gibi `Walls` gövdesinin şeklidir.
 const SOLID_PREFIX := {
 	Kind.BOUND: "Bound",
 	Kind.WALL: "Wall",
 	Kind.WINDOW: "Window",
 	Kind.SHELF: "Shelf",
 	Kind.COUNTER: "Counter",
+	Kind.COOLER: "Cooler",
+	Kind.CRATE: "Crate",
 }
 
 ## Görüş sınıfları (US-011a; `Level.vision_cells` → VisionGrid.Cell). Katı: görüşü her zaman keser, ışın atılmaz,
 ## yalnız komşuluktan görünür (yapı). Geçit: fizik sorgusu karar verir (cam geçirir, kapalı kapı keser).
-## Diğer türler açık. Yeni bir görüş engeli türü (ör. koli/kese) tek satırla SIGHT_SOLID'e eklenir.
-const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COUNTER]
+## Diğer türler açık. Yeni bir görüş engeli türü tek satırla SIGHT_SOLID'e eklenir (US-033: dolap, koli).
+const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRATE]
 const SIGHT_PORTAL: Array[Kind] = [Kind.WINDOW, Kind.DOOR]
 
 # Çizgi kalınlıkları ve aralıklar (renkler tondan: ThemeTokens.tone()).
@@ -57,6 +63,10 @@ const GLASS_WIDTH := 6.0
 const SHELF_BAY := 16.0       # raf bölme aralığı (px)
 const HATCH_STEP := 8         # harita kenarı tarama aralığı (px; TILE'ı tam böler, karolar arası kesintisiz)
 const HATCH_WIDTH := 2.0
+const COOLER_GLASS := 5.0     # dolabın zemine bakan cam kapağı (px)
+const CRATE_LID := 6.0        # üstteki koli kenar payı (px; yığın görünümü)
+## Eşya türleri (içe paylı şekil; çizim sırası).
+const FURNITURE: Array[Kind] = [Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRATE]
 
 @export var rows: PackedStringArray = PackedStringArray():
 	set(value):
@@ -93,7 +103,7 @@ static func is_solid(kind: Kind) -> bool:
 
 
 static func is_furniture(kind: Kind) -> bool:
-	return kind == Kind.SHELF or kind == Kind.COUNTER
+	return FURNITURE.has(kind)
 
 
 static func cell_center(cell: Vector2i) -> Vector2:
@@ -153,8 +163,10 @@ static func color_of(kind: Kind) -> Color:
 			return tone.wall_color
 		Kind.SHELF:
 			return tone.level_shelf_color
-		Kind.COUNTER:
+		Kind.COUNTER, Kind.CRATE:
 			return tone.level_counter_color
+		Kind.COOLER:
+			return tone.level_shelf_color
 	return tone.bg_color
 
 
@@ -170,8 +182,10 @@ static func edge_color(kind: Kind) -> Color:
 			return tone.level_glass_color
 		Kind.SHELF:
 			return tone.level_shelf_edge_color
-		Kind.COUNTER:
+		Kind.COUNTER, Kind.CRATE:
 			return tone.level_counter_edge_color
+		Kind.COOLER:
+			return tone.level_glass_color  # camlı kapak: rafın kenarından açık, dolap raftan ayrı okunur
 		Kind.SIDEWALK:
 			return tone.wall_color  # bordür
 	return color_of(kind)
@@ -186,14 +200,16 @@ func _draw() -> void:
 	for y: int in size.y:
 		for x: int in size.x:
 			_draw_cell_rects(Vector2i(x, y))
-	for kind: Kind in [Kind.SHELF, Kind.COUNTER]:
+	for kind: Kind in FURNITURE:
 		for cells: Rect2i in merged_rects(kind):
 			draw_rect(shape_rect(kind, cells), color_of(kind))
+			if kind == Kind.COOLER:
+				draw_rect(_cooler_glass(shape_rect(kind, cells), cells), edge_color(kind))
 	for y: int in size.y:
 		for x: int in size.x:
 			if kind_at(Vector2i(x, y)) == Kind.BOUND:
 				_draw_hatch(Rect2(Vector2(x, y) * TILE, Vector2(TILE, TILE)))
-	for kind: Kind in [Kind.SHELF, Kind.COUNTER]:
+	for kind: Kind in FURNITURE:
 		for cells: Rect2i in merged_rects(kind):
 			_draw_furniture_lines(kind, cells)
 
@@ -300,16 +316,41 @@ func _draw_furniture_lines(kind: Kind, cells: Rect2i) -> void:
 			while y < rect.end.y - 1.0:
 				draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), edge, 1.0)
 				y += SHELF_BAY
+	elif kind == Kind.CRATE:
+		# Koli yığını: bantlı üst koli (çapraz bant) ve altta görünen ikinci kolinin kenarı.
+		var edge: Color = edge_color(kind)
+		var lid := Rect2(rect.position + Vector2(CRATE_LID, 0), rect.size - Vector2(CRATE_LID, CRATE_LID))
+		draw_rect(lid, edge, false, 1.0)
+		draw_line(lid.position, lid.end, edge, 1.0)
+		draw_line(Vector2(lid.end.x, lid.position.y), Vector2(lid.position.x, lid.end.y), edge, 1.0)
 
 
-## Karonun altındaki zemin: eşya ve kapı için komşu zemin türü, diğerleri kendisi.
+## İçecek dolabının camlı kapak şeridi (px): zemine bakan uzun kenarda (dolap duvara yaslı; arka yüz kör).
+func _cooler_glass(rect: Rect2, cells: Rect2i) -> Rect2:
+	if cells.size.y >= cells.size.x:
+		var west_open: bool = not is_solid(kind_at(cells.position + Vector2i.LEFT))
+		var x: float = rect.position.x if west_open else rect.end.x - COOLER_GLASS
+		return Rect2(x, rect.position.y, COOLER_GLASS, rect.size.y)
+	var north_open: bool = not is_solid(kind_at(cells.position + Vector2i.UP))
+	var y: float = rect.position.y if north_open else rect.end.y - COOLER_GLASS
+	return Rect2(rect.position.x, y, rect.size.x, COOLER_GLASS)
+
+
+## Karonun altındaki zemin: eşya ve kapı için komşu zemin türü (önce iç zemin; dışarıdaki eşya için kaldırım/cadde),
+## diğerleri kendisi.
 func _ground_kind(cell: Vector2i, kind: Kind) -> Kind:
 	if not is_furniture(kind) and kind != Kind.DOOR:
 		return kind
-	for dir: Vector2i in [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]:
+	var dirs: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
+	for dir: Vector2i in dirs:
 		var n: Kind = kind_at(cell + dir)
 		if n == Kind.FLOOR or n == Kind.BACKROOM:
 			return n
+	if is_furniture(kind):
+		for dir: Vector2i in dirs:
+			var n: Kind = kind_at(cell + dir)
+			if n == Kind.SIDEWALK or n == Kind.STREET:
+				return n
 	return Kind.FLOOR
 
 

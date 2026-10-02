@@ -83,6 +83,15 @@ size = Vector2(188, 28)
 [sub_resource type="RectangleShape2D" id="Counter_1"]
 size = Vector2(28, 92)
 
+[sub_resource type="RectangleShape2D" id="Cooler_1"]
+size = Vector2(28, 92)
+
+[sub_resource type="RectangleShape2D" id="Crate_1"]
+size = Vector2(28, 28)
+
+[sub_resource type="RectangleShape2D" id="Crate_2"]
+size = Vector2(28, 28)
+
 [sub_resource type="RectangleShape2D" id="Zone_EscapeZone"]
 size = Vector2(128, 64)
 
@@ -99,8 +108,8 @@ size = Vector2(160, 160)
 size = Vector2(224, 128)
 
 [sub_resource type="NavigationPolygon" id="Navigation_poly"]
-vertices = PackedVector2Array(916, 596, 44, 596, 44, 492, 748, 492, 916, 44, 748, 84, 44, 44, 44, 84, 692, 140, 692, 244, 586, 244, 586, 182, 492, 140, 502, 182, 492, 244, 502, 244, 436, 140, 436, 300, 330, 246, 330, 234, 394, 170, 534, 300, 534, 394, 330, 362, 330, 310, 118, 298, 330, 298, 118, 310, 394, 140, 330, 182, 118, 170, 118, 182, 586, 394, 586, 300, 692, 300, 692, 436, 76, 436, 106, 394, 76, 394, 118, 362, 106, 182, 118, 246, 76, 182, 76, 140, 118, 140, 118, 234)
-polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3), PackedInt32Array(4, 0, 3, 5), PackedInt32Array(6, 4, 5, 7), PackedInt32Array(8, 9, 10, 11), PackedInt32Array(12, 8, 11, 13), PackedInt32Array(14, 12, 13, 15), PackedInt32Array(16, 17, 18, 19, 20), PackedInt32Array(17, 21, 22, 23, 24), PackedInt32Array(25, 26, 17, 24, 27), PackedInt32Array(20, 28, 16), PackedInt32Array(20, 19, 29), PackedInt32Array(30, 20, 29, 31), PackedInt32Array(32, 33, 34, 35), PackedInt32Array(32, 35, 36, 22), PackedInt32Array(23, 22, 36, 37), PackedInt32Array(36, 38, 37), PackedInt32Array(39, 23, 37), PackedInt32Array(39, 37, 40, 27), PackedInt32Array(25, 27, 40), PackedInt32Array(41, 25, 40), PackedInt32Array(40, 42, 43, 44, 30), PackedInt32Array(40, 30, 31), PackedInt32Array(40, 31, 45), PackedInt32Array(41, 40, 45), PackedInt32Array(41, 45, 19, 18), PackedInt32Array(18, 17, 26)])
+vertices = PackedVector2Array(916, 596, 44, 596, 44, 492, 748, 492, 916, 44, 748, 84, 714, 84, 714, 54, 662, 54, 662, 84, 44, 84, 44, 44, 692, 140, 692, 244, 682, 234, 682, 182, 586, 244, 630, 234, 492, 140, 630, 182, 586, 182, 502, 182, 492, 244, 502, 244, 436, 300, 534, 300, 534, 394, 330, 362, 330, 310, 436, 266, 330, 298, 406, 266, 330, 246, 330, 234, 394, 170, 394, 140, 436, 140, 436, 150, 406, 150, 330, 182, 118, 170, 118, 182, 118, 234, 118, 246, 118, 298, 118, 310, 586, 394, 586, 300, 692, 300, 692, 436, 76, 436, 106, 394, 76, 394, 118, 362, 106, 182, 76, 182, 76, 140, 118, 140)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3), PackedInt32Array(4, 0, 3, 5), PackedInt32Array(5, 6, 7, 4), PackedInt32Array(8, 9, 10, 11), PackedInt32Array(8, 11, 4, 7), PackedInt32Array(12, 13, 14, 15), PackedInt32Array(14, 13, 16, 17), PackedInt32Array(18, 12, 15, 19), PackedInt32Array(17, 16, 20, 19), PackedInt32Array(18, 19, 20), PackedInt32Array(18, 20, 21), PackedInt32Array(22, 18, 21, 23), PackedInt32Array(24, 25, 26, 27, 28), PackedInt32Array(29, 24, 28, 30, 31), PackedInt32Array(31, 30, 32), PackedInt32Array(31, 32, 33, 34), PackedInt32Array(35, 36, 37, 38), PackedInt32Array(34, 35, 38, 31), PackedInt32Array(34, 33, 39), PackedInt32Array(40, 34, 39, 41), PackedInt32Array(42, 33, 32, 43), PackedInt32Array(44, 30, 28, 45), PackedInt32Array(46, 47, 48, 49), PackedInt32Array(46, 49, 50, 26), PackedInt32Array(27, 26, 50, 51), PackedInt32Array(50, 52, 51), PackedInt32Array(53, 27, 51), PackedInt32Array(53, 51, 54, 45), PackedInt32Array(44, 45, 54), PackedInt32Array(43, 44, 54), PackedInt32Array(42, 43, 54), PackedInt32Array(41, 42, 54), PackedInt32Array(40, 41, 54), PackedInt32Array(54, 55, 56, 57, 40)])
 agent_radius = 12.0
 
 [node name="StoreA" type="Node2D" unique_id=828043450]
@@ -108,7 +117,7 @@ script = ExtResource("1_m731q")
 
 [node name="Tiles" type="Node2D" parent="." unique_id=1683819684]
 script = ExtResource("1_ikrv3")
-rows = PackedStringArray("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%###################+##,,____%", "%#..SSSSSSSS..#:::::::#,,____%", "%#............#:::::::#,,____%", "%#S.SSSSSS....#:SS::::#,,____%", "%#S...........#:SS::::#,,____%", "%#S.SSSSSS....#####+###,,____%", "%#S..............T....#,,____%", "%#S.SSSSSS.......T....w,,____%", "%#S..............T....w,,____%", "%#....................#,,____%", "%#....................#,,____%", "%##wwwwwww#+#wwww######,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%____________________________%", "%____________________________%", "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+rows = PackedStringArray("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,G,,,____%", "%###################+##,,____%", "%#..SSSSSSSS..#:::::::#,,____%", "%#...........I#:::::::#,,____%", "%#S.SSSSSS...I#:SS::G:#,,____%", "%#S..........I#:SS::::#,,____%", "%#S.SSSSSS....#####+###,,____%", "%#S..............T....#,,____%", "%#S.SSSSSS.......T....w,,____%", "%#S..............T....w,,____%", "%#....................#,,____%", "%#....................#,,____%", "%##wwwwwww#+#wwww######,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%,,,,,,,,,,,,,,,,,,,,,,,,____%", "%____________________________%", "%____________________________%", "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
 [node name="Walls" type="StaticBody2D" parent="." unique_id=1587230003]
 collision_mask = 0
@@ -225,6 +234,18 @@ shape = SubResource("Shelf_6")
 [node name="Counter1" type="CollisionShape2D" parent="Walls" unique_id=1796622432]
 position = Vector2(560, 336)
 shape = SubResource("Counter_1")
+
+[node name="Cooler1" type="CollisionShape2D" parent="Walls" unique_id=1194024517]
+position = Vector2(432, 208)
+shape = SubResource("Cooler_1")
+
+[node name="Crate1" type="CollisionShape2D" parent="Walls" unique_id=946205117]
+position = Vector2(688, 80)
+shape = SubResource("Crate_1")
+
+[node name="Crate2" type="CollisionShape2D" parent="Walls" unique_id=525551325]
+position = Vector2(656, 208)
+shape = SubResource("Crate_2")
 
 [node name="SpawnPoints" type="Node2D" parent="." unique_id=1953500109]
 
