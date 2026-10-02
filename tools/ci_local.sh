@@ -85,13 +85,15 @@ find_python() {
 	return 1
 }
 
-# Araç testleri: gecikme proxy'si ve net_smoke süreç ağacı öldürme (Godot gerekmez).
+# Araç testleri: gecikme proxy'si, net_smoke süreç ağacı öldürme, ekran görüntüsü yardımcıları ve
+# ajan hook koruması .claude/hooks/agent_guard.py (IS-053) (Godot gerekmez).
 step_tools() {
 	find_python || return 1
 	"${PYTHON[@]}" --version
 	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
 	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
 	"${PYTHON[@]}" tools/test_screenshot.py || return 1
+	"${PYTHON[@]}" tools/test_agent_guard.py || return 1
 }
 
 # Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.
