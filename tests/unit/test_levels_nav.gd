@@ -159,6 +159,9 @@ func test_store_navigation_paths() -> void:
 	is_true(_arrives(_path(map, clerk, escape), escape), "tezgâh arkası → kaçış bölgesi")
 
 	# Arka kapı açıkken ara sokaktan nakde kısa yol arka kapıdan; kapı bağı kapanınca yol ön kapıya döner.
+	# (US-008: kapı bağı kapı durumuna bağlı; sahnede arka kapı kapalı başladığı için bağ önce açılır.)
+	level.door_link(&"BackDoor").enabled = true
+	await _sync(map)
 	var open_path: PackedVector2Array = _path(map, alley, cash)
 	is_true(_arrives(open_path, cash) and _passes(open_path, back), "arka kapı açık: ara sokak → nakit arka kapıdan")
 	level.door_link(&"BackDoor").enabled = false

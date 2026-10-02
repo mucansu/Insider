@@ -1,6 +1,6 @@
 {
-  "_doc": "US-012 soygun sonucu, store_a + gerçek oyuncu sahnesi, host + c1 (+ c2 geç katılan). Tek oturumda dört iş, aralarda host Game.request_restart (aynı seviye, ekip nakdi 0, prop'lar sıfır): (1) TEMİZ — host kasayı boşaltır (150), c1 çantayı arka odadan alır (450, ağda taşıyan istemci), ikisi kaçış bölgesine girince host karar verir: %90 (85 + kimse bağırmadı), ödeme 540, notlar hayalet ekip + Hamal (c1); (2) BAĞIRIŞLI — uyarı 2 olayı, c1 kasayı boşaltıp kaçar, host bölgede bekler: %85, ödeme 128, ısı +5; (3) POLİS — iki oyuncu doğma noktasındayken polis gelir: içeride kalan herkes yakalanır, ödeme 0; (4) HERKES YAKALANDI — önce host (mahalleli), sonra c1 yakalanır: notlar Terlik yedi + Kefalet. c2 4. iş bittikten sonra katılır ve sonucu kabulde alır (S3 eki: geç katılan da alır). (5) ÇANTA AĞ DURUMU — yeniden başlatma, c1 çantayı alır (taşıyan c1 her peer'da görülür: seen_carriers), host c1'i yakalatır: çanta c1'in son konumunda düşer, düşüş ve yer konumu üç peer'da aynı; host serbest, iş sürer. Sahip/polis/yakalanma olayları US-008 gelene dek host botundaki 'heist' test kancası adımlarıyla (Game, yalnız otomasyon + host) session_event olarak verilir; karar ve sonuç yolu gerçek oyundakiyle aynıdır. Sonuç her peer'da aynı (host RPC). Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "US-008: sahipsiz bakkalda koşar (tests/fixtures/store_a_quiet.tscn: store_a, sahip ve uyarı yöneticisi etkin değil; sahip davranışı owner_*.json/rescue.json). US-012 soygun sonucu, store_a + gerçek oyuncu sahnesi, host + c1 (+ c2 geç katılan). Tek oturumda dört iş, aralarda host Game.request_restart (aynı seviye, ekip nakdi 0, prop'lar sıfır): (1) TEMİZ — host kasayı boşaltır (150), c1 çantayı arka odadan alır (450, ağda taşıyan istemci), ikisi kaçış bölgesine girince host karar verir: %90 (85 + kimse bağırmadı), ödeme 540, notlar hayalet ekip + Hamal (c1); (2) BAĞIRIŞLI — uyarı 2 olayı, c1 kasayı boşaltıp kaçar, host bölgede bekler: %85, ödeme 128, ısı +5; (3) POLİS — iki oyuncu doğma noktasındayken polis gelir: içeride kalan herkes yakalanır, ödeme 0; (4) HERKES YAKALANDI — önce host (mahalleli), sonra c1 yakalanır: notlar Terlik yedi + Kefalet. c2 4. iş bittikten sonra katılır ve sonucu kabulde alır (S3 eki: geç katılan da alır). (5) ÇANTA AĞ DURUMU — yeniden başlatma, c1 çantayı alır (taşıyan c1 her peer'da görülür: seen_carriers), host c1'i yakalatır: çanta c1'in son konumunda düşer, düşüş ve yer konumu üç peer'da aynı; host serbest, iş sürer. Sahip/polis/yakalanma olayları US-008 gelene dek host botundaki 'heist' test kancası adımlarıyla (Game, yalnız otomasyon + host) session_event olarak verilir; karar ve sonuç yolu gerçek oyundakiyle aynıdır. Sonuç her peer'da aynı (host RPC). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 98,
@@ -10,7 +10,7 @@
     "c1": "res://tests/net/bots/heist_c1.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
     {"len": ["*.player_nodes", 3]},
     {"len": ["host.heist.history", 4]},
     {"same": ["host.heist.history", "c1.heist.history"]},

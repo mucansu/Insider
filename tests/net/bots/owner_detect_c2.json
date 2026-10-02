@@ -1,0 +1,12 @@
+{
+  "_doc": "owner_detect.json c2 botu (US-008): ön kapıdan gir, satış alanında batıya yürü, raflar arasındaki batı koridoruna (x≈112) girip kuzeye ilerle ve rafların arkasında bekle (sahibin görüş hattı ve menzili dışında; müşteri bölgesi).",
+  "steps": [
+    {"t": 0.5, "move": [-1, 0]},
+    {"t": 1.9, "move": [1, 0]},
+    {"t": 4.3, "move": [0, -1]},
+    {"t": 5.0, "move": [-1, 0]},
+    {"t": 7.4, "move": [1, 0]},
+    {"t": 7.67, "move": [0, -1]},
+    {"t": 9.0, "move": [0, 0]}
+  ]
+}

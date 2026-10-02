@@ -1,0 +1,12 @@
+{
+  "_doc": "rescue.json c2 botu (US-008): c1 ile aynı hizalama rotası, ama tezgâh ucunun batısında (müşteri tarafı, c1'e ~28 px) durur; c1 tutulduktan sonra (10,5 sn) 1,4 sn basılı tutar: ÇEK (32 px, 1 sn) → c1 serbest; 12,6 sn'de batıya yürür.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.9, "move": [1, 0]},
+    {"t": 6.05, "move": [0, 0]},
+    {"t": 10.5, "hold": "interact", "dur": 1.4},
+    {"t": 12.6, "move": [-1, 0]}
+  ]
+}

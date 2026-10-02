@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="OwnerTuning" format=3]
+
+[ext_resource type="Script" path="res://data/npc/owner_tuning.gd" id="1_otune"]
+[ext_resource type="Script" path="res://entities/npc/components/agenda_task.gd" id="2_task"]
+
+[sub_resource type="Resource" id="Resource_counter"]
+script = ExtResource("2_task")
+name = &"counter"
+marker = &"ClerkSpot"
+min_sec = 25.0
+max_sec = 40.0
+facing = Vector2(-1, 0)
+home = true
+
+[sub_resource type="Resource" id="Resource_restock"]
+script = ExtResource("2_task")
+name = &"restock"
+marker = &"RestockSpot"
+min_sec = 6.0
+max_sec = 10.0
+facing = Vector2(0, -1)
+
+[sub_resource type="Resource" id="Resource_backroom"]
+script = ExtResource("2_task")
+name = &"backroom"
+marker = &"BackroomSpot"
+min_sec = 10.0
+max_sec = 15.0
+facing = Vector2(0, 1)
+
+[sub_resource type="Resource" id="Resource_phone"]
+script = ExtResource("2_task")
+name = &"phone"
+marker = &"PhoneSpot"
+min_sec = 10.0
+max_sec = 15.0
+facing = Vector2(1, 0)
+half_angle_deg = 25.0
+bell_interrupts = false
+
+[resource]
+script = ExtResource("1_otune")
+agenda_seed = 3
+tasks = Array[ExtResource("2_task")]([SubResource("Resource_counter"), SubResource("Resource_restock"), SubResource("Resource_backroom"), SubResource("Resource_phone")])
+walk_speed = 100.0
+bell_sec = 1.0
+customer_sec = 6.0
+sent_sec = 10.0
+listen_sec = 8.0
+bell_radius = 48.0
+counter_marker = &"ClerkSpot"
+backroom_marker = &"BackroomSpot"
+front_door_marker = &"FrontDoor"
+look_min_sec = 0.5
+look_max_sec = 1.0
+question_speed = 110.0
+question_stop = 64.0
+question_wait_sec = 3.0
+question_max_sec = 9.0
+shout_radius = 320.0
+shout_repeat_sec = 5.0
+calm_after_sec = 30.0
+recheck_shout_sec = 60.0
+cash_marker = &"BackroomCash"
+hold_speed = 120.0
+hold_window_sec = 6.0
+hold_window_repeat_sec = 3.0
+stagger_sec = 2.0
+rescuer_suspicion = 100.0
+alert_calm_sec = 5.0
+neighbour_delay_sec = 8.0
+max_neighbours = 2
+neighbour_marker = &"NeighbourSpawn"
+police_timer_sec = 60.0
+entry_markers = Array[StringName]([&"FrontDoor", &"BackDoor"])
+entry_radius = 24.0

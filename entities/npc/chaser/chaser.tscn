@@ -1,0 +1,58 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://entities/npc/chaser/chaser.gd" id="1_chaser"]
+[ext_resource type="Script" uid="uid://byxhj1xfhrhmn" path="res://entities/npc/components/perception.gd" id="2_perc"]
+[ext_resource type="Script" path="res://entities/npc/components/npc_mover.gd" id="3_mover"]
+[ext_resource type="Script" path="res://entities/npc/components/civilian_senses.gd" id="4_senses"]
+[ext_resource type="Script" path="res://entities/npc/chaser/brain_chaser.gd" id="5_brain"]
+[ext_resource type="Script" path="res://entities/npc/components/npc_visual.gd" id="6_visual"]
+[ext_resource type="Resource" path="res://data/npc/perception_tuning.tres" id="7_ptune"]
+[ext_resource type="Resource" path="res://data/npc/chaser_tuning.tres" id="8_chtune"]
+[ext_resource type="Resource" path="res://data/npc/civilian_tuning.tres" id="9_ctune"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 12.0
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_chaser"]
+properties/0/path = NodePath(".:net_position")
+properties/0/spawn = false
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:net_facing")
+properties/1/spawn = false
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:net_state")
+properties/2/spawn = false
+properties/2/replication_mode = 2
+
+[node name="Chaser" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_chaser")
+tuning = ExtResource("8_chtune")
+civilian_tuning = ExtResource("9_ctune")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Perception" type="Node2D" parent="."]
+script = ExtResource("2_perc")
+tuning = ExtResource("7_ptune")
+
+[node name="Mover" type="Node" parent="."]
+script = ExtResource("3_mover")
+
+[node name="Senses" type="Node" parent="."]
+script = ExtResource("4_senses")
+
+[node name="Brain" type="Node" parent="."]
+script = ExtResource("5_brain")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.0667
+delta_interval = 0.0667
+replication_config = SubResource("SceneReplicationConfig_chaser")
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("6_visual")
+role = 1

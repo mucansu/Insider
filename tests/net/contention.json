@@ -1,6 +1,6 @@
 {
-  "_doc": "US-005 AC4, AC6: iki istemci (c1, c2; aynı bot dosyası, aynı anda başlatılır, rotalar sınır/duvar hizalı) aynı nesnelere aynı bot anında basar. Bot saati her süreçte yerel oyuncu doğunca başladığından iki sürecin basışları arasındaki fark ölçülmez; beklentiler bu farktan bağımsız değişmezlerdir. Kasa (3 sn): ikisi de personel tarafından 3,6 sn tutar → host yalnız birine verir: kabul edilen istek (accepted) 1, tamamlanma 1, iptal 0; kaybeden ya host'ta 'busy' reddi alır (basışlar busy_by eşitlemesinden önce düşerse; gözlenen durum) ya da çoğaltılan busy_by'ı görüp istek yollamaz — ikisinde de kasa bir kez boşalır, ekip nakdi her yerde 150 (300 değil). Host'taki meşguliyet reddinin kendisi birim testte kanıtlı (test_interaction_props::test_busy_and_missing_actor), burada sabitlenmez. Ön kapı (anlık, rotanın sonunda): ikisi iki kez basar (4 istek); her istek ya tamamlanır ya da tekrar beklemesiyle (REPEAT_COOLDOWN) reddedilir (başka ret nedeni yok — kapı içinde 28 px'te duran kapatanlar kanada değmez, 'blocked' yok (IS-014); kabul = tamamlanma; stats değişmezi requests = accepted + rejected_total birim testte), host'taki tamamlanma sayısı her peer'ın gördüğü değişim sayısına eşit ve her peer'da son durum başlangıç (açık) + değişim paritesiyle tutarlı (consistent), durum tüm peer'larda aynı. Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "US-005 AC4, AC6: iki istemci (c1, c2; aynı bot dosyası, aynı anda başlatılır, rotalar sınır/duvar hizalı) aynı nesnelere aynı bot anında basar. Bot saati her süreçte yerel oyuncu doğunca başladığından iki sürecin basışları arasındaki fark ölçülmez; beklentiler bu farktan bağımsız değişmezlerdir. Kasa (3 sn): ikisi de personel tarafından 3,6 sn tutar → host yalnız birine verir: kabul edilen istek (accepted) 1, tamamlanma 1, iptal 0; kaybeden ya host'ta 'busy' reddi alır (basışlar busy_by eşitlemesinden önce düşerse; gözlenen durum) ya da çoğaltılan busy_by'ı görüp istek yollamaz — ikisinde de kasa bir kez boşalır, ekip nakdi her yerde 150 (300 değil). Host'taki meşguliyet reddinin kendisi birim testte kanıtlı (test_interaction_props::test_busy_and_missing_actor), burada sabitlenmez. Ön kapı (anlık, rotanın sonunda): ikisi iki kez basar (4 istek); her istek ya tamamlanır ya da tekrar beklemesiyle (REPEAT_COOLDOWN) reddedilir (başka ret nedeni yok — kapı içinde 28 px'te duran kapatanlar kanada değmez, 'blocked' yok (IS-014); kabul = tamamlanma; stats değişmezi requests = accepted + rejected_total birim testte), host'taki tamamlanma sayısı her peer'ın gördüğü değişim sayısına eşit ve her peer'da son durum başlangıç (açık) + değişim paritesiyle tutarlı (consistent), durum tüm peer'larda aynı. US-008: etkileşim protokolü senaryosu sahipsiz bakkalda koşar (tests/fixtures/store_a_quiet.tscn: store_a, sahip ve uyarı yöneticisi etkin değil); sahip davranışı owner_detect/owner_window/rescue senaryolarında. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 22,
@@ -9,7 +9,7 @@
     "c2": "res://tests/net/bots/contention_both.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
     {"len": ["*.player_nodes", 3]},
     {"eq": ["*.team_cash", 150]},
     {"all_equal": "team_cash"},

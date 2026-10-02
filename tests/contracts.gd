@@ -80,7 +80,7 @@ const LINES := {
 
 const PENDING := {
 	"Game": [
-		"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result",
+		"heist_finished", "heist_result",
 		"request_restart", "venue_tier",
 		"player_exposure_changed", "player_exposure", "vision_mode", "set_vision_mode", "player_world_position",
 	],

@@ -19,6 +19,13 @@ extends Area2D
 ## istek `blocked` nedeniyle reddedilir (istemci istem süzgeci bakmaz: istem görünür kalır).
 ## Genel host API'si (`host_start`, `host_cancel`, `step`) RPC gövdesi, yerel istek ve fizik adımı tarafından
 ## çağrılır; testler de aynı yolu kullanır (§6: `_` üyelere dışarıdan erişim yok).
+## NPC kullanımı (US-008, yalnız ekleme): `host_use_by_npc(actor_pos)` — host'ta aktörsüz anlık eylem (sahip ve
+## mahalleli kapı açar); yalnız basılı tutmasız, etkin, boş bileşende ve menzilde (+ S2 toleransı); `completed(0)`
+## yayar (peer 0 = NPC). Oyuncu istek sayaçlarına girmez (`stats().npc_uses`). Tekrar beklemesine ve
+## `start_blocker`'a uyar; "aç/kapa" anlamını prop verir (kapı NPC'yle yalnız açılır).
+## Aktör durumu (US-008 t2): host, `is_free()` sunan ve serbest olmayan (tutulan/yakalanan) aktörün isteğini
+## `not_free` ile reddeder, süren etkileşimini iptal eder; prop `actor_filter`'a `func(peer_id, actor) -> bool`
+## verebilir (false → `actor` reddi; ör. ÇEK: tutulan kendi kurtarmasını başlatamaz).
 
 ## Yalnız host'ta.
 signal completed(peer_id: int)
@@ -48,6 +55,8 @@ var progress: float = 0.0
 ## İsteğe bağlı host engeli: `func() -> bool` (true = şu an uygulanamaz; ret nedeni "blocked"). Yalnız host'ta
 ## ve yalnız yeni istek doğrulanırken çağrılır.
 var start_blocker: Callable = Callable()
+## İsteğe bağlı host aktör süzgeci: `func(peer_id: int, actor: Node) -> bool` (false = ret "actor").
+var actor_filter: Callable = Callable()
 
 var _seq: int = 0
 var _cooldown_left: float = 0.0
@@ -60,6 +69,7 @@ var _accepted: int = 0
 var _completed: int = 0
 var _cancelled: int = 0
 var _rejected: Dictionary = {}
+var _npc_uses: int = 0
 
 
 func _ready() -> void:
@@ -98,7 +108,7 @@ func step(delta: float) -> void:
 	if busy_by == 0 or not _is_host():
 		return
 	var actor: Node = _actor(busy_by)
-	if actor == null or not InteractionRules.keeps_going(_spec(), _actor_position(actor)):
+	if actor == null or not _actor_free(actor) or not InteractionRules.keeps_going(_spec(), _actor_position(actor)):
 		_finish(false)
 		return
 	progress = InteractionRules.advance(progress, delta)
@@ -151,6 +161,7 @@ func stats() -> Dictionary:
 		"cancelled": _cancelled,
 		"rejected": _rejected.duplicate(),
 		"rejected_total": rejected_total,
+		"npc_uses": _npc_uses,
 	}
 
 
@@ -183,6 +194,11 @@ func host_start(peer_id: int, seq: int) -> void:
 		return
 	_requests += 1
 	var actor: Node = _actor(peer_id)
+	var refusal: String = _actor_refusal(peer_id, actor)
+	if not refusal.is_empty():
+		_rejected[refusal] = int(_rejected.get(refusal, 0)) + 1
+		_send_result(peer_id, seq, false)
+		return
 	var result: InteractionRules.Result = InteractionRules.Result.NO_ACTOR
 	if actor != null:
 		var spec: InteractionRules.Target = _spec()
@@ -208,6 +224,20 @@ func host_cancel(peer_id: int, seq: int) -> void:
 	if not _is_host() or busy_by != peer_id or seq != _seq:
 		return  # bitmiş ya da başkasının etkileşimi
 	_finish(InteractionRules.release_completes(progress, hold_time))
+
+
+## Yalnız host: NPC'nin (aktörsüz) anlık kullanımı; uygulanırsa `completed(0)` yayılır ve true döner.
+func host_use_by_npc(actor_pos: Vector2) -> bool:
+	if not _is_host() or busy_by != 0 or hold_time > 0.0 or not enabled or _cooldown_left > 0.0:
+		return false
+	if not InteractionRules.keeps_going(_spec(), actor_pos):
+		return false
+	if start_blocker.is_valid() and bool(start_blocker.call()):
+		return false
+	_npc_uses += 1
+	_cooldown_left = InteractionRules.REPEAT_COOLDOWN
+	completed.emit(0)
+	return true
 
 
 ## Etkileşimi bitirir: ilerleme sıfırlanır (yarıda bırakılan dahil), sinyal yayılır, isteyene sonuç gider.
@@ -248,6 +278,22 @@ func _actor(peer_id: int) -> Node:
 		if node.get_multiplayer_authority() == peer_id and node.has_method(&"interaction_position"):
 			return node
 	return null
+
+
+## Host aktör denetimi: boş = kabul; değilse ret nedeni (`not_free`, `actor`).
+func _actor_refusal(peer_id: int, actor: Node) -> String:
+	if actor == null:
+		return ""
+	if not _actor_free(actor):
+		return "not_free"
+	if actor_filter.is_valid() and not bool(actor_filter.call(peer_id, actor)):
+		return "actor"
+	return ""
+
+
+## Aktör serbest mi (US-008: `is_free()` sunmayan aktör serbest sayılır; duck typing).
+static func _actor_free(actor: Node) -> bool:
+	return not actor.has_method(&"is_free") or bool(actor.call(&"is_free"))
 
 
 static func _actor_position(actor: Node) -> Vector2:

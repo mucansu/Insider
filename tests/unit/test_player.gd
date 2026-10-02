@@ -131,7 +131,9 @@ func test_scene_structure() -> void:
 	if not is_true(player != null, "kök Player (CharacterBody2D) olmalı"):
 		return
 	eq(player.collision_layer, LAYER_PLAYERS, "katman players")
-	eq(player.collision_mask, LAYER_WORLD | LAYER_NPCS, "world ve npcs ile çarpışır, oyuncularla değil")
+	# US-008: NPC-oyuncu çarpışması yok (GDD §9.2, KR-021; npcs katmanı oyuncu maskesinde değil).
+	eq(player.collision_mask, LAYER_WORLD, "yalnız world ile çarpışır; oyuncular ve NPC'lerle değil")
+	eq(player.collision_mask & LAYER_NPCS, 0)
 	eq(player.motion_mode, CharacterBody2D.MOTION_MODE_FLOATING)
 	var body: CollisionShape2D = player.get_node_or_null("CollisionShape2D") as CollisionShape2D
 	is_true(body != null and body.shape is CircleShape2D and is_equal_approx((body.shape as CircleShape2D).radius, 12.0),

@@ -112,3 +112,8 @@ NOTE_SLIPPER,Terlik yedi,Took a slipper
 NOTE_SLIPPER_DESC,Bir mahalleliye yakalandı.,Got caught by a neighbour.
 NOTE_PULLED_FREE,Çekti kurtardı,Pulled free
 NOTE_PULLED_FREE_DESC,Tutulan bir arkadaşını kurtardı.,Freed a crewmate who was being held.
+INTERACT_RESCUE,Çek kurtar,Pull free
+OWNER_QUESTION,Ne yapıyorsun orada?,What are you doing back there?
+OWNER_SHRUG,Neyse… bir şey yok herhalde.,Huh… never mind.
+OWNER_SHOUT,Hırsız var! Yetişin!,Thief! Somebody help!
+OWNER_HELD,Yakaladım seni!,Got you!

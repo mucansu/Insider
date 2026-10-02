@@ -5,6 +5,8 @@
 [ext_resource type="PackedScene" uid="uid://dtbpc3j3tthur" path="res://entities/props/register.tscn" id="2_reg"]
 [ext_resource type="PackedScene" uid="uid://m3l1la3wnq8m" path="res://entities/props/door.tscn" id="3_door"]
 [ext_resource type="PackedScene" uid="uid://bfw33dvrop0k4" path="res://entities/props/bag.tscn" id="4_bag"]
+[ext_resource type="PackedScene" path="res://entities/npc/owner/owner.tscn" id="5_owner"]
+[ext_resource type="Script" uid="uid://bw4s7uaqkfgyj" path="res://entities/npc/store_alert.gd" id="6_alert"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -276,10 +278,19 @@ is_open = true
 [node name="BackDoor" parent="Props" unique_id=1880345537 instance=ExtResource("3_door")]
 position = Vector2(656, 112)
 
-[node name="Bag" parent="Props" instance=ExtResource("4_bag")]
+[node name="Bag" parent="Props" unique_id=692715059 instance=ExtResource("4_bag")]
 position = Vector2(496, 240)
 
 [node name="NPCs" type="Node2D" parent="." unique_id=1842885990]
+
+[node name="Owner" parent="NPCs" unique_id=569744516 instance=ExtResource("5_owner")]
+position = Vector2(592, 368)
+
+[node name="ChaserSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=2064013170]
+spawn_path = NodePath("..")
+
+[node name="StoreAlert" type="Node" parent="NPCs" unique_id=1034509440]
+script = ExtResource("6_alert")
 
 [node name="Markers" type="Node2D" parent="." unique_id=1450769003]
 

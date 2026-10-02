@@ -15,6 +15,11 @@ extends Node2D
 ##   düzeyinde geçerlidir: ortak bir gövdenin gruptaki şekli görüşü keser. Oyuncu ve NPC gövdeleri maskede değil.
 ## - Karanlık: `dark_query` (Callable(pos: Vector2) -> bool) verilmişse sorulur; yoksa her yer aydınlık
 ##   (karanlık bölge seviyede henüz yok).
+## - Sivil eki (US-008, yalnız ekleme; varsayılanlar muhafız davranışını değiştirmez): `factor_query`
+##   (Callable(target: Node) -> float) verilmişse kip çarpanının yerine sivil davranış çarpanı kullanılır
+##   (CivilianRules; karanlık yine ezer); `set_cone()` gözlemci konisini geçersiz kılar (sivil 50°/224 px,
+##   telefonda daralır); `set_hysteresis()` görülmekte olan hedef için koniyi genişletir (50°/224 → 53°/238 px;
+##   koni kenarında titreme yok).
 ## - Yalnız host'ta anlamlıdır (S2): `Suspicion` bileşeni `observe()`'u yalnız host'ta çağırır; bu düğüm kendi
 ##   başına işlem yapmaz.
 
@@ -42,6 +47,8 @@ class Observation:
 	var in_dark: bool = false
 	## Şüphe dolumu (birim/sn); 0 = görülmüyor.
 	var rate: float = 0.0
+	## Kullanılan durum çarpanı (kip ya da `factor_query`; karanlıkta dark_factor).
+	var factor: float = 0.0
 
 
 @export var tuning: PerceptionTuning
@@ -50,8 +57,19 @@ class Observation:
 @export var facing: Vector2 = Vector2.RIGHT
 ## Karanlık bölge sorgusu: func(pos: Vector2) -> bool. Boşsa aydınlık.
 var dark_query: Callable = Callable()
+## Sivil davranış çarpanı (US-008): func(target: Node) -> float; boşsa kip çarpanı (muhafız).
+var factor_query: Callable = Callable()
 
 var _params: PerceptionRules.Params = null
+## Görülmekte olan hedeflerin genişletilmiş konisi (histerezis yoksa null).
+var _wide: PerceptionRules.Params = null
+## Koni geçersiz kılma (0 = tuning) ve histerezis payları.
+var _cone_half_angle: float = 0.0
+var _cone_range: float = 0.0
+var _hyst_angle: float = 0.0
+var _hyst_range: float = 0.0
+## peer_id -> son gözlemde koni içinde ve görüş hattı açık mıydı (histerezis).
+var _inside: Dictionary = {}
 
 
 func _ready() -> void:
@@ -91,6 +109,37 @@ func refresh() -> void:
 		push_error("Perception: tuning atanmamış; %s yükleniyor" % TUNING_PATH)
 		tuning = load(TUNING_PATH) as PerceptionTuning
 	_params = params_for(tuning, observer)
+	if _cone_half_angle > 0.0:
+		_params.half_angle_deg = _cone_half_angle
+	if _cone_range > 0.0:
+		_params.view_range = _cone_range
+	_wide = null
+	if _hyst_angle > 0.0 or _hyst_range > 0.0:
+		_wide = params_for(tuning, observer)
+		_wide.half_angle_deg = _params.half_angle_deg + _hyst_angle
+		_wide.view_range = _params.view_range + _hyst_range
+
+
+## Gözlemci konisini geçersiz kılar (yarım açı derece, menzil px; 0 = tuning'deki koni).
+func set_cone(half_angle_deg: float, view_range: float) -> void:
+	if is_equal_approx(half_angle_deg, _cone_half_angle) and is_equal_approx(view_range, _cone_range) \
+			and _params != null:
+		return
+	_cone_half_angle = maxf(half_angle_deg, 0.0)
+	_cone_range = maxf(view_range, 0.0)
+	refresh()
+
+
+## Koni kenarı histerezisi: görülmekte olan hedef için koni `angle_deg` / `range_px` genişler (0 = yok).
+func set_hysteresis(angle_deg: float, range_px: float) -> void:
+	_hyst_angle = maxf(angle_deg, 0.0)
+	_hyst_range = maxf(range_px, 0.0)
+	refresh()
+
+
+## Hedef son gözlemde görülüyor muydu (koni + görüş hattı; histerezis girdisi).
+func was_seen(peer_id: int) -> bool:
+	return bool(_inside.get(peer_id, false))
 
 
 ## Bakışı `direction`'a dönüş tavanıyla (tuning, derece/sn) döndürür.
@@ -122,11 +171,24 @@ func observe_target(target: Node) -> Observation:
 	obs.peer_id = target.get_multiplayer_authority()
 	obs.position = pos
 	obs.stance = stance_of(target)
-	obs.band = PerceptionRules.band(p, global_position, facing, obs.position)
+	var cone: PerceptionRules.Params = _wide if _wide != null and was_seen(obs.peer_id) else p
+	obs.band = PerceptionRules.band(cone, global_position, facing, obs.position)
+	if obs.band != PerceptionRules.Band.NONE and cone != p:
+		# Histerezis yalnız koninin dış sınırına: yakın/uzak bant sınırı değişmez.
+		var near_limit: float = p.view_range * p.near_ratio + PerceptionRules.EPSILON
+		var near: bool = global_position.distance_to(obs.position) <= near_limit
+		obs.band = PerceptionRules.Band.NEAR if near else PerceptionRules.Band.FAR
 	if obs.band != PerceptionRules.Band.NONE:
 		obs.line_clear = has_line_of_sight(global_position, obs.position)
 		obs.in_dark = is_dark(obs.position)
-	obs.rate = PerceptionRules.fill_rate(p, obs.band, obs.stance, obs.in_dark, obs.line_clear)
+	if factor_query.is_valid():
+		obs.factor = p.dark_factor if obs.in_dark else maxf(float(factor_query.call(target)), 0.0)
+		var seen: bool = obs.line_clear and obs.band != PerceptionRules.Band.NONE
+		obs.rate = p.base_fill * PerceptionRules.band_factor(p, obs.band) * obs.factor if seen else 0.0
+	else:
+		obs.factor = PerceptionRules.stance_factor(p, obs.stance, obs.in_dark)
+		obs.rate = PerceptionRules.fill_rate(p, obs.band, obs.stance, obs.in_dark, obs.line_clear)
+	_inside[obs.peer_id] = obs.line_clear and obs.band != PerceptionRules.Band.NONE
 	return obs
 
 
