@@ -1,6 +1,6 @@
 # Insiders — Oyun Tasarım Belgesi (GDD)
 
-Durum: v0.3 taslak, MVP öncesi (IS-021, 2026-10-02: KR-020 senaryo bazlı tehdit modeli — §9.1 kademe tablosu, §9.2 mekân nüfusu, §9.3 bakkal tasarımı; §6.1 sivil gözlemci çarpanları; §15 MVP metni. Önceki: IS-007 A — §14.1 kukla stili KR-017, §7.6 alternatif giriş GB-02). Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
+Durum: v0.4 taslak, MVP öncesi (US-011 tasarımı, 2026-10-02: §6.5 oyuncu görüşü / sis / hafıza katmanı, iki görüş kipi, ekip görüşü paylaşılmaz — kullanıcı kararı; gerekçe `docs/tasarim/arastirma/gorus-sis-hafiza.md`. Önceki: IS-021: KR-020 senaryo bazlı tehdit modeli — §9.1 kademe tablosu, §9.2 mekân nüfusu, §9.3 bakkal tasarımı; §6.1 sivil gözlemci çarpanları; §15 MVP metni. Önceki: IS-007 A — §14.1 kukla stili KR-017, §7.6 alternatif giriş GB-02). Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
 Teknik mimari (sınıf/dosya yapısı) ayrı belgede; burada yalnız tasarımı etkileyen teknik kurallar var.
 
 ## 1. Konumlandırma
@@ -52,7 +52,8 @@ Amaç: ekibin hedef hakkında bilgi toplaması; bilgi oyun tarafından değil oy
 ### 4.2 Hafıza kuralı
 - Keşifte görülen hiçbir şey krokiye, haritaya ya da listeye otomatik işlenmez. Plan masasında oyuncular hafızadan ikon yerleştirir.
 - Ekran görüntüsü ya da kâğıt-kalem engellenmez ve engellenmeye çalışılmaz. Değerli bilgi zamansal ve davranışsaldır: devriye periyodu, kamera dönüş süresi, kurye saati, kimin kart taşıdığı, hangi kapının içeriden açıldığı. Statik yerleşim tek başına yetmez.
-- Fotoğraf (telefon): iş başına sınırlı kare (3), çekim anı fark edilebilir; fotoğraf plan masasında kroki kenarında küçük görüntü olarak durur, ikon üretmez.
+- Fotoğraf (telefon): iş başına sınırlı kare (3), çekim anı fark edilebilir; fotoğraf plan masasında kroki kenarında küçük görüntü olarak durur, ikon üretmez. Kare, çekildiği andaki **görünen** katmandır (§6.5): hafıza ve bilinmeyen alan fotoğrafta da sislidir.
+- Sisin hafıza katmanı (§6.5) **faz içidir**: keşifte açılan alan plan masasına geçerken silinir, soygun bilinmeyenden (krokideki duvarlarla) başlar. Oyun hiçbir fazda "nereyi gördün" bilgisini sonraki faza taşımaz; taşıyan oyuncunun hafızasıdır (KR-004).
 
 ### 4.3 Keşfin bedeli
 - Oyalanma şüphesi: işi bittiği halde içeride kalma, aynı noktada durma.
@@ -86,7 +87,7 @@ Keşif ile soygun arasında kademeyle artan olasılıkla (T1 %5 → T10 %30) bir
 ## 6. Gizlilik ve uyarı sistemi
 
 ### 6.1 Algı
-- Görüş: her muhafız/sivil/kamera için görüş hattı (duvar keser) × ışık (karanlık bölge menzili kısar) × mesafe × hedefin durumu (koşma, çanta taşıma, silah elde, kılık). Oyuncu da yalnız görüş hattındakini görür; görülmeyen alan sisli (Monaco kuralı; ekip görüşleri paylaşılır).
+- Görüş: her muhafız/sivil/kamera için görüş hattı (duvar keser) × ışık (karanlık bölge menzili kısar) × mesafe × hedefin durumu (koşma, çanta taşıma, silah elde, kılık). Oyuncu da yalnız kendi görüş hattındakini görür; görülmeyen alan sisli (Monaco kuralı). **Ekip görüşleri paylaşılmaz** (kullanıcı kararı 2026-10-02): arkadaşının kuklasını her zaman görürsün, onun gördüğü insanları görmezsin. Oyuncu görüşünün kuralları ve sayıları §6.5.
 - Hareket kipleri (Faz 1'de kesinleşti, `data/player_tuning.tres`): sızma 70, yürüme 140, koşma 220 px/sn; 1 karo = 32 px, karakter çapı ~24 px. Kip, algıdaki "hedefin durumu" çarpanının ve gürültü yarıçapının girdisidir.
 - Duyma: gürültü olayları yarıçapla yayılır; duvar azaltır, yağmur maskeler. Koşma, kırma, ateş, matkap, düşen nesne.
 - Şüphe ölçeri: her gözlemcinin her oyuncuya karşı 0-100 ölçeri; görünürlük × süre ile dolar, görünmeyince boşalır. Eşikler: 30 "?" (gözlemci bakar, ≥0,5 sn tepki penceresi), 60 inceleme (yürüyerek gelir, sorgular), 100 tespit.
@@ -119,6 +120,27 @@ Kademelerin **anlamı mekâna bağlıdır** (KR-020): sayı ve HUD merdiveni her
 
 ### 6.4 Çatışma (ilk sürüm: minimal)
 Gizlilik varsayılan. T1-T2'de silah fiili yoktur (KR-020: bakkal/benzinlik soygunu abartılmaz; silah çekme, sindirme T2'de düğme penceresini kesmek için gelir, T1'de yok); silahlı NPC ilk kez T7'de (§9.1). Gürültü = baskı altında kaçış ve 30-60 saniyelik koridor tutma anları. Silahlar gürültü yarıçapı + ölümcüllük + ağırlıkla tanımlıdır; muhafız her silahla düşer, kısıt sayı ve sonuçtur. Can/hasar/silah veri güdümlü; muhafız davranışı genişletilebilir. Büyüyen çatışma ileride belirli kademelere (T7 transfer) ya da ayrı "gürültülü iş" türüne gider; plan fazını zayıflatmasına izin verilmez.
+
+### 6.5 Oyuncu görüşü, sis ve hafıza katmanı (US-011; gerekçe `arastirma/gorus-sis-hafiza.md`)
+
+Tüm harita tek seferde görünmez; kamera oyuncuyu izler (1,5 yakınlaştırma, harita sınırına kenetli) ama bilgiyi saklayan sistir: görüş yarıçapı her ekran çözünürlüğünde aynıdır (büyük ekran avantaj değildir). Her oyuncu dünyayı üç katmanda görür; katmanlar üç bilgi kaynağına karşılık gelir:
+
+| Katman | Kaynak | Çizilen | Gizli | Görünüm (`ThemeTokens.GAMEPLAY_FOG_*`) |
+|---|---|---|---|---|
+| Görünen | göz (şu an görüş hattında) | her şey: NPC, prop durumu, balon, koni, halka | — | örtü yok |
+| Hafıza | bu fazda daha önce görülmüş | yapı + mobilya + prop **son görülen durumda** (kapı, çanta) | canlılar, güncel durum | `MEMORY` = BG α 0,55, doygunluk ×0,5 |
+| Bilinmeyen | kroki/plan (§5: duvarlar hazır) | yalnız duvar ve kapı boşluğu çizgileri | mobilya, raf düzeni, prop, canlılar | `UNKNOWN` = BG α 0,88; çizgiler sisin üstünde |
+
+Kurallar (başlangıç değerleri `data/vision_tuning.tres`, oyun testiyle ayarlanır):
+- Görüş hattı kuralı NPC'ninkiyle **aynı** (§6.1, US-006): duvar, raf, kapalı kapı keser; cam geçirir (camdan içerisi ve dışarısı görünür → "camdan bak" §4.7 kendiliğinden çalışır); açık kapı geçirir.
+- Menzil 288 px (9 karo) = NPC menzili + 1 karo: oyuncu sahibi, sahip oyuncuyu görmeden önce görür (§2.9). Kenar 32 px yumuşak. Karanlık bölgede duran oyuncu 128 px; karanlık bölge görüş hattında bile hafıza tonunda + tarama kalır, içindeki NPC yalnız oyuncu da karanlıkta ve ≤ 128 px ise görünür (KR-019 ikili ışık).
+- Çözünürlük 32 px karo ızgarası, 100 ms'de bir güncellenir; görünürlük kararı **istemcide, yerel konumdan** (150 ms RTT'de sıçrama yok; host görünürlük kararı vermez). Hile notu: istemci tüm NPC konumlarını alır; arkadaş oyunu, düşük öncelik.
+- **İki görüş kipi, host'un oyun kuralı** (lobide seçer, herkes aynı; kişisel ayar değil): **Çevresel 360°** (yarıçap içinde her yön) · **Yönlü** (fare / gamepad sağ çubuk; klavye-yalnız oyuncuda bakış hareket yönüne 0,33 sn'de yumuşak döner): önde 90° net koni (288 px) · yanlarda 180°'ye kadar çevresel bölge (192 px; yapı ve prop durumu güncel, canlılar soluk siluet, balon/koni yok; `PERIPHERAL` = BG α 0,30, doygunluk ×0,6 — blur değil) · 360° yakın halka 64 px (arkadan tutma menziline giren görülür) · arkası yalnız hafıza + ses halkaları. Dönüş tavanı 240°/sn (etrafı taramak zaman ister). Bakış yönü çoğaltılır (istemci yetkili, 20 Hz); kukla baş ve gözler bakışı izler (§14.1), ekip arkadaşının üstünde atkı renginde 32 px / 90° ince yay. NPC algısı oyuncunun bakışını **kullanmaz** (arkası dönük oyuncuya çarpan yok; §6.1 tablosu davranış bazlıdır). Varsayılan kip test-2 A/B ile kesinleşir (§16 soru 9).
+- NPC görünürlüğü: karo görünen ∧ görüş hattı; görüşten çıkınca 0,2 sn tutma (§12 payı), sonra son konumda 1,5 sn hareketsiz **hayalet** (MUTED α 0,5, başlık silueti: kim olduğu okunur), sonra yok. "Nereye gitti" sorusu oyunun kendisidir.
+- Ses halkaları duvar arkasından görünür, ama yalnız **duyana**: halka çizilir ⇔ kaynak görünen karoda ∨ yerel oyuncu (duvarla ×0,5) yarıçapında. Sahibin ajanda sesleri gürültüdür: telefon 160 px / 3 sn'de bir, raf düzeltme 96 px / 2 sn'de bir, kapılar ve zil 160. Görüş yoksa "sahip nerede" dinlemeyle cevaplanır; sahibin görev ikonu yalnız görünürken.
+- Ekip arkadaşı **her zaman** tam çizilir (konum, kip, atkı rengi, bakış), sis üstünde, görüş hattı gerekmez; ekran dışındaysa kenarda atkı renginde ok. Üstünde "görüldü" ikonu (ALERT göz, 16 px): herhangi bir gözlemcinin ona şüphesi ≥ 30 iken — başının dertte olduğunu görürsün, kimin gördüğünü görmezsin. Kendi rozeti HUD'da: gizli / görünür (bir konide) / görüldü (≥ 30); host'tan 10 Hz özet.
+- Geçişler: karo açılması 0,15 sn, hayalet solması 0,3 sn; hareket azaltma açıkken anlık. Keşif ekipmanı dürbün (Faz 3): tut → 30° / 640 px koni, bakış şüphesi işler. Yönlü kipte keşifteki "inceleme" (§4.3) net konide ≥ 3 sn bakmakla doğal olur; çevresel kipte "tut" eylemi kalır.
+- Kabul (bakkal, 3 kişi): sokaktaki oyuncu camdan tezgâhı görür, arka oda bilinmeyendir; arka odadaki oyuncu D kapısı kapalıyken sahibi görmez, telefon halkasını duyar; aynı anda host sahibi görür (paylaşım yok); headless senaryo iki kipte ve 0/150 ms'de geçer; 1280×720 ekran görüntüsünde üç ton (yönlüde dört) tek karede ayırt edilir.
 
 ## 7. Karakter, roller, perk, ekipman
 
@@ -278,7 +300,7 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 ## 11. Co-op ve ölçekleme
 
 - Merkez: 3 kişi. Talepler jeneratörde akış olarak tanımlıdır; oyuncu sayısı akışları ölçekler.
-- 2 kişi: çift anahtar anları sıralıya çevrilir (pencereler uzar) ya da Tech'in bir uzaktan aracı otomasyona bağlanır; muhafız/kamera -1; rol birleşmesi Ghost+Tech ("sessiz olan") + Muscle. Bot yoldaş (MVP sonrası) üçüncü eli doldurur. Bakkal (T1) 2 kişiyle tam oynanır (KR-019 K4): müşteri + hırsız; nüfus parametreleri değişmez (§9.3).
+- 2 kişi: çift anahtar anları sıralıya çevrilir (pencereler uzar) ya da Tech'in bir uzaktan aracı otomasyona bağlanır; muhafız/kamera -1; rol birleşmesi Ghost+Tech ("sessiz olan") + Muscle. Bot yoldaş (MVP sonrası) üçüncü eli doldurur. Bakkal (T1) 2 kişiyle tam oynanır (KR-019 K4): müşteri + hırsız; nüfus parametreleri değişmez (§9.3). Görüş paylaşılmadığı için (§6.5) 2 kişide bilgi kapsaması daha dardır (tahmin: 3 kişide ~%80, 2 kişide ~%55); dinleme ve hayalet daha çok iş görür; host 2 kişide "Çevresel 360°" kipini seçebilir — ekip paylaşımı ayarı yoktur.
 - 4 kişi: ek talep (ikinci kasa kapısı, ek devriye, fazla çanta); Tech ikiye bölünür (hacker + gözcü/dron) ya da "Face" (kılık/sosyal mühendislik); ödeme kişi başı dengelenir.
 - Formül: muhafız = taban + (oyuncu − 3) × k; çanta sayısı, zamanlayıcılar ve keşif süresi oyuncu sayısıyla ölçeklenir.
 - Keşifte 2 kişi: içerideki + dışarıdaki; 4 kişi: hat rolü ikiye (telefon + ağ) ya da ikinci içerideki (tanınma riski paylaşılır).
@@ -305,9 +327,9 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 
 ## 14. Görsel ve ses yönü
 
-- 2D üstten, hafif eğik "3/4" bakış. Sanatı ışık yapar: 2D ışık + oklüder, görüş konileri, görülmeyen alan sisi, neredeyse tek renk palet + tek uyarı vurgu rengi.
+- 2D üstten, hafif eğik "3/4" bakış. Sanatı ışık yapar: görüş konileri, üç katmanlı sis (görünen / hafıza / bilinmeyen, §6.5; Light2D değil, karo ızgarası + görüş hattı — Compatibility renderer, test edilebilirlik), neredeyse tek renk palet + tek uyarı vurgu rengi. Sis tonları `GAMEPLAY_FOG_*` her tonda aynıdır; "bulanık" alfa + doygunluk düşürmedir, blur değil.
 - Karakterler prosedürel "kukla" (§14.1; KR-017); binalar tile kitleri ya da düz renk vektör geometrisi; ikonlar CC-BY oyun ikon seti; insider portreleri siluet + kod adı. Yapay zekâ üretimi görsel/ses/metin serbesttir (KR-020 3) ve kukla stiliyle çelişmez: kuklalar kodla çizilir (yapay zekâ içeriği sayılmaz), yapay zekâ üretimi yalnız statik katmanlarda (zemin/duvar dokusu, raf ürünleri, tabela, ikon, insider portresi, SFX) kullanılır; her biri `docs/notes/assetler.md`'de "AI üretimi" sütunuyla kayıtlı. Sivil kukla başlıkları: sahip önlük + kel/kasket, müşteri başlıksız (çeşit: torba, şemsiye), yoldan geçen palto, mahalleli terlik + kolu sıvalı (okunabilirlik: kim kovalıyor belli olmalı).
-- Okunabilirlik önceliği: kamera konisi, muhafız bakış yönü, şüphe ölçeri ("?" ve "!"), gürültü halkası, karanlık bölge, plan katmanı her zaman ayırt edilir.
+- Okunabilirlik önceliği: kamera konisi, muhafız bakış yönü, şüphe ölçeri ("?" ve "!"), gürültü halkası, karanlık bölge, sis katmanları ve NPC hayaleti, ekip arkadaşının bakış yayı ve "görüldü" ikonu, plan katmanı her zaman ayırt edilir. Kukla başı ve gözleri oyuncunun bakış yönünü izler (§6.5; gövde hareket yönünü) — ekip arkadaşının nereye baktığı bir bakışta okunur.
 - Ses: gürültü olaylarının duyulabilirliği oyun bilgisidir (koşma adımı, cam, matkap); alarm, telsiz ve yoklama sesleri uyarı kademesini taşır. Müzik kademe ile gerilir, tespitte kesilir.
 
 ### 14.1 Karakter ve animasyon stili (KR-017, GB-03)
@@ -372,3 +394,4 @@ Sonraya:
 6. Keşifte yakalanmanın bedeli: iş iptali mi, "tetikte" modu mu, ısı mı? (Taslak: tetikte + küçük ısı.)
 7. Plan katmanı yanlış ikonu hiç işaretlemesin mi, yoksa nesne görüş hattına girince ikon solsun mu?
 8. Host değişimi: host düşerse iş biter mi (MVP), sonradan host göçü mü?
+9. Görüş kipi varsayılanı (§6.5): Yönlü (fare; öneri) mi, Çevresel 360° mi? İki kip de yapılır, host seçer; test-2'de aynı tohumla A/B: yönlü varsayılan olur eğer tercih ≥ 2/3 ∧ adalet ≥ 3,5 ∧ "?" görmeden tespit farkı ≤ 1. Çevresel bölgede canlılar: soluk siluet (öneri) / hiç / yalnız hareket edenler (v1 adayı). Ekip görüşü paylaşımı **kapalı** (kullanıcı kararı 2026-10-02, soru değil).
