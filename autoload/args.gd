@@ -4,6 +4,7 @@ extends Node
 ## · --bot=PATH.json · --dump=PATH.json · --quit-after=SN · --player-scene=res://... (yalnız test)
 ## · ekran görüntüsü (IS-022): --screenshot-at=SN[,SN…] · --screenshot-dir=YOL · --window-size=GxY (ör. 1280x720)
 ## · --camera-zoom=X (geliştirici; IS-027: yerel kameranın yakınlaştırması, PlayerTuning.camera_zoom yerine)
+## · --perf · --perf-seconds=N (geliştirici; IS-067: döküme "render" ölçüm bölümü, dosya sonundaki blok)
 ## Açılışta `OS.get_cmdline_user_args()` ayrıştırılır; testler `parse()` ile kendi listesini verebilir.
 ## Tanınmayan argümanlar `unknown` listesine girer (test koşucusunun --filter gibi argümanları için uyarı
 ## basılmaz); tanınan anahtarın değeri bozuksa uyarı basılır ve varsayılan korunur.
@@ -127,6 +128,7 @@ func parse(args: PackedStringArray) -> void:
 	if not screenshot_at.is_empty() and screenshot_dir.is_empty():
 		push_warning("Args: --screenshot-at için --screenshot-dir gerekir; görüntü alınmayacak")
 	_parse_vision_args()  # US-011d
+	_parse_perf_args()  # IS-067
 
 
 ## Argümanlar doğrudan bir oturum başlatıyor mu (host ya da katıl).
@@ -270,3 +272,57 @@ func _parse_vision_args() -> void:
 			push_warning("Args: geçersiz --vision-mode '%s' (%s); %s kullanılıyor"
 				% [value, "|".join(PackedStringArray(VISION_MODES)), vision_mode])
 	unknown = rest
+
+
+# --- IS-067: çizim/performans ölçümü (--perf, --perf-seconds=N; S6 geliştirici argümanı) ----------------
+# Ayrı blok (US-011d kalıbı): `parse()` sonunda `unknown`dan çekilir. `--perf` açıkken main.gd kare süresi ve
+# Performance/RenderingServer monitörlerini örnekler, döküme `"render"` bölümünü ekler; kapalıyken hiçbir şey
+# bağlanmaz (sıfır maliyet). `--perf-seconds` ölçüm penceresidir: dökümde son N saniye özetlenir.
+
+const DEFAULT_PERF_SECONDS := 10.0
+const PERF_SECONDS_MIN := 1.0
+const PERF_SECONDS_MAX := 600.0
+
+## `--perf` verildi mi.
+var perf: bool = false
+## Ölçüm penceresi (saniye; son N saniye özetlenir).
+var perf_seconds: float = DEFAULT_PERF_SECONDS
+
+
+func _parse_perf_args() -> void:
+	perf = false
+	perf_seconds = DEFAULT_PERF_SECONDS
+	var rest: PackedStringArray = []
+	for raw: String in unknown:
+		var arg: String = raw.strip_edges()
+		var eq: int = arg.find("=")
+		var key: String = arg.substr(0, eq) if eq >= 0 else arg
+		var value: String = arg.substr(eq + 1).strip_edges() if eq >= 0 else ""
+		match key:
+			"--perf":
+				if eq >= 0:
+					push_warning("Args: --perf değer almaz (bayrak); '%s' yok sayıldı" % arg)
+				perf = true
+			"--perf-seconds":
+				if not _need_value(key, value, eq >= 0):
+					continue
+				var secs: float = parse_perf_seconds(value)
+				if secs > 0.0:
+					perf_seconds = secs
+				else:
+					push_warning("Args: geçersiz --perf-seconds '%s' (%.0f..%.0f); %.0f kullanılıyor"
+						% [value, PERF_SECONDS_MIN, PERF_SECONDS_MAX, perf_seconds])
+			_:
+				rest.append(raw)
+	unknown = rest
+
+
+## "15" / "2.5" → saniye; sayı değilse, sonlu değilse ya da [PERF_SECONDS_MIN, PERF_SECONDS_MAX] dışıysa 0.
+static func parse_perf_seconds(value: String) -> float:
+	var s: String = value.strip_edges()
+	if not s.is_valid_float():
+		return 0.0
+	var t: float = s.to_float()
+	if not is_finite(t) or t < PERF_SECONDS_MIN or t > PERF_SECONDS_MAX:
+		return 0.0
+	return t

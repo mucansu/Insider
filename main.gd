@@ -25,6 +25,7 @@ extends Node
 ##   `--window-size=GxY` pencereli açılışta pencere boyutunu ayarlar.
 ##   Dökümde "screenshots": [{"at": SN, "file": yol, "ok": bool, "size": [g, y], "skipped": neden}].
 ## - Açılışta viewport temizleme rengi etkin tonun BG'sine ayarlanır (IS-027).
+## - Çizim ölçümü (IS-067; `--perf`, `--perf-seconds=N`): PerfProbe (perf_probe.gd), dökümde "render" bölümü.
 
 const MAIN_MENU := "res://ui/main_menu.tscn"
 const READY_MARKER := "INSIDERS_READY"
@@ -82,6 +83,7 @@ func _start() -> void:
 			var backstop: SceneTreeTimer = get_tree().create_timer(Args.quit_after + QUIT_LINGER_SEC + BACKSTOP_SEC)
 			backstop.timeout.connect(Net.leave)
 			backstop.timeout.connect(get_tree().quit.bind(0))
+	_start_perf()  # IS-067 (dosya sonundaki blok; --perf yoksa hiçbir şey yapmaz)
 	if Args.window_size != Vector2i.ZERO and capture_supported():
 		get_window().size = Args.window_size
 	if Args.wants_screenshots():
@@ -286,3 +288,16 @@ func _process(_delta: float) -> void:
 	if positions.is_empty() or _samples.size() >= MAX_SAMPLES:
 		return
 	_samples.append({"slot": slot, "players": positions})
+
+
+# --- IS-067: çizim/performans ölçümü (`--perf`; ölçüm perf_probe.gd, şema core/perf_report.gd) ---------------
+
+## `--perf` verildiyse PerfProbe çocuğunu kurar ve döküme "render" sağlayıcısını ekler; yoksa hiçbir şey yapmaz.
+func _start_perf() -> void:
+	if not Args.perf:
+		return
+	var probe := PerfProbe.new()
+	probe.name = "PerfProbe"
+	add_child(probe)
+	probe.begin(Args.perf_seconds, capture_supported())
+	Game.register_dump_provider("render", probe.report)

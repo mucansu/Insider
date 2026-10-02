@@ -95,6 +95,7 @@ step_tools() {
 	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
 	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
 	"${PYTHON[@]}" tools/test_screenshot.py || return 1
+	"${PYTHON[@]}" tools/test_perf_run.py || return 1
 	"${PYTHON[@]}" tools/test_warn_count.py || return 1
 	echo "-- GDScript uyarı sayımı (düzey 2 = kapı, diğerleri bilgi)"
 	"${PYTHON[@]}" tools/warn_count.py --gate || return 1
