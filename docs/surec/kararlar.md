@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-026 — Bakkal etkileşim ayarları (2026-10-02, Fable → koordinatör)
+- DİKKAT DAĞIT (raf devirme) yarıçapı 120 → 320 px (bağırışla aynı sınıf); tezgâhtaki sahibi koparmak aracın amacı. Risk: T1 fazla cömert olursa (IS-015 200 koşuda temiz oranı > %60) 260 px'e çekilir.
+- Tezgâh: E = SATIN AL (ana), Q (`intimidate`; gamepad X) = ARKA ODAYA GÖNDER (alt). Kural: yanlışlıkla tetiklenmesi pahalı eylem ayrı tuşa. `intimidate` → `interact_alt` yeniden adlandırma Faz 2b teknik kararı.
+- Çanta: koşarken her tam saniyede %25 (tohumlu), yürürken hiç düşmez, düşen çanta 0,3 sn sonra yeniden alınabilir; koşu hızını düşürmez. GDD §9.3 "%50" Fable'ın sonraki GDD güncellemesinde buna çevrilir.
+- Isı: clean 0 · shouted +5 · hot +10 · police/caught_all +15 (veri dosyasında; Faz 4'te yeniden kalibre).
+
 ### KR-001 — Oyun konsepti (2026-09-30, kullanıcı)
 Fable danışmanlığında çıkan seçeneklerden kullanıcı co-op soygun (Insiders) fikrini seçti ve genişletti: kalıcı karakter, Minecraft Dungeons tarzı yavaş gelişim, silah/ekipman parayla satın alınır, yetenekler, bakkaldan merkez bankasına senaryo merdiveni. Kaynak: docs/tasarim/oyun-tasarimi.md.
 
@@ -93,6 +99,7 @@ Kullanıcı 2026-10-02'de geri alınabilir tasarım kararlarında koordinatörü
 ## Günlük
 - 2026-10-01 (US-004): AC5 eşiği seçenek (a): host↔istemci 32 px, istemci↔istemci 48 px (eşitleme host üzerinden iki bacak; 140 px/sn × ~280 ms ≈ 40 px fizik sınırı). Tamponu küçültmek (b) GDD §12'ye aykırı. Gecikmeye duyarlı eşik (c) Faz 2 adayı. Ara değerleme yöntemi mimari S2'de.
 - 2026-10-01 (IS-010): Fikstür oyunculu ağ senaryolarında `samples_near` eşiği 40 px (ara değerleme yok + host üzerinden iki bacak); gerçek oyuncu sahnesiyle 32 px. Kökü Level olmayan seviye artık reddedilir.
+- 2026-10-02 (koordinatör): KR-026 (Fable bakkal etkileşim kararları) yazıldı; US-010 kartına AC'ler; US-012'ye police/caught_all ısı +15 ve 'düşen çanta 0,3 sn sonra alınabilir' denetim sonrasında eklenecek.
 - 2026-10-02 (koordinatör): IS-047 ölçümü: Godot 4.7 `--import`/`--check-only` GDScript uyarılarını basmıyor (yalnız `-d` ile betik yüklenirken) — mevcut 'import'ta uyarı = hata' kapısı GDScript uyarılarını hiç görmüyordu; `tools/warn_count` (-d) ile sayım. Üretim 183 / test 2133 uyarı. Karar: `unsafe_method_access` ve `unsafe_property_access` = 2 (4 test yeri düzeltilir) + warn_count kapısı yalnız düzeyi 2 olan türlerde; diğerleri bilgi (IS-071 temizlik).
 - 2026-10-02 (koordinatör): Oyun YZ tur 2 → US-010/US-016 kartlarına teknik notlar, IS-070, mimari §7 T4 arama notu. Kararlar: Agenda lineer rota + SpotRegistry US-016 paketinde; project.godot'a gezinme/fizik satırı eklenmez, varsayılanlar testle kilitlenir. Fable'a soruldu: DİKKAT DAĞIT menzili/konumu, tezgâhta SATIN AL ↔ GÖNDER alt eylem seçimi.
 - 2026-10-02 (koordinatör): US-012 denetimde (M + ağ → denetci + çürütmeli inceleme). Kararlar (geri alınabilir, Fable ara değerlendirmesinde gözden geçirilir): hot ısı +10; sonuç sözlüğüne `heat`, `max_alert` (S3'e yazıldı); kayıpta oran %0 görünür; çanta düşmesi kart değeri (koşarken her tam saniyede %25) geçerli — GDD §9.3 "%50" Fable'ın sonraki GDD güncellemesinde düzeltilir.
