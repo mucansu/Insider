@@ -126,6 +126,7 @@ func parse(args: PackedStringArray) -> void:
 		join_address = ""
 	if not screenshot_at.is_empty() and screenshot_dir.is_empty():
 		push_warning("Args: --screenshot-at için --screenshot-dir gerekir; görüntü alınmayacak")
+	_parse_vision_args()  # US-011d
 
 
 ## Argümanlar doğrudan bir oturum başlatıyor mu (host ya da katıl).
@@ -233,3 +234,39 @@ func _need_value(key: String, value: String, has_value: bool) -> bool:
 		return true
 	push_warning("Args: %s bir değer ister (%s=...)" % [key, key])
 	return false
+
+
+# --- US-011d: görüş kipi (--vision-mode=peripheral|directional; GDD §6.5, KR-023) -------------------
+# Ayrı blok: ana ayrıştırma döngüsü tanımadığı argümanları `unknown`a koyar; bu blok `parse()` sonunda
+# oradan `--vision-mode`'u çeker. Kip host'un oyun kuralıdır; Game/lobi bu değeri yalnız host'ta okur.
+
+const VISION_MODES: Array[String] = ["peripheral", "directional"]
+const DEFAULT_VISION_MODE := "peripheral"
+
+## `VISION_MODES`'dan biri; argüman yoksa ya da geçersizse `DEFAULT_VISION_MODE`.
+var vision_mode: String = DEFAULT_VISION_MODE
+## `--vision-mode` geçerli bir değerle verildi mi (vermezse kipi veri/lobi varsayılanı belirler).
+var vision_mode_given: bool = false
+
+
+func _parse_vision_args() -> void:
+	vision_mode = DEFAULT_VISION_MODE
+	vision_mode_given = false
+	var rest: PackedStringArray = []
+	for raw: String in unknown:
+		var arg: String = raw.strip_edges()
+		var eq: int = arg.find("=")
+		var key: String = arg.substr(0, eq) if eq >= 0 else arg
+		if key != "--vision-mode":
+			rest.append(raw)
+			continue
+		var value: String = arg.substr(eq + 1).strip_edges().to_lower() if eq >= 0 else ""
+		if not _need_value(key, value, eq >= 0):
+			continue
+		if VISION_MODES.has(value):
+			vision_mode = value
+			vision_mode_given = true
+		else:
+			push_warning("Args: geçersiz --vision-mode '%s' (%s); %s kullanılıyor"
+				% [value, "|".join(PackedStringArray(VISION_MODES)), vision_mode])
+	unknown = rest
