@@ -175,3 +175,4 @@ Kullanıcı 2026-10-02'de geri alınabilir tasarım kararlarında koordinatörü
 - 2026-10-01: GitHub entegrasyonu repo oluşturamadı (403); repo kullanıcı tarafından açılacak, iş yerelde sürüyor.
 - 2026-10-02 (IS-078): ana menüde görüş seçimi host portuyla aynı satırda (Grid 4 kolon), dikey odak zincirinin dışında, gamepad satırı port ↔ görüş ↔ Gelişmiş; 720p taşması tema değiştirmeden çözüldü (arayuz önerisi a).
 - 2026-10-02 (IS-080): `alert_level` oturum olayı HUD bildirimi göstermez (Hud.SILENT_EVENTS; bilgi uyarı merdiveninde); olay metinleri oyuncu adını `{name}` ile Game.players()'tan alır.
+- 2026-10-02 (US-011b): maruziyet 1 "görünür" = bir gözlemcinin son gözleminde koni içi ∧ görüş hattı (şüphe > 0 değil: şüphe görüş kesilince sürer). FogLayer sözleşme adı koddaki `line_clear` (mimari.md düzeltildi). Bot `vision_mode` adımı geçici otomasyon kancası; net_smoke senaryo `args` alanı IS-082.
