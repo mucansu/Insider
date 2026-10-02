@@ -3,19 +3,19 @@ extends RefCounted
 ## Etkileşim kuralları (US-005; mimari.md S2, S7). Düğümsüz: yalnız değerlerle (Vector2, float, int) çalışır,
 ## sahne ağacını ve proje dizinlerini bilmez (KR-003, KR-018). Aynı kurallar iki yerde koşar:
 ## - istemci (yerel oyuncu): hedef seçimi ve istem; toleranssız (istem yalnız gerçekten menzildeyken),
-## - host: isteğin doğrulanması ve süre sayımı; S2 gecikme toleransıyla (menzil +24 px, taraf eşiği -16 px,
-##   süre +0,25 sn).
+## - host: isteğin doğrulanması ve süre sayımı; S2 gecikme toleransıyla (menzil +24 px, taraf eşiği -24 px,
+##   süre +0,25 sn) ve yalnız host'un bildiği engelle (`Target.blocked`, ör. kapı boşluğunda oyuncu).
 ## Hedefin durumu `Target` değer nesnesinde taşınır (Interactable doldurur).
 
-enum Result { OK, DISABLED, BUSY, COOLDOWN, OUT_OF_RANGE, WRONG_SIDE, MISSING_TAG, NO_ACTOR }
+enum Result { OK, DISABLED, BUSY, COOLDOWN, OUT_OF_RANGE, WRONG_SIDE, MISSING_TAG, NO_ACTOR, BLOCKED }
 
 ## S2: host istemci isteğini doğrularken menzile verdiği pay (px).
 const RANGE_TOLERANCE := 24.0
 ## S2 ilkesi (GDD §12 oyuncu lehine): host taraf kısıtının eşiğinden düştüğü pay (px). Host istemcinin konumunu
-## eşitleyiciden ~bir senkron aralığı + gecikme geriden görür (yürüme 140 px/sn × 0,1 sn ≈ 14 px); istem
-## görünür görünmez basan oyuncu reddedilmesin. Kasada eşik 16 → 0: müşteri tarafı (tezgâh kenarı 546 px,
-## yarıçap 12 → en fazla -26 px) yine reddedilir.
-const SIDE_TOLERANCE := 16.0
+## eşitleyiciden ~0,1 sn geriden görür (tek yön gecikme + senkron aralığı); koşan oyuncu (220 px/sn) ≈ 22 px
+## geride: istem görünür görünmez basan oyuncu reddedilmesin. Kasada eşik 16 → -8: müşteri tarafı (tezgâh
+## kenarı 546 px, yarıçap 12 → en fazla -26 px) yine reddedilir (18 px pay).
+const SIDE_TOLERANCE := 24.0
 ## S2: zamana verilen pay (sn). Basılı tutma süresinin son payı içinde bırakılan istek tamamlanmış sayılır
 ## (yerelde çubuk dolmuşken bırakan oyuncu, host'ta süre RTT kadar geriden dolduğu için cezalanmaz).
 const TIME_TOLERANCE := 0.25
@@ -32,6 +32,7 @@ const _RESULT_NAMES: Dictionary = {
 	Result.WRONG_SIDE: "wrong_side",
 	Result.MISSING_TAG: "missing_tag",
 	Result.NO_ACTOR: "no_actor",
+	Result.BLOCKED: "blocked",
 }
 
 
@@ -50,6 +51,9 @@ class Target:
 	## Gereken etiket (boş = yok) ve en düşük kademesi.
 	var tag: StringName = &""
 	var tier: int = 0
+	## Yalnız host doğrulamasında: sonuç şu an uygulanamaz (ör. kapı boşluğunda oyuncu gövdesi varken kapanma).
+	## İstemci süzgeci (`check`) bakmaz: istem görünmeye devam eder, host `BLOCKED` ile reddeder.
+	var blocked: bool = false
 
 
 ## `actor_pos`, hedefin menzili (+ tolerans) içinde mi.
@@ -90,12 +94,25 @@ static func check(target: Target, peer_id: int, actor_pos: Vector2, actor_tags: 
 	return Result.OK
 
 
-## Host doğrulaması: yeni etkileşimden önce bekleme süresi, sonra `check` (S2 menzil ve taraf toleransıyla).
+## Host doğrulaması: yeni etkileşimden önce bekleme süresi, sonra `check` (S2 menzil ve taraf toleransıyla),
+## en son host'un engeli (`Target.blocked`).
 static func host_check(target: Target, peer_id: int, actor_pos: Vector2, actor_tags: Dictionary,
 		cooldown_left: float) -> Result:
 	if cooldown_left > 0.0 and target.busy_by != peer_id:
 		return Result.COOLDOWN
-	return check(target, peer_id, actor_pos, actor_tags, RANGE_TOLERANCE, SIDE_TOLERANCE)
+	var result: Result = check(target, peer_id, actor_pos, actor_tags, RANGE_TOLERANCE, SIDE_TOLERANCE)
+	if result == Result.OK and target.blocked:
+		return Result.BLOCKED
+	return result
+
+
+## Daire (gövde: merkez + yarıçap) döndürülmüş dikdörtgenle (merkez, yarı boyutlar, dönüş rad) örtüşüyor mu.
+## Teğet temas örtüşme sayılmaz. Kapı: kanat kapanınca boşluktaki gövdeye çarpar mı.
+static func circle_overlaps_box(center: Vector2, radius: float, box_center: Vector2, half_size: Vector2,
+		box_rotation: float) -> bool:
+	var local: Vector2 = (center - box_center).rotated(-box_rotation)
+	var closest := Vector2(clampf(local.x, -half_size.x, half_size.x), clampf(local.y, -half_size.y, half_size.y))
+	return local.distance_squared_to(closest) < radius * radius
 
 
 ## Süren etkileşim devam edebilir mi (host ve istemci; S2 menzil toleransıyla).

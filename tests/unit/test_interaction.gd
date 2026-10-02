@@ -7,6 +7,9 @@ extends TestCase
 const CORE_DIR := "res://core"
 const Deps := preload("res://tests/unit/test_deps.gd")
 const R := InteractionRules.Result
+const TUNING_PATH := "res://data/player_tuning.tres"
+## Host'un istemci konumunu geriden bildiği süre (S2: tek yön gecikme + eşitleme aralığı, ~0,1 sn).
+const HOST_LAG_SEC := 0.1
 
 
 func _target(at: Vector2 = Vector2.ZERO, interact_range: float = 40.0) -> InteractionRules.Target:
@@ -26,7 +29,7 @@ func _register_target() -> InteractionRules.Target:
 
 func test_constants_match_contract() -> void:
 	eq(InteractionRules.RANGE_TOLERANCE, 24.0, "S2: menzil +24 px")
-	eq(InteractionRules.SIDE_TOLERANCE, 16.0, "S2 ilkesi: taraf eşiği -16 px")
+	eq(InteractionRules.SIDE_TOLERANCE, 24.0, "S2 ilkesi: taraf eşiği -24 px (IS-014: koşu)")
 	eq(InteractionRules.TIME_TOLERANCE, 0.25, "S2: zaman +0,25 sn")
 	is_true(InteractionRules.REPEAT_COOLDOWN > 0.0)
 
@@ -94,17 +97,21 @@ func test_host_check_tolerance_and_cooldown() -> void:
 	is_false(InteractionRules.keeps_going(t, Vector2(560 + 64.5, 368)), "menzil + tolerans dışı: iptal")
 
 
-## Host taraf eşiğine pay verir (S2/GDD §12 oyuncu lehine): istemcinin istem gördüğü an host konumu ~14 px
-## geriden bilir (140 px/sn × 0,1 sn). Müşteri tarafı (tezgâh 546..574, yarıçap 12 → en fazla -26 px) yine red.
+## Host taraf eşiğine pay verir (S2/GDD §12 oyuncu lehine): istemcinin istem gördüğü an host konumu ~0,1 sn
+## geriden bilir: yürürken ~14 px, koşarken ~22 px (hızlar data/player_tuning.tres). Müşteri tarafı (tezgâh
+## 546..574, yarıçap 12 → en fazla -26 px) yine red.
 func test_host_side_tolerance() -> void:
 	var t: InteractionRules.Target = _register_target()
-	is_true(InteractionRules.SIDE_TOLERANCE > 14.0 and InteractionRules.SIDE_TOLERANCE < 16.0 + 26.0,
-		"pay gecikmeyi karşılamalı, müşteri tarafını açmamalı")
+	var tuning: PlayerTuning = load(TUNING_PATH) as PlayerTuning
+	if not is_true(tuning != null, "player_tuning.tres"):
+		return
 	var client_sees := Vector2(576.5, 395)
-	var host_sees := client_sees - Vector2(14, 0)
 	eq(InteractionRules.check(t, 1, client_sees, {}), R.OK, "istemci: istem çıkar")
-	eq(InteractionRules.check(t, 1, host_sees, {}), R.WRONG_SIDE, "toleranssız olsaydı reddedilirdi")
-	eq(InteractionRules.host_check(t, 1, host_sees, {}, 0.0), R.OK, "(a) host ~14 px geriden görse de kabul")
+	for speed: float in [tuning.walk_speed, tuning.sprint_speed]:
+		var host_sees: Vector2 = client_sees - Vector2(speed * HOST_LAG_SEC, 0)
+		eq(InteractionRules.check(t, 1, host_sees, {}), R.WRONG_SIDE, "toleranssız olsaydı reddedilirdi (%s)" % speed)
+		eq(InteractionRules.host_check(t, 1, host_sees, {}, 0.0), R.OK,
+			"(a) host %.0f px/sn × %.1f sn geriden görse de kabul" % [speed, HOST_LAG_SEC])
 	# (b) Gerçek müşteri tarafı konumları: tezgâha yaslanan (en yakın, x = 534) ve kasa menzilindeki diğerleri.
 	for y: float in [336.0, 350.0, 368.0, 386.0, 395.0]:
 		var customer := Vector2(534, y)
@@ -146,6 +153,37 @@ func test_result_names() -> void:
 	eq(InteractionRules.result_name(R.WRONG_SIDE), "wrong_side")
 	eq(InteractionRules.result_name(R.OUT_OF_RANGE), "out_of_range")
 	eq(InteractionRules.result_name(R.COOLDOWN), "cooldown")
+	eq(InteractionRules.result_name(R.BLOCKED), "blocked")
+
+
+## IS-014: host engeli (ör. kapı boşluğunda gövde) yalnız host doğrulamasında; istemci süzgeci bakmaz (istem
+## görünür kalır). Diğer retler önce gelir; engel kalkınca kabul.
+func test_blocked_is_host_only() -> void:
+	var t: InteractionRules.Target = _target(Vector2(368, 464))
+	var closer := Vector2(368, 498)
+	t.blocked = true
+	eq(InteractionRules.check(t, 1, closer, {}), R.OK, "istemci süzgeci engeli bilmez: istem görünür")
+	eq(InteractionRules.host_check(t, 1, closer, {}, 0.0), R.BLOCKED)
+	eq(InteractionRules.host_check(t, 1, closer, {}, 0.1), R.COOLDOWN, "bekleme önce")
+	eq(InteractionRules.host_check(t, 1, Vector2(368, 600), {}, 0.0), R.OUT_OF_RANGE, "menzil önce")
+	t.blocked = false
+	eq(InteractionRules.host_check(t, 1, closer, {}, 0.0), R.OK)
+
+
+## Kanat (32×8, merkez kapı işaretinde) ile gövde dairesi (yarıçap 12): teğet temas örtüşme değil; dönüş uyar.
+func test_circle_overlaps_box() -> void:
+	var door := Vector2(368, 464)
+	var half := Vector2(16, 4)
+	is_true(InteractionRules.circle_overlaps_box(door, 12.0, door, half, 0.0), "merkez kanatta")
+	is_true(InteractionRules.circle_overlaps_box(door + Vector2(0, 15.9), 12.0, door, half, 0.0), "kenara 11,9 px")
+	is_false(InteractionRules.circle_overlaps_box(door + Vector2(0, 16), 12.0, door, half, 0.0), "teğet (kanada yaslanmış)")
+	is_false(InteractionRules.circle_overlaps_box(door + Vector2(0, 28), 12.0, door, half, 0.0), "kapatan oyuncu (28 px)")
+	is_true(InteractionRules.circle_overlaps_box(door + Vector2(27, 0), 12.0, door, half, 0.0), "kanat ucunun yanı")
+	is_false(InteractionRules.circle_overlaps_box(door + Vector2(24, 14), 12.0, door, half, 0.0), "köşe çaprazı dışarıda")
+	# Dikey duvarda (90°): kanat y boyunca uzanır.
+	is_true(InteractionRules.circle_overlaps_box(door + Vector2(0, 27), 12.0, door, half, PI / 2), "90°: uç")
+	is_false(InteractionRules.circle_overlaps_box(door + Vector2(16, 0), 12.0, door, half, PI / 2), "90°: teğet")
+	is_false(InteractionRules.circle_overlaps_box(door, 0.0, door, half, 0.0), "yarıçap 0: örtüşme yok")
 
 
 ## KR-018/§6: core/ düğümsüz ve proje dizinlerini bilmez (3D'ye taşınabilirlik).

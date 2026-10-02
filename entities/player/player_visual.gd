@@ -3,7 +3,8 @@ extends Node2D
 ## Oyuncunun yer tutucu görseli (US-004 AC1): oyuncu renginde daire, bakış yönü göstergesi, ad etiketi.
 ## Yalnız ebeveyn Player'ın durumunu okur (hız, yön, kip, etkileşim, yuva, ad); mantığa, girdiye ve ağa
 ## dokunmaz (KR-003). Faz 2'de prosedürel kukla (KR-017) bu düğümün yerini alır.
-## Kip gösterimi: sızarken soluk dolgu, koşarken dış halka; etkileşimde gövde üstünde nokta.
+## Kip gösterimi: sızarken soluk dolgu, koşarken dış halka; etkileşimde gövde üstünde nokta (her peer'da, yerel
+## ve uzak oyuncu için aynı: Player.is_interacting()).
 ## Renkler: oyuncu rengi ThemeTokens.PLAYER_COLORS[slot] (her tonda aynı), kenar/etiket etkin tondan
 ## (mimari.md §6 görsel istisnası, S9). Ad etiketi oyuncunun adıdır: dinamik metin, otomatik çeviri kapalı
 ## (ad bir çeviri anahtarına denk gelse de aynen görünür); ad boşsa HUD ile aynı yedek, tr("HUD_PLAYER_UNNAMED").
@@ -76,7 +77,18 @@ func _draw() -> void:
 	var tip: Vector2 = dir * (RADIUS + INDICATOR_LENGTH)
 	draw_colored_polygon(PackedVector2Array([tip, base + side, base - side]), _color)
 	if _player.is_interacting():
-		draw_circle(Vector2.ZERO, INTERACT_DOT_RADIUS, edge)
+		draw_circle(Vector2.ZERO, INTERACT_DOT_RADIUS, interaction_marker_color())
+
+
+## Etkileşim göstergesi (gövde üstünde nokta) son çizim isteğinde var mı; yerel ve uzak oyuncuda aynı yol
+## (Player.is_interacting()).
+func shows_interaction() -> bool:
+	return _drawn.size() > 3 and bool(_drawn[3])
+
+
+## Etkileşim noktasının rengi (etkin tondan; S9).
+func interaction_marker_color() -> Color:
+	return ThemeTokens.tone().bg_color
 
 
 ## Renk ve ad Player'ın yuva/ad bilgisinden (Game.players(), S3).
