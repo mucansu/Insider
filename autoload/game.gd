@@ -58,7 +58,7 @@ const CATCHUP_INTERVAL_SEC := 0.05
 ## collect_dump() taban anahtarları; sağlayıcılar bunları ezemez.
 const BASE_DUMP_KEYS: Array[String] = [
 	"peer_id", "is_host", "peers", "players", "team_cash", "level", "player_nodes", "events", "host_lost",
-	"ping_ms",
+	"ping_ms", "ping",
 ]
 const _SYNCED_META := &"_game_synced"
 
@@ -224,6 +224,7 @@ func collect_dump() -> Dictionary:
 		"events": to_json_value(_events),
 		"host_lost": _host_lost,
 		"ping_ms": _dump_pings(),
+		"ping": _dump_ping_info(),
 	}
 	for key: String in _dump_providers:
 		var provider: Callable = _dump_providers[key]
@@ -812,6 +813,16 @@ func _player_node_ids() -> Array[int]:
 			if str(child.name).is_valid_int():
 				out.append(str(child.name).to_int())
 	out.sort()
+	return out
+
+
+## IS-026: ping ölçümünün kaynağı ve örnek sayısı ({"<peer_id>": Net.get_ping_info}).
+func _dump_ping_info() -> Dictionary:
+	var out: Dictionary = {}
+	for peer_id: int in _peer_ids:
+		var info: Dictionary = Net.get_ping_info(peer_id)
+		if info["source"] != "none":
+			out[str(peer_id)] = info
 	return out
 
 

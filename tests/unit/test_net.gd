@@ -90,6 +90,151 @@ func test_host_and_leave() -> void:
 	_unwatch()
 
 
+func test_ping_estimate_is_window_median() -> void:
+	# IS-026: gösterilen ping yankı penceresinin medyanı (ms, yuvarlanmış, en az 1); çift sayıda örnekte iki
+	# ortanın ortalaması. Azınlıktaki takılma örnekleri değeri şişirmez.
+	eq(Net._ping_estimate_ms([], {}, 0), -1, "örnek yok")
+	eq(Net._ping_estimate_ms([31_000, 62_400, 187_000, 30_600], {}, 0), 47, "çift: iki ortanın ortalaması")
+	eq(Net._ping_estimate_ms([166_200, 155_400, 157_900], {}, 0), 158, "tek: orta")
+	eq(Net._ping_estimate_ms([200], {}, 0), 1, "yerelde 0'a yuvarlanmaz (0 yalnız kendisi)")
+	eq(Net._ping_estimate_ms([20_000], {1: 0}, 900_000), 20, "tek yanıtsız istek (kayıp olabilir) sayılmaz")
+	eq(Net._ping_estimate_ms([20_000], {1: 0, 2: 250_000}, 900_000), 650, "ikinci en eski isteğin yaşı")
+	eq(Net._ping_estimate_ms([], {1: 0, 2: 250_000}, 400_000), 150, "örnek yokken de yaş")
+
+
+func test_ping_estimate_under_jitter_stays_near_nominal() -> void:
+	# Sert ağ: örnekler nominal 150 ms ± 30 ms (düzgün; sabit tohumlar, belirlenimci). En küçük (t2) burada
+	# ~120'ye inip gecikme kanıtını ve HUD uyarısını bozuyordu. 16 örneğin medyanının standart hatası bu
+	# dağılımda ~7,5 ms: denemelerin >= %90'ı nominale ±%10, hepsi ±%20 içinde olmalı (tek pencerenin
+	# istatistiksel sınırı; daha sıkısı pencereyi uzatıp HUD tepkisini yavaşlatırdı).
+	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	var min_low: int = 0
+	var near: int = 0
+	for trial: int in 50:
+		rng.seed = 1000 + trial
+		var samples: Array = []
+		for i: int in Net.PING_WINDOW:
+			samples.append(150_000 + rng.randi_range(-30_000, 30_000))
+		var est: int = Net._ping_estimate_ms(samples, {}, 0)
+		if int(samples.min()) < 135_000:
+			min_low += 1
+		if est >= 135 and est <= 165:
+			near += 1
+		if not is_true(est >= 120 and est <= 180, "deneme %d: %d ms nominal 150'ye ±%%20 değil" % [trial, est]):
+			return
+	is_true(near >= 45, "denemelerin >= %%90'ı ±%%10 içinde (%d/50)" % near)
+	is_true(min_low >= 40, "karşılaştırma: en küçük örnek çoğu denemede -%%10 altında (%d/50)" % min_low)
+
+
+func test_ping_estimate_ignores_minority_outliers() -> void:
+	# 16 örneğin 1..7'si takılma aykırısı (ör. 187-900 ms): medyan ağ gecikmesinde kalır.
+	for outliers: int in range(1, 8):
+		var samples: Array = []
+		for i: int in Net.PING_WINDOW:
+			samples.append(900_000 - i * 50_000 if i < outliers else 20_000 + (i % 3) * 1000)
+		samples.shuffle()
+		var est: int = Net._ping_estimate_ms(samples, {}, 0)
+		is_true(est >= 20 and est <= 22, "%d aykırı örnek medyanı bozmamalı (%d ms)" % [outliers, est])
+
+
+func test_ping_rpc_config_is_unreliable_on_own_channel() -> void:
+	# Koordinatör kararı (IS-026 t2): ping/pong sırasız güvenilmez, oyun RPC'lerinden ayrı kanalda.
+	var config: Dictionary = (Net.get_script() as Script).get_rpc_config()
+	for method: String in ["_rpc_ping", "_rpc_pong"]:
+		if not is_true(config.has(method), "%s RPC olarak tanımlı" % method):
+			continue
+		var c: Dictionary = config[method]
+		eq(c.get("rpc_mode"), MultiplayerAPI.RPC_MODE_ANY_PEER, method + " any_peer")
+		eq(c.get("transfer_mode"), MultiplayerPeer.TRANSFER_MODE_UNRELIABLE, method + " unreliable (sırasız)")
+		eq(c.get("channel"), Net.PING_CHANNEL, method + " kendi kanalı")
+		eq(c.get("call_local"), false, method + " call_remote")
+	# Başlatma iletisi güvenilir ve auth ile aynı sıralı kanalda (0): el sıkışmasından önce ping varmasın.
+	var hello: Dictionary = config.get("_rpc_ping_hello", {})
+	eq(hello.get("rpc_mode"), MultiplayerAPI.RPC_MODE_AUTHORITY, "hello yalnız host'tan")
+	eq(hello.get("transfer_mode"), MultiplayerPeer.TRANSFER_MODE_RELIABLE, "hello güvenilir")
+	eq(hello.get("channel", 0), 0, "hello kanal 0 (varsayılan)")
+	ne(Net.PING_CHANNEL, 0, "oyun RPC kanalından ayrı")
+	is_true(Net.PING_CHANNEL <= 2, "Steam şerit sınırı (0-2)")
+
+
+## IS-026 t2: 20 ms RTT'li peer; 250 ms aralıkla istek, `lost`taki sıra numaraları yanıtsız kalır.
+func _simulate_pings(peer_id: int, first_seq: int, count: int, lost: Array[int]) -> void:
+	for i: int in count:
+		var seq: int = first_seq + i
+		var sent: int = seq * 250_000
+		Net._note_ping_request(peer_id, seq, sent)
+		if not lost.has(seq):
+			is_true(Net._note_ping_reply(peer_id, seq, sent + 20_000))
+
+
+func _estimate(peer_id: int, now_ms: int) -> int:
+	return Net._ping_estimate_ms(Net._ping_samples.get(peer_id, []), Net._ping_pending.get(peer_id, {}), now_ms * 1000)
+
+
+func test_ping_stall_raises_value_single_loss_does_not() -> void:
+	var p: int = 77
+	Net._forget_ping(p)
+	_simulate_pings(p, 0, 16, [])
+	eq(_estimate(p, 3_990), 20, "sağlıklı: 20 ms")
+	# Tek kayıp: 16 yanıtsız, 17 zamanında yanıtlanır -> değer sıçramaz; 17'nin yanıtı 16'yı kayıp sayar.
+	Net._note_ping_request(p, 16, 4_000_000)
+	eq(_estimate(p, 4_240), 20, "tek yanıtsız istek")
+	Net._note_ping_request(p, 17, 4_250_000)
+	eq(_estimate(p, 4_265), 20, "kayıptan sonraki istek henüz yolda")
+	is_true(Net._note_ping_reply(p, 17, 4_270_000))
+	eq((Net._ping_pending[p] as Dictionary).size(), 0, "yanıt eski bekleyenleri siler")
+	eq(_estimate(p, 4_300), 20, "tek kayıp değeri şişirmedi")
+	# Karşı uç durur (18..26 yanıtsız): değer yükselir, tablo en eski ikisini koruyarak budanır.
+	_simulate_pings(p, 18, 9, [18, 19, 20, 21, 22, 23, 24, 25, 26])
+	var pending: Dictionary = Net._ping_pending[p]
+	eq(pending.size(), Net.PING_PENDING_MAX, "tablo sınırlı")
+	eq([pending.keys()[0], pending.keys()[1]], [18, 19], "en eski ikisi korunur")
+	eq(_estimate(p, 5_000), 250, "takılma başı: yaş görünür")
+	is_true(_estimate(p, 6_500) >= 1_500, "takılma sürdükçe değer yükselir (HUD uyarı eşiğini geçer)")
+	is_false(Net._note_ping_reply(p, 20, 6_500_000), "budanmış isteğe gelen yanıt sayılmaz")
+	is_false(Net._note_ping_reply(p, 999, 6_500_000), "bilinmeyen sıra numarası sayılmaz")
+	is_false(Net._note_ping_reply(p + 1, 26, 6_500_000), "başka peer'a gitmiş istek sayılmaz")
+	# Takılma biter: yeni istek yanıtlanır, değer ağ gecikmesine döner.
+	_simulate_pings(p, 27, 1, [])
+	eq(_estimate(p, 6_800), 20, "takılma bitince değer düşer")
+	Net._forget_ping(p)
+
+
+func test_ping_request_acceptance() -> void:
+	Net._forget_ping(5)
+	var peers: PackedInt32Array = PackedInt32Array([1, 5])
+	is_true(Net._accept_ping_request(5, peers, true, 1_000_000), "host: oturumdaki peer")
+	is_false(Net._accept_ping_request(5, peers, true, 1_050_000), "host: 100 ms içinde ikinci istek reddedilir")
+	is_true(Net._accept_ping_request(5, peers, true, 1_150_000), "host: aralık dolunca kabul")
+	is_false(Net._accept_ping_request(6, peers, true, 2_000_000), "host: oturumda olmayan peer")
+	is_false(Net._accept_ping_request(0, peers, true, 2_000_000), "host: RPC dışı çağrı (gönderen 0)")
+	is_false(Net._accept_ping_request(5, peers, false, 3_000_000), "istemci: host dışından istek reddedilir")
+	is_true(Net._accept_ping_request(1, peers, false, 3_000_000), "istemci: host'tan istek")
+	Net._forget_ping(5)
+
+
+func test_unsolicited_pong_is_ignored_and_leave_clears_ping_state() -> void:
+	var port: int = free_udp_port()
+	eq(Net.host(port, 4), OK)
+	# RPC dışı çağrıda gönderen 0: beklenmeyen yanıt örnek eklemez.
+	Net._rpc_pong(1)
+	Net._rpc_ping(1)
+	Net._rpc_ping_hello()
+	is_true(Net._ping_samples.is_empty(), "istenmemiş yanıt sayılmaz")
+	is_true(Net._ping_ready.is_empty(), "RPC dışı istek/hello ping'i başlatmaz")
+	Net._ping_samples[42] = [10_000]
+	Net._ping_pending[42] = {7: 0}
+	eq(Net.get_ping_ms(42), -1, "oturumda olmayan peer -1 (eski örnek olsa da)")
+	await tree().process_frame
+	await tree().process_frame
+	eq(Net.get_ping_ms(), 0, "host için 0")
+	eq(Net.get_ping_info(), {"source": "self", "samples": 0})
+	eq(Net.get_ping_info(42)["source"], "none", "oturumda olmayan peer")
+	Net.leave()
+	is_true(Net._ping_samples.is_empty() and Net._ping_pending.is_empty(), "leave ping durumunu siler")
+	eq(Net.get_ping_ms(), -1)
+
+
 func test_host_rejects_bad_parameters() -> void:
 	eq(Net.host(0), ERR_INVALID_PARAMETER)
 	eq(Net.host(70000), ERR_INVALID_PARAMETER)
