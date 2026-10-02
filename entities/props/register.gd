@@ -38,6 +38,8 @@ func _ready() -> void:
 	_interactable.completed.connect(_on_completed)
 	_noise_profile = NoiseProfile.load_default()
 	_work_noise = NoiseRules.Cadence.new(_noise_profile.register_interval, _noise_profile.register_interval)
+	SfxEmitter.of(self).repeat_while(&"register_tick", func() -> bool:  # IS-024: boşaltılırken tik
+		return not emptied and progress_ratio() > 0.0)
 	_apply()
 	add_to_group(PropDump.GROUP)
 	PropDump.register()
@@ -61,6 +63,7 @@ func dump_state() -> Dictionary:
 		"emptied": emptied,
 		"visible_delay_ms": (_seen_at - emptied_at) * 1000.0 if emptied and _seen_at >= 0.0 else -1.0,
 		"interact": _interactable.stats(),
+		"sfx": SfxEmitter.of(self).stats(),
 	}
 
 
@@ -85,6 +88,7 @@ func _set_emptied(value: bool) -> void:
 	emptied = value
 	if value:
 		_seen_at = PropDump.wall_time()
+		SfxEmitter.play_on_change(self, &"register_done")  # IS-024: "çın", yerel ses
 	_apply()
 
 

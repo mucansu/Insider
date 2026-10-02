@@ -1,0 +1,21 @@
+{
+  "_doc": "IS-024 t2: durum sesi yalnız peer'ın gözü önündeki değişimde çalar. store_a'da host ön kapıyı kapatır (door_host botu, ~4,5 sn); c1 baştan beri oyunda (kapanışı duyar: played 1, silent 0), c2 kapı kapandıktan sonra katılır: ilk eşitleme paketi (kapalı) taban durumdur, sessiz uygulanır (played 0, silent 1). Sayaçlar props.<Kapı>.sfx (SfxEmitter.stats). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 11,
+  "start_delay": {"c2": 6.0},
+  "bots": {
+    "host": "res://tests/net/bots/door_host.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.props.FrontDoor.open", false]},
+    {"all_equal": "props.FrontDoor.open"},
+    {"eq": ["host.props.FrontDoor.sfx", {"played": 1, "silent": 0}]},
+    {"eq": ["c1.props.FrontDoor.sfx", {"played": 1, "silent": 0}]},
+    {"eq": ["c2.props.FrontDoor.sfx", {"played": 0, "silent": 1}]},
+    {"eq": ["*.props.BackDoor.sfx", {"played": 0, "silent": 0}]},
+    {"eq": ["*.props.Register.sfx", {"played": 0, "silent": 0}]}
+  ]
+}

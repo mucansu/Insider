@@ -23,6 +23,9 @@ const STEP_SIZE := Vector2(22, 22)
 const LOCKED_ALPHA := 0.3
 const POP_SEC := 0.3
 const POP_SCALE := 1.3
+## Ses kataloğu olayları (data/sfx_catalog.tres; IS-024).
+const SFX_STEP := &"alert_step"
+const SFX_HIGH := &"alert_high"
 
 ## Mekân kademesi; `bind` Game.venue_tier()'den okur (S3 eki), Game vermiyorsa DEFAULT_TIER.
 var tier: int = DEFAULT_TIER
@@ -96,8 +99,15 @@ func set_level(value: int, animate: bool = true) -> void:
 	var changed: bool = clamped != _level
 	_level = clamped
 	_render()
+	if animate and changed:
+		UiSfx.of(self).play_event(step_event(_level))  # IS-024: ses hareket azaltmadan bağımsız
 	if animate and changed and not reduce_motion:
 		_play_pop(_steps[_level])
+
+
+## Kademe değişiminin sesi (ses-ve-sfx §2 #12): 1-2 yumuşak tık, TIMER_LEVEL ve üstü kısa gerilim vuruşu.
+static func step_event(value: int) -> StringName:
+	return SFX_HIGH if value >= TIMER_LEVEL else SFX_STEP
 
 
 ## Pop animasyonu sürüyor mu (test ve hareket azaltma denetimi için).

@@ -1,0 +1,176 @@
+[gd_resource type="Resource" script_class="SfxCatalog" format=3]
+
+[ext_resource type="Script" path="res://data/sfx_catalog.gd" id="1_cat"]
+[ext_resource type="Script" path="res://data/sfx_entry.gd" id="2_entry"]
+[ext_resource type="AudioStream" path="res://assets/sfx/door_open.ogg" id="3_door_open"]
+[ext_resource type="AudioStream" path="res://assets/sfx/door_close.ogg" id="4_door_close"]
+[ext_resource type="AudioStream" path="res://assets/sfx/register_tick.ogg" id="5_register_tick"]
+[ext_resource type="AudioStream" path="res://assets/sfx/register_done.ogg" id="6_register_done"]
+[ext_resource type="AudioStream" path="res://assets/sfx/ui_click.ogg" id="7_ui_click"]
+[ext_resource type="AudioStream" path="res://assets/sfx/ui_focus.ogg" id="8_ui_focus"]
+[ext_resource type="AudioStream" path="res://assets/sfx/alert_step.ogg" id="9_alert_step"]
+[ext_resource type="AudioStream" path="res://assets/sfx/alert_high.ogg" id="10_alert_high"]
+[ext_resource type="AudioStream" path="res://assets/sfx/stinger_success.ogg" id="11_stinger_success"]
+[ext_resource type="AudioStream" path="res://assets/sfx/stinger_caught.ogg" id="12_stinger_caught"]
+[ext_resource type="AudioStream" path="res://assets/sfx/clerk_question.ogg" id="13_clerk_question"]
+[ext_resource type="AudioStream" path="res://assets/sfx/clerk_interrogate.ogg" id="14_clerk_interrogate"]
+[ext_resource type="AudioStream" path="res://assets/sfx/clerk_shout.ogg" id="15_clerk_shout"]
+[ext_resource type="AudioStream" path="res://assets/sfx/run_step.ogg" id="16_run_step"]
+
+[sub_resource type="Resource" id="Entry_door_open"]
+script = ExtResource("2_entry")
+event = &"door_open"
+stream = ExtResource("3_door_open")
+volume_db = -4.0
+pitch_min = 0.95
+pitch_max = 1.05
+min_interval = 0.1
+max_distance = 320.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_door_close"]
+script = ExtResource("2_entry")
+event = &"door_close"
+stream = ExtResource("4_door_close")
+volume_db = -2.0
+pitch_min = 0.95
+pitch_max = 1.05
+min_interval = 0.1
+max_distance = 320.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_register_tick"]
+script = ExtResource("2_entry")
+event = &"register_tick"
+stream = ExtResource("5_register_tick")
+volume_db = -8.0
+pitch_min = 0.9
+pitch_max = 1.1
+min_interval = 0.35
+max_distance = 180.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_register_done"]
+script = ExtResource("2_entry")
+event = &"register_done"
+stream = ExtResource("6_register_done")
+volume_db = -6.0
+pitch_min = 1.25
+pitch_max = 1.35
+min_interval = 0.5
+max_distance = 180.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_ui_click"]
+script = ExtResource("2_entry")
+event = &"ui_click"
+stream = ExtResource("7_ui_click")
+volume_db = -6.0
+pitch_min = 0.98
+pitch_max = 1.02
+min_interval = 0.05
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_ui_focus"]
+script = ExtResource("2_entry")
+event = &"ui_focus"
+stream = ExtResource("8_ui_focus")
+volume_db = -12.0
+pitch_min = 1.0
+pitch_max = 1.0
+min_interval = 0.05
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_alert_step"]
+script = ExtResource("2_entry")
+event = &"alert_step"
+stream = ExtResource("9_alert_step")
+volume_db = -6.0
+pitch_min = 1.0
+pitch_max = 1.0
+min_interval = 0.15
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_alert_high"]
+script = ExtResource("2_entry")
+event = &"alert_high"
+stream = ExtResource("10_alert_high")
+volume_db = -3.0
+pitch_min = 1.0
+pitch_max = 1.0
+min_interval = 0.3
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_stinger_success"]
+script = ExtResource("2_entry")
+event = &"stinger_success"
+stream = ExtResource("11_stinger_success")
+volume_db = -4.0
+pitch_min = 1.0
+pitch_max = 1.0
+min_interval = 1.0
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_stinger_caught"]
+script = ExtResource("2_entry")
+event = &"stinger_caught"
+stream = ExtResource("12_stinger_caught")
+volume_db = -2.0
+pitch_min = 0.8
+pitch_max = 0.8
+min_interval = 1.0
+max_distance = 0.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_clerk_question"]
+script = ExtResource("2_entry")
+event = &"clerk_question"
+stream = ExtResource("13_clerk_question")
+volume_db = -4.0
+pitch_min = 1.0
+pitch_max = 1.05
+min_interval = 0.5
+max_distance = 320.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_clerk_interrogate"]
+script = ExtResource("2_entry")
+event = &"clerk_interrogate"
+stream = ExtResource("14_clerk_interrogate")
+volume_db = -2.0
+pitch_min = 1.0
+pitch_max = 1.0
+min_interval = 0.5
+max_distance = 320.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_clerk_shout"]
+script = ExtResource("2_entry")
+event = &"clerk_shout"
+stream = ExtResource("15_clerk_shout")
+volume_db = 0.0
+pitch_min = 0.97
+pitch_max = 1.03
+min_interval = 1.0
+max_distance = 640.0
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_run_step"]
+script = ExtResource("2_entry")
+event = &"run_step"
+stream = ExtResource("16_run_step")
+volume_db = -10.0
+pitch_min = 0.95
+pitch_max = 1.05
+min_interval = 0.2
+max_distance = 240.0
+placeholder = true
+
+[resource]
+script = ExtResource("1_cat")
+entries = Array[ExtResource("2_entry")]([SubResource("Entry_door_open"), SubResource("Entry_door_close"), SubResource("Entry_register_tick"), SubResource("Entry_register_done"), SubResource("Entry_ui_click"), SubResource("Entry_ui_focus"), SubResource("Entry_alert_step"), SubResource("Entry_alert_high"), SubResource("Entry_stinger_success"), SubResource("Entry_stinger_caught"), SubResource("Entry_clerk_question"), SubResource("Entry_clerk_interrogate"), SubResource("Entry_clerk_shout"), SubResource("Entry_run_step")])
