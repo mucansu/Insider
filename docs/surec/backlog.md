@@ -29,10 +29,11 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-010 | OOP/genişletilebilirlik (A) uygulaması: Level API, slot, bağımlılık yönü | 1 | cekirdek | P1 | S | US-001 | Bitti | f6bd55c |
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
-| IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Sürüyor (2026-10-02) | |
-| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
-| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (2026-10-02; worktree) | |
-| IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
+| IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Denetimde (2026-10-02) | |
+| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Denetimde (2026-10-02; worktree) | |
+| IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Denetimde (2026-10-02; worktree) | |
+| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Hazır | |
+| IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
@@ -152,6 +153,12 @@ EP-01 · P1 · M · Sahip: cekirdek · Sözleşme: S2, S6, S7 · Bağımlılık:
 **Dokunulmayacak:** autoload/**, entities/**, core/**, levels/**, ui/**, project.godot, tools/{latency_proxy,test_latency_proxy}.py (paralel IS-012), tools/ci_local.sh, .github/**
 **Oku:** mimari.md S2, S6, S7 · GDD §12
 
+### IS-019 — Renderer: Compatibility
+EP-01 · P2 · XS · Sahip: altyapi · Bağımlılık: IS-005
+**Kabul:** (1) project.godot `rendering/renderer/rendering_method` (ve mobil karşılığı) `gl_compatibility`; Forward+'a özgü ayar kalmaz. (2) test_smoke renderer beklentisi. (3) İçe aktarma temiz, ci_local ve `tools/export.sh` (Windows build + smoke) yeşil. (4) Kullanıcı doğrulaması IS-006'ya eklenir: build arkadaş makinesinde açılıyor, görüntü bozulmuyor. Gerekçe: projede Forward+'a özgü özellik yok; Compatibility 2D ışık/gölgeyi destekler (GDD §14 "sanatı ışık yapar" kapanmaz); Faz 4'te ışık efektleri istenirse yeniden değerlendirilir.
+**Dokunulacak:** project.godot (yalnız renderer), tests/unit/test_smoke.gd
+**Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**, core/**, tools/**
+
 ### IS-014 — US-005 nit'leri
 EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-005
 **Kabul:** (1) Koşuda taraf toleransı: host koşan oyuncuyu ~22 px geriden görür → `SIDE_TOLERANCE` koşu hızını da karşılar (ör. 24 px) ya da hıza bağlı; müşteri tarafı hâlâ red (birim test, en yakın müşteri konumu −26 px). (2) Kapı, kapı boşluğunda gövdesi olan bir oyuncu varken kapanmaz (host reddi `blocked`, istemcide istem yine görünür; birim + mevcut senaryolar yeşil); açma her zaman serbest. (3) Uzak oyuncunun "etkileşimde" göstergesi diğer peer'larda da çizilir (çoğaltılan küçük durum; ThemeTokens rengi). (4) `test_interaction_props.gd` özel üyelere (`_host_start`, `_host_cancel`, `_physics_process`) erişmez; genel API ya da test kancası (KR-018 §6). (5) ci_local tam yeşil; US-004/US-005 senaryoları geçer.
@@ -214,6 +221,8 @@ Sıra = oynanabilir dilime en kısa yol (Fable önerisi, IS-007 A). **2a çirkin
 | IS-015 | Oyun testi botları (GB-01) + 150 ms 20 dk dayanıklılık + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog | |
 | IS-016 | Steam spike: 480 lobisi + davet + SteamMultiplayerPeer, 2 kişi (kullanıcı cihazı) | 2 | cekirdek + kullanıcı | P1 | S | — | Backlog | |
 | IS-017 | Faz 2 kullanıcı oyun testi (3 arkadaş, 3 koşu, ≥ 2 "tekrar") | 2 | kullanıcı | P1 | S | US-013, US-014 | Backlog | |
+| US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
+| IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 
 ### US-006 — Algı çekirdeği
@@ -228,6 +237,23 @@ EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S11, §6 · Bağımlılık
 **Dokunulacak:** core/{perception,suspicion}.gd (yeni; mevcut core/interaction_rules.gd'ye dokunma), entities/npc/components/{perception,suspicion}.gd, data/npc/**, tests/unit/test_perception*.gd, tests/unit/test_suspicion*.gd, tests/fixtures/** (yalnız yeni algı test odası)
 **Dokunulmayacak:** autoload/**, entities/player/**, entities/props/**, levels/**, ui/**, project.godot, tools/**
 **Oku:** mimari.md S2, S11, §4, §6 · GDD §5-6 (gizlilik, görüş), §12 · KR-019
+
+### US-008 — Muhafız v0 (devriye polisi)
+EP-02 · P1 · M · Sahip: oynanis · Sözleşme: S2, S3, S6, S11 · Bağımlılık: US-006, US-007 · 2a dilimi (kamera iskeleti 2b'de tamamlanır)
+**Hikâye:** Oyuncu olarak dışarıda devriye gezen polisin camdan beni fark edip şüphelenmesini, inceleyip son gördüğü yere gelmesini, telsizle durumu yükseltmesini ve kaçarsam aramayı bırakmasını istiyorum; ne olduğunu her an okuyabilmeliyim.
+**Kabul kriterleri** (sayılar ve FSM: `docs/tasarim/arastirma/muhafiz-davranisi.md`; ayarlar veride):
+- AC1 `entities/npc/guard/` sahnesi: CharacterBody2D (katman npcs), US-006 `Perception` + `Suspicion` bileşenleri, `core/fsm.gd` (küçük durum makinesi, düğümsüz) + `brain_guard.gd`; durumlar DEVRIYE → BAK → INCELE → TELSIZ → KOVALA → SEZGI → ARA → DON (+ YAKALADI); `data/npc/guard_tuning.tres` (hızlar 90/110/130/240, dönüş ≤ 120°/sn, bakış 0,5-1 sn, inceleme 2 sn, telsiz 1,5 sn, sezgi 2 sn, arama ≤ 20 sn, yakalama 28 px + 0,5 sn temas, aramada şüphe tabanı 60). Yalnız host'ta işler; konum/yön/durum özeti 15-20 Hz çoğaltılır, istemcide yumuşatılır.
+- AC2 Devriye: US-007 `PolicePatrol*` noktalarını navigasyonla izler; dükkâna 75±10 sn'de bir bakar/girer (K2); tohumla belirlenimci.
+- AC3 Algı → davranış: "?" (30) BAK, 60 INCELE (son görülen konuma gider), 100 TELSIZ (1,5 sn pencere) → uyarı yükselir + KOVALA; görüş kaybında SEZGI 2 sn → ARA ≤ 20 sn (3-4 nokta) → DON; aramada ikinci tespit = uyarı 3.
+- AC4 Küresel uyarı kademesi 0-3 (host'ta, Game/S3 eki: `alert_level_changed(level: int)` sinyali + döküm `alert`): sönüm 2→1→0 60+20 sn; 3 geri dönmez ve 90 sn sayaç başlatır (sayacın sonucu US-012). S3 eki koordinatörce mimari.md'ye yazılır; autoload/game.gd'ye bu ek için istisna.
+- AC5 Yakalama: KOVALA'da 28 px + 0,5 sn temas → oyuncu `captured` (K3: donar; sonucu US-012 uygular); yakalanan oyuncunun girdisi kesilir (oyuncuya küçük API; S7 dışı).
+- AC6 Adalet (S2, GDD §12): aleyhte kararlar host'un eşitleyici konumuyla; lehte kararlar 0,2 sn; tespit günlüğü (dökümde `detections`: zaman, peer, mesafe, bant, durum, `net_flag`).
+- AC7 Kapı etkileşimi: muhafız kapalı kapıyı açabilir (Interactable host API'siyle) ya da kapıda yol değiştirir — seçim "Karar gereken"; IS-014 nit'i: kapı engel denetimi yalnız `interaction_position()` kullanır ve npcs katmanını da engel sayar.
+- AC8 Testler: FSM değişmezleri (I1 tespit öncesi "?" şart, I2 |Δşüphe| ≤ hız×Δt, I3 süre tavanları, I4 uyarı geçiş kümesi, I5 dönüş ≤ 120°/sn, I6 tohum belirlenimciliği, I7 duvar içi yok) birim; `tests/net/guard_detect.json` (camdan görülen koşan oyuncu → ?, inceleme, tespit; tüm peer'larda aynı uyarı; 0 ve 150 ms).
+- AC9 SFX ve görsel için olay adları sinyal olarak (çizim US-011/US-014; ses 2a'da yer tutucu).
+**Dokunulacak:** entities/npc/** (guard, brain, components'e yalnız ekleme), core/fsm.gd, core/guard_rules.gd (gerekirse), data/npc/**, autoload/game.gd (yalnız uyarı kademesi S3 eki), entities/player/** (yalnız `captured` durumu ve girdi kesme), entities/props/door.gd (yalnız AC7 nit'i), levels/store_a.tscn (yalnız NPCs altına muhafız yerleşimi), tests/unit/test_guard*.gd, tests/unit/test_fsm*.gd, tests/net/guard_detect.json, tests/net/bots/**
+**Dokunulmayacak:** autoload/{net,args}.gd, ui/**, levels/ (NPCs dışı), project.godot, tools/**
+**Oku:** mimari.md S2, S3, S6, S11 · GDD §6, §12 · muhafiz-davranisi.md · KR-019
 
 ### US-007 — Bakkal v1
 EP-02 · P1 · S · Sahip: seviye · Sözleşme: S4 · Bağımlılık: US-002 · K1, K2
