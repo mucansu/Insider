@@ -30,9 +30,9 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
 | IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Sürüyor (2026-10-02) | |
-| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005, IS-012 | Hazır (IS-012 sonrası) | |
+| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
 | IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (2026-10-02; worktree) | |
-| IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Hazır | |
+| IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
@@ -139,7 +139,7 @@ EP-01 · P1 · M · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 **Oku:** mimari.md S2, S7 · GDD §6.3, §12
 
 ### IS-005 — Faz 1 build: Windows/Linux export, CI artifact, README
-EP-01 · P1 · S · Sahip: altyapi · Bağımlılık: US-005, IS-012 (altyapi tek paket) · Çıkış kriteri 5
+EP-01 · P1 · S · Sahip: altyapi · Bağımlılık: US-005 (IS-012 ile paralel; dosya kümeleri ayrık) · Çıkış kriteri 5
 Not (2026-10-02): eski IS-005'in ağ senaryoları ve dayanıklılık kısmı IS-013'e (cekirdek) bölündü; bu kart build ve teslim kısmıdır.
 **Kabul:** (1) `export_presets.cfg` (Windows Desktop, Linux) + `tools/export.sh`: export şablonlarını (4.7.2, SHA doğrulamalı) indirip `build/`'e iki platform çıktısı üretir; Windows'ta (Git Bash) ve Linux'ta çalışır; üretilen Windows build'i headless `--quit-after` ile açılıp kapanır. (2) CI: `main` push'unda iki platform build'i artifact olarak yüklenir (dev push'unda yalnız ci_local adımları). (3) IS-010 denetci nit'leri: S4 Level API imzaları (tipleriyle) test_smoke CONTRACTS'a; test_deps `uid://` ile ui başvurusunu da yakalar. (4) README'ye "Arkadaşla internet üzerinden (Tailscale)" ve "Build'i çalıştırma" bölümleri; renderer seçimi (Forward+ / Compatibility) arkadaş makineleri için değerlendirilir, karar raporda "Karar gereken". (5) `tools/ci_local.sh` tam yeşil.
 **Dokunulacak:** export_presets.cfg, tools/export.sh, .github/workflows/**, README.md, tools/ci_local.sh (yalnız gerekirse), tests/unit/test_smoke.gd, tests/unit/test_deps*.gd, .gitignore
