@@ -24,6 +24,7 @@ extends Node
 ##   Her an için stdout'a `INSIDERS_SCREENSHOT ok|skipped|failed at=SN ...` satırı basılır.
 ##   `--window-size=GxY` pencereli açılışta pencere boyutunu ayarlar.
 ##   Dökümde "screenshots": [{"at": SN, "file": yol, "ok": bool, "size": [g, y], "skipped": neden}].
+## - Açılışta viewport temizleme rengi etkin tonun BG'sine ayarlanır (IS-027).
 
 const MAIN_MENU := "res://ui/main_menu.tscn"
 const READY_MARKER := "INSIDERS_READY"
@@ -47,7 +48,13 @@ var _screenshots: Array[Dictionary] = []
 
 
 func _ready() -> void:
+	apply_clear_color()
 	_start.call_deferred()
+
+
+## Viewport temizleme rengi = etkin tonun BG'si (IS-027, KR-005): harita dışı gri (#4d4d4d) değil koyu görünür.
+static func apply_clear_color() -> void:
+	RenderingServer.set_default_clear_color(ThemeTokens.tone().bg_color)
 
 
 ## Açılış kipi: &"host", &"join", &"menu" (menü sahnesi var) ya da &"none".

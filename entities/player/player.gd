@@ -85,9 +85,7 @@ func _ready() -> void:
 	add_to_group(Interactable.ACTOR_GROUP)
 	_camera.enabled = _local
 	if _local:
-		_camera.zoom = Vector2.ONE * tuning.camera_zoom
-		_camera.make_current()
-		_camera.reset_smoothing()
+		_setup_camera()
 		_publish()
 		_interaction.target_changed.connect(interaction_target_changed.emit)
 		_interaction.started.connect(_on_interaction_started)
@@ -182,6 +180,56 @@ func motion_state() -> Dictionary:
 		"wall_frames": _wall_frames,
 		"underruns": _buffer.underrun_count() if _buffer != null else 0,
 	}
+
+
+## Yerel kameranın yakınlaştırması (IS-027): `--camera-zoom` verildiyse o, yoksa `tuning.camera_zoom`.
+func camera_zoom() -> float:
+	return Args.camera_zoom if Args.camera_zoom > 0.0 else tuning.camera_zoom
+
+
+## Kamera sınırı (IS-027, global): harita dikdörtgeni `map`, kameranın gördüğü alan `view_size`'tan (viewport /
+## zoom) dar olan eksende harita ortada kalacak biçimde görüş boyuna genişletilir (Camera2D dar sınırda sağ/alt
+## kenara yaslanır; böylece kamera o eksende sabit, harita ortalı durur). Düğümsüz; birim testte doğrudan.
+static func camera_limits(map: Rect2, view_size: Vector2) -> Rect2i:
+	var out: Rect2 = map
+	for axis: int in [Vector2.AXIS_X, Vector2.AXIS_Y]:
+		if map.size[axis] < view_size[axis]:
+			out.position[axis] = map.get_center()[axis] - view_size[axis] * 0.5
+			out.size[axis] = view_size[axis]
+	var start := Vector2i(floori(out.position.x), floori(out.position.y))
+	var end := Vector2i(ceili(out.end.x), ceili(out.end.y))
+	return Rect2i(start, end - start)
+
+
+func _setup_camera() -> void:
+	_camera.zoom = Vector2.ONE * camera_zoom()
+	_apply_camera_limits()
+	get_viewport().size_changed.connect(_apply_camera_limits)
+	_camera.make_current()
+	_camera.reset_smoothing()
+
+
+## Seviyenin harita dikdörtgenine (S4 `map_rect()`; ata düğümde ördek tipleme) kenetler; seviye yoksa sınırsız.
+func _apply_camera_limits() -> void:
+	var map: Rect2 = _level_map_rect()
+	if not map.has_area():
+		return
+	var limits: Rect2i = camera_limits(map, get_viewport_rect().size / _camera.zoom)
+	_camera.limit_left = limits.position.x
+	_camera.limit_top = limits.position.y
+	_camera.limit_right = limits.end.x
+	_camera.limit_bottom = limits.end.y
+
+
+func _level_map_rect() -> Rect2:
+	var node: Node = get_parent()
+	while node != null:
+		if node.has_method(&"map_rect"):
+			var rect: Rect2 = node.call(&"map_rect")
+			var level: Node2D = node as Node2D
+			return level.global_transform * rect if level != null else rect
+		node = node.get_parent()
+	return Rect2()
 
 
 func _publish() -> void:

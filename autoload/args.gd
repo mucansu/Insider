@@ -3,11 +3,15 @@ extends Node
 ## Kullanıcı argümanları `--` sonrasında: --host · --join=ADDR · --port=N · --name=AD · --level=res://...
 ## · --bot=PATH.json · --dump=PATH.json · --quit-after=SN · --player-scene=res://... (yalnız test)
 ## · ekran görüntüsü (IS-022): --screenshot-at=SN[,SN…] · --screenshot-dir=YOL · --window-size=GxY (ör. 1280x720)
+## · --camera-zoom=X (geliştirici; IS-027: yerel kameranın yakınlaştırması, PlayerTuning.camera_zoom yerine)
 ## Açılışta `OS.get_cmdline_user_args()` ayrıştırılır; testler `parse()` ile kendi listesini verebilir.
 ## Tanınmayan argümanlar `unknown` listesine girer (test koşucusunun --filter gibi argümanları için uyarı
 ## basılmaz); tanınan anahtarın değeri bozuksa uyarı basılır ve varsayılan korunur.
 
 const DEFAULT_PORT := 7777
+## `--camera-zoom` kabul aralığı (PlayerTuning.camera_zoom aralığıyla aynı).
+const CAMERA_ZOOM_MIN := 0.25
+const CAMERA_ZOOM_MAX := 4.0
 
 var want_host: bool = false
 var join_address: String = ""
@@ -25,6 +29,8 @@ var screenshot_at: PackedFloat64Array = []
 var screenshot_dir: String = ""
 ## Pencere boyutu (piksel); (0, 0) = proje ayarı.
 var window_size: Vector2i = Vector2i.ZERO
+## Kamera yakınlaştırması geçersiz kılma (`--camera-zoom`); 0 = verilmedi, tuning değeri kullanılır.
+var camera_zoom: float = 0.0
 var unknown: PackedStringArray = []
 
 const WINDOW_SIZE_MIN := 64
@@ -49,6 +55,7 @@ func parse(args: PackedStringArray) -> void:
 	screenshot_at = []
 	screenshot_dir = ""
 	window_size = Vector2i.ZERO
+	camera_zoom = 0.0
 	unknown = []
 	for raw: String in args:
 		var arg: String = raw.strip_edges()
@@ -106,6 +113,12 @@ func parse(args: PackedStringArray) -> void:
 					window_size = parse_window_size(value)
 					if window_size == Vector2i.ZERO:
 						push_warning("Args: geçersiz --window-size '%s' (GxY, ör. 1280x720)" % value)
+			"--camera-zoom":
+				if _need_value(key, value, has_value):
+					if value.is_valid_float() and value.to_float() >= CAMERA_ZOOM_MIN and value.to_float() <= CAMERA_ZOOM_MAX:
+						camera_zoom = value.to_float()
+					else:
+						push_warning("Args: geçersiz --camera-zoom '%s' (%.2f..%.2f)" % [value, CAMERA_ZOOM_MIN, CAMERA_ZOOM_MAX])
 			_:
 				unknown.append(raw)
 	if want_host and not join_address.is_empty():

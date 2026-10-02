@@ -10,3 +10,4 @@ sprint_speed = 220.0
 acceleration = 1400.0
 deceleration = 2000.0
 interpolation_delay = 0.1
+camera_zoom = 1.5
