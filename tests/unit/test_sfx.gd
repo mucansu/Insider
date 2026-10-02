@@ -247,19 +247,39 @@ func test_max_distance_reset_per_play() -> void:
 
 # --- headless ---
 
+func test_headless_skips_stream_start() -> void:
+	# Headless'ta akış başlatılmaz (kapanışta askıda oynatma nesnesi kalmasın; IS-029 kapısı); olay yine işlenir.
+	is_false(SfxCatalog.force_playback)
+	var emitter: SfxEmitter = _emitter()
+	is_true(emitter.play_event(&"door_open"), "olay işlenir (played, sayaç)")
+	is_false(emitter.playing, "headless'ta akış başlamaz")
+	eq(emitter.stats()["played"], 1)
+
+
 func test_headless_playback_has_no_errors_or_warnings() -> void:
+	# Gerçek çalış (force_playback): dummy sürücüde hata/uyarı yok. Bitince akışlar durdurulur ve ses sunucusunun
+	# oynatma nesnelerini silmesi beklenir (süreç sonuna askıda nesne kalmasın).
 	var logs := AllLogs.new()
 	OS.add_logger(logs)
+	SfxCatalog.force_playback = true
 	var emitter: SfxEmitter = _emitter()
 	var ui: UiSfx = UiSfx.of(emitter.get_parent())
 	var played: int = 0
+	var started: int = 0
 	for ev: StringName in _catalog().events():
 		if emitter.play_event(ev):
 			played += 1
+			started += int(emitter.playing)
 		if ui.play_event(ev):
 			played += 1
+			started += int(ui.playing)
 		for i: int in 2:
 			await tree().process_frame
+	SfxCatalog.force_playback = false
+	emitter.stop()
+	ui.stop()
+	await tree().create_timer(0.3).timeout
 	OS.remove_logger(logs)
 	eq(played, _catalog().events().size() * 2, "her olay iki çalarda da çaldı")
+	eq(started, played, "force_playback ile akış gerçekten başladı")
 	eq(logs.entries.size(), 0, "ses çalışı hata/uyarı vermemeli: %s" % "; ".join(logs.entries))

@@ -99,7 +99,8 @@ func play_event(event: StringName) -> bool:
 	volume_db = entry.volume_db
 	pitch_scale = entry.pick_pitch(_rng)
 	max_distance = entry.max_distance if entry.max_distance > 0.0 else DEFAULT_MAX_DISTANCE
-	play()
+	if SfxCatalog.playback_enabled():
+		play()
 	_played += 1
 	played.emit(event)
 	return true

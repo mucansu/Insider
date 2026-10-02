@@ -58,7 +58,8 @@ func play_event(event: StringName) -> bool:
 	stream = entry.stream
 	volume_db = entry.volume_db
 	pitch_scale = entry.pick_pitch(_rng)
-	play()
+	if SfxCatalog.playback_enabled():
+		play()
 	played.emit(event)
 	return true
 

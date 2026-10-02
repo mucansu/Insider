@@ -13,6 +13,8 @@ const INTERVAL_EPSILON := 0.0001
 
 ## Eksik olay uyarısı süreç başına bir kez (olay -> true).
 static var _warned: Dictionary = {}
+## Testler: headless'ta da gerçekten çal (yalnız ses çalışı testi; bitince false'a döner).
+static var force_playback: bool = false
 
 
 ## Varsayılan katalog (kaynak önbelleğinden; çalar ilk kullanımda alır ve tutar, statik kopya yok).
@@ -62,6 +64,14 @@ func take(event: StringName, last_played: Dictionary, now: float) -> SfxEntry:
 		return null
 	last_played[event] = now
 	return entry
+
+
+## Ses akışı gerçekten başlatılsın mı. Headless'ta (sunucu, birim/ağ testleri; dummy ses sürücüsü) duyan yok:
+## çalarlar olayı işler (akış, düzey, perde, `played`, sayaçlar) ama `play()` çağırmaz. Neden: kapanıştan hemen
+## önce başlayan akışın oynatma nesnesi ses sunucusunda eşzamansız silinir; süreç o arada çıkarsa "leaked /
+## still in use at exit" (IS-029 kapısı) rastgele düşer.
+static func playback_enabled() -> bool:
+	return force_playback or DisplayServer.get_name() != "headless"
 
 
 ## Çalar saati (sn, monoton).
