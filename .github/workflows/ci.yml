@@ -1,12 +1,15 @@
 # Uzak CI (mimari.md §5): tools/ci_local.sh ile aynı adımlar, aynı sırayla.
 # Adımlar ci_local.sh'tan tek tek çağrılır; adım eklenir/değişirse ikisi birlikte güncellenir.
-# dev ve main push'u: ci işi (godot import unit tools net). Yalnız main push'u: ci yeşilse build işi
+# dev ve main push'u: ci işi (godot import unit tools net). main push'u ve `test-*` etiketi: ci yeşilse build işi
 # (`tools/ci_local.sh godot import export`) Windows + Linux build'lerini artifact olarak yükler (IS-005).
+# Yalnız `test-*` etiketi (faz-* değil): build sürümlü zip'leri üretir, release işi bunları GitHub Release'e
+# (prerelease) ekler (IS-042). Yazma izni yalnız release işinde.
 name: CI
 
 on:
   push:
     branches: [dev, main]
+    tags: ["test-*"]
   workflow_dispatch:
 
 permissions:
@@ -53,7 +56,9 @@ jobs:
   build:
     name: Windows + Linux build
     needs: ci
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/test-'))
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -102,3 +107,75 @@ jobs:
           path: build/Insiders-linux-x86_64.tar.gz
           if-no-files-found: error
           retention-days: 30
+
+      # Etikette: sürümlü zip'ler (Windows klasörü; Linux ikilisi zip'te çalıştırma izniyle, unzip korur).
+      # Her zip içinde aynı adlı tek klasör olur.
+      - name: Release zip'leri (test-* etiketi)
+        if: startsWith(github.ref, 'refs/tags/test-')
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          rm -rf build/release && mkdir -p build/release/stage
+          for platform in windows linux; do
+            name="Insiders-${TAG}-${platform}"
+            cp -a "build/${platform}" "build/release/stage/${name}"
+            (cd build/release/stage && zip -q -r -X "../${name}.zip" "${name}")
+          done
+          unzip -Z "build/release/Insiders-${TAG}-linux.zip" | grep -E '^-rwx.*/Insiders\.x86_64$'
+          ls -l build/release/*.zip
+
+      - name: Release zip'lerini yükle (test-* etiketi)
+        if: startsWith(github.ref, 'refs/tags/test-')
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-zips
+          path: build/release/*.zip
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: GitHub Release (test-* etiketi)
+    needs: build
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/test-')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      # checkout etiketi hafif etikete çevirebilir; mesaj için açıklamalı etiket nesnesi yeniden alınır.
+      - name: Release gövdesi (etiket mesajı + README bağlantısı)
+        env:
+          TAG: ${{ github.ref_name }}
+          README_URL: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/README.md
+        run: |
+          set -euo pipefail
+          git fetch --force --depth=1 origin "refs/tags/${TAG}:refs/tags/${TAG}"
+          if [[ "$(git cat-file -t "refs/tags/${TAG}")" == tag ]]; then
+            msg="$(git tag -l --format='%(contents)' "${TAG}")"
+          else
+            msg="(etiket mesajı yok)"
+          fi
+          {
+            echo "${msg}"
+            echo
+            echo "Kurulum, Tailscale ile bağlanma ve sorun bildirme: [README](${README_URL}#arkadaşla-internet-üzerinden-tailscale)"
+          } > "${RUNNER_TEMP}/release-body.md"
+          cat "${RUNNER_TEMP}/release-body.md"
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-zips
+          path: dist
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Insiders ${{ github.ref_name }}
+          prerelease: true
+          body_path: ${{ runner.temp }}/release-body.md
+          files: dist/*.zip
+          fail_on_unmatched_files: true
