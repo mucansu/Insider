@@ -44,3 +44,6 @@ PAUSE_TITLE,Menü,Menu
 PAUSE_NOTE,Oyun arkada sürüyor; ekip seni bekliyor olabilir.,The game keeps running; your crew may be waiting.
 PAUSE_RESUME,Devam,Resume
 PAUSE_LEAVE,Oturumdan ayrıl,Leave session
+INTERACT_REGISTER_EMPTY,Kasayı boşalt,Empty the register
+INTERACT_DOOR_OPEN,Kapıyı aç,Open the door
+INTERACT_DOOR_CLOSE,Kapıyı kapat,Close the door

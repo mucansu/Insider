@@ -1,0 +1,37 @@
+[gd_scene format=3 uid="uid://m3l1la3wnq8m"]
+
+[ext_resource type="Script" uid="uid://jd6u5kt07gwe" path="res://entities/props/door.gd" id="1_door"]
+[ext_resource type="Resource" uid="uid://b3gx0jh83h0ch" path="res://data/props/door.tres" id="2_def"]
+[ext_resource type="Script" uid="uid://jj1b1o1pjvo1" path="res://entities/props/interactable.gd" id="3_int"]
+[ext_resource type="Script" uid="uid://bjjqun8lbf4a8" path="res://entities/props/door_visual.gd" id="4_vis"]
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_leaf"]
+size = Vector2(32, 8)
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_door"]
+properties/0/path = NodePath(".:is_open")
+properties/0/spawn = false
+properties/0/replication_mode = 2
+properties/1/path = NodePath(".:changed_at")
+properties/1/spawn = false
+properties/1/replication_mode = 2
+
+[node name="Door" type="Node2D" unique_id=2048934442]
+script = ExtResource("1_door")
+def = ExtResource("2_def")
+
+[node name="Body" type="StaticBody2D" parent="." unique_id=1159338397]
+collision_mask = 0
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Body" unique_id=1489567557]
+shape = SubResource("RectangleShape2D_leaf")
+
+[node name="Interactable" type="Area2D" parent="." unique_id=977817142]
+script = ExtResource("3_int")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1766366441]
+delta_interval = 0.0
+replication_config = SubResource("SceneReplicationConfig_door")
+
+[node name="Visual" type="Node2D" parent="." unique_id=659101188]
+script = ExtResource("4_vis")

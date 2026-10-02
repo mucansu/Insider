@@ -1,0 +1,16 @@
+{
+  "_doc": "register_empty.json c1 botu (US-005): ön kapıdan gir, tezgâhın ucundan personel tarafına dolan (duvar ve tezgâh hizalar), kasanın yanına in; 2 sn tut bırak, 1,5 sn tut bırak (ilerleme sıfırlandığı için tamamlanmaz), 3,5 sn tut: kasa boşalır.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.8, "move": [1, 0]},
+    {"t": 7.3, "move": [0, -1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 9.4, "move": [0, 1]},
+    {"t": 9.88, "move": [0, 0]},
+    {"t": 10.2, "hold": "interact", "dur": 2.0},
+    {"t": 12.6, "hold": "interact", "dur": 1.5},
+    {"t": 14.5, "hold": "interact", "dur": 3.5}
+  ]
+}

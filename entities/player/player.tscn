@@ -4,6 +4,7 @@
 [ext_resource type="Resource" uid="uid://bs2hreie1rdyt" path="res://data/player_tuning.tres" id="2_fkugw"]
 [ext_resource type="Script" uid="uid://wmpwougwl3ct" path="res://entities/player/player_input.gd" id="3_8fjmc"]
 [ext_resource type="Script" uid="uid://darsokpflurd1" path="res://entities/player/player_visual.gd" id="4_qiwj3"]
+[ext_resource type="Script" uid="uid://x7acb2lvcbri" path="res://entities/player/player_interaction.gd" id="5_intr"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_26q78"]
 radius = 12.0
@@ -34,6 +35,9 @@ shape = SubResource("CircleShape2D_26q78")
 
 [node name="PlayerInput" type="Node" parent="." unique_id=1475902756]
 script = ExtResource("3_8fjmc")
+
+[node name="PlayerInteraction" type="Node" parent="." unique_id=1093384021]
+script = ExtResource("5_intr")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1614282656]
 replication_interval = 0.05

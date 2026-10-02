@@ -1,0 +1,10 @@
+{
+  "_doc": "door_sync.json c2 botu (US-005): ön kapının önüne gel, host içeri girdikten sonra kapıyı kapat.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.25, "move": [0, 0]},
+    {"t": 10.0, "press": "interact"}
+  ]
+}

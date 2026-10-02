@@ -1,0 +1,36 @@
+{
+  "_doc": "US-005 AC2, AC4, AC6: store_a'da gerçek oyuncu sahnesiyle istemci kasayı boşaltır. c1 personel tarafına dolanır; 2 sn tutup bırakır, 1,5 sn tutup bırakır (yarıda bırakılan ilerleme sıfırlandığı için 2 + 1,5 > 3 sn olsa da tamamlanmaz), 3,5 sn tutar: host kasayı boşaltır, ekip nakdi tüm peer'larda 150, kasa her yerde boş. c2 aynı süre boyunca müşteri tarafında tezgâha yaslanıp (kasaya 28 px, menzil içinde) 4 sn tutar: taraf kısıtı (personel tarafı) nedeniyle istemci istek yollamaz, host'a ret de düşmez. Sonucun görünme gecikmesi dökümde: props.Register.visible_delay_ms (host kararından o peer'da görünene, duvar saati; 0 ms'de ~10-20, 150 ms'de ~80-90) ve c1.interaction.result_delay_ms (basıştan host kararına − 3 sn ≈ RTT). Host'ta müşteri tarafı/menzil dışı reddi birim testte (test_interaction_props). Rotalar duvar/sınır hizalı, son konumlar deterministik. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 22,
+  "bots": {
+    "c1": "res://tests/net/bots/register_c1.json",
+    "c2": "res://tests/net/bots/register_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.team_cash", 150]},
+    {"all_equal": "team_cash"},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["host.props.Register.interact.requests", 3]},
+    {"eq": ["host.props.Register.interact.completed", 1]},
+    {"eq": ["host.props.Register.interact.cancelled", 2]},
+    {"len": ["host.props.Register.interact.rejected", 0]},
+    {"eq": ["c1.interaction.requests", 3]},
+    {"eq": ["c1.interaction.successes", 1]},
+    {"eq": ["c1.interaction.failures", 2]},
+    {"between": ["c1.interaction.result_delay_ms", 0, 400]},
+    {"eq": ["c2.interaction.requests", 0]},
+    {"eq": ["c2.interaction.successes", 0]},
+    {"between": ["host.props.Register.visible_delay_ms", 0, 5]},
+    {"between": ["c1.props.Register.visible_delay_ms", 0, 400]},
+    {"between": ["c2.props.Register.visible_delay_ms", 0, 400]},
+    {"near": ["*.players.$c1.pos", [586.08, 365.63], 2]},
+    {"near": ["*.players.$c2.pos", [533.92, 369.33], 2]},
+    {"eq": ["*.props.FrontDoor.open", true]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]}
+  ]
+}

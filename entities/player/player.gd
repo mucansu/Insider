@@ -19,10 +19,22 @@ extends CharacterBody2D
 ## {"<peer_id>": {"mode": int, "facing": [x, y], "wall_frames": int, "underruns": int}} — süreçteki her oyuncu
 ## kopyası için; wall_frames kopyanın (yerel ya da ara değerlenmiş) duvar içinde olduğu fizik karesi sayısı,
 ## underruns uzak kopyada tamponun tükendiği kare sayısı (SnapshotBuffer).
+##
+## Etkileşim (US-005, S7 oyuncu tarafı): her kopya `Interactable.ACTOR_GROUP`'a girer ve host'un isteği
+## doğruladığı konumu `interaction_position()` ile sunar. Yalnız yerel kopyada `PlayerInteraction` alt düğümü
+## her fizik adımında (hareketten sonra) hedef bulur ve istek/iptal yollar; aşağıdaki üç sinyal (HUD sözleşmesi)
+## yalnız yerel oyuncuda yayılır. Dökümde (yalnız `--dump`) yerel oyuncu "interaction" anahtarını kaydeder:
+## PlayerInteraction.stats(). US-004 hareket/senkron davranışı bundan etkilenmez.
 
 signal identity_changed()
+## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
+signal interaction_target_changed(action_key: String)
+signal interaction_started(action_key: String, duration: float)
+signal interaction_finished(success: bool)
 
 const DUMP_KEY := "player_states"
+const INTERACTION_DUMP_KEY := "interaction"
+const INTERACT_ACTION := &"interact"
 const TUNING_PATH := "res://data/player_tuning.tres"
 ## Gövde şekli yoksa varsayılan yarıçap (S4: karakter çapı ~24 px).
 const BODY_RADIUS := 12.0
@@ -58,6 +70,7 @@ var _wall_frames: int = 0
 @onready var _sync: MultiplayerSynchronizer = $MultiplayerSynchronizer
 @onready var _camera: Camera2D = $Camera2D
 @onready var _body_shape: CollisionShape2D = $CollisionShape2D
+@onready var _interaction: PlayerInteraction = $PlayerInteraction
 
 
 func _ready() -> void:
@@ -66,14 +79,19 @@ func _ready() -> void:
 		tuning = load(TUNING_PATH) as PlayerTuning
 	_local = is_multiplayer_authority()
 	_buffer = SnapshotBuffer.new(tuning.interpolation_delay)
+	add_to_group(Interactable.ACTOR_GROUP)
 	_camera.enabled = _local
 	if _local:
 		_camera.zoom = Vector2.ONE * tuning.camera_zoom
 		_camera.make_current()
 		_camera.reset_smoothing()
 		_publish()
+		_interaction.target_changed.connect(interaction_target_changed.emit)
+		_interaction.started.connect(_on_interaction_started)
+		_interaction.finished.connect(_on_interaction_finished)
 		if not Args.dump_path.is_empty():
 			Game.register_dump_provider(DUMP_KEY, _dump_states)
+			Game.register_dump_provider(INTERACTION_DUMP_KEY, _interaction.stats)
 	else:
 		_sync.synchronized.connect(_on_synchronized)
 	_track_walls = Args.is_automated()
@@ -90,6 +108,7 @@ func _physics_process(delta: float) -> void:
 		move_and_slide()
 		facing = PlayerMotion.facing_for(facing, direction)
 		_publish()
+		_interaction.tick(delta, _input.is_held(INTERACT_ACTION), global_position, peer_id())
 	if _track_walls and overlaps_world():
 		_wall_frames += 1
 
@@ -133,6 +152,16 @@ func set_interacting(value: bool) -> void:
 	_interacting = value
 
 
+## Host'un etkileşim isteğini doğruladığı konum (S7, global): yerel kopyada şu anki konum; uzak kopyada
+## eşitleyiciden gelen en güncel konum (ara değerlemeyle çizilen, ~100 ms geriden gelen konum değil; S2
+## toleransı yalnız ağ gecikmesini karşılar). Henüz veri gelmediyse çizilen konum.
+func interaction_position() -> Vector2:
+	if _local or net_time <= 0.0:
+		return global_position
+	var parent: Node2D = get_parent() as Node2D
+	return parent.to_global(net_position) if parent != null else net_position
+
+
 ## Gövde (kenar payı WALL_CHECK_MARGIN düşülmüş) world katmanıyla örtüşüyor mu.
 func overlaps_world() -> bool:
 	if _wall_query == null:
@@ -156,6 +185,16 @@ func _publish() -> void:
 	net_facing = facing
 	net_mode = move_mode
 	net_time = _now()
+
+
+func _on_interaction_started(action_key: String, duration: float) -> void:
+	_interacting = true
+	interaction_started.emit(action_key, duration)
+
+
+func _on_interaction_finished(success: bool) -> void:
+	_interacting = false
+	interaction_finished.emit(success)
 
 
 func _on_synchronized() -> void:

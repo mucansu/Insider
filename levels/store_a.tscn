@@ -2,6 +2,8 @@
 
 [ext_resource type="Script" uid="uid://bq8f51puc1q8q" path="res://levels/level_layout.gd" id="1_ikrv3"]
 [ext_resource type="Script" uid="uid://bm8f3xbwpi5uq" path="res://levels/level.gd" id="1_m731q"]
+[ext_resource type="PackedScene" uid="uid://dtbpc3j3tthur" path="res://entities/props/register.tscn" id="2_reg"]
+[ext_resource type="PackedScene" uid="uid://m3l1la3wnq8m" path="res://entities/props/door.tscn" id="3_door"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -212,6 +214,16 @@ position = Vector2(208, 528)
 [node name="Players" type="Node2D" parent="." unique_id=1476309782]
 
 [node name="Props" type="Node2D" parent="." unique_id=1684154542]
+
+[node name="Register" parent="Props" unique_id=1203719954 instance=ExtResource("2_reg")]
+position = Vector2(560, 368)
+
+[node name="FrontDoor" parent="Props" unique_id=1559212408 instance=ExtResource("3_door")]
+position = Vector2(368, 464)
+is_open = true
+
+[node name="BackDoor" parent="Props" unique_id=1880345537 instance=ExtResource("3_door")]
+position = Vector2(656, 112)
 
 [node name="NPCs" type="Node2D" parent="." unique_id=1842885990]
 

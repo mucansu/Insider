@@ -1,0 +1,19 @@
+{
+  "_doc": "contention.json botu (US-005; c1 ve c2 aynı dosya, aynı anda başlar, rotalar sınır/duvar hizalı): ön kapıdan (açık) gir, personel tarafından kasanın yanına in ve 3,6 sn tut; sonra güney duvarına in, duvar boyunca ön kapının iç tarafına yürü ve kapıya iki kez bas. Kapı rotanın sonunda: kaç kez döndüğü yürüyüşü etkilemez.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.8, "move": [1, 0]},
+    {"t": 7.3, "move": [0, -1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 9.4, "move": [0, 1]},
+    {"t": 9.88, "move": [0, 0]},
+    {"t": 10.2, "hold": "interact", "dur": 3.6},
+    {"t": 14.0, "move": [0, 1]},
+    {"t": 14.8, "move": [-1, 0]},
+    {"t": 16.38, "move": [0, 0]},
+    {"t": 16.8, "press": "interact"},
+    {"t": 17.8, "press": "interact"}
+  ]
+}

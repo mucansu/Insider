@@ -1,0 +1,11 @@
+{
+  "_doc": "register_empty.json c2 botu (US-005): ön kapıdan gir, kasa hizasında tezgâha müşteri tarafından yanaş (menzil içinde) ve 4 sn tut: taraf kısıtı nedeniyle istek yollanmaz, kasa dolu kalır.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 5.14, "move": [1, 0]},
+    {"t": 6.6, "move": [0, 0]},
+    {"t": 6.8, "hold": "interact", "dur": 4.0}
+  ]
+}

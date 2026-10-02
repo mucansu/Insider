@@ -1,0 +1,39 @@
+{
+  "_doc": "US-005 AC3, AC6: store_a'da gerçek oyuncu sahnesiyle ön kapı (başlangıçta açık) üç peer tarafından sırayla çevrilir: host kapatır (yerel host isteği), c1 açar, c2 kapatır (istemci istekleri). Durum tüm peer'larda aynı ve her peer üç değişimi de görür (flips 3); kapalı kapı world katmanında engeldir: host kapalı kapıya iterken durur, c1 açınca içeri girip rafa kadar yürür; c2 kapattıktan sonra c1 kapıya yürür ve kapı kanadında durur (480 = kanat 464 + 4 + yarıçap 12). Arka kapıya dokunulmaz (kapalı). Son değişimin görünme gecikmesi props.FrontDoor.visible_delay_ms. Rotalar sınır hizalı, son konumlar deterministik; kimse duvar/kapı içinde kalmaz. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 17,
+  "bots": {
+    "host": "res://tests/net/bots/door_host.json",
+    "c1": "res://tests/net/bots/door_c1.json",
+    "c2": "res://tests/net/bots/door_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.props.FrontDoor.open", false]},
+    {"all_equal": "props.FrontDoor.open"},
+    {"eq": ["*.props.FrontDoor.flips", 3]},
+    {"eq": ["*.props.FrontDoor.consistent", true]},
+    {"eq": ["host.props.FrontDoor.interact.requests", 3]},
+    {"eq": ["host.props.FrontDoor.interact.completed", 3]},
+    {"len": ["host.props.FrontDoor.interact.rejected", 0]},
+    {"eq": ["*.interaction.requests", 1]},
+    {"eq": ["*.interaction.successes", 1]},
+    {"between": ["c1.interaction.result_delay_ms", 0, 400]},
+    {"between": ["c2.interaction.result_delay_ms", 0, 400]},
+    {"between": ["c1.props.FrontDoor.visible_delay_ms", 0, 400]},
+    {"between": ["c2.props.FrontDoor.visible_delay_ms", 0, 400]},
+    {"eq": ["*.props.BackDoor.open", false]},
+    {"eq": ["*.props.BackDoor.flips", 0]},
+    {"eq": ["*.props.Register.emptied", false]},
+    {"eq": ["*.team_cash", 0]},
+    {"near": ["*.players.$host.pos", [369.01, 170.08], 2]},
+    {"near": ["*.players.$c1.pos", [369.01, 480.08], 2]},
+    {"near": ["*.players.$c2.pos", [369.01, 497.99], 2]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]}
+  ]
+}

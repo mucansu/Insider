@@ -1,0 +1,12 @@
+{
+  "_doc": "door_sync.json host botu (US-005): kaldırımın soluna (sınır hizalar), sağa ön kapının önüne, kapıyı kapat (başlangıçta açık), sonra kapıya doğru it: kapalı kapı durdurur; c1 açınca içeri girip rafa kadar yukarı.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.25, "move": [0, 0]},
+    {"t": 4.5, "press": "interact"},
+    {"t": 5.0, "move": [0, -1]},
+    {"t": 15.0, "move": [0, 0]}
+  ]
+}

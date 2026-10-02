@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PropDef" format=3 uid="uid://b3gx0jh83h0ch"]
+
+[ext_resource type="Script" uid="uid://cfgfelx0cuxjf" path="res://entities/props/prop_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+action_key = "INTERACT_DOOR_OPEN"
+alt_action_key = "INTERACT_DOOR_CLOSE"
+interact_range = 40.0
