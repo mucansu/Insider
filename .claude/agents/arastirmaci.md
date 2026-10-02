@@ -2,7 +2,7 @@
 name: arastirmaci
 description: "Teknik en iyi uygulama araştırmacısı: belirli bir teknik alanda (ağ kodu, 2D çizim/performans, mimari/test, oyun yapay zekâsı, ağ operasyonu, ses, ajanlarla geliştirme süreci) önce projenin kodunu ve sözleşmelerini okur, sonra internette güncel en iyi uygulamaları ve seçenekleri tarar; projenin neyi doğru yaptığını, nerede saptığını, hangi seçeneğin yapımıza uyduğunu ve öncelikli önerileri docs/arastirma/teknik/ altına yazar. Koordinatör teknik alan araştırması istediğinde kullan. Kod yazmaz."
 model: fable
-effort: high
+effort: medium
 hooks:
   PreToolUse:
     - matcher: "Bash|PowerShell"

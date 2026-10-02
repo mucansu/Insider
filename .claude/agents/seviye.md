@@ -2,6 +2,7 @@
 name: seviye
 description: "Dünya ve içerik uzmanı (Godot 4): levels/ altındaki seviye sahneleri (S4 düzeni: Walls, SpawnPoints, Players, Props, NPCs, Markers), test arenası, çarpışma ve ileride navigasyon bölgeleri, görsel yer tutucular, ışık ve ileride CC0 asset entegrasyonu, seviye şablonları/modülleri, senaryo üretici ve doğrulayıcı. Seviye, harita, görsel dünya ya da içerik üretimi gerektiren her kalem için PROACTIVELY kullan. Ağ, oyun kuralı, arayüz ve CI işlerinde KULLANMA."
 model: inherit
+effort: medium
 hooks:
   PreToolUse:
     - matcher: "Bash|PowerShell"

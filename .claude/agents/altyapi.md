@@ -2,6 +2,7 @@
 name: altyapi
 description: "Proje iskeleti ve teslim uzmanı (Godot 4): project.godot (ayarlar, autoload kaydı, girdi haritası, fizik katman adları, statik tipleme uyarıları), test koşucusu (tests/run_tests.gd, tests/t.gd), tools/get_godot.sh ve tools/ci_local.sh, GitHub Actions CI, .gitignore, export ön ayarları ve build, faz çıkış testleri. Proje ayarı, test altyapısı, CI ya da build gerektiren her kalem için PROACTIVELY kullan. Ağ, oyun kuralı, seviye ve arayüz içeriğinde KULLANMA."
 model: inherit
+effort: medium
 hooks:
   PreToolUse:
     - matcher: "Bash|PowerShell"
