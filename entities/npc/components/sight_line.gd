@@ -7,8 +7,8 @@ extends RefCounted
 ## Yöntem `Perception.has_line_of_sight` (US-006) ile aynıdır; NPC bileşenleri (Hearing; ileride Perception) bunu
 ## paylaşır. Yalnız fizik; kural (ör. gürültüde kaynağın kendi gövdesi) çağıranda ve core/'da.
 
-const SEE_THROUGH_GROUP := &"see_through"
-const MASK := (1 << 0) | (1 << 5)
+const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
+const MASK := PhysicsLayers.SIGHT_MASK
 ## Bir ışında en fazla kaç geçiren gövde atlanır (sonsuz döngü bekçisi).
 const MAX_SEE_THROUGH := 8
 

@@ -49,7 +49,7 @@ const BODY_RADIUS := 12.0
 ## Duvar denetiminde gövde yarıçapından düşülen pay (px): kayarken temas "içinde" sayılmaz.
 const WALL_CHECK_MARGIN := 2.0
 ## Fizik katmanı world (mimari.md §4).
-const WORLD_MASK := 1
+const WORLD_MASK := PhysicsLayers.WORLD
 
 @export var tuning: PlayerTuning
 

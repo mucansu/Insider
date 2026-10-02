@@ -20,11 +20,11 @@ const LEVEL_DIR := "res://levels"
 ## Üretilen düğümler; sahnedeki sıra S4 ile aynı (Tiles en altta çizilir).
 const ORDER: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Players", "Props", "NPCs", "Markers", "Zones", "Navigation"]
 const GENERATED: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Markers", "Zones", "Navigation"]
-const WORLD_LAYER := 1  # mimari.md §4: katman 1 `world`
-const PLAYERS_LAYER := 1 << 1  # §4: katman 2 `players`
-const TRIGGERS_LAYER := 1 << 4  # §4: katman 5 `triggers`
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4: katman 1 `world`
+const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4: katman 2 `players`
+const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4: katman 5 `triggers`
 ## Görüşü geçiren gövdelerin grubu (S11 Faz 2 eki; algı bu gruptaki çarpışanı atlar).
-const SEE_THROUGH_GROUP := &"see_through"
+const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
 ## Gezinme ajanı yarıçapı (px): karakter çapı ~24 px (S4); bake engelleri bu kadar büyütür.
 const NAV_AGENT_RADIUS := 12.0
 const LAYOUT_SCRIPT := preload("res://levels/level_layout.gd")

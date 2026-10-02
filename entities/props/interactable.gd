@@ -27,11 +27,11 @@ signal cancelled(peer_id: int)
 ## Yalnız isteyen peer'da: host'un kararı (seq isteğin sıra numarası).
 signal request_finished(seq: int, success: bool)
 
-const GROUP := &"interactables"
+const GROUP := PhysicsLayers.INTERACTABLES_GROUP
 ## Etkileşebilen aktörlerin grubu (oyuncu kendini ekler).
-const ACTOR_GROUP := &"interaction_actors"
+const ACTOR_GROUP := PhysicsLayers.ACTORS_GROUP
 ## Fizik katmanı interactables (mimari.md §4: 4. katman).
-const LAYER_BIT := 1 << 3
+const LAYER_BIT := PhysicsLayers.INTERACTABLES
 const SYNC_NAME := "InteractableSync"
 const SYNC_INTERVAL := 0.1
 

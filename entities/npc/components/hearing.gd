@@ -11,7 +11,7 @@ extends Node2D
 ## Yalnız host'ta.
 signal heard(pos: Vector2, radius: float, kind: StringName)
 
-const GROUP := &"noise_listener"
+const GROUP := PhysicsLayers.NOISE_LISTENER_GROUP
 ## Sesi kesen fizik katmanları: world (1) + vision_block (6) (mimari.md §4; SightLine).
 const BLOCK_MASK := SightLine.MASK
 ## Bu gruptaki gövdeler (camlar, S4 eki) sesi kesmez (SightLine).

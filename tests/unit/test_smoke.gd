@@ -8,6 +8,7 @@ const ACTIONS: Array[StringName] = [
 	&"sprint", &"sneak", &"interact", &"intimidate", &"pause", &"toggle_debug",
 ]
 const LAYERS: Array[String] = ["world", "players", "npcs", "interactables", "triggers", "vision_block"]
+const PHYSICS_LAYERS_SCRIPT := "res://core/physics_layers.gd"
 ## Autoload adı -> betik yolu (sıra project.godot ile aynı). `NoiseBus`: `Noise` yerleşik sınıfla çakışır (S8).
 const AUTOLOADS := {
 	"Args": "res://autoload/args.gd",
@@ -93,6 +94,26 @@ func test_renderer_is_compatibility() -> void:
 func test_physics_layer_names() -> void:
 	for i: int in LAYERS.size():
 		eq(ProjectSettings.get_setting("layer_names/2d_physics/layer_%d" % (i + 1)), LAYERS[i])
+
+
+## IS-037: core/physics_layers.gd katman sabitleri project.godot katman adlarıyla bit bit eşleşir: adlı her
+## katman N için `PhysicsLayers.<AD>` = 1 << (N - 1); `_MASK` dışındaki her tamsayı sabiti adlı bir katmandır.
+func test_physics_layer_constants_match_project() -> void:
+	var consts: Dictionary = (load(PHYSICS_LAYERS_SCRIPT) as Script).get_script_constant_map()
+	var named: Dictionary = {}
+	for n: int in range(1, 33):
+		var layer_name: String = str(ProjectSettings.get_setting("layer_names/2d_physics/layer_%d" % n, ""))
+		if layer_name.is_empty():
+			continue
+		var key: String = layer_name.to_upper()
+		named[key] = n
+		if is_true(consts.has(key), "PhysicsLayers.%s yok (katman %d `%s`)" % [key, n, layer_name]):
+			eq(consts[key], 1 << (n - 1), "PhysicsLayers.%s = katman %d biti" % [key, n])
+	eq(named.size(), LAYERS.size(), "adlı katman sayısı (§4)")
+	for key: String in consts:
+		if typeof(consts[key]) == TYPE_INT and not key.ends_with("_MASK"):
+			is_true(named.has(key), "PhysicsLayers.%s adlı bir katmana karşılık gelmiyor" % key)
+	eq(PhysicsLayers.SIGHT_MASK, PhysicsLayers.WORLD | PhysicsLayers.VISION_BLOCK, "görüş maskesi world + vision_block")
 
 
 func test_input_actions_have_keyboard_and_gamepad() -> void:

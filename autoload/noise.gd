@@ -16,11 +16,11 @@ extends Node
 ## Halka olayı (her peer'da; host'ta yerel yayılımla birlikte).
 signal noise_shown(pos: Vector2, radius: float, kind: StringName)
 
-const LISTENER_GROUP := &"noise_listener"
+const LISTENER_GROUP := PhysicsLayers.NOISE_LISTENER_GROUP
 const LISTENER_METHOD := &"hear_noise"
 ## Etkileşim aktörleri grubu (S7 `Interactable.ACTOR_GROUP`): `interaction_position()` host'un bildiği en güncel
-## konumu verir. Autoload entities/'i bilmediği için ad burada tekrarlanır (§6, duck typing).
-const ACTOR_GROUP := &"interaction_actors"
+## konumu verir. Autoload entities/'i bilmez; ad core/'daki tek kaynaktan (PhysicsLayers, §6, duck typing).
+const ACTOR_GROUP := PhysicsLayers.ACTORS_GROUP
 const ACTOR_POSITION_METHOD := &"interaction_position"
 const RING_SCENE := "res://entities/fx/noise_ring.tscn"
 const DUMP_KEY := "noise"

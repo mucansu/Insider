@@ -23,9 +23,9 @@ enum Observer { GUARD, CAMERA }
 
 const TUNING_PATH := "res://data/npc/perception_tuning.tres"
 ## Görüşü geçiren gövde grubu (S4/S11 eki; US-007 camları bu gruba koyar).
-const SEE_THROUGH_GROUP := &"see_through"
+const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
 ## Görüşü kesen fizik katmanları: world (1) ve vision_block (6) (mimari.md §4).
-const SIGHT_MASK := (1 << 0) | (1 << 5)
+const SIGHT_MASK := PhysicsLayers.SIGHT_MASK
 ## Bir ışında en fazla kaç görüşü geçiren engel atlanır (sonsuz döngü bekçisi).
 const MAX_SEE_THROUGH := 8
 
