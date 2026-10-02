@@ -8,7 +8,8 @@ extends CharacterBody2D
 ##   peer_id(), slot(), display_name() ve identity_changed sinyali.
 ##
 ## Yerel (yetkili) kopya: her fizik adımında PlayerInput'u okur, hızı PlayerMotion ile hesaplar, move_and_slide
-## eder (çarpışma: world ve npcs katmanları; oyuncular birbirinin içinden geçer) ve ağ alanlarını (net_*) yazar.
+## eder (çarpışma: yalnız world; oyuncular birbirinin ve NPC'lerin içinden geçer — GDD §9.2/KR-021: NPC-oyuncu
+## çarpışması yok, US-008) ve ağ alanlarını (net_*) yazar.
 ## Tahmin ya da sunucu onayı yok: istemci kendi hareketinde yetkilidir (S2), hareket anında görünür.
 ## MultiplayerSynchronizer net_* alanlarını 0,05 sn'de bir (20 Hz, güvenilmez) yayar.
 ## Uzak kopya: eşitleyici net_* alanlarını yazınca (`synchronized`) anlık görüntü SnapshotBuffer'a girer; konum,
@@ -36,12 +37,21 @@ extends CharacterBody2D
 ##
 ## Çanta (US-012): taşıma durumu çantadadır (Bag, host yetkili); oyuncu yalnız okur (`is_carrying`,
 ## `interaction_tags` → eli boşsa `free_hands`) ve koşuyu bildirir (`is_sprinting`); düşürme kuralı çantada (host).
+##
+## Tutulma/yakalanma (US-008, S3 eki): `Status` alt düğümü (PlayerStatus, host yetkili alt ağaç) FREE/HELD/CAUGHT
+## durumunu taşır ve ÇEK kurtarma Interactable'ını barındırır. Yerel kopya FREE değilken donar: girdi okunmaz
+## (hareket ve etkileşim kesilir, hız sıfır). Host API'si (`host_hold/host_catch/host_release`) NPC beyinlerinden
+## çağrılır; `status_changed` her peer'da, `rescued` yalnız host'ta yayılır. Dökümde "player_states" + "status".
 
 signal identity_changed()
 ## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
 signal interaction_target_changed(action_key: String)
 signal interaction_started(action_key: String, duration: float)
 signal interaction_finished(success: bool)
+## Her peer'da: tutulma/yakalanma durumu değişti (PlayerStatus.State).
+signal status_changed(state: int)
+## Yalnız host'ta: tutulan oyuncu ekip arkadaşınca kurtarıldı.
+signal rescued(rescuer: int)
 
 const DUMP_KEY := "player_states"
 const INTERACTION_DUMP_KEY := "interaction"
@@ -86,6 +96,7 @@ var _step_noise: NoiseRules.Cadence = null
 @onready var _camera: Camera2D = $Camera2D
 @onready var _body_shape: CollisionShape2D = $CollisionShape2D
 @onready var _interaction: PlayerInteraction = $PlayerInteraction
+@onready var _status: PlayerStatus = $Status
 
 
 func _ready() -> void:
@@ -110,6 +121,8 @@ func _ready() -> void:
 	else:
 		_sync.synchronized.connect(_on_synchronized)
 	_track_walls = Args.is_automated()
+	_status.changed.connect(status_changed.emit)
+	_status.rescued.connect(rescued.emit)
 	Game.players_changed.connect(_refresh_identity)
 	_refresh_identity()
 
@@ -117,14 +130,20 @@ func _ready() -> void:
 func _physics_process(delta: float) -> void:
 	if _local:
 		_input.poll(delta)
-		var direction: Vector2 = _input.move_vector()
-		move_mode = PlayerMotion.mode_for(_input.is_held(&"sneak"), _input.is_held(&"sprint"))
-		velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta)
+		var free: bool = _status.is_free()
+		var direction: Vector2 = _input.move_vector() if free else Vector2.ZERO
+		if free:
+			move_mode = PlayerMotion.mode_for(_input.is_held(&"sneak"), _input.is_held(&"sprint"))
+			velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta)
+		else:
+			move_mode = PlayerMotion.Mode.WALK
+			velocity = Vector2.ZERO  # tutuldu/yakalandı: donar
 		move_and_slide()
 		facing = PlayerMotion.facing_for(facing, direction)
 		_publish()
 		_emit_step_noise(delta)
-		_interaction.tick(delta, _input.is_held(INTERACT_ACTION), global_position, peer_id(), interaction_tags())
+		_interaction.tick(delta, free and _input.is_held(INTERACT_ACTION), global_position, peer_id(),
+			interaction_tags())
 	if _track_walls and overlaps_world():
 		_wall_frames += 1
 
@@ -169,6 +188,52 @@ func set_interacting(value: bool) -> void:
 	_interacting = value
 
 
+## Tutulma/yakalanma durumu (PlayerStatus.State; her peer'da çoğaltılan).
+func status() -> int:
+	return _status.state
+
+
+func is_free() -> bool:
+	return _status.is_free()
+
+
+func is_held() -> bool:
+	return _status.is_held()
+
+
+func is_caught() -> bool:
+	return _status.is_caught()
+
+
+## Tutma penceresinden kalan (sn; tutulmuyorsa 0).
+func hold_left() -> float:
+	return _status.hold_left()
+
+
+## Yakalayan (host; S3 eki `player_caught {peer, by}`).
+func caught_by() -> StringName:
+	return _status.caught_by()
+
+
+func times_held() -> int:
+	return _status.times_held()
+
+
+## Yalnız host: tutar (`window` sn sonra yakalanır; ÇEK ile kurtarılabilir).
+func host_hold(window: float) -> bool:
+	return _status.host_hold(window)
+
+
+## Yalnız host: kalıcı yakalama; `by` yakalayan (&"chaser", &"owner"; S3 eki `player_caught {peer, by}`).
+func host_catch(by: StringName = &"") -> bool:
+	return _status.host_catch(by)
+
+
+## Yalnız host: tutmayı bırakır.
+func host_release() -> bool:
+	return _status.host_release()
+
+
 ## Host'un etkileşim isteğini doğruladığı konum (S7, global): yerel kopyada şu anki konum; uzak kopyada
 ## eşitleyiciden gelen en güncel konum (ara değerlemeyle çizilen, ~100 ms geriden gelen konum değil; S2
 ## toleransı yalnız ağ gecikmesini karşılar). Henüz veri gelmediyse çizilen konum.
@@ -211,6 +276,7 @@ func motion_state() -> Dictionary:
 		"facing": facing,
 		"wall_frames": _wall_frames,
 		"underruns": _buffer.underrun_count() if _buffer != null else 0,
+		"status": _status.state if _status != null else PlayerStatus.State.FREE,
 	}
 
 

@@ -200,7 +200,9 @@ func players() -> Dictionary:
 	return {}
 ")
 	var problems: PackedStringArray = contract_problems("Game", bare)
-	is_false(_mentions(problems, "alert_level"), "gelmemiş PENDING üye atlanmalı: %s" % problems)
+	# (US-008: uyarı üyeleri gerçek koda geldi, PENDING'den çıktı; örnek hâlâ PENDING olan bir üye.)
+	is_false(_mentions(problems, "heist_result"), "gelmemiş PENDING üye atlanmalı: %s" % problems)
+	is_true(_mentions(problems, "alert_level"), "PENDING'den çıkan (gerçek) üye eksikse düşer")
 	is_true(_mentions(problems, "team_cash"), "PENDING dışı eksik üye düşmeli")
 	is_false(_mentions(problems, "players()"), "doğru imzalı üye geçer")
 	# PENDING üye gelince imzası denetlenir: doğru imza geçer, yanlış imza düşer.

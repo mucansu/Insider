@@ -288,7 +288,9 @@ func test_window_target_detected_with_events() -> void:
 	near(float(times.get(3, INF)), 0.2 + 2.0, DT + 0.0001, "cam arkası koşan, uzak bant: 0,2 + 2 sn")
 	is_true(float(times.get(3, INF)) - float(times.get(1, -INF)) >= 0.5, "\"?\" ≥ 0,5 sn önce")
 	eq(s.max_level, Suspicion.Level.DETECT)
-	near(s.focus_direction, (BEHIND_WINDOW - GUARD).normalized(), 0.0001, "özet yön hedefe")
+	# S11 eki (US-008): çoğaltılan yön 1/16 adıma yuvarlanır (ON_CHANGE her karede delta üretmesin).
+	near(s.focus_direction, (BEHIND_WINDOW - GUARD).normalized(), Suspicion.FOCUS_STEP, "özet yön hedefe")
+	eq(s.focus_direction, s.focus_direction.snapped(Vector2.ONE * Suspicion.FOCUS_STEP), "1/16 adımda")
 
 
 func test_hiding_behind_shelf_decays_and_hides_position() -> void:
@@ -301,7 +303,7 @@ func test_hiding_behind_shelf_decays_and_hides_position() -> void:
 	actor.position = BEHIND_SHELF
 	_tick(s, 0.5)
 	near(s.value_of(2), 34.0, 1.0, "0,2 sn kesinti toleransından sonra boşalma 20/sn")
-	near(s.focus_direction, (OPEN_NEAR - GUARD).normalized(), 0.0001, "özet yön son görüldüğü yere (şimdiki konum sızmaz)")
+	near(s.focus_direction, (OPEN_NEAR - GUARD).normalized(), Suspicion.FOCUS_STEP, "özet yön son görüldüğü yere (şimdiki konum sızmaz)")
 	_tick(s, 2.0)
 	eq(s.value_of(2), 0.0)
 	eq(s.max_level, Suspicion.Level.CALM)

@@ -6,9 +6,12 @@ extends Node2D
 ## Durum (`is_open`, host'un duvar saatiyle `changed_at`) host yetkili MultiplayerSynchronizer ile değişince
 ## yayılır; başlangıç durumu sahnede `is_open` (ör. ön kapı mesai saatinde açık). Görsel yalnız durumu okur.
 ## Kapanma engeli (IS-014): açık kapı, kapanınca kanadı (Body şekli) players katmanındaki bir aktörün gövdesiyle
-## örtüşecekse kapanmaz: host isteği `blocked` ile reddeder (istem görünür kalır). Gövde, host'un bildiği iki
-## konumda denenir: çizilen (`global_position`) ve en güncel (`interaction_position()`); yarıçap gövdenin daire
-## şeklinden (yoksa 0). Açma her zaman serbest. Kural: InteractionRules.circle_overlaps_box.
+## örtüşecekse kapanmaz: host isteği `blocked` ile reddeder (istem görünür kalır). Oyuncu gövdesi host'un bildiği
+## en güncel konumda (`interaction_position()`; ~100 ms geriden çizilen konum sayılmaz — US-008 / IS-014 nit)
+## denenir; yarıçap gövdenin daire şeklinden (yoksa 0). NPC gövdeleri (npcs katmanı; konumları host'ta yetkili)
+## de engeldir (US-008). Açma her zaman serbest. Kural: InteractionRules.circle_overlaps_box.
+## Gezinme bağı (US-008, S4 eki): kapı durumu seviyenin aynı adlı `door_link`'ine yazılır (kapalı kapıdan yol
+## geçmez); seviye API'si yoksa (test_arena gibi bağı olmayan seviye ya da seviye dışı) atlanır.
 ## Döküm (S6 "props"): {"open", "flips" (bu süreçte görülen durum değişimi), "visible_delay_ms" (son değişimin
 ## host kararından bu süreçte görünmesine; değişim yoksa -1), "consistent" (son durum = başlangıç durumu +
 ## görülen değişim sayısının paritesi: bu süreç her değişimi gördü), "interact": Interactable.stats()}.
@@ -17,6 +20,8 @@ extends Node2D
 const DEF_PATH := "res://data/props/door.tres"
 ## Kapanmayı engelleyen gövdelerin fizik katmanı: players (mimari.md §4, 2. katman).
 const BLOCKER_LAYERS := PhysicsLayers.PLAYERS
+## Kapanmayı engelleyen NPC gövdeleri: npcs (mimari.md §4, 3. katman; US-008).
+const NPC_LAYERS := PhysicsLayers.NPCS
 
 @export var def: PropDef
 
@@ -68,16 +73,27 @@ func is_closing_blocked() -> bool:
 		var body: CollisionObject2D = node as CollisionObject2D
 		if body == null or (body.collision_layer & BLOCKER_LAYERS) == 0:
 			continue
-		var radius: float = _body_radius(body)
-		var spots: Array[Vector2] = [body.global_position]
+		var spot: Vector2 = body.global_position
 		if body.has_method(&"interaction_position"):
 			var latest: Variant = body.call(&"interaction_position")
 			if latest is Vector2:
-				spots.append(latest)
-		for spot: Vector2 in spots:
-			if InteractionRules.circle_overlaps_box(spot, radius, center, half, angle):
-				return true
-	return false
+				spot = latest
+		if InteractionRules.circle_overlaps_box(spot, _body_radius(body), center, half, angle):
+			return true
+	return _npc_in_leaf(leaf, center, angle)
+
+
+## Kanadın yerinde npcs katmanında bir gövde var mı (fizik sorgusu; NPC konumu host'ta yetkili).
+func _npc_in_leaf(leaf: RectangleShape2D, center: Vector2, angle: float) -> bool:
+	if not is_inside_tree():
+		return false
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = leaf
+	query.transform = Transform2D(angle, _shape.global_scale.abs(), 0.0, center)
+	query.collision_mask = NPC_LAYERS
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	return not get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty()
 
 
 ## Gövdenin (genel fizik API'si: şekil sahipleri) ilk daire şeklinin yarıçapı; daire yoksa 0 (nokta).
@@ -103,8 +119,10 @@ func dump_state() -> Dictionary:
 	}
 
 
-## Yalnız host'ta (Interactable.completed).
+## Yalnız host'ta (Interactable.completed). NPC (peer 0) kapıyı yalnız açar: açık kapıya dokunmaz (US-008 t2).
 func _on_completed(peer_id: int) -> void:
+	if peer_id == 0 and is_open:
+		return
 	changed_at = PropDump.wall_time()
 	is_open = not is_open
 	var noise: NoiseProfile = NoiseProfile.load_default()
@@ -131,3 +149,16 @@ func _apply(deferred: bool) -> void:
 		_shape.disabled = is_open
 	var alt: String = def.alt_action_key if not def.alt_action_key.is_empty() else def.action_key
 	_interactable.action_key = alt if is_open else def.action_key
+	_sync_nav_link()
+
+
+## Kapı durumunu seviyenin gezinme bağına yazar (Level.door_link, S4 eki; duck typing: entities levels/'i bilmez).
+func _sync_nav_link() -> void:
+	var node: Node = get_parent()
+	while node != null and not node.has_method(&"door_link"):
+		node = node.get_parent()
+	if node == null:
+		return
+	var link: NavigationLink2D = node.call(&"door_link", StringName(name)) as NavigationLink2D
+	if link != null:
+		link.enabled = is_open

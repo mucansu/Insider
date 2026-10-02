@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ChaserTuning" format=3]
+
+[ext_resource type="Script" path="res://data/npc/chaser_tuning.gd" id="1_chtune"]
+
+[resource]
+script = ExtResource("1_chtune")
+speed = 190.0
+acceleration = 1400.0
+sight_range = 320.0
+search_sec = 15.0
+wait_marker = &"FrontDoor"

@@ -31,6 +31,11 @@ extends Node
 ##   ~1 RTT sonra tamamlanabilir; sonucu `level_loaded` bildirir. El sıkışması süren peer varken de bekler.
 ## Döküm (S6): `collect_dump()` taban anahtarları + `register_dump_provider` ile eklenen anahtarlar; değerler
 ## JSON'a uygun biçime çevrilir (Vector2 -> [x, y], Color -> "#rrggbbaa", StringName -> String).
+## Uyarı kademesi (S3 eki, KR-021; US-008): host yetkili `alert_level` (0-5; anlamı mekâna bağlı, geçişleri mekânın
+## uyarı yöneticisi seçer — bakkalda NPCs/StoreAlert) ve polis sayacı `alert_timer_left` (yoksa −1). Host
+## `set_alert_level` / `set_alert_timer` çağırır, değer herkese güvenilir RPC ile gider (geç katılana kabulde);
+## sayaç her peer'da yerelde azalır. Seviye yüklenince ve oturum bitince 0 / −1'e döner. Dökümde "alert":
+## {"level", "timer_left", "history"} (history = bu seviyede görülen kademe dizisi; I4 denetimi).
 
 signal players_changed()
 signal local_player_changed(player: Node)
@@ -38,6 +43,8 @@ signal team_cash_changed(value: int)
 signal level_loaded(level: Node)
 ## Herkeste yayılır (ör. &"police_called").
 signal session_event(kind: StringName, data: Dictionary)
+## S3 eki: uyarı kademesi değişti (her peer'da).
+signal alert_level_changed(level: int)
 
 const DEFAULT_LEVEL := "res://levels/store_a.tscn"
 const HUD_SCENE := "res://ui/hud.tscn"
@@ -58,8 +65,10 @@ const CATCHUP_INTERVAL_SEC := 0.05
 ## collect_dump() taban anahtarları; sağlayıcılar bunları ezemez.
 const BASE_DUMP_KEYS: Array[String] = [
 	"peer_id", "is_host", "peers", "players", "team_cash", "level", "player_nodes", "events", "host_lost",
-	"ping_ms",
+	"ping_ms", "alert",
 ]
+## Uyarı geçmişinde tutulan en fazla kademe.
+const MAX_ALERT_HISTORY := 64
 const _SYNCED_META := &"_game_synced"
 
 ## Varsayılanı res://entities/player/player.tscn (dosya yoksa null); testler değiştirebilir.
@@ -91,6 +100,10 @@ var _catchup: Dictionary = {}
 var _catchup_elapsed: float = 0.0
 var _players_broadcast_queued: bool = false
 var _warned_no_player_scene: bool = false
+var _alert_level: int = 0
+## Polis sayacından kalan (sn); −1 = sayaç yok.
+var _alert_timer: float = -1.0
+var _alert_history: Array[int] = [0]
 
 
 func _ready() -> void:
@@ -117,6 +130,8 @@ func _process(delta: float) -> void:
 	_sync_session()
 	_try_start_pending_level()
 	_send_catchup(delta)
+	if _alert_timer > 0.0:
+		_alert_timer = maxf(_alert_timer - delta, 0.0)
 
 
 ## Bağlanınca host'a bildirilir.
@@ -192,6 +207,34 @@ func raise_session_event(kind: StringName, data: Dictionary = {}) -> void:
 	_to_all(&"_rpc_session_event", [kind, data])
 
 
+## S3 eki: şimdiki uyarı kademesi (0-5).
+func alert_level() -> int:
+	return _alert_level
+
+
+## S3 eki: polis sayacından kalan (sn); sayaç yoksa −1.
+func alert_timer_left() -> float:
+	return _alert_timer
+
+
+## Yalnız host: uyarı kademesini herkese yayınlar (sayaç korunur). Geçiş kuralı mekânın yöneticisindedir.
+func set_alert_level(level: int) -> void:
+	if not _has_host_authority():
+		push_warning("Game.set_alert_level: yalnız host çağırabilir")
+		return
+	if level == _alert_level:
+		return
+	_to_all(&"_rpc_alert", [clampi(level, 0, 5), _alert_timer])
+
+
+## Yalnız host: polis sayacını kurar (sn; < 0 kaldırır), herkese yayınlar.
+func set_alert_timer(seconds: float) -> void:
+	if not _has_host_authority():
+		push_warning("Game.set_alert_timer: yalnız host çağırabilir")
+		return
+	_to_all(&"_rpc_alert", [_alert_level, seconds if seconds >= 0.0 else -1.0])
+
+
 ## `key` dökümde üst düzey anahtar olur; değer döküm anında `provider.call()` ile alınır.
 ## Taban anahtarlar (BASE_DUMP_KEYS) ezilemez; aynı anahtar yeniden kaydedilirse son kayıt geçerlidir.
 func register_dump_provider(key: String, provider: Callable) -> void:
@@ -224,6 +267,7 @@ func collect_dump() -> Dictionary:
 		"events": to_json_value(_events),
 		"host_lost": _host_lost,
 		"ping_ms": _dump_pings(),
+		"alert": {"level": _alert_level, "timer_left": _alert_timer, "history": _alert_history.duplicate()},
 	}
 	for key: String in _dump_providers:
 		var provider: Callable = _dump_providers[key]
@@ -297,6 +341,7 @@ func _end_session() -> void:
 	_auth_names.clear()
 	_events.clear()
 	_set_team_cash(0)
+	_apply_alert(0, -1.0, true)
 	players_changed.emit()
 
 
@@ -373,6 +418,7 @@ func _host_admit_peer(peer_id: int) -> void:
 	_add_player(peer_id, player_name)
 	_broadcast_players()
 	_rpc_team_cash.rpc_id(peer_id, _team_cash)
+	_rpc_alert.rpc_id(peer_id, _alert_level, _alert_timer)
 	if _level != null:
 		_spawn_player(peer_id)
 
@@ -471,6 +517,25 @@ func _rpc_players(data: Dictionary) -> void:
 @rpc("authority", "call_local", "reliable")
 func _rpc_team_cash(value: int) -> void:
 	_set_team_cash(value)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_alert(level: int, timer: float) -> void:
+	_apply_alert(level, timer, false)
+
+
+func _apply_alert(level: int, timer: float, reset_history: bool) -> void:
+	_alert_timer = timer
+	if reset_history:
+		_alert_history = [level]
+	if level == _alert_level:
+		return
+	_alert_level = level
+	if not reset_history:
+		_alert_history.append(level)
+		if _alert_history.size() > MAX_ALERT_HISTORY:
+			_alert_history.pop_front()
+	alert_level_changed.emit(level)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -741,6 +806,7 @@ func _load_level_local(level_path: String) -> bool:
 	spawner.spawn_path = spawner.get_path_to(players_root)
 	players_root.child_entered_tree.connect(_on_player_node_added)
 	players_root.child_exiting_tree.connect(_on_player_node_removed)
+	_apply_alert(0, -1.0, true)
 	_world.add_child(level)
 	_level = level
 	_level_path = level_path

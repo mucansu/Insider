@@ -1,0 +1,79 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://entities/npc/owner/store_owner.gd" id="1_owner"]
+[ext_resource type="Script" uid="uid://byxhj1xfhrhmn" path="res://entities/npc/components/perception.gd" id="2_perc"]
+[ext_resource type="Script" uid="uid://bni5lewv6poaj" path="res://entities/npc/components/suspicion.gd" id="3_susp"]
+[ext_resource type="Script" path="res://entities/npc/components/agenda.gd" id="4_agenda"]
+[ext_resource type="Script" path="res://entities/npc/components/npc_mover.gd" id="5_mover"]
+[ext_resource type="Script" path="res://entities/npc/components/civilian_senses.gd" id="6_senses"]
+[ext_resource type="Script" path="res://entities/npc/owner/brain_owner.gd" id="7_brain"]
+[ext_resource type="Script" path="res://entities/npc/components/npc_visual.gd" id="8_visual"]
+[ext_resource type="Resource" path="res://data/npc/perception_tuning.tres" id="9_ptune"]
+[ext_resource type="Resource" path="res://data/npc/owner_tuning.tres" id="10_otune"]
+[ext_resource type="Resource" path="res://data/npc/civilian_tuning.tres" id="11_ctune"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_body"]
+radius = 12.0
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_owner"]
+properties/0/path = NodePath(".:net_position")
+properties/0/spawn = false
+properties/0/replication_mode = 1
+properties/1/path = NodePath(".:net_facing")
+properties/1/spawn = false
+properties/1/replication_mode = 1
+properties/2/path = NodePath(".:net_meter")
+properties/2/spawn = false
+properties/2/replication_mode = 1
+properties/3/path = NodePath(".:net_state")
+properties/3/spawn = false
+properties/3/replication_mode = 2
+properties/4/path = NodePath(".:net_task")
+properties/4/spawn = false
+properties/4/replication_mode = 2
+properties/5/path = NodePath(".:net_alarmed")
+properties/5/spawn = false
+properties/5/replication_mode = 2
+properties/6/path = NodePath(".:net_hold_peer")
+properties/6/spawn = false
+properties/6/replication_mode = 2
+
+[node name="Owner" type="CharacterBody2D"]
+collision_layer = 4
+collision_mask = 1
+motion_mode = 1
+script = ExtResource("1_owner")
+owner_tuning = ExtResource("10_otune")
+civilian_tuning = ExtResource("11_ctune")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("CircleShape2D_body")
+
+[node name="Perception" type="Node2D" parent="."]
+script = ExtResource("2_perc")
+tuning = ExtResource("9_ptune")
+facing = Vector2(-1, 0)
+
+[node name="Suspicion" type="Node" parent="." node_paths=PackedStringArray("perception")]
+script = ExtResource("3_susp")
+perception = NodePath("../Perception")
+
+[node name="Agenda" type="Node" parent="."]
+script = ExtResource("4_agenda")
+
+[node name="Mover" type="Node" parent="."]
+script = ExtResource("5_mover")
+
+[node name="Senses" type="Node" parent="."]
+script = ExtResource("6_senses")
+
+[node name="Brain" type="Node" parent="."]
+script = ExtResource("7_brain")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+replication_interval = 0.0667
+delta_interval = 0.0667
+replication_config = SubResource("SceneReplicationConfig_owner")
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("8_visual")

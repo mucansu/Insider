@@ -80,9 +80,14 @@ func stats() -> Dictionary:
 func _select_target(actor_pos: Vector2, peer_id: int, actor_tags: Dictionary) -> void:
 	var candidates: Array[Interactable] = []
 	var positions := PackedVector2Array()
+	var actor: Node = get_parent()
+	if actor != null and not actor.is_in_group(Interactable.ACTOR_GROUP):
+		actor = null
 	for node: Node in get_tree().get_nodes_in_group(Interactable.GROUP):
 		var item: Interactable = node as Interactable
-		if item != null and item.can_start(peer_id, actor_pos, actor_tags):
+		if item == null or (actor != null and actor.is_ancestor_of(item)):
+			continue  # oyuncunun kendi bileşeni (ÇEK, US-008) kendisine hedef olmaz
+		if item.can_start(peer_id, actor_pos, actor_tags):
 			candidates.append(item)
 			positions.append(item.global_position)
 	var index: int = InteractionRules.nearest(actor_pos, positions)
