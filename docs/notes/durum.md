@@ -5,7 +5,7 @@ Faz 1 — İki kişi bakkalda (EP-01): kod kalemleri bitti, test-1 checkpoint'i 
 
 ## Faz 1 (dev)
 - Bitti: US-001..US-005 · IS-005 · IS-007 · IS-008..IS-014 · IS-019 · IS-022 · IS-027 · IS-029 sızıntı kapısı · IS-041/IS-042 README Tailscale + test-* Release.
-- test-1 öncesi: IS-026 t3 ping (denetimde) · US-026 bağlantı kolaylığı (sürüyor).
+- test-1 checkpoint alındı (2026-10-02): main = dev cc9c9e1, etiketler `faz-1`, `test-1` (CI Release: debug build). IS-026, US-026, IS-076 Bitti.
 - Checkpoint: ikisi → dev → ci_local → main ff + `faz-1` + `test-1` etiketi → push (CI build + Release ön sürümü).
 - Kullanıcı doğrulaması (IS-006): test-1 gözlem listesi + anket `docs/tasarim/degerlendirmeler/faz-1.md`.
 
