@@ -35,7 +35,8 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Bitti | b985e8b |
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
-| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
+| IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Bitti (A: a30c69c; B: degerlendirmeler/faz-1.md, ON-01..09) | |
+| IS-027 | Test-1 görünüm cilası: kamera yakınlaştırma 1,5 (ayarlanabilir) + harita sınırına kenetleme, arka plan BG token'ı (ON-01, ON-07) | 1 | oynanis | P1 | XS | — | Sürüyor (2026-10-02; worktree) | |
 | IS-008 | Seviye renklerini ThemeTokens'a taşı (LEVEL_* token'ları) | 1 | seviye | P2 | XS | US-002, US-003 | Bitti | f0f027f |
 | IS-009 | Girdi haritası (`pause`, ui gamepad) + US-003 nit'leri | 1 | arayuz | P1 | S | US-003 | Bitti | 332fb08 |
 
@@ -159,6 +160,12 @@ EP-01 · P2 · XS · Sahip: altyapi · Bağımlılık: IS-005
 **Dokunulacak:** project.godot (yalnız renderer), tests/unit/test_smoke.gd
 **Dokunulmayacak:** autoload/**, entities/**, levels/**, ui/**, core/**, tools/**
 
+### IS-027 — Test-1 görünüm cilası
+EP-01 · P1 · XS · Sahip: oynanis (main.gd'de yalnız temizleme rengi için cekirdek alanına istisna) · Bağımlılık: — · Fable Faz 1 değerlendirmesi ON-01, ON-07
+**Kabul:** (1) Yerel oyuncu kamerası yakınlaştırması `data/player_tuning.tres` `camera_zoom` = 1,5 (ayarlanabilir; geliştirici argümanı `--camera-zoom=X` ile test-1'de 1,0/1,5 karşılaştırılabilir — Args'ta yalnız bu argüman). (2) Kamera `Level` sınırlarına (S4 API'sinde yoksa ekle: oynanabilir alan dikdörtgeni; harita kenarı dolgusu dahil) `limit_*` ile kenetlenir; harita ekrandan küçükse ortalanır; gri boşluk yok. (3) Viewport temizleme rengi ThemeTokens BG (noir `bg_color`); test. (4) US-004/US-005 senaryoları ve ci_local yeşil; ekran görüntüsü kanıtı (GUI exe ile pencereli kısa koşu ya da IS-022 aracı varsa) 1,0 ve 1,5 için.
+**Dokunulacak:** entities/player/player.gd ve player.tscn (yalnız kamera), data/player_tuning.tres, levels/level.gd (yalnız sınır API'si; S4 eki), autoload/args.gd (yalnız `--camera-zoom`), main.gd (yalnız temizleme rengi), tests/unit/test_player*.gd, tests/unit/test_levels_api.gd
+**Dokunulmayacak:** ui/**, core/**, entities/props/**, levels/*.tscn ve layouts, tools/**, project.godot
+
 ### IS-014 — US-005 nit'leri
 EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-005
 **Kabul:** (1) Koşuda taraf toleransı: host koşan oyuncuyu ~22 px geriden görür → `SIDE_TOLERANCE` koşu hızını da karşılar (ör. 24 px) ya da hıza bağlı; müşteri tarafı hâlâ red (birim test, en yakın müşteri konumu −26 px). (2) Kapı, kapı boşluğunda gövdesi olan bir oyuncu varken kapanmaz (host reddi `blocked`, istemcide istem yine görünür; birim + mevcut senaryolar yeşil); açma her zaman serbest. (3) Uzak oyuncunun "etkileşimde" göstergesi diğer peer'larda da çizilir (çoğaltılan küçük durum; ThemeTokens rengi). (4) `test_interaction_props.gd` özel üyelere (`_host_start`, `_host_cancel`, `_physics_process`) erişmez; genel API ya da test kancası (KR-018 §6). (5) ci_local tam yeşil; US-004/US-005 senaryoları geçer.
@@ -218,7 +225,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-010 | Bakkal etkileşimleri: SATIN AL, OYALA, ARKA ODAYA GÖNDER, DİKKAT DAĞIT, oyalanma sayacı | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
 | US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught | 2 | oynanis | P1 | S | US-008 | Backlog | |
 | US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
-| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Sürüyor (2026-10-02; faz2-int) | |
+| US-013 | İş sonu ekranı + uyarı merdiveni HUD (asgari 2a; S3 heist_finished sözleşmesine karşı, sahte Game ile) | 2 | arayuz | P1 | S | — (sözleşme S3 eki) | Denetimde (2026-10-02; faz2-int) | |
 | IS-024 | 2a SFX: 5-6 yer tutucu ses (zil, ?, !, bağırış, kapı, kasa) — CC0, assetler.md kaydı | 2 | arayuz | P1 | XS | US-008 (olay adları) | Backlog | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
 | US-011 | Görüş sisi + okunabilirlik (sahip görev ikonu, koniler, ?/! balonları) | 2 | seviye | P2 | S | US-008 | Backlog (2b) | |
@@ -227,7 +234,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
 | IS-022 | Ekran görüntüsü aracı: Windows'ta GPU'lu pencerede seviye + botlarla belirli anların PNG'si | 2 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
-| IS-025 | Kamera harita sınırına kenetlenir (Level sınırları; gri boşluk yok) | 2 | oynanis | P1 | XS | US-009, US-014 birleşince | Backlog | |
+| IS-025 | (IS-027'ye taşındı — test-1 öncesi Faz 1'de yapılıyor) | 2 | oynanis | — | — | — | Elendi (IS-027) | |
 | IS-026 | HUD ping'i yerelde 106-160 ms (pencereli) — ölçüm kök nedeni ve düzeltme | 1 | cekirdek | P1 | S | — | Sürüyor (2026-10-02; worktree) | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
