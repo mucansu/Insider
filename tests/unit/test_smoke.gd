@@ -70,6 +70,16 @@ func test_project_settings() -> void:
 	eq(ProjectSettings.get_setting("debug/gdscript/warnings/untyped_declaration"), 2, "tipsiz bildirim hata olmalı")
 
 
+## IS-019: renderer Compatibility (GL 3.3) — masaüstü ve mobil karşılığı; Forward+ özellik etiketi kalmaz.
+func test_renderer_is_compatibility() -> void:
+	eq(ProjectSettings.get_setting("rendering/renderer/rendering_method"), "gl_compatibility")
+	eq(ProjectSettings.get_setting("rendering/renderer/rendering_method.mobile"), "gl_compatibility")
+	var features: PackedStringArray = ProjectSettings.get_setting("application/config/features")
+	has(features, "GL Compatibility")
+	is_false(features.has("Forward Plus"), "Forward+ etiketi kalmamalı")
+	is_false(features.has("Mobile"), "Mobile etiketi olmamalı")
+
+
 func test_physics_layer_names() -> void:
 	for i: int in LAYERS.size():
 		eq(ProjectSettings.get_setting("layer_names/2d_physics/layer_%d" % (i + 1)), LAYERS[i])
