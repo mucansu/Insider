@@ -30,7 +30,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | US-004 | Oyuncu karakteri ve senkron hareket | 1 | oynanis | P1 | M | US-001, US-002, IS-010 | Bitti | a88d9c1 |
 | US-005 | Etkileşim çerçevesi + kasa + kapı | 1 | oynanis | P1 | M | US-004 | Bitti | e32adf7 |
 | IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Bitti | 918d0cd |
-| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Sürüyor (t2; denetci should-fix: Linux paketi çalıştırma izni) | |
+| IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Bitti | 9594144 |
 | IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
 | IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Sürüyor (2026-10-02; worktree) | |
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
