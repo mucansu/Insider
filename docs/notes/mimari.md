@@ -138,7 +138,6 @@ Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc
 ## 4. Fizik katmanları (project.godot)
 1 `world` (duvar, kapalı kapı) · 2 `players` · 3 `npcs` · 4 `interactables` · 5 `triggers` (bölge alanları) · 6 `vision_block` (görüşü kesen ama yürünebilen; Faz 2).
 
-## 5. Test katmanları ve CI
 - **Birim:** `godot --headless --path . -s res://tests/run_tests.gd` → `tests/unit/test_*.gd` içindeki `test_*` metotları; doğrulamalar `tests/t.gd`; çıkış kodu 0/1.
 - **Gönderim ilkesi (S2 eki):** tek RPC yükü ≤ 1 KB (Tailscale MTU 1280; ENet MTU'yu aşanı parçalayıp güvenilire çevirir).
 - **Ağ duman:** S6; her ağ davranışı en az bir senaryo taşır; senaryolar 0 ms ve 150 ms RTT ile geçer.
@@ -147,6 +146,7 @@ Muhafız, sivil ve kamera aynı algı bileşenlerini birleştirir: `entities/npc
 - **Yerel CI:** `tools/ci_local.sh` = Godot indir (yoksa) → import → birim → araç testleri → tüm `tests/net/*.json` (0 ve 150 ms). Linux ve Windows (Git Bash; IS-011) desteklenir; Python `python3` → `python` → `py -3` (≥ 3.10). Birim adımı çıkışta sızıntı (`leaked at exit`, `still in use`) görürse kırmızıdır (IS-029). Push öncesi koordinatör çalıştırır. Uzak CI `.github/workflows/ci.yml` aynısını dev ve main push'unda çalıştırır. **Build (IS-005):** `tools/export.sh` (templates|windows|linux|smoke; şablonlar SHA-512 doğrulamalı, kullanıcı dizinine) Windows + Linux paketini `build/`'e üretir; smoke Windows build'ini host + istemci olarak açıp kapatır. `ci_local.sh export` yalnız açıkça istenince. CI'da `build` işi yalnız main push'unda ve `ci` yeşilse koşar, iki platformu artifact olarak yükler — test checkpoint'leri (KR-020) main'e ff ile alındığı için her checkpoint indirilebilir build üretir.
 
 ## 7. İleri uyumluluk notları (bugün uygulanmaz, kapı kapatılmaz)
+- **Muhafız araması (T4, oyun-yz tur 2):** son görülen konum (LKP) + 2-3 sn "bilme" penceresi, temkinli/saldırgan arama, arama koordinatörü (nokta durumu free/in_progress/searched, görüşle geçersizleme, puanlama) core `SearchPlan` + seviye `SearchSpot*` işaretleri; davranış ağacına geçiş ölçütü: ≥ 12 durum ve ≥ 3 eşzamanlı kesme kaynağı ya da alt makine kopyası.
 - **Alternatif giriş ve kasa erişimi (GB-02):** seviye düzenine ileride yeni karo türleri eklenecek: havalandırma kanalı (yalnız sürünme kipinde geçilir, görüşü keser), zayıf duvar (yıkılabilir parça), kat geçişi (delik/merdiven). Bu yüzden `build_levels.gd` birleştirdiği duvar dikdörtgenlerinde türleri ayrı tutar (zaten `Wall*`/`Window*`/`Shelf*` ayrımı var); yıkılabilir duvar ayrı düğüm olacağı için birleştirmeye girmez. Çok katlı seviye: her kat ayrı katman/alt sahne, oyuncunun bulunduğu kat çoğaltılan bir alan; S4'e o kalemde ekleme yapılır.
 
 ## 6. Stil ve tasarım kuralları (KR-018)
