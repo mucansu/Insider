@@ -10,6 +10,7 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
 ## Faz 2 (`faz2-int`, GitHub'a yedekli; plan backlog §2b)
 - Bitti (faz2-int): US-006, US-007, IS-023, US-009, US-013, US-014, US-011a, US-011c, US-011d, US-012, US-033, US-008 · IS-024, IS-037, IS-038, IS-039, IS-047, IS-067. Son tam CI yeşil (500 birim, 34 ağ koşusu).
 - Sürüyor: IS-078 (arayuz, faz2-int worktree): dev → faz2-int birleştirmesi çakışmaları çözüldü (game.gd döküm `ping`+`alert`, make_pair(vision, fresh_settings), ci_local araç adımları, main_menu odak), contracts.gd'ye Net.get_ping_info eklendi; birleşik ağaçta 6 arayüz testi kırık → IS-078; yeşil olunca birleştirme commit'i + push.
+- Sürüyor: US-011b (oynanis, ayrı worktree, taban faz2-int 5ff9c28; birleştirmede game.gd döküm anahtarları çakışabilir).
 - Önceki: US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
 
 ## Yeni sohbette ilk adımlar (sırayla)
