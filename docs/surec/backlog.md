@@ -233,7 +233,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-011b | Görüş: bakış yönü (fare/sağ çubuk, look_dir 20 Hz), NPC görünürlük kapısı + hayalet + çevresel siluet, kukla baş/göz, noise_ring çizim koşulu, Game.player_exposure/vision_mode — §6 AC3, AC4, AC6 (Game), AC7 | 2 | oynanis | P1 | M | US-011a, US-008, US-014, US-009 | Backlog | |
 | US-011c | Görüş: HUD maruziyet rozeti, görüldü ikonu, ekip kenar oku, lobi "Görüş" seçimi, i18n (FOG token'ları US-011a'da) — §6 AC5 (UI), AC6 (UI) | 2 | arayuz | P1 | S | — (FakeGame) | Denetimde (2026-10-02) | |
 | US-011d | Görüş: look_* girdi eylemleri (project.godot), --vision-mode= argümanı | 2 | altyapi | P1 | XS | — | Bitti (2026-10-02; faz2-int f59fbfe) | |
-| IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Sürüyor (2026-10-02; dev) | |
+| IS-029 | Test hijyeni: birim koşu sonu "9 ObjectDB leaked / 2 resources" uyarısının kök nedeni + ci_local kapısı | 1 | altyapi | P2 | S | — | Bitti (2026-10-02; dev 330fd37) | |
 | IS-028 | Görüş A/B senaryosu + görsel kanıt (vision_split.json, iki kip × 0/150 ms, screenshot) — §6 AC7/AC8 | 2 | cekirdek | P1 | S | US-011a, US-011b | Backlog | |
 | US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (t2; inceleme should-fix: atkı yüksek Hz; çizim maliyeti) | |
 | IS-015 | Oyun testi botları: kapalı döngü `bot_brain.gd` (çoğaltılan durumu okur, PlayerInput sağlayıcısı; beyin oynanis) + koşu istatistiği dökümü (cekirdek) (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek + oynanis | P1 | M | US-008, US-012 | Backlog (2b) | |
