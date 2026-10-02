@@ -32,7 +32,7 @@ Faz planı Fable (tasarim) incelemesiyle düzeltildi (KR-015).
 | IS-012 | Gecikme proxy testinin Windows'ta yük altında kararsızlığı (test_multiple_clients_get_own_replies 56 vs 40±15 ms) | 1 | altyapi | P1 | XS | IS-011 | Bitti | 918d0cd |
 | IS-005 | Faz 1 build: Windows/Linux export, CI artifact, README, IS-010 test nit'leri | 1 | altyapi | P1 | S | US-005 | Bitti | 9594144 |
 | IS-013 | Faz 1 çıkış senaryoları: faz1_full, sert ağ profili, 10 dk dayanıklılık, gerçek oyuncuyla geç katılma | 1 | cekirdek | P1 | M | US-005 | Sürüyor (t2; inceleme should-fix: kısa kesinti toleransı) | |
-| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Sürüyor (2026-10-02; worktree) | |
+| IS-019 | Renderer: Compatibility (GL 3.3) — arkadaş makinelerinde geniş donanım (IS-005 kararı) | 1 | altyapi | P2 | XS | IS-005 | Bitti | b985e8b |
 | IS-014 | US-005 nit'leri: koşuda taraf toleransı, kapı oyuncu üstüne kapanmaz, uzak oyuncu etkileşim göstergesi, testlerde özel üye erişimi | 1 | oynanis | P2 | S | US-005 | Bitti | 0d215b5 |
 | IS-006 | Kullanıcı doğrulaması: iki makine + arkadaş oturumu | 1 | kullanıcı | P1 | S | IS-005, IS-013 | Backlog | |
 | IS-007 | Faz 1 tasarım değerlendirmesi (Fable) | 1 | tasarim | P1 | S | (A) — · (B) IS-005, IS-013 | Sürüyor (A: GDD güncellemeleri + Faz 2 kapsam önerisi, 2026-10-02) | |
@@ -167,7 +167,7 @@ EP-01 · P2 · S · Sahip: oynanis · Sözleşme: S2, S7 · Bağımlılık: US-0
 
 ### IS-006 — Kullanıcı doğrulaması: iki makine + arkadaş oturumu
 EP-01 · P1 · S · Sahip: kullanıcı · Bağımlılık: IS-005
-**Kabul:** Kullanıcı build'i (ya da editörü) iki pencerede çalıştırıp host/katıl, yürüme ve kasa boşaltmayı dener (US-004: hareket hissi, koşu halkası/sızma dolgusu, ad etiketi okunurluğu, kamera yalnız kendi karakterinde, Esc menüsü açıkken yürümeme, gamepad kısmi hız; 120/144 Hz ekranda yerel oyuncuda takılma var mı — varsa `physics_interpolation` kararı); bir arkadaşla Tailscale üzerinden bağlanır (≤ 5 sn), 10 dk oynar; his notları GB olarak yazılır. Faz kapanışını engellemez; Engelli(kullanıcı-cihaz) olarak taşınır.
+**Kabul:** Kullanıcı build'i (ya da editörü) iki pencerede çalıştırıp host/katıl, yürüme ve kasa boşaltmayı dener (US-004: hareket hissi, koşu halkası/sızma dolgusu, ad etiketi okunurluğu, kamera yalnız kendi karakterinde, Esc menüsü açıkken yürümeme, gamepad kısmi hız; 120/144 Hz ekranda yerel oyuncuda takılma var mı — varsa `physics_interpolation` kararı; IS-019: build arkadaş makinesinde açılıyor mu, görüntü bozuk mu — özellikle eski/tümleşik GPU'da OpenGL 3.3; IS-005: Linux paketi gerçek Linux'ta `./Insiders.x86_64` ile açılıyor mu, Windows'ta SmartScreen/güvenlik duvarı uyarıları); bir arkadaşla Tailscale üzerinden bağlanır (≤ 5 sn), 10 dk oynar; his notları GB olarak yazılır. Faz kapanışını engellemez; Engelli(kullanıcı-cihaz) olarak taşınır.
 
 ### IS-008 — Seviye renklerini ThemeTokens'a taşı
 EP-01 · P2 · XS · Sahip: seviye · Bağımlılık: US-002, US-003

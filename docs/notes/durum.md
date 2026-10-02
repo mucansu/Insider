@@ -7,7 +7,7 @@ Faz 1 — İki kişi bakkalda (EP-01). Yerel geliştirme: `C:\Users\Turkuaz\OneD
 - Bitti (Faz 1): US-001 ağ çekirdeği · US-002 bakkal · US-003 menü/HUD/tema · IS-008 · IS-009 · IS-010 (KR-018) · IS-011 Windows yerel geliştirme (8124e82) · US-004 oyuncu karakteri (a88d9c1) · US-005 etkileşim + kasa + kapı (e32adf7)
 - Bitti: IS-012 (918d0cd) · IS-014 (0d215b5) — push bekliyor
 - Denetimde: IS-013 Faz 1 çıkış senaryoları (faz1_full, late_join_real, soak 10 dk PASS; sert ağ yalnız ölçüm) · IS-007 (A) Bitti (a30c69c; GDD v0.2)
-- Bitti: IS-005 build (9594144; push bekliyor) · Denetimde: IS-019 renderer Compatibility · IS-014 Bitti (0d215b5; push bekliyor)
+- Bitti: IS-005 build (9594144; push bekliyor) · Bitti: IS-019 renderer Compatibility (b985e8b; push bekliyor) · IS-014 Bitti (0d215b5; push bekliyor)
 - Sırada: IS-007 (B) Fable Faz 1 değerlendirmesi → IS-006 kullanıcı doğrulaması → Faz 1 kapanışı
 - KR-020 (kullanıcı): öncelik aramızda oynanabilir MVP; test checkpoint'leri main + `test-N`; bakkalda güvenlik yok (polis/muhafız/düğme/silah yok; sahibi bağırır, mahalleli gelir) → IS-021 Fable bakkal/kademe revizyonu; Steam işleri sona.
 - KR-021 (geçici): bakkal tasarımı GDD v0.3 (sahip ajandası, sorgu/bağırış/mahalleli, tutma+ÇEK, müşteri/yoldan geçen nüfusu); Faz 2 kalemleri §2b; entegrasyon dalı `faz2-int`.
