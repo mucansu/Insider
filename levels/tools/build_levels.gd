@@ -9,7 +9,9 @@ extends SceneTree
 ## Düzen dosyası: `;` ile başlayan satır yorum; `@ <harf> <Marker adı> <zemin karakteri>` işaret tanımı
 ## (her harf ızgarada tam bir kez geçer, `Spawn*` adları SpawnPoints'e, diğerleri Markers'a gider);
 ## `= <harf> <Bölge adı> <zemin karakteri>` bölge tanımı (harfin hücreleri dolu bir dikdörtgen oluşturur; içine
-## düşen `@` işaretleri dikdörtgene sayılır; `Zones/<ad>` Area2D, katman triggers); kalan satırlar eşit
+## düşen `@` işaretleri dikdörtgene sayılır; `Zones/<ad>` Area2D, katman triggers); `= <Bölge adı> <sütun> <satır>
+## <genişlik> <yükseklik>` boyamasız dikdörtgen bölge parçası (IS-023: raf/işaret içeren odalar boyanamaz; aynı ad
+## yinelenirse bölge birden çok dikdörtgenden oluşur, sırayla `Shape`, `Shape2` …); kalan satırlar eşit
 ## genişlikte karo ızgarasıdır (lejant: levels/level_layout.gd). US-007 ekleri (camlar, bölgeler, gezinme):
 ## `_build_walls`, `_build_zones`, `_build_navigation` açıklamaları.
 
@@ -119,7 +121,8 @@ static func build_scene(layout_path: String, scene_path: String, verbose: bool =
 
 
 ## Düzen dosyasını okur: {"rows": PackedStringArray (işaretler zemine dönmüş), "markers": [{name, cell}],
-## "zones": [{name, rect: Rect2i (karo)}]}. Hata varsa push_error ile bildirir ve boş sözlük döner.
+## "zones": [{name, rects: Array[Rect2i] (karo)}]} (bölgeler ilk tanım sırasıyla). Hata varsa push_error ile
+## bildirir ve boş sözlük döner.
 static func parse_layout(path: String) -> Dictionary:
 	var text: String = FileAccess.get_file_as_string(path)
 	if text.is_empty():
@@ -127,19 +130,35 @@ static func parse_layout(path: String) -> Dictionary:
 		return {}
 	var defs: Dictionary = {}  # harf -> [ad, zemin karakteri]
 	var zone_defs: Dictionary = {}  # harf -> [ad, zemin karakteri]
+	var zone_order: Array[String] = []  # bölge adları, ilk tanım sırasıyla
+	var rect_zones: Dictionary = {}  # boyamasız bölge adı -> Array[Rect2i]
 	var grid: PackedStringArray = []
 	for raw: String in text.split("\n"):
 		var line: String = raw.strip_edges(false, true)
 		if line.is_empty() or line.begins_with(";"):
 			continue
+		if line.begins_with("=") and line.split(" ", false).size() == 6:
+			var rect: Rect2i = _parse_zone_rect(line.split(" ", false))
+			var zone_name: String = line.split(" ", false)[1]
+			if not rect.has_area() or _painted_zone_named(zone_defs, zone_name):
+				push_error("build_levels: %s: geçersiz bölge dikdörtgeni satırı '%s'" % [path, line])
+				return {}
+			if not rect_zones.has(zone_name):
+				rect_zones[zone_name] = []
+				zone_order.append(zone_name)
+			(rect_zones[zone_name] as Array).append(rect)
+			continue
 		if line.begins_with("@") or line.begins_with("="):
 			var parts: PackedStringArray = line.split(" ", false)
 			if parts.size() != 4 or parts[1].length() != 1 or parts[3].length() != 1 \
 					or not LevelLayout.LEGEND.has(parts[3]) or LevelLayout.LEGEND.has(parts[1]) \
-					or defs.has(parts[1]) or zone_defs.has(parts[1]) or parts[2].validate_node_name() != parts[2]:
+					or defs.has(parts[1]) or zone_defs.has(parts[1]) or parts[2].validate_node_name() != parts[2] \
+					or (line.begins_with("=") and (zone_order.has(parts[2]))):
 				push_error("build_levels: %s: geçersiz işaret/bölge satırı '%s'" % [path, line])
 				return {}
 			(defs if line.begins_with("@") else zone_defs)[parts[1]] = [parts[2], parts[3]]
+			if line.begins_with("="):
+				zone_order.append(parts[2])
 			continue
 		grid.append(line)
 	if grid.is_empty():
@@ -179,15 +198,49 @@ static func parse_layout(path: String) -> Dictionary:
 			push_error("build_levels: %s: işaret '%s' ızgarada yok" % [path, ch])
 			return {}
 		markers.append({"name": defs[ch][0], "cell": seen[ch]})
-	var zones: Array[Dictionary] = []  # tanım sırasıyla
+	var painted: Dictionary = {}  # boyalı bölge adı -> dikdörtgen
 	for ch: String in zone_defs:
 		var rect: Rect2i = _zone_rect(zone_cells.get(ch, []), seen.values())
 		if rect.has_area():
-			zones.append({"name": zone_defs[ch][0], "rect": rect})
+			painted[zone_defs[ch][0]] = rect
 		else:
 			push_error("build_levels: %s: bölge '%s' ızgarada yok ya da dolu dikdörtgen değil" % [path, ch])
 			return {}
+	var bounds := Rect2i(0, 0, width, grid.size())
+	var zones: Array[Dictionary] = []  # ilk tanım sırasıyla
+	for zone_name: String in zone_order:
+		var rects: Array[Rect2i] = []
+		if painted.has(zone_name):
+			rects.append(painted[zone_name] as Rect2i)
+		for rect: Rect2i in rect_zones.get(zone_name, []):
+			if not bounds.encloses(rect):
+				push_error("build_levels: %s: bölge '%s' dikdörtgeni %s ızgara dışına taşıyor" % [path, zone_name, rect])
+				return {}
+			rects.append(rect)
+		zones.append({"name": zone_name, "rects": rects})
 	return {"rows": rows, "markers": markers, "zones": zones}
+
+
+## `= <ad> <sütun> <satır> <genişlik> <yükseklik>` satırının dikdörtgeni; ad düğüm adı değilse ya da sayılar
+## geçersizse (negatif konum, sıfır/negatif boyut) boş dikdörtgen.
+static func _parse_zone_rect(parts: PackedStringArray) -> Rect2i:
+	if parts[1].validate_node_name() != parts[1]:
+		return Rect2i()
+	var nums: Array[int] = []
+	for i: int in range(2, 6):
+		if not parts[i].is_valid_int():
+			return Rect2i()
+		nums.append(parts[i].to_int())
+	if nums[0] < 0 or nums[1] < 0 or nums[2] <= 0 or nums[3] <= 0:
+		return Rect2i()
+	return Rect2i(nums[0], nums[1], nums[2], nums[3])
+
+
+static func _painted_zone_named(zone_defs: Dictionary, zone_name: String) -> bool:
+	for ch: String in zone_defs:
+		if zone_defs[ch][0] == zone_name:
+			return true
+	return false
 
 
 ## Bölge hücrelerinin kapsadığı dikdörtgen (karo); hücreler (araya düşen işaretlerle) dikdörtgeni tam
@@ -240,22 +293,32 @@ static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:
 	_prune(walls, keep)
 
 
-## Bölgeler: `Zones/<ad>` Area2D (katman triggers, oyuncuları izler) + `Shape` dikdörtgeni.
+## Bölgeler: `Zones/<ad>` Area2D (katman triggers, oyuncuları izler) + dikdörtgen başına bir şekil (`Shape`,
+## `Shape2` …). Bölge kökü dikdörtgenlerin kapsayıcısının merkezinde (tek dikdörtgende şekil merkezde).
 static func _build_zones(zones: Node2D, defs: Array) -> void:
 	var keep: Dictionary = {}
 	for z: Dictionary in defs:
 		var zone_name: String = z["name"]
-		var cells: Rect2i = z["rect"]
+		var rects: Array = z["rects"]
+		var bounds: Rect2i = rects[0]
+		for cells: Rect2i in rects:
+			bounds = bounds.merge(cells)
 		var area: Area2D = _ensure(zones, zone_name, "Area2D") as Area2D
 		zones.move_child(area, -1)
-		area.position = (Vector2(cells.position) + Vector2(cells.size) / 2.0) * LevelLayout.TILE
+		area.position = (Vector2(bounds.position) + Vector2(bounds.size) / 2.0) * LevelLayout.TILE
 		area.collision_layer = TRIGGERS_LAYER
 		area.collision_mask = PLAYERS_LAYER
 		area.monitorable = false
-		var cs: CollisionShape2D = _ensure(area, "Shape", "CollisionShape2D") as CollisionShape2D
-		cs.position = Vector2.ZERO
-		cs.shape = _rect_shape(Vector2(cells.size) * LevelLayout.TILE, "Zone_" + zone_name)
-		_prune(area, {cs: true})
+		var shapes: Dictionary = {}
+		for i: int in rects.size():
+			var cells: Rect2i = rects[i]
+			var suffix: String = "" if i == 0 else str(i + 1)
+			var cs: CollisionShape2D = _ensure(area, "Shape" + suffix, "CollisionShape2D") as CollisionShape2D
+			area.move_child(cs, -1)
+			cs.position = (Vector2(cells.position) + Vector2(cells.size) / 2.0) * LevelLayout.TILE - area.position
+			cs.shape = _rect_shape(Vector2(cells.size) * LevelLayout.TILE, "Zone_" + zone_name + ("" if i == 0 else "_" + suffix))
+			shapes[cs] = true
+		_prune(area, shapes)
 		keep[area] = true
 	_prune(zones, keep)
 
