@@ -3,6 +3,8 @@
 [ext_resource type="Script" uid="uid://dxw7mqg811r3j" path="res://ui/hud.gd" id="1_hud"]
 [ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
 [ext_resource type="PackedScene" uid="uid://b4gyl0km8eqxx" path="res://ui/pause_menu.tscn" id="3_pause"]
+[ext_resource type="PackedScene" uid="uid://c55f072l2hflo" path="res://ui/alert_ladder.tscn" id="4_ladder"]
+[ext_resource type="PackedScene" uid="uid://dfscna6q7c7gy" path="res://ui/heist_end.tscn" id="5_end"]
 
 [node name="Hud" type="CanvasLayer"]
 layer = 10
@@ -38,13 +40,12 @@ layout_mode = 2
 mouse_filter = 2
 
 [node name="CashPanel" type="PanelContainer" parent="Root/Frame/Layout/Top"]
-custom_minimum_size = Vector2(170, 0)
 layout_mode = 2
 size_flags_vertical = 0
 mouse_filter = 2
-theme_type_variation = &"HudPanel"
+theme_type_variation = &"HudChip"
 
-[node name="Box" type="VBoxContainer" parent="Root/Frame/Layout/Top/CashPanel"]
+[node name="Box" type="HBoxContainer" parent="Root/Frame/Layout/Top/CashPanel"]
 layout_mode = 2
 mouse_filter = 2
 
@@ -52,12 +53,14 @@ mouse_filter = 2
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "HUD_CASH_LABEL"
+vertical_alignment = 1
 
 [node name="CashValue" type="Label" parent="Root/Frame/Layout/Top/CashPanel/Box"]
 unique_name_in_owner = true
 auto_translate_mode = 2
 layout_mode = 2
 theme_type_variation = &"CashLabel"
+vertical_alignment = 1
 
 [node name="TopSpacer" type="Control" parent="Root/Frame/Layout/Top"]
 layout_mode = 2
@@ -65,42 +68,32 @@ size_flags_horizontal = 3
 mouse_filter = 2
 
 [node name="Right" type="VBoxContainer" parent="Root/Frame/Layout/Top"]
-custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
 size_flags_vertical = 0
 mouse_filter = 2
 
-[node name="PingPanel" type="PanelContainer" parent="Root/Frame/Layout/Top/Right"]
+[node name="PlayersPanel" type="PanelContainer" parent="Root/Frame/Layout/Top/Right"]
 layout_mode = 2
 size_flags_horizontal = 8
 mouse_filter = 2
-theme_type_variation = &"HudPanel"
-
-[node name="PingLabel" type="Label" parent="Root/Frame/Layout/Top/Right/PingPanel"]
-unique_name_in_owner = true
-auto_translate_mode = 2
-layout_mode = 2
-theme_type_variation = &"MutedLabel"
-horizontal_alignment = 2
-
-[node name="PlayersPanel" type="PanelContainer" parent="Root/Frame/Layout/Top/Right"]
-layout_mode = 2
-mouse_filter = 2
-theme_type_variation = &"HudPanel"
+theme_type_variation = &"HudChip"
 
 [node name="Box" type="VBoxContainer" parent="Root/Frame/Layout/Top/Right/PlayersPanel"]
 layout_mode = 2
 mouse_filter = 2
+theme_override_constants/separation = 2
 
-[node name="PlayersCaption" type="Label" parent="Root/Frame/Layout/Top/Right/PlayersPanel/Box"]
+[node name="PingLabel" type="Label" parent="Root/Frame/Layout/Top/Right/PlayersPanel/Box"]
+unique_name_in_owner = true
+auto_translate_mode = 2
 layout_mode = 2
-theme_type_variation = &"CaptionLabel"
-text = "HUD_PLAYERS_LABEL"
+theme_type_variation = &"MutedLabel"
 
 [node name="PlayerList" type="VBoxContainer" parent="Root/Frame/Layout/Top/Right/PlayersPanel/Box"]
 unique_name_in_owner = true
 layout_mode = 2
 mouse_filter = 2
+theme_override_constants/separation = 2
 
 [node name="Spacer" type="Control" parent="Root/Frame/Layout"]
 layout_mode = 2
@@ -154,7 +147,17 @@ custom_minimum_size = Vector2(0, 40)
 layout_mode = 2
 mouse_filter = 2
 
-[node name="Toasts" type="VBoxContainer" parent="Root/Frame"]
+[node name="TopCenter" type="VBoxContainer" parent="Root/Frame"]
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 0
+mouse_filter = 2
+
+[node name="AlertLadder" parent="Root/Frame/TopCenter" instance=ExtResource("4_ladder")]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="Toasts" type="VBoxContainer" parent="Root/Frame/TopCenter"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
@@ -162,6 +165,11 @@ size_flags_vertical = 0
 mouse_filter = 2
 
 [node name="PauseMenu" parent="Root" instance=ExtResource("3_pause")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+
+[node name="HeistEnd" parent="Root" instance=ExtResource("5_end")]
 unique_name_in_owner = true
 visible = false
 layout_mode = 1

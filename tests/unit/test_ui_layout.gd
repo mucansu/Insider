@@ -11,6 +11,11 @@ const LONG_NAME := "WWWWWWWWWWWWWWWW"
 ## Bir piksel altı yuvarlama payı.
 const EPSILON := 0.5
 const SETTLE_FRAMES := 3
+## İş sonu ekranı Steam Deck çözünürlüğünde de denetlenir (steam-yayin.md: 1280×800, yazı ≥ 12 px).
+const END_SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1280, 800), Vector2i(1920, 1080)]
+const DECK_MIN_FONT := 12
+## Üst HUD (nakit, ekip, uyarı merdiveni) en uzun içerikle ekranın en fazla bu oranını örter (US-013).
+const MAX_TOP_COVERAGE := 0.075
 
 
 func test_main_menu_fits() -> void:
@@ -60,6 +65,8 @@ func test_hud_fits() -> void:
 		game.team_cash_changed.emit(1999999999)
 		net.ping_ms = 9999
 		hud.refresh_ping()
+		game.timer_left = 5999.0
+		game.alert_level_changed.emit(3)
 		for i: int in Hud.MAX_TOASTS:
 			game.session_event.emit(&"police_called", {})
 		game.session_event.emit(&"an_unusually_long_unknown_event_kind_for_layout_checks", {})
@@ -72,10 +79,16 @@ func test_hud_fits() -> void:
 		player.emit_signal(&"interaction_started", "MENU_ERROR_CONNECTION_FAILED", 3.0)
 		await _settle()
 		_check_fits(hud.get_node("%Root"), size, label + " HUD")
+		_check_fonts(hud.get_node("%Root"), label + " HUD")
 		var top: String = "Root/Frame/Layout/Top/"
 		_check_disjoint([hud.get_node(top + "CashPanel"), hud.get_node("%Toasts"), hud.get_node(top + "Right"),
-			hud.get_node("%Interaction")], label + " HUD blokları")
-		for block: String in ["%Toasts", "%Interaction"]:
+			hud.get_node("%Interaction"), hud.get_node("%AlertLadder")], label + " HUD blokları")
+		# US-013: köşe ögeleri ve merdiven haritayı az örter (en uzun içerikle bile).
+		var covered: float = 0.0
+		for block: Node in [hud.get_node(top + "CashPanel"), hud.get_node(top + "Right/PlayersPanel"), hud.get_node("%AlertLadder")]:
+			covered += (block as Control).get_global_rect().get_area()
+		is_true(covered <= MAX_TOP_COVERAGE * size.x * size.y, "%s: üst HUD ekranın %%%.1f'ini örtüyor" % [label, 100.0 * covered / (size.x * size.y)])
+		for block: String in ["%Toasts", "%Interaction", "%AlertLadder"]:
 			var first: Control = hud.get_node(block) as Control
 			if block == "%Toasts":
 				first = first.get_child(0) as Control
@@ -86,16 +99,57 @@ func test_hud_fits() -> void:
 	)
 
 
+func test_heist_end_fits() -> void:
+	# En uzun içerik: 4 oyuncu azami adla, en büyük tutarlar, en uzun açıklamalı 3 not; kazanma ve kayıp.
+	var longest_notes: Array = [{"kind": &"pulled_free", "peer": 1}, {"kind": &"window_star", "peer": 2},
+		{"kind": &"owner_favourite", "peer": 4}]
+	await _each_variant(func(size: Vector2i, label: String) -> void:
+		var ctx: Dictionary = await _open_hud(size)
+		var hud: Hud = ctx["hud"]
+		var game: Fakes.FakeGame = ctx["game"]
+		(ctx["net"] as Fakes.FakeNet).my_peer_id = 4
+		var players: Dictionary = {}
+		for i: int in 4:
+			players[str(i + 1)] = {"name": "W".repeat(MainMenu.MAX_NAME_LENGTH), "slot": i, "escaped": i < 2,
+				"caught": i >= 2, "loot": 1999999999}
+		for outcome: StringName in [&"shouted", &"caught_all"]:
+			game.heist_finished.emit({"outcome": outcome, "loot_total": 1999999999, "payout_ratio": 0.85,
+				"payout": 1999999999, "duration_s": 5999.0, "players": players, "notes": longest_notes})
+			await _settle()
+			var screen: Control = hud.get_node("%HeistEnd") as Control
+			is_true(screen.visible, label)
+			var what: String = "%s iş sonu %s" % [label, outcome]
+			_check_fits(screen, size, what)
+			var box: String = "Center/Card/Box/"
+			_check_disjoint([screen.get_node(box + "Header"), screen.get_node(box + "Body"), screen.get_node("%NotesBox"),
+				screen.get_node(box + "Buttons")], what)
+			_check_fonts(screen, what)
+	, END_SIZES)
+
+
 # --- yardımcılar ---
 
+## Görünen her yazı Steam Deck'te okunur (≥ 12 px); ikincil başlık (CaptionLabel) dışındakiler ≥ gövde (18 px).
+func _check_fonts(root: Node, label: String) -> void:
+	var problems: PackedStringArray = []
+	for c: Control in _visible_controls(root):
+		if not (c is Label or c is Button):
+			continue
+		var font_size: int = c.get_theme_font_size(&"font_size")
+		var floor_size: int = DECK_MIN_FONT if c.theme_type_variation == &"CaptionLabel" else ThemeTokens.FONT_SIZE_BODY
+		if font_size < floor_size:
+			problems.append("%s %d px" % [root.get_path_to(c), font_size])
+	is_true(problems.is_empty(), "%s: küçük yazı: %s" % [label, "; ".join(problems.slice(0, 4))])
+
+
 ## Her ton × dil × boyut için `body(size, label)` çalıştırır; sonra ton ve dili geri alır.
-func _each_variant(body: Callable) -> void:
+func _each_variant(body: Callable, sizes: Array[Vector2i] = SIZES) -> void:
 	var previous_locale: String = TranslationServer.get_locale()
 	for tone: Tone in ThemeTokens.available_tones():
 		ThemeTokens.set_tone(tone)
 		for locale: String in LOCALES:
 			TranslationServer.set_locale(locale)
-			for size: Vector2i in SIZES:
+			for size: Vector2i in sizes:
 				await body.call(size, "%s/%s/%dx%d" % [tone.id, locale, size.x, size.y])
 	ThemeTokens.set_tone(null)
 	TranslationServer.set_locale(previous_locale)

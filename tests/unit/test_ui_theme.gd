@@ -69,6 +69,33 @@ func test_palette_contrast() -> void:
 	_contrast_at_least(ThemeTokens.BG, ThemeTokens.ACCENT, 4.5, "basılı birincil buton yazısı")
 
 
+func test_hud_chip_readable_over_world() -> void:
+	# US-013: yarı saydam HUD paneli (HudChip) haritanın üstünde; en kötü dünya zemini panelin alfasıyla
+	# harmanlanmış arka plana karşı yazı FG/MUTED/CASH ≥ 4,5, ALERT (yazı ve merdiven kutusu) ≥ 3.
+	for tone: Tone in ThemeTokens.available_tones():
+		var t: Theme = ThemeBuilder.build(tone)
+		var chip: Color = (t.get_stylebox(&"panel", &"HudChip") as StyleBoxFlat).bg_color
+		var world: Dictionary = {"bg": tone.bg_color, "wall_color": tone.wall_color}
+		for p: Dictionary in (Tone as Script).get_script_property_list():
+			var prop: String = p["name"]
+			if prop.begins_with("level_") and prop.ends_with("_color"):
+				world[prop] = tone.get(prop)
+		is_true(world.size() >= 12, "dünya renkleri bulunamadı")
+		var texts: Dictionary = {
+			"FG": [t.get_color(&"font_color", &"Label"), 4.5],
+			"MUTED": [t.get_color(&"font_color", &"MutedLabel"), 4.5],
+			"CAPTION": [t.get_color(&"font_color", &"CaptionLabel"), 4.5],
+			"CASH": [t.get_color(&"font_color", &"CashLabel"), 4.5],
+			"ALERT": [t.get_color(&"font_color", &"AlertLabel"), 3.0],
+		}
+		for w: String in world:
+			var under: Color = world[w]
+			var behind: Color = under.lerp(Color(chip, 1.0), chip.a)
+			for key: String in texts:
+				var spec: Array = texts[key]
+				_contrast_at_least(spec[0], behind, spec[1], "%s: %s / HudChip üstü %s" % [tone.id, key, w])
+
+
 func test_focus_is_always_visible() -> void:
 	var t: Theme = ThemeTokens.theme()
 	for type: StringName in [&"Button", &"LineEdit"]:
@@ -98,7 +125,7 @@ func test_scenes_use_tokens_only() -> void:
 
 
 func test_screens_reference_noir_theme() -> void:
-	for scene: String in ["res://ui/main_menu.tscn", "res://ui/pause_menu.tscn", "res://ui/hud.tscn"]:
+	for scene: String in ["res://ui/main_menu.tscn", "res://ui/pause_menu.tscn", "res://ui/hud.tscn", "res://ui/heist_end.tscn"]:
 		has(FileAccess.get_file_as_string(scene), "path=\"res://ui/theme/noir.tres\"", "%s editörde noir temasıyla açılır" % scene)
 
 

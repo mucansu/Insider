@@ -2,6 +2,7 @@ class_name Hud
 extends CanvasLayer
 ## Oyun içi HUD (US-003 AC2, AC3): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi,
 ## etkileşim istemi ("[E] eylem", tuş adı etkin cihaza göre) ve ilerlemesi, duraklat menüsü. Game, seviye yüklenince Game.HUD_SCENE olarak ekler (S3).
+## US-013: uyarı merdiveni (ui/alert_ladder.gd) ve iş sonu ekranı (ui/heist_end.gd), S3 ekinden.
 ## Yalnız S1/S3 sinyal ve fonksiyonlarını, yerel oyuncunun S7 sinyallerini okur. Testler `net` ve
 ## `game`'i sahneye eklemeden önce sahte nesnelerle değiştirir; zaman `advance()` ile ilerletilebilir.
 
@@ -17,6 +18,8 @@ const INTERACTION_LINGER_SEC := 0.6
 const CASH_FLASH_SEC := 0.35
 const CASH_FLASH_ALPHA := 0.35
 const SWATCH_SIZE := Vector2(10, 10)
+## Ekip listesinde ad en fazla bu genişlikte (px); uzunu üç noktayla kısalır.
+const PLAYER_NAME_MAX_WIDTH := 170.0
 ## Oturum olayı anahtarı: EVENT_<KIND> (ör. &"police_called" → EVENT_POLICE_CALLED).
 const EVENT_KEY_PREFIX := "EVENT_"
 ## İstemdeki tuş adının alındığı eylem (S5).
@@ -53,6 +56,8 @@ var _leaving: bool = false
 @onready var _interaction_bar: ProgressBar = %InteractionBar
 @onready var _pause_menu: PauseMenu = %PauseMenu
 @onready var _ping_timer: Timer = %PingTimer
+@onready var _alert_ladder: AlertLadder = %AlertLadder
+@onready var _heist_end: HeistEnd = %HeistEnd
 
 
 func _ready() -> void:
@@ -73,6 +78,12 @@ func _ready() -> void:
 	refresh_players()
 	refresh_ping()
 	_bind_player(game.call(&"local_player") as Node)
+	_alert_ladder.warn = _warn_missing_text
+	_alert_ladder.bind(game)
+	_heist_end.warn = _warn_missing_text
+	_heist_end.opened.connect(_pause_menu.close)
+	_heist_end.menu_requested.connect(_on_leave_requested)
+	_heist_end.bind(game, net)
 
 
 func _process(delta: float) -> void:
@@ -86,6 +97,8 @@ func _input(event: InputEvent) -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if _heist_end.is_open():
+		return  # iş sonu ekranında duraklat menüsü açılmaz
 	var open: bool = is_pause_open()
 	if (open and UiInput.is_pause_close_event(event)) or (not open and UiInput.is_pause_open_event(event)):
 		toggle_pause()
@@ -96,6 +109,7 @@ func _unhandled_input(event: InputEvent) -> void:
 func advance(delta: float) -> void:
 	_tick_interaction(delta)
 	_tick_toasts(delta)
+	_alert_ladder.advance(delta)
 
 
 func toggle_pause() -> void:
@@ -119,6 +133,12 @@ static func group_digits(value: int, separator: String) -> String:
 		out = separator + digits.right(3) + out
 		digits = digits.left(digits.length() - 3)
 	return ("-" if value < 0 else "") + digits + out
+
+
+## Saniye → "d:ss" (yukarı yuvarlanır; sayaç 0'a inene dek "0:01" gösterir).
+static func format_clock(seconds: float) -> String:
+	var total: int = maxi(ceili(seconds), 0)
+	return "%d:%02d" % [floori(total / 60.0), total % 60]
 
 
 func format_cash(value: int) -> String:
@@ -186,6 +206,11 @@ func refresh_players() -> void:
 		row.add_child(swatch)
 		row.add_child(label)
 		_player_list.add_child(row)
+		# Ekip listesi dar kalır (haritayı az örter, US-013): uzun ad üç noktayla kısalır.
+		var width: float = label.get_theme_font(&"font").get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
+			label.get_theme_font_size(&"font_size")).x
+		label.custom_minimum_size.x = minf(ceilf(width), PLAYER_NAME_MAX_WIDTH)
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 
 # --- oturum olayları ---

@@ -14,8 +14,16 @@ const CONTRACT := {
 		"players_changed", "local_player_changed", "team_cash_changed", "level_loaded", "session_event",
 		"set_local_name", "players", "local_player", "start_level", "current_level", "add_team_cash",
 		"team_cash", "raise_session_event", "register_dump_provider", "collect_dump",
+		# S3 eki (Faz 2, KR-021; US-008/US-012/US-013).
+		"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result",
+		"request_restart", "venue_tier",
 	],
 }
+## Sözleşmede olup gerçek autoload'a henüz gelmemiş üyeler (S3 eki: US-008/US-012 yazacak). Gerçek betikte
+## yoksa varlık/imza denetimi atlanır; geldiğinde sahteyle aynı imzayı taşımalıdır (denetim kendiliğinden açılır).
+const PENDING := {"Game": [
+	"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result", "request_restart", "venue_tier",
+]}
 const REAL_SCRIPTS := {"Net": "res://autoload/net.gd", "Game": "res://autoload/game.gd"}
 ## ui/ betiklerinde bağımlılık değişkeni adı -> autoload.
 const UI_VARS := {"net": "Net", "game": "Game"}
@@ -75,7 +83,8 @@ class FakeNet extends Node:
 		return ping_ms
 
 
-class FakeGame extends Node:
+## S3 (Faz 1) yüzeyi; S3 ekini taşımayan Game (ör. bugünkü gerçek Game) için.
+class FakeGameBase extends Node:
 	signal players_changed()
 	signal local_player_changed(player: Node)
 	signal team_cash_changed(value: int)
@@ -102,6 +111,35 @@ class FakeGame extends Node:
 
 	func team_cash() -> int:
 		return cash
+
+
+## S3 + S3 eki (uyarı merdiveni, iş sonucu). Sinyal yayımı testte: `alert_level_changed.emit(2)` vb.
+class FakeGame extends FakeGameBase:
+	signal alert_level_changed(level: int)
+	signal heist_finished(result: Dictionary)
+
+	var alert: int = 0
+	## Polis sayacı (sn); yoksa -1.
+	var timer_left: float = -1.0
+	## heist_result() dönüşü; iş bitmediyse boş.
+	var result: Dictionary = {}
+	## venue_tier() dönüşü (mekân kademesi; bakkal 1).
+	var tier: int = 1
+
+	func alert_level() -> int:
+		return alert
+
+	func alert_timer_left() -> float:
+		return timer_left
+
+	func heist_result() -> Dictionary:
+		return result
+
+	func request_restart() -> void:
+		journal.add(["request_restart"])
+
+	func venue_tier() -> int:
+		return tier
 
 
 ## S7 oyuncu sinyalleri (HUD sözleşmesi); yalnız yerel oyuncuda yayılır.
@@ -131,6 +169,8 @@ func test_fakes_match_real_autoload_signatures() -> void:
 			var member: String = entry.get_slice("/", 0)
 			if not is_true(CONTRACT[autoload_name].has(member), "%s sahtesinde sözleşme dışı üye: %s" % [autoload_name, member]):
 				continue
+			if _pending(autoload_name, member) and not _has_member(real_surface, member):
+				continue  # sözleşmeli ama gerçek betiğe henüz gelmedi
 			is_true(real_surface.has(entry), "%s sahtesi gerçek imzadan farklı: %s" % [autoload_name, entry])
 
 
@@ -154,10 +194,21 @@ func test_ui_uses_only_contract_members() -> void:
 		var names: Dictionary = {}
 		for entry: String in _surface(real):
 			names[entry.get_slice("/", 0)] = true
-		is_true(names.has(member), "%s gerçek betikte yok" % key)
+		is_true(names.has(member) or _pending(autoload_name, member), "%s gerçek betikte yok" % key)
 
 
 # --- yardımcılar ---
+
+static func _pending(autoload_name: String, member: String) -> bool:
+	return (PENDING.get(autoload_name, []) as Array).has(member)
+
+
+static func _has_member(surface: Dictionary, member: String) -> bool:
+	for entry: String in surface:
+		if entry.get_slice("/", 0) == member:
+			return true
+	return false
+
 
 ## "ad/argüman sayısı" biçiminde sinyal ve genel metot listesi.
 static func _surface(script: Script) -> Dictionary:
