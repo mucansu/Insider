@@ -31,8 +31,8 @@ const OUTLINE_SHADER := preload("res://levels/fog/fog_outline.gdshader")
 ## Görüş hattı kuralı (mimari.md §4, S11; US-006 ile aynı): world (1) + vision_block (6) keser; `see_through`
 ## grubundaki gövdeler (camlar) geçirir. Ortak core yardımcısı US-011b'de gelecek; o zamana kadar tek kaynak
 ## `line_clear` (perception.gd `has_line_of_sight` ile birebir aynı kural).
-const SIGHT_MASK := (1 << 0) | (1 << 5)
-const SEE_THROUGH_GROUP := &"see_through"
+const SIGHT_MASK := PhysicsLayers.SIGHT_MASK
+const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
 const MAX_SEE_THROUGH := 8
 ## Kapı eşiği çizgisi: kesikli, ince (kroki işareti; kapının durumu bilinmez).
 const DOOR_GAP_WIDTH := 2.0
