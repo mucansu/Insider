@@ -264,7 +264,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-034 | Bakkal dekor + ışık v1 (16 öğe, vitrin/tezgâh/arka oda ışık havuzları; CanvasModulate + ADD) (mekan-estetigi K1 + docs/tasarim/arastirma/sanat-yonu.md #4) | 2 | seviye | P2 | M | US-033, IS-036 | Backlog (2b) | |
 | US-035 | Sahibin ajanda telegrafları (çay bardağı → arka oda, koli çıkartması → raf, zil → telefon) (mekan-estetigi K2) | 2 | oynanis + seviye | P2 | S | US-008 | Backlog (2b) | |
 | IS-036 | Stil kilidi: 6 onaylı AI asset + palet ≤ 24 + `tools/asset_post.sh` + assetler.md (sanat-yonu #1; kullanıcı onayı) | 2 | seviye + koordinatör | P2 | S | kullanıcı onayı | Backlog (2b) | |
-| US-036 | Bakkal zemin/duvar/cam seti v0 (AI, dikişsiz, --placeholder-art yolu korunur) (sanat-yonu #2) | 3 | seviye | P2 | M | IS-036 | Backlog | |
+| US-036 | Bakkal zemin/duvar/cam seti v0 (AI, dikişsiz, --placeholder-art yolu korunur; `Tiles` = TileMapLayer + build_levels `set_cell`, LevelLayout ızgara API'si kalır — S4 güncellenir) (sanat-yonu #2 + teknik/cizim-performans.md) | 3 | seviye | P2 | M | IS-036 | Backlog | |
 | IS-037 | Fizik katmanı ve grup sabitleri tek kaynak `core/physics_layers.gd` + test_smoke bit eşleşmesi (mimari tur #1) | 2 | cekirdek | P1 | XS | — | Sürüyor (2026-10-02; faz2-int) | |
 | IS-038 | §6 katman matrisi testi (yol + class_name; entities→ui, ui→entities, levels→entities) (mimari tur #4) | 2 | altyapi | P1 | S | — | Sürüyor (2026-10-02; faz2-int, IS-039 ile) | |
 | IS-039 | Sözleşme testi S3/S4 eklerini kapsar (Level marker_sequence/zone/navigation_region/door_link/map_rect/tier; Game S3 eki PENDING) (mimari tur #5) | 2 | altyapi | P1 | XS | — | Sürüyor (2026-10-02; faz2-int, IS-038 ile) | |
@@ -294,6 +294,9 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-064 | NPC karar mimarisi temizliği: HFSM-lite, zaman damgalı Fsm geçmişi, `SuspicionMeter.pulse` (ses → şüphe, günlüklü), NpcMover ulaşılamayan hedef `failed` + repath kaydırma, testlerde `map_force_update` yerine iterasyon bekleme (US-008'de yapılmayan kalanı; teknik/oyun-yz.md) | 2 | oynanis | P1 | S | US-008 | Backlog | |
 | IS-065 | AI hata ayıklama katmanı (F3 / `--debug-ai`: NPC durum, yol, koni, şüphe; ekran görüntüsüyle) | 2 | arayuz + oynanis | P2 | S | US-008 | Backlog | |
 | IS-066 | Görüş hattı tekilleştirme (Perception → ortak SightLine core yardımcısı; US-011b ile) + algı örnekleme 20 Hz tek sabit | 2 | oynanis | P3 | XS | US-011b | Backlog | |
+| IS-067 | Çizim ölçümü: `--perf` argümanı + döküm `"render"` (draw call, CPU/GPU ms `viewport_get_measured_render_time_*`, fps) + pencereli perf senaryosu; arkadaş makinesi dökümüyle karşılaştırma (teknik/cizim-performans.md P1) | 2 | altyapi + cekirdek | P1 | S | — | Backlog | |
+| IS-068 | Kukla CPU bütçesi: ekran dışı/görünmeyen kuklada rig + `queue_redraw` atlanır, uzak kukla 30 Hz (puppet.gd:106-110) | 2 | oynanis | P2 | S | US-014 | Backlog | |
+| IS-069 | Doku süzgeci ve import ön ayarı: `default_texture_filter = Linear Mipmap` + import mipmap (AI asset'ler için), `snap_2d_*` kapalı | 3 | altyapi | P2 | XS | IS-036 | Backlog | |
 | IS-040 | game.gd iç yardımcılara bölünür (seviye yükleme + el sıkışma, oyuncu listesi, iş durumu); dış yüzey aynı (mimari tur #3; karar: US-008/US-012 birleşince) | 2 | cekirdek | P2 | M | US-008, US-012 | Backlog | |
 | IS-018 | Faz 2 ara + kapanış tasarım değerlendirmesi (Fable) | 2 | tasarim | P1 | S | US-012 | Backlog | |
 | IS-021 | Senaryo bazlı tehdit modeli: GDD §9 kademe tablosu + bakkal yeniden tasarımı + Faz 2 kalem revizyonu (Fable) | 2 | tasarim | P1 | S | — | Bitti (GDD v0.3; koordinatör okuması) | |
