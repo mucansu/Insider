@@ -1,0 +1,12 @@
+[gd_scene format=3 uid="uid://cocb50xosg2kf"]
+
+[ext_resource type="Script" uid="uid://dcw1e7maf1n7d" path="res://entities/player/puppet/puppet.gd" id="1_1ybvv"]
+[ext_resource type="Resource" uid="uid://cyjy787dhqdcs" path="res://data/puppet_tuning.tres" id="2_0linb"]
+[ext_resource type="Script" uid="uid://b3amwjrhg8ppf" path="res://entities/player/puppet/puppet_markers.gd" id="3_e6w16"]
+
+[node name="Puppet" type="Node2D" unique_id=930039793]
+script = ExtResource("1_1ybvv")
+tuning = ExtResource("2_0linb")
+
+[node name="Markers" type="Node2D" parent="." unique_id=1972454294]
+script = ExtResource("3_e6w16")
