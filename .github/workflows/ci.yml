@@ -41,7 +41,7 @@ jobs:
       - name: İçe aktarma (hata/uyarı yok)
         run: bash tools/ci_local.sh import
 
-      - name: Birim testler
+      - name: Birim testler (çıkışta sızıntı yok)
         run: bash tools/ci_local.sh unit
 
       - name: Araç testleri (gecikme proxy'si, net_smoke süreç öldürme)
