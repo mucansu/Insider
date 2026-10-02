@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cb236ua5py3f" path="res://ui/pause_menu.gd" id="1_pause"]
 [ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/invite_panel.tscn" id="3_invite"]
 
 [node name="PauseMenu" type="Control"]
 layout_mode = 3
@@ -50,6 +51,11 @@ theme_type_variation = &"MutedLabel"
 text = "PAUSE_NOTE"
 horizontal_alignment = 1
 autowrap_mode = 3
+
+[node name="Invite" parent="Center/Card/Box" instance=ExtResource("3_invite")]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
 
 [node name="ResumeButton" type="Button" parent="Center/Card/Box"]
 unique_name_in_owner = true

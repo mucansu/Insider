@@ -111,8 +111,18 @@ class FakePlayer extends Node:
 	signal interaction_finished(success: bool)
 
 
+## Ekran testlerinin ayar dosyası (US-026): oyuncunun gerçek user://connect.cfg'si okunmaz/yazılmaz.
+const TEST_SETTINGS_PATH := "user://test_ui_connect.cfg"
+
+
 ## Net ve Game sahtelerini ortak günlükle kurar ve test sonunda serbest bırakılmak üzere kaydeder.
-static func make_pair(test: TestCase) -> Array:
+## Ayar dosyası yolunu test dosyasına çevirir; `fresh_settings` ise dosyayı siler (ekranlar hatırlanan
+## değerlerle açılmaz), değilse testin önceden yazdığı değerler kalır.
+static func make_pair(test: TestCase, fresh_settings: bool = true) -> Array:
+	if fresh_settings:
+		reset_connect_settings()
+	else:
+		ConnectInfo.settings_path = TEST_SETTINGS_PATH
 	var journal := CallLog.new()
 	var net: FakeNet = test.autofree(FakeNet.new()) as FakeNet
 	var game: FakeGame = test.autofree(FakeGame.new()) as FakeGame
@@ -179,3 +189,11 @@ static func _files_under(dir: String, ext: String) -> PackedStringArray:
 	for d: String in DirAccess.get_directories_at(dir):
 		out.append_array(_files_under(dir.path_join(d), ext))
 	return out
+
+
+## ConnectInfo'yu test ayar dosyasına çevirir ve dosyayı siler; menüden host portunu sıfırlar.
+static func reset_connect_settings() -> void:
+	ConnectInfo.settings_path = TEST_SETTINGS_PATH
+	ConnectInfo.hosted_port = 0
+	if FileAccess.file_exists(TEST_SETTINGS_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(TEST_SETTINGS_PATH))

@@ -12,8 +12,9 @@ var viewport: SubViewport
 var menu: MainMenu
 
 
-func _open() -> void:
-	var pair: Array = Fakes.make_pair(self)
+## `fresh_settings` false ise ayar dosyası silinmez (testin önceden yazdığı değerlerle açılır).
+func _open(fresh_settings: bool = true) -> void:
+	var pair: Array = Fakes.make_pair(self, fresh_settings)
 	net = pair[0]
 	game = pair[1]
 	journal = pair[2]
@@ -268,15 +269,33 @@ func test_defaults_and_initial_focus() -> void:
 	eq((menu.get_node("Center/Column/Header/Title") as Label).language, "en", "marka adı Türkçe büyük harf kuralına (İ) girmez")
 
 
-func test_parse_helpers() -> void:
-	eq(MainMenu.parse_port("7777"), 7777)
-	eq(MainMenu.parse_port(" 65535 "), 65535)
-	eq(MainMenu.parse_port("1023"), -1)
-	eq(MainMenu.parse_port("7a"), -1)
-	eq(MainMenu.parse_address("10.0.0.2", 7777), {"address": "10.0.0.2", "port": 7777})
-	eq(MainMenu.parse_address(" host:8000 ", 7777), {"address": "host", "port": 8000})
-	eq(MainMenu.parse_address("host:x", 7777), {"address": "host", "port": -1})
-	eq(MainMenu.parse_address("::1", 7777), {"address": "::1", "port": 7777}, "IPv6 bölünmez")
+func test_join_address_errors_focus_visible_field() -> void:
+	# US-026 t2: tek ayrıştırıcı (ConnectInfo.parse_host_port); hata odağı hep görünen bir alanda.
+	await _open()
+	_type("NameEdit", "Bo")
+	for bad_port: String in ["100.64.0.2:", "1.2.3.4:65536", "1.2.3.4:80", "kasa-pc:x"]:
+		_type("JoinAddressEdit", bad_port)
+		_press("JoinButton")
+		eq(_error_text(), tr("MENU_ERROR_PORT_INVALID"), "adresteki port: '%s'" % bad_port)
+		eq(_focused(), "JoinAddressEdit", "Gelişmiş kapalı: odak adres alanında ('%s')" % bad_port)
+	for bad_address: String in ["kasa pc", "256.1.1.1", "::1", "1.2.3"]:
+		_type("JoinAddressEdit", bad_address)
+		_press("JoinButton")
+		eq(_error_text(), tr("MENU_ERROR_ADDRESS_INVALID"), "adres: '%s'" % bad_address)
+		eq(_focused(), "JoinAddressEdit")
+	# Gelişmiş'teki port hatalı: açıkken odak portta, kapalıyken adres alanında.
+	_type("JoinAddressEdit", "10.0.0.9")
+	_type("JoinPortEdit", "80")
+	_press("JoinButton")
+	eq(_error_text(), tr("MENU_ERROR_PORT_INVALID"))
+	eq(_focused(), "JoinAddressEdit", "Gelişmiş kapalı")
+	(_node("AdvancedButton") as Button).button_pressed = true
+	_press("JoinButton")
+	eq(_focused(), "JoinPortEdit", "Gelişmiş açık")
+	_type("JoinAddressEdit", "10.0.0.9:7781")
+	_press("JoinButton")
+	eq(journal.entries[1], ["join", "10.0.0.9", 7781], "adresteki port Gelişmiş'tekinden önce")
+	eq(journal.names(), PackedStringArray(["set_local_name", "join"]), "hatalı denemelerde Net çağrılmaz")
 
 
 # --- AC6: odak sırası ---
@@ -285,25 +304,26 @@ func test_keyboard_focus_order() -> void:
 	await _open()
 	_node("NameEdit").grab_focus()
 	var down: Array[String] = []
-	for i: int in 4:
+	for i: int in 5:
 		_push(_key(KEY_DOWN))
 		down.append(_focused())
-	eq(down, ["HostPortEdit", "HostButton", "QuitButton", "NameEdit"] as Array[String], "aşağı ok (sol sütun, sarar)")
+	eq(down, ["CopyButton", "HostPortEdit", "HostButton", "QuitButton", "NameEdit"] as Array[String], "aşağı ok (sol sütun, sarar)")
 	# Yazı alanında sol/sağ ok imleci taşır; alanlar arası yatay geçiş butonlarda, Tab'la ve gamepad'le.
 	_node("HostButton").grab_focus()
 	_push(_key(KEY_RIGHT))
 	eq(_focused(), "JoinButton", "sağ ok: Host → Katıl")
 	_push(_key(KEY_UP))
-	eq(_focused(), "JoinPortEdit")
+	eq(_focused(), "AdvancedButton", "port gizliyken Katıl'ın üstü Gelişmiş")
 	_push(_key(KEY_UP))
 	eq(_focused(), "JoinAddressEdit")
 	_push(_key(KEY_UP))
 	eq(_focused(), "NameEdit")
 	var tabs: Array[String] = []
-	for i: int in 7:
+	for i: int in 9:
 		_push(_key(KEY_TAB))
 		tabs.append(_focused())
-	eq(tabs, ["HostPortEdit", "HostButton", "JoinAddressEdit", "JoinPortEdit", "JoinButton", "QuitButton", "NameEdit"] as Array[String], "Tab halkası")
+	eq(tabs, ["CopyButton", "HostPortEdit", "HostButton", "JoinAddressEdit", "PasteButton", "AdvancedButton", "JoinButton",
+		"QuitButton", "NameEdit"] as Array[String], "Tab halkası")
 	_push(_key(KEY_TAB, true, true))
 	eq(_focused(), "QuitButton", "Shift+Tab geri")
 
@@ -313,9 +333,15 @@ func test_gamepad_navigation_and_accept() -> void:
 	_type("NameEdit", "Pad")
 	_node("NameEdit").grab_focus()
 	_push(_joy(JOY_BUTTON_DPAD_DOWN))
-	eq(_focused(), "HostPortEdit")
+	eq(_focused(), "CopyButton")
 	_push(_joy(JOY_BUTTON_DPAD_RIGHT))
 	eq(_focused(), "JoinAddressEdit")
+	_push(_joy(JOY_BUTTON_DPAD_LEFT))
+	eq(_focused(), "CopyButton")
+	_push(_joy(JOY_BUTTON_DPAD_DOWN))
+	eq(_focused(), "HostPortEdit")
+	_push(_joy(JOY_BUTTON_DPAD_RIGHT))
+	eq(_focused(), "AdvancedButton", "host portu satırı ↔ Gelişmiş")
 	_push(_joy(JOY_BUTTON_DPAD_LEFT))
 	eq(_focused(), "HostPortEdit")
 	_push(_joy(JOY_BUTTON_DPAD_DOWN))
@@ -339,3 +365,144 @@ func test_gamepad_cancel_while_connecting() -> void:
 	_push(_joy(JOY_BUTTON_A, true))
 	_push(_joy(JOY_BUTTON_A, false))
 	eq(menu.state, MainMenu.State.IDLE)
+
+
+# --- US-026: bağlantı kolaylığı ---
+
+func test_remembers_name_and_last_address() -> void:
+	Fakes.reset_connect_settings()
+	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: "Bo", ConnectInfo.KEY_ADDRESS: "100.64.0.2:7780"})
+	await _open(false)
+	eq((_node("NameEdit") as LineEdit).text, "Bo")
+	eq((_node("JoinAddressEdit") as LineEdit).text, "100.64.0.2:7780")
+	eq(_focused(), "JoinButton", "ikinci açılışta tek tuşla katılım")
+	_push(_joy(JOY_BUTTON_A, true))
+	_push(_joy(JOY_BUTTON_A, false))
+	eq(journal.entries, [["set_local_name", "Bo"], ["join", "100.64.0.2", 7780]])
+
+
+func test_only_name_remembered_focuses_host() -> void:
+	Fakes.reset_connect_settings()
+	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: "Bo"})
+	await _open(false)
+	eq((_node("JoinAddressEdit") as LineEdit).text, "")
+	eq(_focused(), "HostButton")
+
+
+func test_corrupt_settings_open_with_defaults() -> void:
+	Fakes.reset_connect_settings()
+	var f: FileAccess = FileAccess.open(ConnectInfo.settings_path, FileAccess.WRITE)
+	f.store_string("[connect\nname = = \"yarım\n")
+	f.close()
+	await _open(false)
+	eq((_node("NameEdit") as LineEdit).text, "")
+	eq((_node("JoinAddressEdit") as LineEdit).text, "")
+	eq(_focused(), "NameEdit", "bozuk dosya: ilk açılış gibi")
+	eq(_error_text(), "", "oyuncuya hata gösterilmez")
+
+
+func test_join_saves_name_and_address() -> void:
+	await _open()
+	_type("NameEdit", " Bo ")
+	_type("JoinAddressEdit", "100.64.0.9")
+	_type("JoinPortEdit", "7780")
+	_press("JoinButton")
+	eq(journal.entries[1], ["join", "100.64.0.9", 7780])
+	eq(ConnectInfo.load_settings(), {ConnectInfo.KEY_NAME: "Bo", ConnectInfo.KEY_ADDRESS: "100.64.0.9:7780"},
+		"varsayılan dışı port adrese yazılır")
+	_press("CancelButton")
+	_type("JoinAddressEdit", "kasa-pc:7777")
+	_type("JoinPortEdit", "7777")
+	_press("JoinButton")
+	eq(ConnectInfo.load_settings()[ConnectInfo.KEY_ADDRESS], "kasa-pc", "varsayılan port yazılmaz")
+
+
+func test_failed_join_start_does_not_save_address() -> void:
+	Fakes.reset_connect_settings()
+	ConnectInfo.save_settings({ConnectInfo.KEY_ADDRESS: "100.64.0.2"})
+	await _open(false)
+	net.join_result = ERR_CANT_RESOLVE
+	_type("NameEdit", "Bo")
+	_type("JoinAddressEdit", "yok.example")
+	_press("JoinButton")
+	eq(ConnectInfo.load_settings()[ConnectInfo.KEY_ADDRESS], "100.64.0.2")
+
+
+func test_host_saves_name_keeps_address_and_port() -> void:
+	Fakes.reset_connect_settings()
+	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: "Eski", ConnectInfo.KEY_ADDRESS: "100.64.0.2"})
+	await _open(false)
+	_type("NameEdit", "Ayşe")
+	_type("HostPortEdit", "7790")
+	_press("HostButton")
+	eq(ConnectInfo.load_settings(), {ConnectInfo.KEY_NAME: "Ayşe", ConnectInfo.KEY_ADDRESS: "100.64.0.2"})
+	eq(ConnectInfo.hosted_port, 7790, "duraklat menüsündeki davet bu portu gösterir")
+
+
+func test_paste_button_fills_address() -> void:
+	await _open()
+	var clip: Array[String] = [" 100.64.0.2:7777 \n"]
+	menu.clipboard_getter = func() -> String: return clip[0]
+	_press("PasteButton")
+	eq((_node("JoinAddressEdit") as LineEdit).text, "100.64.0.2", "varsayılan port yazılmaz")
+	eq(_focused(), "JoinButton", "yapıştırınca odak Katıl'da")
+	clip[0] = "Adres: 100.70.1.2:9000 — gelin"
+	_press("PasteButton")
+	eq((_node("JoinAddressEdit") as LineEdit).text, "100.70.1.2:9000", "sohbet metninden IPv4:port")
+	clip[0] = "kasa-pc.tail1234.ts.net"
+	_press("PasteButton")
+	eq((_node("JoinAddressEdit") as LineEdit).text, "kasa-pc.tail1234.ts.net")
+	for bad: String in ["", "merhaba dünya", "100.64.0.2:80", "::1"]:
+		clip[0] = bad
+		_press("PasteButton")
+		eq(_error_text(), tr("MENU_ERROR_PASTE_INVALID"), "geçersiz pano: '%s'" % bad)
+		eq((_node("JoinAddressEdit") as LineEdit).text, "kasa-pc.tail1234.ts.net", "alan değişmez")
+		eq(_focused(), "PasteButton")
+	clip[0] = "10.0.0.9"
+	_press("PasteButton")
+	eq(_error_text(), "", "geçerli yapıştırma hatayı kaldırır")
+	eq(journal.entries, [], "yapıştırma bağlanmaz")
+
+
+func test_advanced_reveals_port_and_address_enter_joins() -> void:
+	await _open()
+	is_false(_node("JoinPortEdit").is_visible_in_tree(), "port varsayılan gizli")
+	_type("NameEdit", "Bo")
+	_type("JoinAddressEdit", "10.0.0.9")
+	(_node("JoinAddressEdit") as LineEdit).text_submitted.emit("10.0.0.9")
+	eq(journal.entries, [["set_local_name", "Bo"], ["join", "10.0.0.9", MainMenu.DEFAULT_PORT]], "port gizliyken Enter katılır")
+	_press("CancelButton")
+	(_node("AdvancedButton") as Button).button_pressed = true
+	is_true(_node("JoinPortEdit").is_visible_in_tree(), "Gelişmiş portu gösterir")
+	_node("AdvancedButton").grab_focus()
+	_push(_joy(JOY_BUTTON_DPAD_DOWN))
+	eq(_focused(), "JoinPortEdit", "gamepad ile porta iner")
+	_push(_joy(JOY_BUTTON_DPAD_DOWN))
+	eq(_focused(), "JoinButton")
+	_node("AdvancedButton").grab_focus()
+	_push(_key(KEY_TAB))
+	eq(_focused(), "JoinPortEdit", "Tab halkasında port")
+	(_node("JoinAddressEdit") as LineEdit).text_submitted.emit("10.0.0.9")
+	eq(_focused(), "JoinPortEdit", "Gelişmiş açıkken Enter porta geçer")
+	(_node("AdvancedButton") as Button).button_pressed = false
+	is_false(_node("JoinPortEdit").is_visible_in_tree())
+	_node("AdvancedButton").grab_focus()
+	_push(_key(KEY_TAB))
+	eq(_focused(), "JoinButton", "kapalıyken port atlanır")
+
+
+func test_host_card_invite_follows_port_and_copies() -> void:
+	await _open()
+	var invite: InvitePanel = menu.get_node("%HostInvite") as InvitePanel
+	var copied: Array[String] = []
+	invite.addresses_provider = func() -> PackedStringArray: return PackedStringArray(["192.168.1.5", "100.101.2.3"])
+	invite.clipboard_setter = func(text: String) -> void: copied.append(text)
+	invite.refresh()
+	eq(invite.invite_text(), "100.101.2.3:7777", "Tailscale önce")
+	is_false(invite.get_node("%AddressButton").visible, "ana menüde liste yok (yer)")
+	(_node("HostPortEdit") as LineEdit).text_changed.emit("7790")
+	eq((invite.get_node("%AddressLabel") as Label).text, "100.101.2.3:7790")
+	(invite.get_node("%CopyButton") as Button).pressed.emit()
+	eq(copied, ["100.101.2.3:7790"] as Array[String])
+	(_node("HostPortEdit") as LineEdit).text_changed.emit("80")
+	eq(invite.invite_text(), "100.101.2.3:7777", "geçersiz portta varsayılan")

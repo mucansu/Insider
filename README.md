@@ -50,13 +50,17 @@ yönlendirme gerekmesin diye herkes aynı [Tailscale](https://tailscale.com/down
 
 1. **Herkes** Tailscale'i kurup oturum açar. Host arkadaşlarını kendi tailnet'ine davet eder (yönetim panelinde
    **Users → Invite users**) ya da yalnız kendi makinesini paylaşır (**Machines → … → Share**).
-2. **Host** kendi adresini tepsi simgesinden (makine adı, `100.x.y.z`) ya da `tailscale ip -4` ile öğrenir ve
-   arkadaşlarına gönderir; oyunu açar, adını yazar, **Host ol** (port 7777).
-3. **Arkadaşlar** oyunu açar, **Katıl** bölümünde adrese bu adresi, porta `7777` yazar. MagicDNS açıksa **aynı
-   tailnet**'te makine adı da olur; başka tailnet'ten **paylaşılan** makineye yalnız tam ad
-   (`makine.tailnet-adı.ts.net`; bunun için alıcının kendi tailnet'inde MagicDNS açık olmalı) ya da `100.x.y.z`
-   adresi çalışır.
-4. **Host, ilk kez (bir kerelik):** Windows'un "izin ver" penceresinde **Özel** ve **Ortak** ağların **ikisini
+2. **Host** oyunu açar, adını yazar; **Oturumu sen aç** kartında davet adresini görür (`100.x.y.z:7777`;
+   Tailscale önce gelir) ve **Kopyala** ile arkadaşlarına (Discord vb.) gönderir. Kart "Tailscale yok" diyorsa
+   Tailscale çalışmıyordur; adres yine de `tailscale ip -4` ile öğrenilebilir. Oyunda da Esc menüsünde aynı
+   adres ve **Kopyala** vardır.
+3. **Host** **Host ol**'a basar (port 7777). Güvenlik duvarı sorarsa 5. adıma bakın.
+4. **Arkadaşlar** oyunu açar, gelen adresi kopyalayıp **Katıl** kartında **Yapıştır**'a basar (adres alanına
+   `100.x.y.z` ya da `100.x.y.z:7777`, MagicDNS açıksa makine adı da yazılabilir), sonra **Katıl**. Port yalnız
+   **Gelişmiş** altındadır (varsayılan 7777); adres `adres:port` biçimindeyse oradaki port geçerlidir. Ad ve son
+   katılınan adres hatırlanır: sonraki açılışta tek tuşla katılınır. Başka tailnet'ten **paylaşılan** makineye
+   yalnız tam ad (`makine.tailnet-adı.ts.net`; alıcının tailnet'inde MagicDNS açık olmalı) ya da `100.x.y.z` çalışır.
+5. **Host, ilk kez (bir kerelik):** Windows'un "izin ver" penceresinde **Özel** ve **Ortak** ağların **ikisini
    de** işaretleyin; pencereyi **iptal etmeyin**. Tailscale kendi ağ bağdaştırıcısını her açılışta **Özel** (Private)
    profile alır ve `Tailscale-In` kuralıyla Tailscale adresinize gelen paketleri Özel profilde geçirir; yani
    Tailscale üzerinden host olmak için ayrı izin kuralı çoğu zaman gerekmez. Asıl risk, Insiders.exe için **Özel
@@ -88,9 +92,9 @@ yönlendirme gerekmesin diye herkes aynı [Tailscale](https://tailscale.com/down
    ```
 
    Konsol exe'siyle host olunuyorsa aynı adımları `Insiders.console.exe` için de yapın.
-5. **Bağlanmıyorsa:** `tailscale ping <host-adı-ya-da-100.x>` yanıt veriyor mu? `tailscale status` satırında
+6. **Bağlanmıyorsa:** `tailscale ping <host-adı-ya-da-100.x>` yanıt veriyor mu? `tailscale status` satırında
    `relay` görünüyorsa trafik Tailscale aktarıcısından geçiyor: oyun çalışır ama ping artar (`direct` için UDP'yi
-   engelleyen kurumsal/otel ağlarından kaçının). Host'ta 4. adımdaki iki kontrol komutu ne diyor (Tailscale
+   engelleyen kurumsal/otel ağlarından kaçının). Host'ta 5. adımdaki iki kontrol komutu ne diyor (Tailscale
    Private mı, Insiders için Block kuralı var mı)? Herkes aynı build'i mi
    kullanıyor (protokol sürümü farklıysa host bağlantıyı reddeder)? Oyundaki ping göstergesi sürekli yüksekse
    `tailscale status`'a bakın.
