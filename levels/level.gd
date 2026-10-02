@@ -10,6 +10,8 @@ const _PROPS := ^"Props"
 const _NPCS := ^"NPCs"
 const _SPAWN_POINTS := ^"SpawnPoints"
 const _MARKERS := ^"Markers"
+const _ZONES := ^"Zones"
+const _NAVIGATION := ^"Navigation"
 
 
 ## Oyuncu düğümlerinin kabı (Game üretir; düğüm adı peer kimliği).
@@ -45,11 +47,43 @@ func spawn_position(index: int) -> Vector2:
 
 ## `Markers` altındaki adlı yerleşim işareti (ör. &"Register", &"BackDoor"); yoksa null.
 func marker(marker_name: StringName) -> Node2D:
-	var text: String = String(marker_name)
-	var markers: Node = get_node_or_null(_MARKERS)
-	if markers == null or text.is_empty() or text.validate_node_name() != text:
-		return null  # yol parçası içeren ad ("../Players" gibi) işaret değildir
-	return markers.get_node_or_null(NodePath(text)) as Node2D
+	return _child_of(_MARKERS, marker_name) as Node2D
+
+
+## Sıralı işaret dizisi: `<prefix>1`, `<prefix>2` … ilk eksik numaraya kadar (ör. &"PolicePatrol" devriye
+## rotası noktaları, US-007). Yoksa boş dizi.
+func marker_sequence(prefix: StringName) -> Array[Node2D]:
+	var out: Array[Node2D] = []
+	var next: Node2D = marker(StringName("%s%d" % [prefix, 1]))
+	while next != null:
+		out.append(next)
+		next = marker(StringName("%s%d" % [prefix, out.size() + 1]))
+	return out
+
+
+## `Zones` altındaki adlı tetik bölgesi (ör. &"EscapeZone"; Area2D, katman triggers, oyuncuları izler); yoksa null.
+func zone(zone_name: StringName) -> Area2D:
+	return _child_of(_ZONES, zone_name) as Area2D
+
+
+## Seviyenin gezinme bölgesi (üretimde bake edilmiş NavigationPolygon); yoksa null.
+func navigation_region() -> NavigationRegion2D:
+	return get_node_or_null(_NAVIGATION) as NavigationRegion2D
+
+
+## Kapı işaretinin (ör. &"BackDoor") gezinme bağı: kapı karosu çokgende engeldir, geçiş bu bağla olur.
+## Kapı kapanınca `enabled = false` yapılır (kapı durumunu bağlayan sistem; US-008). Yoksa null.
+func door_link(door_name: StringName) -> NavigationLink2D:
+	return _child_of(_NAVIGATION, door_name) as NavigationLink2D
+
+
+## `container` altındaki doğrudan çocuk; yol parçası içeren ad ("../Players" gibi) kabul edilmez.
+func _child_of(container: NodePath, child_name: StringName) -> Node:
+	var text: String = String(child_name)
+	var parent: Node = get_node_or_null(container)
+	if parent == null or text.is_empty() or text.validate_node_name() != text:
+		return null
+	return parent.get_node_or_null(NodePath(text))
 
 
 func _spawn_points() -> Array[Node2D]:

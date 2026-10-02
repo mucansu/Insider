@@ -15,6 +15,14 @@ size = Vector2(32, 448)
 [sub_resource type="RectangleShape2D" id="Wall_4"]
 size = Vector2(576, 32)
 
+[sub_resource type="RectangleShape2D" id="Zone_EscapeZone"]
+size = Vector2(96, 96)
+
+[sub_resource type="NavigationPolygon" id="Navigation_poly"]
+vertices = PackedVector2Array(596, 436, 44, 436, 44, 44, 596, 44)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
+agent_radius = 12.0
+
 [node name="TestArena" type="Node2D" unique_id=801292675]
 script = ExtResource("1_qdrqe")
 
@@ -81,5 +89,31 @@ position = Vector2(528, 240)
 [node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1037032414]
 position = Vector2(80, 80)
 
+[node name="BackroomCash" type="Marker2D" parent="Markers" unique_id=348829201]
+position = Vector2(112, 80)
+
 [node name="Exit" type="Marker2D" parent="Markers" unique_id=1300956725]
 position = Vector2(560, 400)
+
+[node name="PolicePatrol1" type="Marker2D" parent="Markers" unique_id=1229133730]
+position = Vector2(368, 80)
+
+[node name="PolicePatrol2" type="Marker2D" parent="Markers" unique_id=1145603357]
+position = Vector2(528, 80)
+
+[node name="PolicePatrol3" type="Marker2D" parent="Markers" unique_id=104203234]
+position = Vector2(528, 272)
+
+[node name="Zones" type="Node2D" parent="." unique_id=1616588774]
+
+[node name="EscapeZone" type="Area2D" parent="Zones" unique_id=537712261]
+position = Vector2(560, 400)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/EscapeZone" unique_id=634617319]
+shape = SubResource("Zone_EscapeZone")
+
+[node name="Navigation" type="NavigationRegion2D" parent="." unique_id=1094834663]
+navigation_polygon = SubResource("Navigation_poly")
