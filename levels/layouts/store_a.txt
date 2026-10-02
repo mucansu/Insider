@@ -2,8 +2,13 @@
 ; Üret: $GODOT --headless --path . -s res://levels/tools/build_levels.gd
 ; Kuzey: arka ara sokak (arka kapı B) · güney: kaldırım + cadde (ön kapı F) · doğu: yan sokak.
 ; Satış alanı rafları yatay koridorlar; tezgâh (C) ve kasa (R) ön kapıya bakar; tezgâhtar (K) arkada.
-; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
+; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D; nakit (M) raf arkasındaki köşede,
+; iç kapıdan görünmez. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
+; Dış devriye (US-007, KR-019 K2): a→f sırası ön camlar → ön kapı → köşe → yan camlar → yan sokak → arka kapı;
+; ara sokak batıda kapalı (ön cepheye yalnız yan sokaktan dönülür). Kaçış bölgesi (X, E dahil) caddenin
+; güneydoğu köşesinde: ön kapıdan kaldırım boyunca, arka kapıdan yan sokaktan ulaşılır.
 ; İşaret satırı: @ <harf> <Marker adı> <zemin karakteri>; Spawn* adları SpawnPoints'e, diğerleri Markers'a gider.
+; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
 @ F FrontDoor +
 @ B BackDoor +
 @ D BackroomDoor +
@@ -11,28 +16,36 @@
 @ C Counter T
 @ K ClerkSpot .
 @ V BackroomSafe :
+@ M BackroomCash :
 @ E Exit _
+@ a PolicePatrol1 ,
+@ b PolicePatrol2 ,
+@ c PolicePatrol3 ,
+@ d PolicePatrol4 ,
+@ e PolicePatrol5 ,
+@ f PolicePatrol6 ,
 @ 1 Spawn1 ,
 @ 2 Spawn2 ,
 @ 3 Spawn3 ,
 @ 4 Spawn4 ,
+= X EscapeZone _
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%,,,,,,,,,,,,,,,,,,,,,,,,____%
-%,,,,,,,,,,,,,,,,,,,,,,,,____%
+%,,,,,,,,,,,,,,,,,,,f,,,,____%
+%,,,,,,,,,,,,,,,,,,,,,,e,____%
 %###################B##,,____%
 %#..SSSSSSSS..#V::::::#,,____%
 %#............#:::::::#,,____%
 %#S.SSSSSS....#:SS::::#,,____%
-%#S...........#:SS::::#,,____%
+%#S...........#MSS::::#,,____%
 %#S.SSSSSS....#####D###,,____%
 %#S..............T....#,,____%
-%#S.SSSSSS.......C....w,,____%
+%#S.SSSSSS.......C....wd,____%
 %#S..............RK...w,,____%
 %#....................#,,____%
 %#....................#,,____%
 %##wwwwwww#F#wwww######,,____%
-%,,,,,,,,,,,,,,,,,,,,,,,,____%
+%,,a,,,,,,b,,,,,,,,,,,,c,____%
 %,,1234,,,,,,,,,,,,,,,,,,____%
-%____________________________%
-%__________________________E_%
+%________________________XXXX%
+%________________________XXEX%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

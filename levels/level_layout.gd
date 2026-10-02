@@ -11,7 +11,7 @@ extends Node2D
 ##
 ## Lejant (işaret harfleri her düzen dosyasında `@` satırlarıyla tanımlanır, ızgarada zemin karakterine döner):
 ##   %  sınır (harita kenarı / komşu bina; çarpışır)     #  duvar (çarpışır)
-##   w  vitrin camı (çarpışır; Faz 2'de görüş geçirir)    +  kapı boşluğu (1 karo; kapı nesnesi US-005)
+##   w  vitrin camı (çarpışır; görüş geçirir, US-007)    +  kapı boşluğu (1 karo; kapı nesnesi US-005)
 ##   .  iç zemin (satış alanı)                            :  arka oda zemini
 ##   ,  kaldırım / ara sokak                              _  cadde
 ##   S  raf (çarpışır, engel)                             T  tezgâh (çarpışır)

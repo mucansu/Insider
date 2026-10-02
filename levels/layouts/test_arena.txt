@@ -1,28 +1,34 @@
 ; test_arena — boş 20×15 karo oda (US-002 AC4). Lejant: levels/level_layout.gd.
-; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa) burada yalıtık denenir.
+; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa, NPC devriyesi, kaçış) burada yalıtık denenir.
+; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
 @ F FrontDoor .
 @ B BackDoor .
 @ R Register .
 @ C Counter .
 @ K ClerkSpot .
 @ V BackroomSafe .
+@ M BackroomCash .
 @ E Exit .
+@ a PolicePatrol1 .
+@ b PolicePatrol2 .
+@ c PolicePatrol3 .
 @ 1 Spawn1 .
 @ 2 Spawn2 .
 @ 3 Spawn3 .
 @ 4 Spawn4 .
+= X EscapeZone .
 ####################
 #..................#
-#.V................#
+#.VM.......a....b..#
 #..................#
 #.........B........#
 #..................#
 #..............CR..#
 #...............K..#
-#..................#
+#...............c..#
 #.........F........#
 #..................#
-#..................#
-#.1234...........E.#
-#..................#
+#...............XXX#
+#.1234..........XEX#
+#...............XXX#
 ####################

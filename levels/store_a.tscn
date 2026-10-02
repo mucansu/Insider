@@ -83,6 +83,14 @@ size = Vector2(188, 28)
 [sub_resource type="RectangleShape2D" id="Counter_1"]
 size = Vector2(28, 92)
 
+[sub_resource type="RectangleShape2D" id="Zone_EscapeZone"]
+size = Vector2(128, 64)
+
+[sub_resource type="NavigationPolygon" id="Navigation_poly"]
+vertices = PackedVector2Array(916, 596, 44, 596, 44, 492, 748, 492, 916, 44, 748, 84, 44, 44, 44, 84, 692, 140, 692, 244, 586, 244, 586, 182, 492, 140, 502, 182, 492, 244, 502, 244, 436, 140, 436, 300, 330, 246, 330, 234, 394, 170, 534, 300, 534, 394, 330, 362, 330, 310, 118, 298, 330, 298, 118, 310, 394, 140, 330, 182, 118, 170, 118, 182, 586, 394, 586, 300, 692, 300, 692, 436, 76, 436, 106, 394, 76, 394, 118, 362, 106, 182, 118, 246, 76, 182, 76, 140, 118, 140, 118, 234)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3), PackedInt32Array(4, 0, 3, 5), PackedInt32Array(6, 4, 5, 7), PackedInt32Array(8, 9, 10, 11), PackedInt32Array(12, 8, 11, 13), PackedInt32Array(14, 12, 13, 15), PackedInt32Array(16, 17, 18, 19, 20), PackedInt32Array(17, 21, 22, 23, 24), PackedInt32Array(25, 26, 17, 24, 27), PackedInt32Array(20, 28, 16), PackedInt32Array(20, 19, 29), PackedInt32Array(30, 20, 29, 31), PackedInt32Array(32, 33, 34, 35), PackedInt32Array(32, 35, 36, 22), PackedInt32Array(23, 22, 36, 37), PackedInt32Array(36, 38, 37), PackedInt32Array(39, 23, 37), PackedInt32Array(39, 37, 40, 27), PackedInt32Array(25, 27, 40), PackedInt32Array(41, 25, 40), PackedInt32Array(40, 42, 43, 44, 30), PackedInt32Array(40, 30, 31), PackedInt32Array(40, 31, 45), PackedInt32Array(41, 40, 45), PackedInt32Array(41, 45, 19, 18), PackedInt32Array(18, 17, 26)])
+agent_radius = 12.0
+
 [node name="StoreA" type="Node2D" unique_id=828043450]
 script = ExtResource("1_m731q")
 
@@ -157,16 +165,25 @@ shape = SubResource("Wall_11")
 position = Vector2(624, 464)
 shape = SubResource("Wall_12")
 
-[node name="Window1" type="CollisionShape2D" parent="Walls" unique_id=1449001097]
+[node name="Window1" type="StaticBody2D" parent="Walls" unique_id=1039809024 groups=["see_through"]]
 position = Vector2(720, 352)
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window1" unique_id=1182333169]
 shape = SubResource("Window_1")
 
-[node name="Window2" type="CollisionShape2D" parent="Walls" unique_id=714015095]
+[node name="Window2" type="StaticBody2D" parent="Walls" unique_id=1927949064 groups=["see_through"]]
 position = Vector2(208, 464)
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window2" unique_id=1053035071]
 shape = SubResource("Window_2")
 
-[node name="Window3" type="CollisionShape2D" parent="Walls" unique_id=1339980993]
+[node name="Window3" type="StaticBody2D" parent="Walls" unique_id=2051037996 groups=["see_through"]]
 position = Vector2(480, 464)
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window3" unique_id=752777342]
 shape = SubResource("Window_3")
 
 [node name="Shelf1" type="CollisionShape2D" parent="Walls" unique_id=1525504214]
@@ -250,5 +267,55 @@ position = Vector2(592, 368)
 [node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1849289487]
 position = Vector2(496, 144)
 
+[node name="BackroomCash" type="Marker2D" parent="Markers" unique_id=1197469223]
+position = Vector2(496, 240)
+
 [node name="Exit" type="Marker2D" parent="Markers" unique_id=1482802281]
 position = Vector2(880, 592)
+
+[node name="PolicePatrol1" type="Marker2D" parent="Markers" unique_id=724651246]
+position = Vector2(112, 496)
+
+[node name="PolicePatrol2" type="Marker2D" parent="Markers" unique_id=1676550340]
+position = Vector2(336, 496)
+
+[node name="PolicePatrol3" type="Marker2D" parent="Markers" unique_id=918446820]
+position = Vector2(752, 496)
+
+[node name="PolicePatrol4" type="Marker2D" parent="Markers" unique_id=541992702]
+position = Vector2(752, 336)
+
+[node name="PolicePatrol5" type="Marker2D" parent="Markers" unique_id=951456052]
+position = Vector2(752, 80)
+
+[node name="PolicePatrol6" type="Marker2D" parent="Markers" unique_id=665934633]
+position = Vector2(656, 48)
+
+[node name="Zones" type="Node2D" parent="." unique_id=793638371]
+
+[node name="EscapeZone" type="Area2D" parent="Zones" unique_id=1532794941]
+position = Vector2(864, 576)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/EscapeZone" unique_id=1093227249]
+shape = SubResource("Zone_EscapeZone")
+
+[node name="Navigation" type="NavigationRegion2D" parent="." unique_id=742023529]
+navigation_polygon = SubResource("Navigation_poly")
+
+[node name="FrontDoor" type="NavigationLink2D" parent="Navigation" unique_id=151145760]
+position = Vector2(368, 464)
+start_position = Vector2(0, -32)
+end_position = Vector2(0, 32)
+
+[node name="BackDoor" type="NavigationLink2D" parent="Navigation" unique_id=241745306]
+position = Vector2(656, 112)
+start_position = Vector2(0, -32)
+end_position = Vector2(0, 32)
+
+[node name="BackroomDoor" type="NavigationLink2D" parent="Navigation" unique_id=198720869]
+position = Vector2(624, 272)
+start_position = Vector2(0, -32)
+end_position = Vector2(0, 32)

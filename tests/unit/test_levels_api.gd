@@ -67,6 +67,41 @@ func test_missing_children_are_safe() -> void:
 	eq(level.spawn_count(), 0)
 	eq(level.spawn_position(0), Vector2.ZERO)
 	is_true(level.marker(&"Exit") == null)
+	eq(level.marker_sequence(&"PolicePatrol").size(), 0)
+	is_true(level.zone(&"EscapeZone") == null and level.navigation_region() == null and level.door_link(&"BackDoor") == null)
+
+
+func test_sequence_zone_and_navigation_lookup() -> void:
+	# US-007 API eki: sıralı işaretler, tetik bölgeleri, gezinme bölgesi ve kapı bağları.
+	var level: Level = autofree(_make_level()) as Level
+	var markers: Node = level.get_node("Markers")
+	for n: int in [2, 1, 4]:  # sahne sırası numaradan bağımsız; 3 eksik → dizi 2'de biter
+		_child(markers, "Patrol%d" % n, Vector2(n, 0), true)
+	var sequence: Array[Node2D] = level.marker_sequence(&"Patrol")
+	eq(sequence.size(), 2, "ilk eksik numarada durur")
+	if sequence.size() == 2:
+		is_true(sequence[0] == markers.get_node("Patrol1") and sequence[1] == markers.get_node("Patrol2"), "numara sırası")
+	eq(level.marker_sequence(&"Yok").size(), 0)
+	var zones := _child(level, "Zones", Vector2.ZERO)
+	var area := Area2D.new()
+	area.name = "EscapeZone"
+	zones.add_child(area)
+	var region := NavigationRegion2D.new()
+	region.name = "Navigation"
+	level.add_child(region)
+	var link := NavigationLink2D.new()
+	link.name = "BackDoor"
+	region.add_child(link)
+	is_true(level.zone(&"EscapeZone") == area, "Zones altındaki bölge")
+	is_true(level.zone(&"../Markers") == null and level.zone(&"") == null, "yol parçası/boş ad null")
+	is_true(level.navigation_region() == region, "gezinme bölgesi")
+	is_true(level.door_link(&"BackDoor") == link, "kapı bağı")
+	is_true(level.door_link(&"FrontDoor") == null and level.door_link(&"BackDoor/x") == null, "olmayan bağ null")
+	var store: Level = autofree((load(LEVELS[0]) as PackedScene).instantiate()) as Level
+	eq(store.marker_sequence(&"PolicePatrol").size(), 6, "store_a: PolicePatrol1..6")
+	is_true(store.zone(&"EscapeZone") != null and store.navigation_region() != null, "store_a: EscapeZone ve Navigation")
+	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
+		is_true(store.door_link(door) != null, "store_a: %s bağı" % door)
 
 
 func test_builder_assigns_level_root_and_stays_idempotent() -> void:
