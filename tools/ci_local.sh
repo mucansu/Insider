@@ -42,7 +42,8 @@ step_import() {
 	echo "İçe aktarma temiz."
 }
 
-# Birim testler. Koşucu çıkış kodunu verir; motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
+# Birim testler. Koşucu çıkış kodunu verir (test başına yetim düğüm farkı da kapıdır: `[ORPHAN]` satırı,
+# IS-046); motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
 # kaynak, RID: "... leaked at exit" / "... still in use at exit") koşucudan sonra geldiğinden burada
 # yakalanır: biri bile varsa adım başarısız ve kaynaklar --verbose ikinci koşuyla listelenir (IS-029).
 # (import adımı bu satırları zaten genel ERROR/WARNING kuralıyla yakalar.)
