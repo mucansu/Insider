@@ -42,5 +42,8 @@ jobs:
       - name: Birim testler
         run: bash tools/ci_local.sh unit
 
+      - name: Araç testleri (gecikme proxy'si, net_smoke süreç öldürme)
+        run: bash tools/ci_local.sh tools
+
       - name: Ağ duman senaryoları (0 ve 150 ms)
         run: bash tools/ci_local.sh net

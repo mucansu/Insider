@@ -10,6 +10,10 @@ Akış: boş UDP portları bulunur → host `--headless` başlatılır ve stdout
 (--latency-ms > 0 ise araya tools/latency_proxy.py konur: yön başına RTT/2 gecikme) → istemciler
 `start_delay` sonra başlatılır → her süreç `--quit-after` ile döker ve kapanır; sert zaman aşımında bütün
 süreç grupları öldürülür (asılı süreç kalmaz; SIGTERM'de de) → dökümler okunur, beklentiler değerlendirilir.
+Süreç ağacı öldürme (kill_process_tree): POSIX'te ayrı oturum + killpg SIGTERM, sonra SIGKILL. Windows'ta
+start_new_session işlemez: ayrı süreç grubu (CREATE_NEW_PROCESS_GROUP) + CTRL_BREAK_EVENT, sonra kök
+Popen tutamağıyla, torunlar `taskkill /F /PID` ile (Godot console exe'si asıl exe'yi çocuk olarak başlatır).
+Torunlar oluşturma zamanıyla süzülür: pid yeniden kullanımında ilgisiz süreç ağaca girmez (`/T` kullanılmaz).
 Başarısızlıkta her sürecin log'u basılır. Log'da `ERROR:` / `SCRIPT ERROR:` satırı da başarısızlıktır
 (`allow_log` hariç). --latency-ms > 0 iken gecikmenin uygulandığı ayrıca doğrulanır: proxy her istemciyi
 eşlemiş olmalı ve her istemci için ölçülen ping (kendi dökümünde ping_ms.1 ya da host'unkinde ping_ms.<id>)
@@ -60,6 +64,7 @@ Değerlendirilemeyen beklenti (bozuk argüman, eksik alan) istisna fırlatmaz, F
 from __future__ import annotations
 
 import argparse
+import ctypes
 import json
 import math
 import os
@@ -73,7 +78,7 @@ import tempfile
 import threading
 import time
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Any, Callable, Iterable
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(ROOT, "tools"))
@@ -97,6 +102,170 @@ LATENCY_PROOF_RATIO = 0.8
 ERROR_LINE = re.compile(r"^\s*(SCRIPT |USER )?ERROR:")
 ANSI = re.compile(r"\x1b\[[0-9;]*m")
 MISSING = object()
+WINDOWS = os.name == "nt"
+KILL_GRACE_SEC = 2.0
+
+
+def popen_group_kwargs() -> dict[str, Any]:
+    """Süreci kendi grubunda başlatan Popen argümanları (zaman aşımında bütün çocuklarıyla öldürülebilsin)."""
+    if WINDOWS:
+        return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
+    return {"start_new_session": True}
+
+
+def descendants_from_table(
+    root_pid: int,
+    table: Iterable[tuple[int, int]],
+    ctime: Callable[[int], int | None],
+    known: dict[int, int] | None = None,
+) -> dict[int, int]:
+    """Süreç tablosundan (pid, ebeveyn pid) root_pid'in torunlarını {pid: oluşturma zamanı} olarak döner.
+
+    Windows ölü ebeveyni yeniden bağlamaz ve pid'ler yeniden kullanılır: bir sürecin th32ParentProcessID'si
+    çoktan ölmüş ilgisiz bir sürecin pid'i olabilir. Bu yüzden (psutil yöntemi) çocuk yalnız oluşturma zamanı
+    ebeveyninkinden ÖNCE DEĞİLSE ağaca girer; ebeveynin zamanı alınamazsa (ölmüş) kökün zamanı alt sınırdır ve
+    kökten önce oluşmuş hiçbir süreç ağaca girmez. Kökün zamanı alınamazsa ağaç boştur.
+    known: önceki taramada doğrulanmış torunlar {pid: zaman}; aradaki düğüm sonradan ölse de onun çocukları
+    kayıtlı zamanla aranır (ör. CTRL_BREAK ile ölen ara süreç, sinyali yok sayan torunu).
+    ctime(pid): canlı (ya da tutamağı açık) sürecin oluşturma zamanı, yoksa None.
+    """
+    floor = ctime(root_pid)
+    if floor is None:
+        return {}
+    known = dict(known or {})
+    children: dict[int, list[int]] = {}
+    for pid, ppid in table:
+        if pid != ppid:
+            children.setdefault(ppid, []).append(pid)
+    out: dict[int, int] = {}
+    todo = [root_pid] + [p for p in known if p != root_pid]
+    seen = set(todo)
+    while todo:
+        node = todo.pop()
+        node_t = floor if node == root_pid else known.get(node, out.get(node))
+        if node_t is None:
+            node_t = floor
+        for pid in children.get(node, []):
+            if pid in seen:
+                continue
+            t = ctime(pid)
+            if t is None or t < node_t or t < floor:
+                continue  # ölmüş, erişilemiyor ya da pid'i yeniden kullanılmış ilgisiz (daha eski) süreç
+            seen.add(pid)
+            out[pid] = t
+            todo.append(pid)
+    for pid, t in known.items():
+        out.setdefault(pid, t)
+    out.pop(root_pid, None)
+    return out
+
+
+def _win_kernel32() -> Any:
+    kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    kernel32.OpenProcess.restype = ctypes.c_void_p
+    kernel32.OpenProcess.argtypes = [ctypes.c_uint32, ctypes.c_int, ctypes.c_uint32]
+    kernel32.GetProcessTimes.argtypes = [ctypes.c_void_p] + [ctypes.POINTER(ctypes.c_uint64)] * 4
+    kernel32.CloseHandle.argtypes = [ctypes.c_void_p]
+    kernel32.CreateToolhelp32Snapshot.restype = ctypes.c_void_p
+    kernel32.CreateToolhelp32Snapshot.argtypes = [ctypes.c_uint32, ctypes.c_uint32]
+    return kernel32
+
+
+def _windows_ctime(pid: int) -> int | None:
+    """Sürecin oluşturma zamanı (FILETIME, 100 ns). Süreç yoksa ya da açılamıyorsa None. Ölmüş ama tutamağı
+    açık süreç (ör. bekletilmemiş Popen) hâlâ açılır: pid'i de o sürece kilitlidir, yeniden kullanılamaz."""
+    kernel32 = _win_kernel32()
+    handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if not handle:
+        return None
+    try:
+        times = [ctypes.c_uint64() for _ in range(4)]
+        if not kernel32.GetProcessTimes(handle, *[ctypes.byref(t) for t in times]):
+            return None
+        return times[0].value
+    finally:
+        kernel32.CloseHandle(handle)
+
+
+def _windows_process_table() -> list[tuple[int, int]]:
+    """Toolhelp32 anlık görüntüsü: [(pid, ebeveyn pid)]."""
+
+    class ProcessEntry32W(ctypes.Structure):
+        _fields_ = [
+            ("dwSize", ctypes.c_uint32),
+            ("cntUsage", ctypes.c_uint32),
+            ("th32ProcessID", ctypes.c_uint32),
+            ("th32DefaultHeapID", ctypes.c_size_t),
+            ("th32ModuleID", ctypes.c_uint32),
+            ("cntThreads", ctypes.c_uint32),
+            ("th32ParentProcessID", ctypes.c_uint32),
+            ("pcPriClassBase", ctypes.c_long),
+            ("dwFlags", ctypes.c_uint32),
+            ("szExeFile", ctypes.c_wchar * 260),
+        ]
+
+    kernel32 = _win_kernel32()
+    kernel32.Process32FirstW.argtypes = [ctypes.c_void_p, ctypes.POINTER(ProcessEntry32W)]
+    kernel32.Process32NextW.argtypes = [ctypes.c_void_p, ctypes.POINTER(ProcessEntry32W)]
+    snap = kernel32.CreateToolhelp32Snapshot(0x2, 0)  # TH32CS_SNAPPROCESS
+    if snap in (None, ctypes.c_void_p(-1).value):
+        return []
+    table: list[tuple[int, int]] = []
+    try:
+        entry = ProcessEntry32W()
+        entry.dwSize = ctypes.sizeof(ProcessEntry32W)
+        ok = kernel32.Process32FirstW(snap, ctypes.byref(entry))
+        while ok:
+            table.append((entry.th32ProcessID, entry.th32ParentProcessID))
+            ok = kernel32.Process32NextW(snap, ctypes.byref(entry))
+    finally:
+        kernel32.CloseHandle(snap)
+    return table
+
+
+def _windows_descendants(root_pid: int, known: dict[int, int] | None = None) -> dict[int, int]:
+    return descendants_from_table(root_pid, _windows_process_table(), _windows_ctime, known)
+
+
+def kill_process_tree(popen: subprocess.Popen, grace: float = KILL_GRACE_SEC) -> None:
+    """popen_group_kwargs() ile başlatılmış süreci ve çocuklarını öldürür: önce zarif sinyal, grace sn sonra zorla."""
+    if WINDOWS:
+        # Torunlar sinyalden önce de toplanır: ara süreç CTRL_BREAK ile ölüp torunu yaşarsa ebeveyn zinciri kopar.
+        # `taskkill /T` kullanılmaz (kendi ağaç taraması pid yeniden kullanımına karşı zaman denetimi yapmaz);
+        # yalnız oluşturma zamanıyla doğrulanmış açık pid'ler öldürülür. Kök, Popen tutamağıyla öldürülür.
+        tree = _windows_descendants(popen.pid)
+        try:
+            popen.send_signal(signal.CTRL_BREAK_EVENT)  # süreç grubuna; konsol paylaşılmıyorsa OSError
+            popen.wait(timeout=grace)
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+        tree = _windows_descendants(popen.pid, known=tree)
+        if popen.poll() is None:
+            try:
+                popen.kill()  # TerminateProcess(kendi tutamağımız)
+            except OSError:
+                pass
+        victims = [pid for pid, t in tree.items() if _windows_ctime(pid) == t]  # hâlâ aynı süreç mi
+        if victims:
+            args = ["taskkill", "/F"]
+            for pid in victims:
+                args += ["/PID", str(pid)]
+            subprocess.run(args, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+        try:
+            popen.wait(timeout=grace)
+        except subprocess.TimeoutExpired:
+            pass
+        return
+    for sig in (signal.SIGTERM, signal.SIGKILL):
+        try:
+            os.killpg(popen.pid, sig)
+        except (ProcessLookupError, PermissionError):
+            return
+        try:
+            popen.wait(timeout=grace)
+            return
+        except subprocess.TimeoutExpired:
+            continue
 
 
 @dataclass
@@ -123,7 +292,7 @@ class Proc:
             stdin=subprocess.DEVNULL,
             text=True,
             errors="replace",
-            start_new_session=True,  # süreç grubu: zaman aşımında bütün çocuklarıyla öldürülür
+            **popen_group_kwargs(),  # süreç grubu: zaman aşımında bütün çocuklarıyla öldürülür
         )
         self.reader = threading.Thread(target=self._read, daemon=True)
         self.reader.start()
@@ -140,16 +309,7 @@ class Proc:
         if self.popen is None or self.popen.poll() is not None:
             return
         self.killed = True
-        for sig in (signal.SIGTERM, signal.SIGKILL):
-            try:
-                os.killpg(self.popen.pid, sig)
-            except (ProcessLookupError, PermissionError):
-                return
-            try:
-                self.popen.wait(timeout=2.0)
-                return
-            except subprocess.TimeoutExpired:
-                continue
+        kill_process_tree(self.popen)
 
     def finish(self) -> None:
         if self.popen is None:
@@ -171,7 +331,9 @@ def find_godot() -> str:
     env = os.environ.get("GODOT")
     if env:
         return env
-    out = subprocess.run(["bash", os.path.join(ROOT, "tools", "get_godot.sh")], capture_output=True, text=True, check=True)
+    # shutil.which: Windows'ta CreateProcess "bash"ı PATH'ten önce System32'de (WSL) arar; Git Bash'inki seçilsin.
+    bash = shutil.which("bash") or "bash"
+    out = subprocess.run([bash, os.path.join(ROOT, "tools", "get_godot.sh")], capture_output=True, text=True, check=True)
     return out.stdout.strip().splitlines()[-1]
 
 
@@ -613,6 +775,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     # SIGTERM (ör. CI iptali) SystemExit'e çevrilir: finally blokları çalışır, Godot süreçleri öldürülür.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
+    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (SIGTERM'in karşılığı)
+        signal.signal(signal.SIGBREAK, lambda *_: sys.exit(143))
     return run(args.scenario, args.latency_ms, args.jitter_ms, args.loss, args.reorder, args.keep, args.verbose)
 
 

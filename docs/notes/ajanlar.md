@@ -18,7 +18,7 @@ Ortak yüzeyler: `project.godot` yalnız altyapi'nin (başka ajanın ihtiyacı �
 Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda değil. Sözleşme değişikliği koordinatör kararıdır, önce dokümana yazılır.
 
 ## Ortak ajan kuralları (her ajan dosyasında tekrarlanır)
-1. Proje kökü `/home/user/insiders` (ya da koordinatörün verdiği worktree yolu). İşe `docs/project-index.md` ile başla; yalnız kalemin `docs/surec/backlog.md` bölümünü ve "Oku" listesini aç. Bu projede Takip'in kuralları geçmez.
+1. Proje kökü = repo kökü (ana oturumun çalışma dizini; ya da koordinatörün verdiği worktree yolu). İşe `docs/project-index.md` ile başla; yalnız kalemin `docs/surec/backlog.md` bölümünü ve "Oku" listesini aç. Bu projede Takip'in kuralları geçmez.
 2. Yalnız kalemin **Dokunulacak** listesinde çalış; **Dokunulmayacak**'a ya da başka ajanın alanına giren iş görürsen dokunma, raporda "Sınır dışı" yaz. Ortak dosyalara ekleme serbest, mevcut davranışı değiştirmek "Karar gereken".
 3. Commit, push, branch değiştirme YAPMA; değişiklikler çalışma ağacında kalır. Gizli değer yazdırma.
 4. Kullanıcıya soru sorma; karar gerektiren her şeyi raporda "Karar gereken" başlığıyla, seçenek + önerinle koordinatöre bırak.
@@ -57,5 +57,5 @@ Faz kapanış + plan mesajının biçimi `docs/surec/surec.md` §7'de.
 - Haftalık iterasyon yerine **faz**: her faz çıkış kriterli bir durma noktası; kapanışta oynanabilir build + kullanıcı onayı.
 - "Canlıda/UPDATER_OK" yok; yayın = faz kapanışında `dev → main` fast-forward + `faz-N` etiketi (oynanabilir sürüme geri dönmek için).
 - Tasarım danışmanı ajanı (tasarim, Fable) eklendi; teknik kararlar koordinatörde.
-- Paralel paketler ayrı git worktree'de (`/home/user/insiders-wt/<kalem>`), birleştirme denetci PASS sonrası.
+- Paralel paketler ayrı git worktree'de (repo yanında `../insiders-wt/<kalem>`), birleştirme denetci PASS sonrası.
 - FR/NFR kataloğu yok; tasarım belgesi + kalem AC'leri yeterli. Kırmızı çizgiler `surec.md` §9'da.

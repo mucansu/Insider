@@ -2,12 +2,14 @@
 """tools/latency_proxy.py birim testleri (US-001 AC6). Yalnız standart kütüphane.
 
 Koşu: python3 tools/test_latency_proxy.py   (ya da python3 -m unittest tools/test_latency_proxy.py)
+Windows'ta `python3` yoksa `python` ya da `py -3`; tools/ci_local.sh `tools` adımı yorumlayıcıyı kendisi bulur.
 Ölçülen gidiş-dönüş gecikmesi beklenenin ±15 ms içinde olmalı.
 """
 
 from __future__ import annotations
 
 import os
+import signal
 import socket
 import statistics
 import subprocess
@@ -21,6 +23,9 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from latency_proxy import LatencyProxy, parse_addr  # noqa: E402
 
 TOLERANCE_MS = 15.0
+# Windows'ta SIGTERM gönderilemez (terminate = TerminateProcess, çıkış 1): proxy kendi süreç grubunda başlatılır
+# ve CTRL_BREAK_EVENT ile (SIGBREAK) zarif kapatılır. POSIX'te SIGTERM.
+WINDOWS = os.name == "nt"
 
 
 class EchoServer:
@@ -209,6 +214,7 @@ class LatencyProxyTest(unittest.TestCase):
             [sys.executable, script, "--target", f"127.0.0.1:{self.echo.port}", "--delay-ms", "30"],
             stdout=subprocess.PIPE,
             text=True,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if WINDOWS else 0,
         )
         try:
             assert proc.stdout is not None
@@ -220,7 +226,10 @@ class LatencyProxyTest(unittest.TestCase):
             self.assertEqual(len(rtts), 5)
             self.assertAlmostEqual(statistics.mean(rtts), 60.0, delta=TOLERANCE_MS)
         finally:
-            proc.terminate()
+            if WINDOWS:
+                proc.send_signal(signal.CTRL_BREAK_EVENT)
+            else:
+                proc.terminate()
             self.assertEqual(proc.wait(timeout=5), 0)
             if proc.stdout is not None:
                 proc.stdout.close()

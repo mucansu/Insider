@@ -11,7 +11,11 @@ sırayı korur (gecikme değişimi gibi; gerçek yollarda sıra bozulması seyre
 Komut satırı:
     python3 tools/latency_proxy.py --target 127.0.0.1:7777 [--listen 127.0.0.1:0] \
         [--delay-ms 75] [--jitter-ms 0] [--loss 0.0] [--reorder] [--seed N]
-Bağlanınca stdout'a tek satır `LATENCY_PROXY_READY port=<dinlenen port>` basar; SIGINT/SIGTERM ile kapanır.
+Bağlanınca stdout'a tek satır `LATENCY_PROXY_READY port=<dinlenen port>` basar; SIGINT/SIGTERM ile kapanır
+(Windows'ta SIGTERM gönderilemez: CTRL_BREAK_EVENT -> SIGBREAK ile de zarif kapanır).
+
+Windows: select() zaman aşımı varsayılan zamanlayıcı adımına (~15,6 ms) yuvarlanır ve paketler geç çıkar;
+proxy çalışırken süreç zamanlayıcı çözünürlüğü 1 ms'ye çekilir (winmm timeBeginPeriod/timeEndPeriod).
 
 Modül olarak (net_smoke.py, testler):
     proxy = LatencyProxy(target=("127.0.0.1", 7777), delay_ms=75)
@@ -23,6 +27,7 @@ Modül olarak (net_smoke.py, testler):
 from __future__ import annotations
 
 import argparse
+import ctypes
 import heapq
 import random
 import selectors
@@ -35,6 +40,19 @@ from dataclasses import dataclass, field
 
 MAX_DATAGRAM = 65535
 IDLE_TIMEOUT_SEC = 60.0
+
+
+def _timer_period(begin: bool) -> bool:
+    """Windows'ta zamanlayıcı çözünürlüğünü 1 ms'ye çeker (begin) ya da isteği geri alır; başka yerde no-op.
+    Çağrılar Windows'ta sayılır: her başarılı begin için bir end gerekir. Başarılıysa True."""
+    if sys.platform != "win32":
+        return False
+    try:
+        winmm = ctypes.WinDLL("winmm")
+        fn = winmm.timeBeginPeriod if begin else winmm.timeEndPeriod
+        return fn(1) == 0  # TIMERR_NOERROR
+    except (OSError, AttributeError):
+        return False
 
 
 def parse_addr(text: str) -> tuple[str, int]:
@@ -86,6 +104,7 @@ class LatencyProxy:
         self._stop = threading.Event()
         self._wake_r: socket.socket | None = None
         self._wake_w: socket.socket | None = None
+        self._hires_timer = False
         self.port = 0
 
     # --- yaşam döngüsü ---
@@ -102,6 +121,7 @@ class LatencyProxy:
         self._sel = selectors.DefaultSelector()
         self._sel.register(self._listener, selectors.EVENT_READ, "listen")
         self._sel.register(self._wake_r, selectors.EVENT_READ, "wake")
+        self._hires_timer = _timer_period(True)
         self._thread = threading.Thread(target=self._run, name="latency-proxy", daemon=True)
         self._thread.start()
         return self.port
@@ -125,6 +145,9 @@ class LatencyProxy:
         self._last_due.clear()
         if self._sel is not None:
             self._sel.close()
+        if self._hires_timer:
+            self._hires_timer = False
+            _timer_period(False)
 
     def __enter__(self) -> "LatencyProxy":
         self.start()
@@ -267,6 +290,8 @@ def main(argv: list[str] | None = None) -> int:
     done = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: done.set())
     signal.signal(signal.SIGINT, lambda *_: done.set())
+    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (SIGTERM'in karşılığı)
+        signal.signal(signal.SIGBREAK, lambda *_: done.set())
     port = proxy.start()
     print(f"LATENCY_PROXY_READY port={port}", flush=True)
     try:
