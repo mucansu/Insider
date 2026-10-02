@@ -221,7 +221,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | US-007 | Bakkal v1: navigasyon, see_through camlar, kaçış bölgesi, polis rotası, tezgâhtar noktası | 2 | seviye | P1 | S | US-002 | Bitti (dal `faz2/US-007`, Faz 1 checkpoint'inden sonra dev'e) | 3280e78 |
 | IS-023 | Bakkal v1 nüfus işaretleri: StreetRoute (PolicePatrol yerine), NeighbourSpawn, WindowLook, ShopSpot, QueueSpot, RestockSpot, PhoneSpot, BackroomSpot, ShelfProp; CustomerArea/StaffArea/Backroom bölgeleri | 2 | seviye | P1 | XS | US-007 | Bitti (faz2-int) | ce9cfc2 |
 | US-008 | Bakkal sahibi v0: Agenda + sivil çarpan + sorgu/bağırış/tutma + ÇEK kurtarma + mahalleli (chaser) + polis sayacı | 2 | oynanis | P1 | M | US-006, US-007, IS-023 | Hazır (US-006 t2 sonrası) | |
-| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Sürüyor (2026-10-02; worktree) | |
+| US-009 | Gürültü v0: NoiseBus + noise_profile.tres + Hearing (sinyal) + görsel halka; kilit IS-021 sonrası | 2 | oynanis | P1 | S | US-005 | Denetimde (2026-10-02; worktree) | |
 | US-010 | Bakkal etkileşimleri: SATIN AL, OYALA, ARKA ODAYA GÖNDER, DİKKAT DAĞIT, oyalanma sayacı | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
 | US-012 | Soygun sonucu: outcome (clean/shouted/hot/caught_all/police), ödeme oranı, çanta, kaçış, held ≠ caught | 2 | oynanis | P1 | S | US-008 | Backlog | |
 | US-016 | Mekân nüfusu v0: müşteri akışı + yoldan geçenler (tanık, örtü, chaser'a dönüşüm) | 2 | oynanis | P1 | M | US-008, IS-023 | Backlog | |
@@ -229,7 +229,7 @@ Tam kart metinleri (hikâye, AC, Dokunulacak/Dokunulmayacak): US-008 → `docs/t
 | IS-024 | 2a SFX: 5-6 yer tutucu ses (zil, ?, !, bağırış, kapı, kasa) — CC0, assetler.md kaydı | 2 | arayuz | P1 | XS | US-008 (olay adları) | Backlog | |
 | IS-017 | Faz 2a oyun testi (2-3 kişi; kullanıcı + arkadaşlar; test-2 checkpoint) | 2 | kullanıcı | P1 | S | 2a kalemleri | Backlog | |
 | US-011 | Görüş sisi + okunabilirlik (sahip görev ikonu, koniler, ?/! balonları) | 2 | seviye | P2 | S | US-008 | Backlog (2b) | |
-| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Sürüyor (2026-10-02; worktree) | |
+| US-014 | Karakter kuklası v0 (GDD §14.1) — önce oyuncu; NPC kuklaları gözlemci kalemiyle | 2 | oynanis (görsel) | P1 | M | US-004 | Denetimde (2026-10-02; worktree) | |
 | IS-015 | Oyun testi botları (pencere bekle, GÖNDER + kasa, kaç) + 150 ms 20 dk + kopma davranışı | 2 | cekirdek | P1 | M | US-008, US-012 | Backlog (2b) | |
 | US-015 | Uyarlanır ara değerleme tamponu (jitter'a göre 100-180 ms) — sert ağda senkron sıçramasını azaltır (IS-013 kararı) | 2 | oynanis | P2 | S | US-004 | Backlog | |
 | IS-020 | net_smoke/main: mutlak çıkış zamanı (`--quit-at`) + dökümde halka tampon örnekler + test_net_smoke turn_frame_patterns anahtar yuvarlama nit'i + allow_log süreç başına (IS-013 adayları) | 2 | cekirdek | P3 | XS | IS-013 | Backlog | |
