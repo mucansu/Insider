@@ -108,7 +108,7 @@ func test_scanner_detects_literal_text() -> void:
 
 func test_running_screens_show_only_keys() -> void:
 	var table: Dictionary = _csv()
-	var pair: Array = Fakes.make_pair(self)
+	var pair: Array = Fakes.make_pair(self, true)  # görüş eki: menüde görüş seçimi de denetlenir
 	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
 	viewport.size = Vector2i(1280, 720)
 	tree().root.add_child(viewport)

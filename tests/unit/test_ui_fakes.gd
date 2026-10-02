@@ -17,12 +17,15 @@ const CONTRACT := {
 		# S3 eki (Faz 2, KR-021; US-008/US-012/US-013).
 		"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result",
 		"request_restart", "venue_tier",
+		# S3 eki (mimari.md, US-011b/c; Faz 2): görüş kipi ve maruziyet.
+		"player_exposure_changed", "player_exposure", "player_world_position", "vision_mode", "set_vision_mode",
 	],
 }
-## Sözleşmede olup gerçek autoload'a henüz gelmemiş üyeler (S3 eki: US-008/US-012 yazacak). Gerçek betikte
+## Sözleşmede olup gerçek autoload'a henüz gelmemiş üyeler (S3 eki: US-008/US-012/US-011b yazacak). Gerçek betikte
 ## yoksa varlık/imza denetimi atlanır; geldiğinde sahteyle aynı imzayı taşımalıdır (denetim kendiliğinden açılır).
 const PENDING := {"Game": [
 	"alert_level_changed", "alert_level", "alert_timer_left", "heist_finished", "heist_result", "request_restart", "venue_tier",
+	"player_exposure_changed", "player_exposure", "player_world_position", "vision_mode", "set_vision_mode",
 ]}
 const REAL_SCRIPTS := {"Net": "res://autoload/net.gd", "Game": "res://autoload/game.gd"}
 ## ui/ betiklerinde bağımlılık değişkeni adı -> autoload.
@@ -142,6 +145,31 @@ class FakeGame extends FakeGameBase:
 		return tier
 
 
+## S3 + S3 eki + görüş eki (mimari.md, US-011b/c): maruziyet, oyuncu dünya konumu, host'un görüş kipi.
+class FakeVisionGame extends FakeGame:
+	signal player_exposure_changed(peer: int, level: int)
+
+	## peer -> maruziyet (0 gizli, 1 görünür, 2 görüldü); yoksa 0.
+	var exposure: Dictionary = {}
+	## peer -> dünya konumu; yoksa Vector2.INF (oyuncu yok).
+	var positions: Dictionary = {}
+	## vision_mode() dönüşü (0 çevresel 360°, 1 yönlü).
+	var vision: int = 0
+
+	func player_exposure(peer: int) -> int:
+		return int(exposure.get(peer, 0))
+
+	func player_world_position(peer: int) -> Vector2:
+		return positions.get(peer, Vector2.INF)
+
+	func vision_mode() -> int:
+		return vision
+
+	func set_vision_mode(mode: int) -> void:
+		journal.add(["set_vision_mode", mode])
+		vision = mode
+
+
 ## S7 oyuncu sinyalleri (HUD sözleşmesi); yalnız yerel oyuncuda yayılır.
 class FakePlayer extends Node:
 	signal interaction_target_changed(action_key: String)
@@ -150,20 +178,22 @@ class FakePlayer extends Node:
 
 
 ## Net ve Game sahtelerini ortak günlükle kurar ve test sonunda serbest bırakılmak üzere kaydeder.
-static func make_pair(test: TestCase) -> Array:
+## `vision` ise Game sahtesi görüş ekini de taşır (FakeVisionGame).
+static func make_pair(test: TestCase, vision: bool = false) -> Array:
 	var journal := CallLog.new()
 	var net: FakeNet = test.autofree(FakeNet.new()) as FakeNet
-	var game: FakeGame = test.autofree(FakeGame.new()) as FakeGame
+	var game: FakeGame = test.autofree(FakeVisionGame.new() if vision else FakeGame.new()) as FakeGame
 	net.journal = journal
 	game.journal = journal
 	return [net, game, journal]
 
 
 func test_fakes_match_real_autoload_signatures() -> void:
-	var pairs := {"Net": FakeNet, "Game": FakeGame}
-	for autoload_name: String in pairs:
+	var pairs: Array = [["Net", FakeNet], ["Game", FakeGame], ["Game", FakeVisionGame]]
+	for pair: Array in pairs:
+		var autoload_name: String = pair[0]
 		var real: Script = load(REAL_SCRIPTS[autoload_name]) as Script
-		var fake: Script = pairs[autoload_name]
+		var fake: Script = pair[1]
 		var real_surface: Dictionary = _surface(real)
 		for entry: String in _surface(fake):
 			var member: String = entry.get_slice("/", 0)
@@ -210,15 +240,25 @@ static func _has_member(surface: Dictionary, member: String) -> bool:
 	return false
 
 
-## "ad/argüman sayısı" biçiminde sinyal ve genel metot listesi.
+## "ad/argüman sayısı/(argüman tipleri)->dönüş tipi" biçiminde sinyal ve genel metot listesi; tip = Variant tip
+## numarası + sınıf adı (ör. "player_exposure/1/(2)->2", "local_player/0/()->24:Node"). Sinyalde dönüş yok.
+## Anahtar "ad/" ile başlar (üye adı `get_slice("/", 0)`).
 static func _surface(script: Script) -> Dictionary:
+	var type_of := func(info: Dictionary) -> String:
+		var class_id: String = str(info.get("class_name", ""))
+		return str(int(info.get("type", TYPE_NIL))) + (":" + class_id if not class_id.is_empty() else "")
+	var args_of := func(args: Array) -> String:
+		var parts: PackedStringArray = []
+		for a: Dictionary in args:
+			parts.append(type_of.call(a))
+		return "%d/(%s)" % [args.size(), ",".join(parts)]
 	var out: Dictionary = {}
 	for s: Dictionary in script.get_script_signal_list():
-		out["%s/%d" % [s["name"], (s["args"] as Array).size()]] = true
+		out["%s/%s" % [s["name"], args_of.call(s["args"])]] = true
 	for m: Dictionary in script.get_script_method_list():
 		var method: String = m["name"]
 		if not method.begins_with("_"):
-			out["%s/%d" % [method, (m["args"] as Array).size()]] = true
+			out["%s/%s->%s" % [method, args_of.call(m["args"]), type_of.call(m.get("return", {}))]] = true
 	return out
 
 

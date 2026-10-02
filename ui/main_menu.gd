@@ -4,6 +4,8 @@ extends Control
 ## Net/Game'e yalnız S1/S3 sözleşmesiyle bağlanır; testler `net` ve `game`'i sahneye eklemeden önce
 ## sahte nesnelerle değiştirir. Seviye yüklenince (`level_loaded`) menü kendini kaldırır; host'ta seviye
 ## START_TIMEOUT_SEC içinde yüklenmezse oturum kapatılıp forma hatayla dönülür (Vazgeç de aynı yolu açar).
+## US-011c: host kartında görüş kipi seçimi (host'un oyun kuralı, GDD §6.5): Game S3 eki (mimari.md, US-011b/c) üyelerini
+## (vision_mode(), set_vision_mode()) taşıyorsa görünür; seçim host açılınca seviye başlamadan Game'e iletilir.
 
 const SCENE_PATH := "res://ui/main_menu.tscn"
 const DEFAULT_PORT := 7777
@@ -12,6 +14,11 @@ const MAX_PORT := 65535
 const MAX_NAME_LENGTH := 16
 ## Host'ta start_level sonrası level_loaded için beklenen en uzun süre (sn); sonra oturum kapatılır.
 const START_TIMEOUT_SEC := 10.0
+## Görüş kipleri (S3 eki `Game.vision_mode()` değerleri; mimari.md, US-011b/c): 0 çevresel 360°, 1 yönlü.
+const VISION_OMNI := 0
+const VISION_DIRECTIONAL := 1
+## Kip -> seçenek metni (seçenek kimliği = kip).
+const VISION_KEYS := {VISION_OMNI: "MENU_VISION_OMNI", VISION_DIRECTIONAL: "MENU_VISION_DIRECTIONAL"}
 
 enum State { IDLE, CONNECTING, CONNECTED, STARTING }
 
@@ -31,6 +38,9 @@ var _starting_elapsed: float = 0.0
 @onready var _connecting: Control = %Connecting
 @onready var _name_edit: LineEdit = %NameEdit
 @onready var _host_port_edit: LineEdit = %HostPortEdit
+@onready var _vision_label: Label = %VisionLabel
+@onready var _vision_option: OptionButton = %VisionOption
+@onready var _vision_hint: Label = %VisionHint
 @onready var _host_button: Button = %HostButton
 @onready var _join_address_edit: LineEdit = %JoinAddressEdit
 @onready var _join_port_edit: LineEdit = %JoinPortEdit
@@ -65,6 +75,7 @@ func _ready() -> void:
 	net.connect(&"connection_failed", _on_connection_failed)
 	net.connect(&"host_disconnected", _on_host_disconnected)
 	game.connect(&"level_loaded", _on_level_loaded)
+	_setup_vision()
 	_setup_focus()
 	_set_state(State.IDLE)
 	_hide_error()
@@ -111,6 +122,8 @@ func _on_host_pressed() -> void:
 		_show_error(tr(&"MENU_ERROR_HOST_FAILED") % port)
 		_host_port_edit.grab_focus()
 		return
+	if supports_vision():
+		game.call(&"set_vision_mode", vision_mode())
 	_set_state(State.STARTING)
 	_connecting_label.text = tr(&"MENU_STARTING")
 	game.call(&"start_level", Game.DEFAULT_LEVEL)
@@ -128,6 +141,30 @@ func advance(delta: float) -> void:
 	if _starting_elapsed >= START_TIMEOUT_SEC:
 		net.call(&"leave")
 		_back_to_form(&"MENU_ERROR_START_FAILED", _host_button)
+
+
+## Game görüş kipi kuralını (S3 eki; mimari.md, US-011b/c) taşıyor mu; taşımıyorsa seçim gizli.
+func supports_vision() -> bool:
+	return game.has_method(&"vision_mode") and game.has_method(&"set_vision_mode")
+
+
+## Seçili görüş kipi.
+func vision_mode() -> int:
+	return _vision_option.get_selected_id()
+
+
+func _setup_vision() -> void:
+	var shown: bool = supports_vision()
+	_vision_label.visible = shown
+	_vision_option.visible = shown
+	_vision_hint.visible = shown
+	if not shown:
+		return
+	for mode: int in VISION_KEYS:
+		_vision_option.add_item(VISION_KEYS[mode], mode)
+	# Varsayılan Game'den (data/vision_tuning.tres); bilinmeyen değerde ilk seçenek.
+	var index: int = _vision_option.get_item_index(int(game.call(&"vision_mode")))
+	_vision_option.select(maxi(index, 0))
 
 
 func _on_join_pressed() -> void:
@@ -239,10 +276,20 @@ func _focus_first() -> void:
 		_host_button.grab_focus()
 
 
-## Odak sırası (AC6): iki sütun (Host | Katıl); ad en üstte, Çıkış en altta.
+## Odak sırası (AC6): iki sütun (Host | Katıl); ad en üstte, Çıkış en altta. Görüş seçimi görünürse Host
+## sütununda port ile Host arasında, sağında Katıl portu.
 func _setup_focus() -> void:
-	UiInput.tab_ring([_name_edit, _host_port_edit, _host_button, _join_address_edit, _join_port_edit, _join_button, _quit_button])
-	UiInput.vertical([_name_edit, _host_port_edit, _host_button, _quit_button])
+	var host_column: Array[Control] = [_host_port_edit, _host_button]
+	if _vision_option.visible:
+		host_column.insert(1, _vision_option)
+	var ring: Array[Control] = [_name_edit]
+	ring.append_array(host_column)
+	ring.append_array([_join_address_edit, _join_port_edit, _join_button, _quit_button])
+	UiInput.tab_ring(ring)
+	var column: Array[Control] = [_name_edit]
+	column.append_array(host_column)
+	column.append(_quit_button)
+	UiInput.vertical(column)
 	UiInput.vertical([_join_address_edit, _join_port_edit, _join_button], false)
 	UiInput.link(_join_address_edit, SIDE_TOP, _name_edit)
 	UiInput.link(_join_button, SIDE_BOTTOM, _quit_button)
@@ -251,6 +298,9 @@ func _setup_focus() -> void:
 	UiInput.link(_join_address_edit, SIDE_LEFT, _host_port_edit)
 	UiInput.link(_join_port_edit, SIDE_LEFT, _host_port_edit)
 	UiInput.link(_join_button, SIDE_LEFT, _host_button)
+	if _vision_option.visible:
+		UiInput.link(_vision_option, SIDE_RIGHT, _join_port_edit)
+		UiInput.link(_join_port_edit, SIDE_LEFT, _vision_option)
 	UiInput.vertical([_cancel_button])
 	for edit: LineEdit in [_name_edit, _host_port_edit, _join_address_edit, _join_port_edit]:
 		UiInput.arrows_move_focus(edit)
