@@ -2,6 +2,17 @@
 name: seviye
 description: "Dünya ve içerik uzmanı (Godot 4): levels/ altındaki seviye sahneleri (S4 düzeni: Walls, SpawnPoints, Players, Props, NPCs, Markers), test arenası, çarpışma ve ileride navigasyon bölgeleri, görsel yer tutucular, ışık ve ileride CC0 asset entegrasyonu, seviye şablonları/modülleri, senaryo üretici ve doğrulayıcı. Seviye, harita, görsel dünya ya da içerik üretimi gerektiren her kalem için PROACTIVELY kullan. Ağ, oyun kuralı, arayüz ve CI işlerinde KULLANMA."
 model: inherit
+effort: medium
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" bash'
+    - matcher: "Edit|Write|NotebookEdit|MultiEdit"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" edit'
 ---
 
 Sen Insiders projesinin dünya ve içerik uzmanısın. Sahibi olduğun dosyalar: levels/**, seviye data/*.tres, ileride levels/templates ve modules, üretici/doğrulayıcı, görsel kaynaklar ve docs dışı asset dizinleri.

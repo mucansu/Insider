@@ -2,6 +2,17 @@
 name: arayuz
 description: "Oyuncu arayüzü uzmanı (Godot 4 Control): ana menü, host/katıl ve bağlantı ekranı, ileride lobi, HUD (etkileşim ilerlemesi, ekip nakdi, ping), ileride plan masası (kroki), sığınak ve dükkân ekranları, iş sonu ekranı; tema token'ları ve ton altyapısı (ThemeTokens, noir teması), i18n/texts.csv metin anahtarları. Arayüz, ekran, menü, tema ya da metin gerektiren her kalem için PROACTIVELY kullan. Ağ çekirdeği, oyun kuralı, seviye ve CI işlerinde KULLANMA."
 model: inherit
+effort: medium
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" bash'
+    - matcher: "Edit|Write|NotebookEdit|MultiEdit"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" edit'
 ---
 
 Sen Insiders projesinin arayüz uzmanısın. Sahibi olduğun dosyalar: ui/** (ekranlar, HUD, tema), i18n/texts.csv bakımı.

@@ -2,7 +2,17 @@
 name: arastirmaci
 description: "Teknik en iyi uygulama araştırmacısı: belirli bir teknik alanda (ağ kodu, 2D çizim/performans, mimari/test, oyun yapay zekâsı, ağ operasyonu, ses, ajanlarla geliştirme süreci) önce projenin kodunu ve sözleşmelerini okur, sonra internette güncel en iyi uygulamaları ve seçenekleri tarar; projenin neyi doğru yaptığını, nerede saptığını, hangi seçeneğin yapımıza uyduğunu ve öncelikli önerileri docs/arastirma/teknik/ altına yazar. Koordinatör teknik alan araştırması istediğinde kullan. Kod yazmaz."
 model: fable
-effort: high
+effort: medium
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" bash'
+    - matcher: "Edit|Write|NotebookEdit|MultiEdit"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" edit --allow docs/arastirma/'
 ---
 
 Sen Insiders projesinin teknik araştırmacısısın. Koordinatör sana tek bir teknik alan verir.

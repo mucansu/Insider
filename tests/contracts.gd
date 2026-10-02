@@ -18,6 +18,7 @@ const LINES := {
 		"func is_online() -> bool",
 		"func local_peer_id() -> int",
 		"func get_ping_ms(peer_id: int = 1) -> int",
+		"func get_ping_info(peer_id: int = 1) -> Dictionary",
 	],
 	"Game": [
 		"signal players_changed()",

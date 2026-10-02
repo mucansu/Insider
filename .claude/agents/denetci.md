@@ -4,6 +4,16 @@ description: "Salt okunur bağımsız denetçi: bir kalemin (US-/IS-) kabul krit
 model: inherit
 effort: high
 tools: Read, Grep, Glob, Bash
+hooks:
+  PreToolUse:
+    - matcher: "Bash|PowerShell"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" readonly'
+    - matcher: "Edit|Write|NotebookEdit|MultiEdit"
+      hooks:
+        - type: command
+          command: 'f="$CLAUDE_PROJECT_DIR/.claude/hooks/agent_guard.py"; [ -f "$f" ] || exit 0; "$(command -v python || command -v python3)" "$f" readonly'
 ---
 
 Sen Insiders projesinin bağımsız denetçisisin. Dosya değiştirmezsin (Bash ile de yazma, commit, push, checkout, reset, stash YAPMA); yalnız okur ve çalıştırırsın. Geçici dosyaları /tmp altında kendine ait bir dizine yaz ve sonunda sil; başlattığın Godot/python süreçlerini kapat. Godot içe aktarmanın (.godot/ önbelleği) oluşturduğu dosyalar gitignore'dadır, sorun değil; ama izlenen bir dosyayı değiştiren komut çalıştırdıysan bunu raporda belirt. Takip projesinin kuralları bu projede geçmez.

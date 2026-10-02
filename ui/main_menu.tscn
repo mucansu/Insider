@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://cc4adbdgqjrag" path="res://ui/main_menu.gd" id="1_menu"]
 [ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
+[ext_resource type="PackedScene" path="res://ui/invite_panel.tscn" id="3_invite"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
@@ -101,9 +102,15 @@ theme_type_variation = &"MutedLabel"
 text = "MENU_HOST_HINT"
 autowrap_mode = 3
 
+[node name="HostInvite" parent="Center/Column/Form/Cards/HostCard/Box" instance=ExtResource("3_invite")]
+unique_name_in_owner = true
+layout_mode = 2
+show_caption = false
+allow_list = false
+
 [node name="Grid" type="GridContainer" parent="Center/Column/Form/Cards/HostCard/Box"]
 layout_mode = 2
-columns = 2
+columns = 4
 
 [node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
 layout_mode = 2
@@ -177,19 +184,41 @@ layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "MENU_ADDRESS_LABEL"
 
-[node name="JoinAddressEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+[node name="AddressRow" type="HBoxContainer" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="JoinAddressEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/Grid/AddressRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "MENU_ADDRESS_PLACEHOLDER"
 max_length = 253
 
-[node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+[node name="PasteButton" type="Button" parent="Center/Column/Form/Cards/JoinCard/Box/Grid/AddressRow"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "MENU_PASTE_BUTTON"
+
+[node name="AdvancedButton" type="Button" parent="Center/Column/Form/Cards/JoinCard/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 0
+toggle_mode = true
+text = "MENU_ADVANCED_BUTTON"
+
+[node name="AdvancedGrid" type="GridContainer" parent="Center/Column/Form/Cards/JoinCard/Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+columns = 2
+
+[node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/JoinCard/Box/AdvancedGrid"]
 layout_mode = 2
 theme_type_variation = &"CaptionLabel"
 text = "MENU_PORT_LABEL"
 
-[node name="JoinPortEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/Grid"]
+[node name="JoinPortEdit" type="LineEdit" parent="Center/Column/Form/Cards/JoinCard/Box/AdvancedGrid"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3

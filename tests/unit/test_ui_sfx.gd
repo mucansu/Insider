@@ -89,9 +89,39 @@ func test_buttons_play_focus_and_click() -> void:
 	clock.t += 1.0
 	(menu.get_node("%LeaveButton") as Button).pressed.emit()
 	eq(heard, [UiSfx.FOCUS, UiSfx.CLICK] as Array[StringName], "odak tik, basma tık")
-	var buttons: Array[Node] = menu.find_children("*", "BaseButton", true, false)
-	for node: Node in buttons:
-		is_true((node as BaseButton).pressed.get_connections().size() >= 2, "%s basma sesine bağlı" % node.name)
+	_check_all_wired(menu)
+
+
+## IS-078: davet listesi (host'ta) duraklat menüsü her açılışta yeniden kurulur; yeni düğmeler de ses alır.
+func test_pause_invite_list_buttons_are_wired() -> void:
+	var menu: PauseMenu = PAUSE_SCENE.instantiate() as PauseMenu
+	var pair: Array = Fakes.make_pair(self)
+	var net: Fakes.FakeNet = pair[0]
+	net.hosting = true
+	menu.net = net
+	tree().root.add_child(menu)
+	autofree(menu)
+	var invite: InvitePanel = menu.get_node("%Invite") as InvitePanel
+	invite.addresses_provider = func() -> PackedStringArray:
+		return PackedStringArray(["192.168.1.5", "10.0.0.7", "100.101.2.3"])
+	menu.open()
+	is_true(invite.candidates().size() > 1, "birden çok aday: liste düğmeleri var")
+	_check_all_wired(menu)
+	var heard: Array[StringName] = _listen(UiSfx.of(menu))
+	clock.t += 1.0
+	(invite.get_node("%AddressList").get_child(0) as Button).pressed.emit()
+	eq(heard.count(UiSfx.CLICK), 1, "liste düğmesi tek tık (çift bağ yok)")
+
+
+## Her düğmenin basma sinyali ekranın arayüz çalarına (tam bir kez) bağlı.
+func _check_all_wired(screen: Node) -> void:
+	var player: UiSfx = UiSfx.of(screen)
+	for node: Node in screen.find_children("*", "BaseButton", true, false):
+		var count: int = 0
+		for c: Dictionary in (node as BaseButton).pressed.get_connections():
+			if (c["callable"] as Callable).get_object() == player:
+				count += 1
+		eq(count, 1, "%s basma sesine bağlı" % node.name)
 
 
 func test_main_menu_buttons_are_wired() -> void:

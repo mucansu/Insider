@@ -42,7 +42,8 @@ step_import() {
 	echo "İçe aktarma temiz."
 }
 
-# Birim testler. Koşucu çıkış kodunu verir; motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
+# Birim testler. Koşucu çıkış kodunu verir (test başına yetim düğüm farkı da kapıdır: `[ORPHAN]` satırı,
+# IS-046); motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
 # kaynak, RID: "... leaked at exit" / "... still in use at exit") koşucudan sonra geldiğinden burada
 # yakalanır: biri bile varsa adım başarısız ve kaynaklar --verbose ikinci koşuyla listelenir (IS-029).
 # (import adımı bu satırları zaten genel ERROR/WARNING kuralıyla yakalar.)
@@ -85,10 +86,10 @@ find_python() {
 	return 1
 }
 
-# Araç testleri: gecikme proxy'si, net_smoke süreç ağacı öldürme, ekran görüntüsü ve uyarı sayımı yardımcıları
-# (Godot gerekmez). Ardından GDScript uyarı sayımı + kapısı (IS-047; Godot ister, import'tan sonra):
-# project.godot'ta düzeyi 2 olan türde uyarı varsa ya da sayım alınamazsa adım KIRMIZI; düzeyi 0/1 olan türlerin
-# sayımı yalnız bilgi (JSON: build/warn_count.json).
+# Araç testleri: gecikme proxy'si, net_smoke süreç ağacı öldürme, ekran görüntüsü ve uyarı sayımı yardımcıları,
+# ajan hook koruması .claude/hooks/agent_guard.py (IS-053) (Godot gerekmez). Ardından GDScript uyarı sayımı +
+# kapısı (IS-047; Godot ister, import'tan sonra): project.godot'ta düzeyi 2 olan türde uyarı varsa ya da sayım
+# alınamazsa adım KIRMIZI; düzeyi 0/1 olan türlerin sayımı yalnız bilgi (JSON: build/warn_count.json).
 step_tools() {
 	find_python || return 1
 	"${PYTHON[@]}" --version
@@ -97,6 +98,7 @@ step_tools() {
 	"${PYTHON[@]}" tools/test_screenshot.py || return 1
 	"${PYTHON[@]}" tools/test_perf_run.py || return 1
 	"${PYTHON[@]}" tools/test_warn_count.py || return 1
+	"${PYTHON[@]}" tools/test_agent_guard.py || return 1
 	echo "-- GDScript uyarı sayımı (düzey 2 = kapı, diğerleri bilgi)"
 	"${PYTHON[@]}" tools/warn_count.py --gate || return 1
 }

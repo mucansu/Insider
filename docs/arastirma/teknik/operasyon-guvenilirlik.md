@@ -176,3 +176,157 @@ Dayanak: KR-020 (önce aramızda MVP, ENet + Tailscale), KR-009 (bağımlılıks
 - itch butler: https://itch.io/docs/butler/pushing.html · Steam branch'leri: https://partner.steamgames.com/doc/store/application/branches
 - KVKK oyun cezaları: https://www.tgrthaber.com/teknoloji/kvkk-knight-online-oyununa-idari-para-cezasi-verdi-2952079 · https://www.istiklal.com.tr/teknoloji/kvkkdan-oyun-platformuna-cerez-cezasi-300-bin-tl-768317h · GDPR ve çökme raporu: https://bugnet.io/blog/crash-reporting-gdpr-indie-games
 - Klotho (belirlenimci replay örneği, .NET): https://godotengine.org/asset-library/asset/5234
+
+---
+
+## Tur 2 — 2026-10-02 (doğrulama turu: bu makinede ölçüm + motor kaynağı)
+
+### Kapsam
+Tur 1'in açık sorularının doğrulanması: (1) Tailscale arabiriminin Windows ağ profili ve "Özel" izninin yeterliliği; (2) Godot 4.7.2 `Logger` API'si ve release'te script backtrace — IS-043 taslak arayüzü; (3) `application/config/version` export'ta okunuyor mu, git hash'i gömme yolları; (4) `OS.crash()`/çökme işleyicisi çıktısı Windows'ta nereye düşüyor, `session.lock` kalıbı; (5) `build_info.json` ve el sıkışmasında protokol/build alanı. Ek: ENet MTU, auth zaman aşımı, `disconnect_peer` kuyruk davranışı.
+İşaret eki: **[Ö]** = bu makinede ölçüldü (Windows 11 Pro 26200, resmî Godot 4.7.2 Windows şablonları, deney projesi scratchpad `opguv-t2`). Yalnız okuma/ölçüm komutları koşuldu; sistem/güvenlik duvarı ayarı değiştirilmedi.
+
+### Mevcut durum (dosya:satır) — tur 1'e ek
+- `autoload/game.gd:47` `AUTH_TIMEOUT_SEC := 10.0`, `game.gd:105` `sm.auth_timeout` **set ediliyor** [K] (SceneMultiplayer varsayılanı 3 sn; `scene_multiplayer.cpp:144-158` süre dolunca `disconnect_peer` + `peer_authentication_failed`). İstemci seviye yüklemesini el sıkışması içinde yapıyor (`game.gd:442-446`); 10 sn yavaş diskte bile yeter [G].
+- `game.gd:414` hello = `{"v", "level"}`; `game.gd:451` yanıt = `{"v", "name", "level"}`; `game.gd:427-428` ret = `push_warning` + aynı karede `disconnect_peer` [K].
+- `autoload/net.gd:215` `enet.create_server(port, …)` — `set_bind_ip` çağrısı yok → `*` (tüm arabirimler) [K]; `net.gd:168-181` el sıkışması sırasında host kopunca `connection_failed` yayılıyor (tur 1 bulgusuyla tutarlı).
+- `main.gd:259-267` döküm; `Args.is_automation()` (`args.gd:136`) var → otomasyon koşusunu ayırt etmek için hazır kanca [K].
+- `.github/workflows/ci.yml:111-181` (IS-042, Sürüyor): `test-*` etiketinde `Insiders-<etiket>-<platform>.zip` + GitHub Release (prerelease) **zaten var** [K]; zip içinde `build_info.json` henüz yok; `actions/checkout@v7` varsayılan derinlik 1 → `git describe` etiket görmez (etiket release işinde ayrıca `fetch`leniyor, `ci.yml:155`).
+- `project.godot`: `application/config/version` yok; `debug/settings/gdscript/always_track_call_stacks` yok; `export_presets.cfg:32-33` `file_version`/`product_version` boş [K].
+- `README.md:58-60` (IS-041, Sürüyor): "Özel ve Ortak ikisini de işaretleyin; yalnız Özel seçilirse Ortak'ta Engelle kuralı oluşur ve izin kuralını ezer (Tailscale arabirimi Ortak profilde olabilir)" [K] — aşağıda A ile netleştirildi.
+- **Bu makinede güvenlik duvarı durumu [Ö]:** aktif ağ profili `Ethernet` = **Public**. Kurallar: `Godot Engine` (masaüstü `Godot_v4.7.2…exe`) Allow/Public; `.tools\godot_v4.7.2…exe` **Block**/Public (TCP+UDP); `Insiders`/`insiders.exe` **Block**/Public ×4 çift (worktree build'i, denetçi temp build'i, scratchpad build'i). Yani otomasyon koşuları (net_smoke, denetçi, worktree) her yeni exe yolunda Windows'un "izin ver" penceresini açmış, kimse yanıtlamayınca Windows **Engelle** kuralı yazmış (MS belgesi: iptal/yanıtsız → TCP+UDP iki block kuralı [O]). Tailscale **kurulu değil** (adaptör listesinde yok).
+- **`user://logs` [Ö]:** `%APPDATA%\Godot\app_userdata\Insiders\logs\` içinde 5 dosya, hepsi aynı dakikadan test/net_smoke koşuları (içerik `--verbose` "Loading resource:" satırları, 270-566 KB). Geliştirici makinesinde gerçek oyun log'u otomasyon koşularıyla saniyeler içinde döndürülüp siliniyor. Dosya adı biçimi `godot2026-10-02T13.44.04.log` (alt çizgi yok).
+
+### En iyi uygulamalar ve seçenekler
+
+#### A. Tailscale arabirimi ve Windows güvenlik duvarı (konu 1)
+| Bulgu | Kaynak |
+|---|---|
+| Tailscale Windows istemcisi kendi adaptörünün ağ kategorisini **Private** yapar: `setPrivateNetwork` — kategori Private ya da Domain değilse `SetCategory(Private)`; başarısızsa sağlık uyarısı `set-network-category-failed` ("Failed to set the network category to private on the Tailscale adapter…"), yeniden dener; her açılışta/yeniden başlatmada tekrar uygular **[O]** | `wgengine/router/osrouter/ifconfig_windows.go:163-235, 239-283` (main); KB "Windows network configuration failed" |
+| Tailscale iki gelen kuralı yazar: `Tailscale-In` dir=in action=allow **localip=<Tailscale IP'niz> profile=private,domain** (program/port kısıtı yok → Tailscale IP'nize gelen **her** paket Private/Domain profilinde serbest) ve `Tailscale-Process` (tailscaled.exe, UDP, profile=any) **[O]** | `wgengine/router/osrouter/router_windows.go:270-330` |
+| Windows kural önceliği: açık **Engelle** kuralı çakışan her İzin kuralını ezer; iptal/yanıtsız istem → TCP+UDP **Engelle** kuralları yazılır ve silinene kadar istem bir daha çıkmaz **[O]** | MS Learn "Windows Firewall rules" §Rule precedence, §Applications rules |
+| **Sonuç [G, O'lara dayanır]:** Tailscale adaptörü normalde Private olduğundan, host'ta Insiders.exe için **hiç izin kuralı olmasa bile** Tailscale'den gelen UDP 7777 `Tailscale-In` ile geçer. Tailscale yolunu bozan tek şey Insiders.exe için **Private profilde Engelle** kuralı (istem Private ağdayken iptal edildiyse ya da "yalnız Ortak" seçildiyse). Bu makinedeki Block/Public kuralları Tailscale yolunu etkilemez; **LAN üzerinden** (Ethernet=Public) host olmayı engeller. | — |
+| README düzeltmesi: "Tailscale arabirimi Ortak profilde olabilir" yerine "Tailscale adaptörü Private'tır (Tailscale zorlar); Private'ta Engelle kuralı varsa Tailscale de kesilir; iki kutuyu da işaretlemek LAN testi ve güvenli taraf için" **[G]** | — |
+| `tailscale ping`/`status` teşhisine ek: host'ta `Get-NetConnectionProfile` çıktısında `Tailscale` satırı **Private** olmalı; `Get-NetFirewallRule -DisplayName Insiders* \| ft DisplayName,Action,Profile` ile Block var mı bakılır (salt okunur) **[G]** | — |
+| Otomasyon istemi: `ENetMultiplayerPeer.set_bind_ip("127.0.0.1")` yalnız yerel koşularda (net_smoke, testler, export smoke) kullanılırsa Windows istemi/Block kuralı çıkmaz **[? — belgede `set_bind_ip` "varsayılan `*`" [O]; loopback'e bağlanmanın istem açmadığı doğrulanmalı]** | ENetMultiplayerPeer docs |
+
+#### B. `Logger` API'si ve release'te script backtrace (konu 2) — ölçüldü
+- **İmzalar (4.7 docs) [O]:** `Logger extends RefCounted`; `_log_message(message: String, error: bool)`; `_log_error(function: String, file: String, line: int, code: String, rationale: String, editor_notify: bool, error_type: int, script_backtraces: Array[ScriptBacktrace])`; enum `ERROR_TYPE_ERROR=0, WARNING=1, SCRIPT=2, SHADER=3`; kayıt `OS.add_logger(l)`/`OS.remove_logger(l)`. Her iki metot **herhangi bir iş parçacığından, eşzamanlı** çağrılabilir → `Mutex`; içinde `push_error/push_warning` **yasak** (sonsuz özyineleme) [O].
+- **Ölçüm [Ö] (release şablonu, `always_track_call_stacks=true`):** `push_warning("x")` → `_log_error(fn="push_warning", file="core/variant/variant_utility.cpp", line=1033, code="x", rationale="", notify=false, type=1, bt_count=1)`; `push_error` aynı, `code` mesajı taşır, `rationale` boş. `OS.crash("m")` → `type=0, fn="crash", code="FATAL: Method/function failed.", rationale="m"`. `_log_message` her `print` satırını (sonunda `\n` ile) alır; `error=true` yalnız stderr'e giden metinler için. `ScriptBacktrace.format(4)` çıktısı "GDScript backtrace (most recent call first): [0] _ready (res://main.gd:47)". `Engine.capture_script_backtraces(false)` release'te 1 iz/1 kare döndürdü.
+- **Kritik sınır [Ö + O]:** release şablonunda GDScript **çalışma zamanı hataları yoktur**: `arr[3]` (sınır dışı) → `<null>` döner, hata yok; `null_node.name` → hata yok, fonksiyon devam eder; `d["yok"]` → null; `10 / 0` (int) → işlem **sert çöker** (0xC0000094) ve hiçbir satır düşmez. Kaynak: `gdscript_vm.cpp` OPCODE_GET_NAMED'de geçersiz erişim denetimi `#ifdef DEBUG_ENABLED` içinde (129 DEBUG_ENABLED bloğu). `always_track_call_stacks` yalnız **push_error/push_warning/motor ERR_FAIL** hatalarına iz ekler; script hatasını görünür kılmaz. **Debug şablonunda** aynı kod "SCRIPT ERROR: Invalid access to property or key 'name' on a base object of type 'null instance'" + 3 kareli iz verdi ve fonksiyon kesildi (sonraki `quit()` çalışmadı → süreç açık kaldı; test tasarımında dikkat).
+- **Seçenek — test build'leri debug şablonuyla [G, karar gereken]:** `--export-debug` ile üretilen build script hatalarını iz ile log'a yazar, çökmede crash handler çalışır (aşağıda D). Bedel: GDScript denetimleri (performans; 2D küçük oyunda ölçülmedi [?]), exe 103 MB vs 109 MB (release daha büyük çıktı; fark önemsiz), `OS.has_feature("debug")=true` → `flush_stdout_on_print.debug=true` (her print flush). net_smoke/CI release ile koşmaya devam eder; yalnız `test-N` zip'leri debug olur ya da her ikisi de üretilir ("Insiders-test-3-windows-debug.zip").
+
+#### C. Sürüm/build kimliği gömme (konu 3) — ölçüldü
+| Soru | Sonuç |
+|---|---|
+| `ProjectSettings.get_setting("application/config/version")` export'ta? | **Döner [Ö]** (`"0.9.7+abc1234"` aynen; `has_setting=true`). Tur 1 [?] kapandı. |
+| `res://build_info.json` export'a giriyor mu? | `export_filter=all_resources`, **include_filter boş** iken **giriyor [Ö]** (JSON 4.x'te Resource; export docs'un ".json include filter ister" cümlesi [ESKİ/yanıltıcı]). `.txt` girmiyor; `include_filter="build_info.json"` yazmak yine de açıklık için önerilir [G]. |
+| `override.cfg` | Export'ta `res://override.cfg` yoktu [Ö]; exe yanına konursa çalışma zamanında okunur [O, ProjectSettings docs] — kullanıcı silebilir/değiştirebilir; build kimliği için uygun değil [G]. |
+| Windows exe meta (`file_version` boş) | `EditorExportPreset::get_version`: boşsa `application/config/version`'a düşer; **yalnız rakam ve nokta** kabul eder, 4 parçaya `.0` ile doldurur; geçersizse WARNING + `1.0.0.0` [O, `editor_export_preset.cpp`]. Ölçüm [Ö]: `config/version="0.9.7+abc1234"` → 4× "Invalid version number" uyarısı, exe `1.0.0.0`; preset `file_version="0.9.7.0"` → exe `FileVersion 0.9.7.0`. **rcedit gerekmez**: `TemplateModifier` PE kaynağını kendisi yazar, Linux'tan export'ta da çalışır [O, `template_modifier.cpp`]. |
+| Git hash gömme yolu (CI'ya en az dokunan) | **Seçilen [G]:** `tools/export.sh` export öncesi `build_info.json`'u proje köküne yazar (`.gitignore`'a eklenir), `version` = `project.godot config/version` (yalnız `X.Y.Z`), `git` = `git rev-parse --short HEAD` (CI'da `GITHUB_SHA` kısaltması; `.git` yoksa "nogit"), `tag` = `GITHUB_REF_NAME` (`test-*` ise) ya da `git describe --tags --always` (yerelde), `date` UTC, `protocol` = Game.PROTOCOL_VERSION (export.sh `grep`le okur; drift testi birim testte), `debug` = şablon türü. Aynı dosya `build/<platform>/` yanına da kopyalanır → zip'te görünür. CI değişikliği sıfır (export.sh zaten çağrılıyor); `git describe` için `fetch-depth: 0` **gerekmez** (hash yeter; etiket adı env'den). Editörde dosya yok → `BuildInfo.version = "dev"`. Alternatif `EditorExportPlugin._export_begin + add_file` (addons/ klasörü, tool script) daha "Godot'ça" ama bir eklenti daha [G]. |
+
+#### D. Çökme çıktısı ve `session.lock` (konu 4) — ölçüldü
+- **Resmî 4.7.2 Windows şablonları MinGW-GCC 15.2 ile derlenmiş [Ö, exe içi "GCC: (MinGW-W64 x86_64-msvcrt-posix-seh…)"]** → `crash_handler_windows_signal.cpp` (SIGSEGV/SIGFPE/SIGILL + libbacktrace); `CRASH_HANDLER_EXCEPTION` `crash_handler_windows.h:37`'de koşulsuz tanımlı [O].
+- **Release şablonu [Ö]:** `OS.crash("m")` → log'a yalnız "ERROR: m / at: crash (core/core_bind.cpp:349) / GDScript backtrace …" düşer (bu satır `CRASH_NOW_MSG`'nin kendi hatası; **flush edilir**, `logger.cpp:216` `p_err || flush_stdout_on_print`), sonra süreç 0xC000001D ile ölür; **"CrashHandlerException: Program crashed…" satırı YOK**, `debug/settings/crash_handler/message` **hiç görünmez**. Int sıfıra bölme çökmesinde (0xC0000094) hiçbir satır yok. Neden (handler'ın release'te hiç koşmaması) kaynaktan açıklanamadı **[?]** — ölçüm kesin.
+- **Debug şablonu [Ö]:** aynı çağrıda stderr+log'a "CrashHandlerException: Program crashed with signal 4 / Engine version: Godot Engine v4.7.2.stable.official (ed1daf0b…) / Dumping the backtrace. <bizim mesaj> / Load address … / [3..24] adres (main+…) - no debug info in PE/COFF executable / -- END OF C++ BACKTRACE -- / GDScript backtrace (most recent call first): (boş; await sonrası) / -- END OF GDSCRIPT BACKTRACE --". Adresler sembolsüz (beklenen, tur 1), ama **çökme olgusu + mesaj + o anki script izi** log'a düşüyor; kullanıcıya "logu gönder" mesajı ancak debug şablonunda görünür.
+- **WER minidump [Ö/O]:** Çökmede Windows `%LOCALAPPDATA%\CrashDumps\<exe>.<pid>.dmp` yazdı (3,7 MB) — ama **yalnız** `HKLM\…\Windows Error Reporting\LocalDumps` anahtarı var olduğu için (bu makinede var; MS: varsayılan **kapalı**, yönetici gerekir) [O, MS Learn]. Arkadaş makinesinde beklenmemeli; önerilmez (yönetici/registry).
+- **Nereye yazılır — özet:** release'te çökme kanıtı = log'un son satırlarında kesilen akış (+ `print` tamponda kalabilir, hata satırları flush'lı) + sonraki açılışta `session.lock`; debug'da ayrıca crash handler bloğu. `.console.exe` ile açılırsa aynı metin konsolda; kapanınca kaybolur → log dosyası tek kalıcı yer.
+- **`session.lock` kalıbı (Godot'a özgü noktalar) [G]:** (a) `user://session.lock` içeriği `{"pid", "build", "started_at", "log": <bu oturumun godot.log yolu>}`; açılışta `_ready`'de yazılır, `NOTIFICATION_WM_CLOSE_REQUEST`/`quit()` yolunda silinir. (b) `OS.is_process_running(pid)` **yalnız `create_process` çocuklarına bakar** (`os_windows.cpp`) → eski kilidin sahibi yaşıyor mu bilinemez; bu yüzden **otomasyonda kilit yazılmaz** (`Args.is_automation()` ya da `DisplayServer.get_name()=="headless"`), aynı makinede ikinci pencere açan geliştirici yanlış uyarı görebilir (kabul edilir; mesaj "temiz kapanmamış olabilir"). (c) Açılışta kilit varsa: `user://logs/` içindeki en yeni `godot*.log` (kilitteki yol) **rapor paketine önceki oturum log'u olarak** eklenir; kilit silinir; menüde tek satır "Geçen oyun temiz kapanmadı — Sorun bildir (F8)". (d) `MainLoop.NOTIFICATION_CRASH` (`crash_handler…:220`) handler çalışırsa gelir — release'te güvenilmez, debug'da bonus: orada `Game.collect_dump()`'ı `user://reports/crash_<t>.json`'a yazmak denenebilir (çökme bağlamında dosya yazmak riskli; try-best).
+- **Geliştirici makinesi log kirliliği [Ö→G]:** testler/net_smoke aynı `user://logs`'u döndürüyor; `--log-file <tmp>` (CLI, [O]) ile otomasyon koşuları ayrı dosyaya yazdırılırsa gerçek oyun logu korunur (net_smoke.py + run_tests çağrısı, XS).
+
+#### E. `build_info.json` zip'te + el sıkışmasında sürüm alanı (konu 5)
+- **Zip:** `build/windows/build_info.json` ve `build/linux/build_info.json` (export.sh kopyalar) → `ci.yml:120-123` `cp -a build/<platform>` zaten klasörü kopyaladığı için **CI'da ek adım yok** [K+G]. Alanlar: `version, git, tag, date, protocol, debug`.
+- **Oyun içi `BuildInfo` (core/build_info.gd, static) [G]:** `static func load() -> Dictionary` (`res://build_info.json` yoksa `{"version":"dev","git":"","protocol":Game.PROTOCOL_VERSION}`); `static func label() -> String` → "dev" ya da "test-3 (a1b2c3d)"; menü sağ alt + `collect_dump()["build"]` + rapor paketi.
+- **El sıkışması (Game, S3) — alan yerleri [G]:** host hello `{"v": PROTOCOL_VERSION, "level": …, "build": BuildInfo.label()}`; istemci yanıtı `{"v", "name", "level", "build"}`. Ret: host `v` uyuşmazlığında **kesmek yerine** `send_auth(peer, var_to_bytes({"reject": "version_mismatch", "host_v": PROTOCOL_VERSION, "host_build": label}))` yollar ve peer'ı **pending** bırakır; istemci `_on_auth_data`'da `reject` görünce nedeni `Net.last_reject` (ya da `Game.last_reject_reason`) olarak saklar ve **kendisi `Net.leave()`** çağırır → `connection_failed` → menü nedene göre `MENU_ERROR_VERSION_MISMATCH` ("Sende v%d / %s, hostta v%d / %s") gösterir. Host tarafında `auth_timeout` (10 sn) kapatmayan istemciyi düşürür. **Neden host kesmesin:** `ENetMultiplayerPeer.disconnect_peer` → `enet_peer_disconnect` → `enet_peer_reset_queues` [O, `peer.c:538-559`, `enet_multiplayer_peer.cpp:271-279`] → aynı karede kuyruğa konan ret paketi **silinir**; en az bir `poll` sonra kesmek gerekir, istemci-güdümlü kapanış daha basit ve test edilebilir. Ret kodları: `version_mismatch`, `level_mismatch`, `full`, `in_progress`. Eski istemci (ret alanını bilmeyen) `reject` sözlüğünde `v` görmeyince mevcut `disconnect_peer(1)` yoluna düşer → geriye uyumlu.
+- **`v` kontrolü sırası:** `reject` anahtarı **`v` kontrolünden önce** okunmalı (`game.gd:425-429` koşulu `v` yoksa reddediyor) — IS/US-027 uygulamasında dikkat.
+
+#### F. Ek doğrulamalar (tur 1 açık soruları)
+- ENet (Godot `thirdparty/enet`, 1.3.18): `ENET_HOST_DEFAULT_MTU = 1392`, `ENET_PEER_TIMEOUT_MINIMUM 5000`, `MAXIMUM 30000`, `TIMEOUT_LIMIT 32` [O, `enet.h`]. Tailscale 1280 < 1392 → 1280'i aşan tek paket IP parçalanır (tur 1 R2 geçerli; "tek RPC yükü ≤ 1 KB" kuralı yerinde).
+- SceneMultiplayer: host el sıkışması sırasında kesince istemcide `_del_peer(1)` → `peer_authentication_failed(1)`; `_update_status` CONNECTED→DISCONNECTED → `server_disconnected`; `net.gd:168-181` bunu kabul öncesiyse `connection_failed`'a çeviriyor [O+K] — tur 1 teşhisi doğru.
+
+### Bizim yapımıza uygunluk değerlendirmesi
+- KR-009/KR-020 çizgisi korunur: hiçbir öneri dış servis/eklenti istemez; `Logger` + `build_info.json` + `session.lock` saf GDScript/bash.
+- En büyük düzeltme: **release şablonu script hatalarını göstermez** (B) — IS-043'ün "release backtrace" kabul maddesi (tur 1 Ö2 AC2 "script hatasında backtrace release'te log'a düşer") **yalnız push_error için doğru**; AC yeniden yazılmalı ya da test build'i debug şablonuna geçmeli (karar gereken).
+- IS-041 README metni (A) küçük netleştirme ister; IS-042 zip'ine `build_info.json` export.sh üzerinden sıfır CI değişikliğiyle girer.
+
+### Bulgular
+**Doğru yaptıklarımız**
+- `auth_timeout = 10` set edilmiş (varsayılan 3 sn seviye yüklemesini düşürebilirdi); el sıkışması nesnesiz; CI zaten `test-*` zip'i + Release üretiyor; README iki profil önerisi güvenli tarafta.
+
+**Saptığımız / eksik yerler**
+1. Release şablonu: GDScript çalışma zamanı hataları sessiz, çökme işleyicisi çıktı vermiyor, crash mesajı görünmüyor [Ö] → tur 1 Ö2 AC2 ve "crash handler mesajı tr/en" öğeleri release'te **boş**.
+2. `config/version`'a `+hash` yazılırsa Windows meta `1.0.0.0`'a düşer + 4 uyarı [Ö] → `config/version` yalnız `X.Y.Z`, hash `build_info.json`'da.
+3. Host "ret nedeni yolla, aynı karede kes" tasarımı ENet kuyruğunu sıfırlar [O] → istemci-güdümlü kapanış.
+4. Otomasyon koşuları geliştirici makinesinde Windows güvenlik duvarı istemi açıyor, yanıtsız kalınca Block kuralı yazıyor (4 yol × 2) ve `user://logs`'u dolduruyor [Ö].
+5. README'deki "Tailscale arabirimi Ortak olabilir" ihtiyatı yanlış yönde: Tailscale Private'ı zorlar; tehlike Private'ta Engelle kuralı [O].
+
+**Riskler**
+- R5 Test build'i release kalırsa arkadaş testinde "oyun dondu/kapandı" raporları iz bırakmaz; teşhis maliyeti yükselir.
+- R6 `session.lock` çoklu-pencere/otomasyonda yanlış pozitif; otomasyon dışlanmazsa net_smoke'ta kilit çakışması.
+- R7 Debug şablonu seçilirse `flush_stdout_on_print.debug=true` + script denetimleri → performans farkı ölçülmeli (150 ms RTT senaryosu + 20 Hz akış).
+
+### Öneriler (öncelik · maliyet · sahip · kalem adayı + AC)
+| # | Öneri | P | M | Sahip | Kalem adayı ve AC |
+|---|---|---|---|---|---|
+| T2-1 | **IS-043 AC düzeltmesi + `Logger` taslağı (aşağıda G)**: release'te yalnız push_error/motor hataları iz taşır; crash handler mesajına güvenilmez | P1 | XS (AC metni) + S (uygulama) | cekirdek | **IS-043 (mevcut) AC yeniden:** AC2 → "push_error/push_warning release build'de log'a backtrace ile düşer (export smoke: kasıtlı push_error, log'da `[0] <fn> (res://…)` satırı)". Yeni AC: "`Logger` alt sınıfı `_log_error`'da push_error kullanmaz; Mutex ile korunur; headless+release'te `user://logs/insiders.log` döndürmeli (2 MB × 3)". |
+| T2-2 | **Karar gereken:** `test-N` zip'leri **debug şablonu** ile (ya da release+debug iki zip) — script hatası izi ve crash handler bloğu için | P1 | XS (export.sh/CI) | altyapi (+kullanıcı kararı) | **IS-042 eki:** AC1 `tools/export.sh windows-debug` adımı ve zip adı `-debug`; AC2 export smoke debug build'de kasıtlı `null.name` → log'da "SCRIPT ERROR" + iz; AC3 150 ms net senaryosu debug build'de de geçer (R7 ölçümü döküme `build.debug=true` ile). |
+| T2-3 | `build_info.json` üretimi export.sh'ta + `config/version="0.1.0"` (yalnız rakam) + preset `file_version` boş bırakılıp fallback (ya da export.sh `sed`) + `BuildInfo` static sınıfı + menü/döküm/el sıkışması `build` alanı | P1 | S | altyapi (export.sh, project.godot, .gitignore) + cekirdek (BuildInfo, Game) + arayuz (menü etiketi) | **US-027 teknik gövdesi:** AC1 export çıktısında `build/<platform>/build_info.json` ve `res://build_info.json` aynı içerik; editörde `BuildInfo.label()=="dev"`. AC2 `(Get-Item Insiders.exe).VersionInfo.FileVersion == "0.1.0.0"` (export smoke, Windows'ta). AC3 döküm `build` anahtarı; menü sağ alt etiket. AC4 export günlüğünde "Invalid version number" **yok** (check_log'a WARNING eşlemesi). |
+| T2-4 | El sıkışması ret nedeni: host `reject` sözlüğü yollar ve peer'ı pending bırakır; istemci nedeni saklayıp kendisi ayrılır; `reject` `v`'den önce okunur | P1 | S | cekirdek (+arayuz: `MENU_ERROR_VERSION_MISMATCH`) | **US-027 AC:** AC1 `--protocol-override=2` ile katılan istemci dökümünde `last_reject="version_mismatch"`, `host_v=1`; menü metninde iki sürüm. AC2 host dökümünde peer `events`'te `auth_reject` kaydı, host kesmeden önce ≥1 poll geçmiş ya da istemci ayrılmış. AC3 eski istemci (reject bilmeyen) davranışı değişmez. |
+| T2-5 | README A netleştirmesi: Tailscale adaptörü Private; Private'ta Engelle kuralı → Tailscale kesilir; `Get-NetConnectionProfile`/`Get-NetFirewallRule` salt okunur kontrol satırları; "iki kutu" önerisi kalır | P1 | XS | altyapi | **IS-041 eki:** AC1 README §Tailscale 4. adım yeni metin; AC2 teşhis listesine iki PowerShell satırı. |
+| T2-6 | Otomasyon hijyeni: net_smoke/testler/export smoke `--log-file <tmp>`; yerel koşularda `set_bind_ip("127.0.0.1")` (Args `--bind=127.0.0.1` ya da otomasyonda otomatik) → istem/Block kuralı ve log döndürme yok | P2 | XS-S | cekirdek (net.gd/args.gd) + altyapi (net_smoke.py, export.sh) | **IS adayı "Otomasyon izolasyonu":** AC1 net_smoke sonrası `user://logs` değişmez; AC2 `--bind` ile host loopback'e bağlanır, net_smoke tüm senaryoları geçer; AC3 Windows'ta temiz makinede istem çıkmadığı el ile bir kez doğrulanır (not). |
+| T2-7 | `session.lock` D'deki kalıp (otomasyonda kapalı; önceki log yolunu taşır; rapor paketine ekler) | P1 (IS-043 içinde) | XS | cekirdek | **IS-043 AC eki:** AC `--dump` koşusunda kilit yazılmaz; kilitli açılışta `collect_dump()["unclean_previous"]=true` ve rapor paketinde `previous.log`. |
+| T2-8 | Debug şablonu performans ölçümü (R7): aynı senaryo release/debug, döküm `fps_min`/`frame_ms_p95` | P2 | XS | altyapi (CI matrisi) | T2-2 AC3 ile birleşir. |
+
+#### G. IS-043 taslak arayüzü (imza düzeyi, kod yazılmadı) [G]
+```
+# core/log.gd  (class_name Log; RefCounted değil, static yardımcılar + tek Logger örneği)
+class_name Log
+enum Level { D, I, W, E }
+const CATS := [&"net", &"session", &"interact", &"ai", &"ui", &"save", &"build"]
+static func d(cat: StringName, msg: String) -> void          # release'te derlenir ama yazılmaz
+static func i(cat: StringName, msg: String) -> void
+static func w(cat: StringName, msg: String) -> void          # push_warning'e sarar (iz için)
+static func e(cat: StringName, msg: String) -> void          # push_error'a sarar (iz için)
+static func breadcrumbs(n: int = 200) -> PackedStringArray   # halka tampon (I/W/E), rapor paketi için
+static func install() -> void                                 # Net._ready'den: OS.add_logger(_sink); session.lock
+static func uninstall() -> void                               # çıkışta: remove_logger, kilit sil, flush
+static func set_min_level(level: Level) -> void              # release varsayılanı I; --log-level=D arg
+
+# core/log_sink.gd  (extends Logger; yalnız Log kullanır)
+func _log_message(message: String, error: bool) -> void      # Mutex; "t=+s lvl=I cat=? msg=" satırını dosyaya; push_* YOK
+func _log_error(function: String, file: String, line: int, code: String, rationale: String,
+        editor_notify: bool, error_type: int, script_backtraces: Array[ScriptBacktrace]) -> void
+    # type 0/2 → lvl=E, 1 → W, 3 → E cat=shader; code boşsa rationale; iz varsa bt.format(2) alt satır;
+    # aynı (file,line,code) 1 sn içinde tekrarında sayaç ("x12") — ağ log tekrarı kuralı (mimari §6)
+    # dosya: user://logs/insiders.log, 2 MB'da döndür (insiders.1.log, .2.log); W/E'de flush, I'de 1 sn'de bir
+
+# core/build_info.gd
+class_name BuildInfo
+static func load() -> Dictionary        # res://build_info.json ya da {"version":"dev"}
+static func label() -> String           # "dev" | "test-3 (a1b2c3d)" | "0.1.0 (a1b2c3d)"
+static func protocol() -> int
+
+# core/report.gd  ("Sorun bildir" paketi; main.gd F8/duraklat'tan)
+static func build_package(note: String, dump: Dictionary, screenshot: Image) -> String  # zip yolu döner
+    # içerik: note.txt, dump.json, insiders.log (+ previous.log kilit varsa), godot.log, screenshot.png,
+    # system.json {os, version_alias, cpu, gpu/driver, engine, build, transport, ping_ms, peers}
+```
+Not: `_log_message` çok sık çağrılır (her print); release'te `print` zaten az (mimari §6 `push_*` kuralı). `Logger` sink'inin kendi `print` çağırması **yasak** (özyineleme).
+
+### Karar gereken (koordinatöre)
+1. **Test build şablonu:** `test-N` dağıtımı debug şablonuyla mı (script hata izi + crash bloğu), release mi, ikisi mi? (T2-2; performans ölçümü T2-8 ile birlikte.)
+2. **IS-043 AC2'nin daraltılması:** "release'te script backtrace" → "push_error/motor hataları + debug build'de script hataları" (T2-1).
+3. **`config/version` biçimi:** yalnız `X.Y.Z` (Windows meta fallback'i için), `+hash` yalnız `build_info.json`'da (T2-3).
+
+### Bir sonraki tur için açık sorular
+- Release şablonunda crash handler'ın hiç koşmamasının nedeni (MinGW `signal()` + LTO? `-fno-asynchronous-unwind-tables`?) — godot-build-scripts `build-windows.sh` bayrakları okunmalı [?]; davranış ölçüldü, neden açıklanmadı.
+- Loopback'e `set_bind_ip` ile Windows istemi gerçekten çıkmıyor mu (temiz VM'de) [?].
+- Debug şablonu performans farkı (R7) 2D 20 Hz akışta ölçülmeli [?].
+- Linux (Steam Deck) için aynı ölçümler: crash handler (`crash_handler_linuxbsd.cpp`, `execinfo`) release'te yazıyor mu [?].
+- `Logger` sink'i `print` yoğunluğunda (bot/`--verbose`) darboğaz mı [?].
+
+### Kaynaklar (tur 2 ekleri)
+- Tailscale Windows: adaptör kategorisi https://github.com/tailscale/tailscale/blob/main/wgengine/router/osrouter/ifconfig_windows.go · güvenlik duvarı kuralları https://github.com/tailscale/tailscale/blob/main/wgengine/router/osrouter/router_windows.go · KB "Windows network configuration failed" https://tailscale.com/docs/reference/messages/client/set-network-category-failed · forum 22621 Private profili https://forum.tailscale.com/t/tailscale-windows-build-22621-and-taildrop/2308
+- MS Learn Windows Firewall rules (öncelik, iptal → Block): https://learn.microsoft.com/en-us/windows/security/operating-system-security/network-security/windows-firewall/rules · WER LocalDumps: https://learn.microsoft.com/en-us/windows/win32/wer/collecting-user-mode-dumps
+- Godot 4.7: Logger https://docs.godotengine.org/en/4.7/classes/class_logger.html · OS https://docs.godotengine.org/en/4.7/classes/class_os.html · ProjectSettings https://docs.godotengine.org/en/4.7/classes/class_projectsettings.html · logging https://docs.godotengine.org/en/4.7/tutorials/scripting/logging.html · ENetMultiplayerPeer https://docs.godotengine.org/en/4.7/classes/class_enetmultiplayerpeer.html · exporting https://docs.godotengine.org/en/4.7/tutorials/export/exporting_projects.html
+- Godot 4.7 kaynak: `platform/windows/crash_handler_windows_signal.cpp`, `crash_handler_windows.h`, `godot_windows.cpp`, `os_windows.cpp` · `core/io/logger.cpp` · `modules/gdscript/gdscript_vm.cpp` · `editor/export/editor_export_preset.cpp` · `platform/windows/export/template_modifier.cpp` · `modules/multiplayer/scene_multiplayer.cpp` · `modules/enet/enet_multiplayer_peer.cpp` · `thirdparty/enet/peer.c`, `enet.h` (https://github.com/godotengine/godot/tree/4.7)
+- Deney projesi ve ham çıktılar: scratchpad `opguv-t2/` (`proj/main.gd`, `custom_*.log`, `godot_*.log`)

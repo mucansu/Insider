@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Windows + Linux build'i (IS-005): export şablonlarını hazırlar, export_presets.cfg ön ayarlarıyla build/'e
 # iki platform çıktısı üretir, bu makinenin platformundaki build'i headless açıp kapatır.
-# Kullanım: tools/export.sh [templates|windows|linux|smoke ...]   (adım verilmezse hepsi, bu sırayla)
+# Kullanım: tools/export.sh [--debug] [templates|windows|linux|smoke ...]   (adım verilmezse hepsi, bu sırayla)
+#   --debug    (ya da ortamda EXPORT_DEBUG=1; tools/ci_local.sh export ve CI bunu ortamdan geçirir) build'leri
+#              debug şablonuyla üretir (Godot --export-debug): GDScript çalışma zamanı hataları iziyle log'a düşer,
+#              çökmede crash handler bloğu yazılır, OS.is_debug_build() true. `test-*` etiketli arkadaş test
+#              build'leri böyle çıkar (IS-076); varsayılan ve main push artefaktları release şablonuyla.
 #   templates  Godot sürümünün (tools/get_godot.sh) export şablonlarını kullanıcı dizinine kurar:
 #                Windows: %APPDATA%/Godot/export_templates/<sürüm>.stable
 #                Linux:   ${XDG_DATA_HOME:-~/.local/share}/godot/export_templates/<sürüm>.stable
@@ -128,7 +132,8 @@ export_preset() {
 	log="$(mktemp)"
 	# Taze klonda önbellek yoksa önce içe aktarma (export kendi de yapar; çeviriler hazır olsun).
 	[[ -d .godot ]] || "$godot" --headless --path . --import >"$log" 2>&1 || true
-	if ! "$godot" --headless --path . --export-release "$preset" "$out" >"$log" 2>&1; then
+	echo "Export ($export_mode): $preset → $out"
+	if ! "$godot" --headless --path . "--export-$export_mode" "$preset" "$out" >"$log" 2>&1; then
 		cat "$log"
 		rm -f "$log"
 		echo "Export başarısız: $preset" >&2
@@ -222,18 +227,23 @@ step_smoke() {
 	echo "Build açıldı, istemci bağlandı, ikisi de temiz kapandı (kod 0, READY, döküm exit_reason=quit_after)."
 }
 
-steps=("$@")
+export_mode=release
+[[ "${EXPORT_DEBUG:-}" == 1 ]] && export_mode=debug
+steps=()
+for arg in "$@"; do
+	if [[ "$arg" == --debug ]]; then export_mode=debug; else steps+=("$arg"); fi
+done
 ((${#steps[@]})) || steps=(templates windows linux smoke)
 for step in "${steps[@]}"; do
 	case "$step" in
 	templates | windows | linux | smoke) ;;
 	*)
-		echo "Bilinmeyen adım: $step (templates|windows|linux|smoke)" >&2
+		echo "Bilinmeyen adım: $step ([--debug] templates|windows|linux|smoke)" >&2
 		exit 2
 		;;
 	esac
 	t0=$SECONDS
-	echo "-- export: $step"
+	echo "-- export: $step ($export_mode)"
 	if ! "step_$step"; then
 		echo "-- export: $step BAŞARISIZ ($((SECONDS - t0)) sn)" >&2
 		exit 1

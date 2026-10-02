@@ -59,5 +59,5 @@ Faz kapanış + plan mesajının biçimi `docs/surec/surec.md` §7'de.
 - Haftalık iterasyon yerine **faz**: her faz çıkış kriterli bir durma noktası; kapanışta oynanabilir build + kullanıcı onayı.
 - "Canlıda/UPDATER_OK" yok; yayın = faz kapanışında `dev → main` fast-forward + `faz-N` etiketi (oynanabilir sürüme geri dönmek için).
 - Tasarım danışmanı ajanı (tasarim, Fable) eklendi; teknik kararlar koordinatörde.
-- Paralel paketler ayrı git worktree'de (repo yanında `../insiders-wt/<kalem>`), birleştirme denetci PASS sonrası.
+- Paralel paketler ayrı git worktree'de (`.claude/worktrees/agent-<id>`, Agent aracının `isolation: worktree`; taban `worktree.baseRef = head`; ayrıntı surec.md §6), birleştirme denetci PASS sonrası. Kırmızı çizgiler (ajan commit/push/merge yapmaz, pano ve `.claude` yapılandırmasına dokunmaz, denetci yazmaz) `.claude/hooks/agent_guard.py` ile deterministik (IS-053); engellenen çağrıda ajan nedeni stderr'den görür ve işi koordinatöre bırakır; hook ve ajan tanımı değişikliği yalnız koordinatörde.
 - FR/NFR kataloğu yok; tasarım belgesi + kalem AC'leri yeterli. Kırmızı çizgiler `surec.md` §9'da.

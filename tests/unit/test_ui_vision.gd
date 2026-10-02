@@ -338,23 +338,56 @@ func test_menu_vision_not_sent_on_join_or_host_failure() -> void:
 
 
 func test_menu_vision_focus_order() -> void:
+	# IS-078: görüş seçimi host portuyla aynı satırda (davet paneliyle birlikte 720p'ye sığsın diye);
+	# dikey zincirde değil, sağ/sol ve Tab ile gelinir.
 	await _open_menu()
 	_menu_node("NameEdit").grab_focus()
 	var down: Array[String] = []
 	for i: int in 5:
 		viewport.push_input(_key(KEY_DOWN))
 		down.append(_focused())
-	eq(down, ["HostPortEdit", "VisionOption", "HostButton", "QuitButton", "NameEdit"] as Array[String], "aşağı ok")
+	eq(down, ["CopyButton", "HostPortEdit", "HostButton", "QuitButton", "NameEdit"] as Array[String], "aşağı ok")
 	var tabs: Array[String] = []
-	for i: int in 8:
+	for i: int in 10:
 		viewport.push_input(_key(KEY_TAB))
 		tabs.append(_focused())
-	eq(tabs, ["HostPortEdit", "VisionOption", "HostButton", "JoinAddressEdit", "JoinPortEdit", "JoinButton",
-		"QuitButton", "NameEdit"] as Array[String], "Tab halkası")
+	eq(tabs, ["CopyButton", "HostPortEdit", "VisionOption", "HostButton", "JoinAddressEdit", "PasteButton",
+		"AdvancedButton", "JoinButton", "QuitButton", "NameEdit"] as Array[String], "Tab halkası")
+	# Gamepad satırı: host portu ↔ görüş ↔ Gelişmiş.
+	_menu_node("HostPortEdit").grab_focus()
+	var row: Array[String] = []
+	for b: JoyButton in [JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_DPAD_LEFT]:
+		viewport.push_input(_joy(b))
+		row.append(_focused())
+	eq(row, ["VisionOption", "AdvancedButton", "VisionOption", "HostPortEdit"] as Array[String], "gamepad sağ/sol satırı")
 	_menu_node("VisionOption").grab_focus()
-	viewport.push_input(_joy(JOY_BUTTON_DPAD_RIGHT))
-	eq(_focused(), "JoinPortEdit", "gamepad sağ: görüş → Katıl portu")
-	viewport.push_input(_joy(JOY_BUTTON_DPAD_LEFT))
-	eq(_focused(), "VisionOption", "gamepad sol: geri")
+	viewport.push_input(_joy(JOY_BUTTON_DPAD_UP))
+	eq(_focused(), "CopyButton", "gamepad yukarı: görüş → davet")
+	_menu_node("VisionOption").grab_focus()
 	viewport.push_input(_joy(JOY_BUTTON_DPAD_DOWN))
-	eq(_focused(), "HostButton")
+	eq(_focused(), "HostButton", "gamepad aşağı: görüş → Host ol")
+	# Gelişmiş açık: Katıl portundan sola görüşe; Tab halkasında port Gelişmiş'ten sonra.
+	(_menu_node("AdvancedButton") as Button).button_pressed = true
+	_menu_node("JoinPortEdit").grab_focus()
+	viewport.push_input(_joy(JOY_BUTTON_DPAD_LEFT))
+	eq(_focused(), "VisionOption", "gamepad sol: Katıl portu → görüş")
+	_menu_node("AdvancedButton").grab_focus()
+	viewport.push_input(_key(KEY_TAB))
+	eq(_focused(), "JoinPortEdit", "Tab: Gelişmiş → Katıl portu")
+
+
+func test_menu_focus_row_without_vision() -> void:
+	# Görüş gizliyken host portu satırı doğrudan Gelişmiş'e bağlanır (gizli öğeye odak gitmez).
+	await _open_menu(false)
+	_menu_node("HostPortEdit").grab_focus()
+	viewport.push_input(_joy(JOY_BUTTON_DPAD_RIGHT))
+	eq(_focused(), "AdvancedButton", "gamepad sağ: port → Gelişmiş")
+	viewport.push_input(_joy(JOY_BUTTON_DPAD_LEFT))
+	eq(_focused(), "HostPortEdit", "gamepad sol: Gelişmiş → port")
+	(_menu_node("AdvancedButton") as Button).button_pressed = true
+	_menu_node("JoinPortEdit").grab_focus()
+	viewport.push_input(_joy(JOY_BUTTON_DPAD_LEFT))
+	eq(_focused(), "HostPortEdit", "gamepad sol: Katıl portu → host portu")
+	_menu_node("HostPortEdit").grab_focus()
+	viewport.push_input(_key(KEY_TAB))
+	eq(_focused(), "HostButton", "Tab: görüş yokken port → Host ol")
