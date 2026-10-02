@@ -16,9 +16,18 @@ extends Node
 ##     "samples": duvar saatine hizalı SAMPLE_INTERVAL_SEC dilimlerinde oyuncu konumları
 ##     [{"slot": int, "players": {"<peer_id>": [x, y]}}]; aynı makinedeki süreçler aynı dilimi karşılaştırır.
 ##   · Kare hızı MAX_FPS_AUTOMATED ile sınırlanır (headless döngü işlemciyi tüketmesin).
+## - Ekran görüntüsü (IS-022; `--screenshot-at=SN[,SN…]` + `--screenshot-dir=YOL`): her an için (açılıştan
+##   saniye, --quit-after ile aynı saat) o karenin çizimi bittikten sonra (RenderingServer.frame_post_draw) kök
+##   viewport görüntüsü `YOL/shot_<NN>.png` olarak yazılır (NN = anın artan sıradaki indeksi; bkz.
+##   screenshot_file_name); akış sürer. --quit-after'dan sonraki anlar uyarıyla atlanır. Headless'ta renderer
+##   görüntü üretmez: tek uyarı, dosya yok. O anda seviye henüz yüklenmemişse (istemci bağlanıyor) an atlanır.
+##   Her an için stdout'a `INSIDERS_SCREENSHOT ok|skipped|failed at=SN ...` satırı basılır.
+##   `--window-size=GxY` pencereli açılışta pencere boyutunu ayarlar.
+##   Dökümde "screenshots": [{"at": SN, "file": yol, "ok": bool, "size": [g, y], "skipped": neden}].
 
 const MAIN_MENU := "res://ui/main_menu.tscn"
 const READY_MARKER := "INSIDERS_READY"
+const SCREENSHOT_MARKER := "INSIDERS_SCREENSHOT"
 const QUIT_LINGER_SEC := 1.0
 ## --quit-after yedek kapanışı: normal çıkıştan bu kadar sonra (main serbest kalmışsa).
 const BACKSTOP_SEC := 2.0
@@ -34,6 +43,7 @@ var _exit_reason: String = ""
 var _sampling: bool = false
 var _samples: Array[Dictionary] = []
 var _last_slot: int = -1
+var _screenshots: Array[Dictionary] = []
 
 
 func _ready() -> void:
@@ -65,6 +75,10 @@ func _start() -> void:
 			var backstop: SceneTreeTimer = get_tree().create_timer(Args.quit_after + QUIT_LINGER_SEC + BACKSTOP_SEC)
 			backstop.timeout.connect(Net.leave)
 			backstop.timeout.connect(get_tree().quit.bind(0))
+	if Args.window_size != Vector2i.ZERO and capture_supported():
+		get_window().size = Args.window_size
+	if Args.wants_screenshots():
+		_schedule_screenshots()
 	if not Args.player_scene.is_empty():
 		var scene: PackedScene = null
 		if ResourceLoader.exists(Args.player_scene):
@@ -151,6 +165,88 @@ func _finish(code: int, reason: String) -> void:
 		return
 	Net.leave()
 	tree.quit(code)
+
+
+## Pencereli (gerçek renderer'lı) açılış mı; headless'ta viewport görüntüsü yoktur.
+static func capture_supported() -> bool:
+	return DisplayServer.get_name() != "headless"
+
+
+## Alınacak anlar: quit_after > 0 ise ondan sonraki anlar düşer (süreç o ana kadar yaşamaz).
+static func screenshot_plan(moments: PackedFloat64Array, quit_after: float) -> PackedFloat64Array:
+	var out: PackedFloat64Array = []
+	for t: float in moments:
+		if quit_after > 0.0 and t > quit_after:
+			continue
+		out.append(t)
+	return out
+
+
+## `index`. anın dosya adı (tools/screenshot.py aynı adlandırmayı bekler).
+static func screenshot_file_name(index: int) -> String:
+	return "shot_%02d.png" % index
+
+
+func _schedule_screenshots() -> void:
+	Game.register_dump_provider("screenshots", func() -> Array[Dictionary]: return _screenshots)
+	if not capture_supported():
+		push_warning("main: headless açılışta ekran görüntüsü alınamaz; --screenshot-at yok sayıldı")
+		return
+	var dir: String = ProjectSettings.globalize_path(Args.screenshot_dir)
+	var err: Error = DirAccess.make_dir_recursive_absolute(dir)
+	if err != OK:
+		push_error("main: görüntü dizini açılamadı: %s (%s)" % [dir, error_string(err)])
+		return
+	var plan: PackedFloat64Array = screenshot_plan(Args.screenshot_at, Args.quit_after)
+	if plan.size() < Args.screenshot_at.size():
+		push_warning("main: --quit-after (%s sn) sonrasındaki %d görüntü anı atlandı"
+				% [Args.quit_after, Args.screenshot_at.size() - plan.size()])
+	for i: int in plan.size():
+		var path: String = dir.path_join(screenshot_file_name(i))
+		get_tree().create_timer(plan[i]).timeout.connect(take_screenshot.bind(plan[i], path))
+
+
+## Görüntünün alınmama nedeni ("" = alınır): pencere yoksa "headless", seviye henüz yüklenmediyse (istemci
+## bağlanıyor ya da seviyeyi yüklüyor; ekran boş) "level_not_loaded".
+static func screenshot_skip_reason(can_capture: bool, level_loaded: bool) -> String:
+	if not can_capture:
+		return "headless"
+	if not level_loaded:
+		return "level_not_loaded"
+	return ""
+
+
+## Bu karenin çizimi bitince kök viewport'u `path`'e PNG olarak yazar; sonuç dökümün "screenshots" listesine girer
+## ve stdout'a tek satır basılır: `SCREENSHOT_MARKER ok|skipped|failed at=SN ...` (tools/screenshot.py okur).
+## Seviye yüklenmeden önceki an atlanır (boş kare yazılmaz).
+func take_screenshot(at: float, path: String) -> void:
+	var entry: Dictionary = {"at": at, "file": path, "ok": false}
+	_screenshots.append(entry)
+	var reason: String = screenshot_skip_reason(capture_supported(), Game.current_level() != null)
+	if reason == "headless":
+		return
+	if not reason.is_empty():
+		entry["skipped"] = reason
+		print("%s skipped at=%s reason=%s" % [SCREENSHOT_MARKER, at, reason])
+		return
+	await RenderingServer.frame_post_draw
+	var image: Image = get_viewport().get_texture().get_image()
+	if image == null or image.is_empty():
+		push_warning("main: %s sn görüntüsü boş geldi" % at)
+		print("%s failed at=%s reason=empty_image" % [SCREENSHOT_MARKER, at])
+		return
+	entry["size"] = [image.get_width(), image.get_height()]
+	var err: Error = image.save_png(path)
+	if err != OK:
+		push_error("main: görüntü yazılamadı: %s (%s)" % [path, error_string(err)])
+		return
+	entry["ok"] = true
+	print("%s ok at=%s file=%s" % [SCREENSHOT_MARKER, at, path])
+
+
+## Testler için: alınan/denenen görüntü kayıtları.
+func screenshot_records() -> Array[Dictionary]:
+	return _screenshots
 
 
 func _write_dump() -> void:
