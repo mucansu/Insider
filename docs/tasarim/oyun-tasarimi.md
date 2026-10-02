@@ -1,6 +1,6 @@
 # Insiders — Oyun Tasarım Belgesi (GDD)
 
-Durum: v0.1 taslak, MVP öncesi. Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
+Durum: v0.2 taslak, MVP öncesi (IS-007 A, 2026-10-02: §14.1 kukla stili KR-017, §7.6 alternatif giriş GB-02, Faz 1'de kesinleşen sayılar). Bu dosya projenin tek tasarım kaynağıdır; tasarım kararı değişirse önce burası güncellenir.
 Teknik mimari (sınıf/dosya yapısı) ayrı belgede; burada yalnız tasarımı etkileyen teknik kurallar var.
 
 ## 1. Konumlandırma
@@ -87,6 +87,7 @@ Keşif ile soygun arasında kademeyle artan olasılıkla (T1 %5 → T10 %30) bir
 
 ### 6.1 Algı
 - Görüş: her muhafız/sivil/kamera için görüş hattı (duvar keser) × ışık (karanlık bölge menzili kısar) × mesafe × hedefin durumu (koşma, çanta taşıma, silah elde, kılık). Oyuncu da yalnız görüş hattındakini görür; görülmeyen alan sisli (Monaco kuralı; ekip görüşleri paylaşılır).
+- Hareket kipleri (Faz 1'de kesinleşti, `data/player_tuning.tres`): sızma 70, yürüme 140, koşma 220 px/sn; 1 karo = 32 px, karakter çapı ~24 px. Kip, algıdaki "hedefin durumu" çarpanının ve gürültü yarıçapının girdisidir.
 - Duyma: gürültü olayları yarıçapla yayılır; duvar azaltır, yağmur maskeler. Koşma, kırma, ateş, matkap, düşen nesne.
 - Şüphe ölçeri: her gözlemcinin her oyuncuya karşı 0-100 ölçeri; görünürlük × süre ile dolar, görünmeyince boşalır. Eşikler: 30 "?" (gözlemci bakar, ≥0,5 sn tepki penceresi), 60 inceleme (yürüyerek gelir, sorgular), 100 tespit.
 - Tespit sonucu gözlemciye bağlı: muhafız telsizle bildirir (bölgesel arama → sessiz alarm sayacı), sivil panikler ya da düğmeye basar, kamera operatörlüyse muhafız yönlendirir, operatörsüzse yalnız kayıt (DVR silinmezse ısı).
@@ -124,12 +125,23 @@ Uçlarda imza yetenek, ortada sayısal. Tek dalda ustalaşma + ikinci dala giri�
 ### 7.4 Ekipman slotları ve kategorileri
 Birincil silah, ikincil silah, Alet A, Alet B, Gadget ×2 (sarf), Kıyafet, Kanca/İmza.
 - Silahlar: susturuculu tabanca, uyuşturucu tüfek, taser, cop, SMG, pompalı, karabina.
-- Aletler kademeli yetenek verir: T1 maymuncuk T1 kilidi 6 sn'de açar; T3 kilit T3 maymuncuk ya da matkap (gürültülü) ya da insider anahtarı ister.
-- Gadget: jammer, ECM, duman, flaş, ses yemi, hareket sensörü, ceset torbası, kapı takozu, kanca ipi, mini kamera.
+- Aletler kademeli yetenek verir: T1 maymuncuk T1 kilidi 6 sn'de açar; T3 kilit T3 maymuncuk ya da matkap (gürültülü) ya da insider anahtarı ister. İleri kademe giriş aletleri (§7.6): ızgara sökücü (T4+), kat delici (T9+).
+- Gadget: jammer, ECM, duman, flaş, ses yemi, hareket sensörü, ceset torbası, kapı takozu, kanca ipi, mini kamera; şekilli patlayıcı (T6+, §7.6).
 - Kıyafet: sneak (sessiz, zırhsız), zırh (yavaş, gürültülü adım, havalandırmaya sığmaz), üniforma (yakın bakışta şüphe).
 
 ### 7.5 Kalıcılık ve katılım
 Karakter (seviye, perk, ekipman, cüzdan) oyuncuda. Ekip kampanyası (ısı, itibar, kasa, açık kademeler, aracı/insider listesi) host'ta. Yeni karakterle katılan arkadaş kademeye uygun ödünç set alır. Oyuncu düşerse avatarı bot olur (takip/bekle/taşı); bot aynı zamanda solo ve 2 kişilik oyunun temelidir (MVP sonrası).
+
+### 7.6 Alternatif giriş ve kasa erişimi (GB-02; MVP sonrası, kademe + ekipman kapılı)
+İlke: her yöntem gürültü para birimiyle (§2.5) yapılan bir alışveriştir; alt kademelerde yoktur, keşifte fark edilir, hazırlığı çift anahtar/üçüncü el anı üretir; ekipman yaklaşım açar, istatistik şişirmez (§2.6). Teknik kapı mimari.md §7 (karo türleri: kanal, zayıf duvar, kat geçişi).
+
+| Yöntem | Açıldığı kademe | Ekipman / perk | Zaman ve gürültü bedeli | Keşifte fark edilme |
+|---|---|---|---|---|
+| Havalandırma kanalı (giriş, çıkış, iç geçiş) | T4 depo (ilk), T5+ yaygın; T1-T3'te yok | Izgara sökücü (Alet, T4 dükkânı ~1.500); kanalda sürünme kipi 50 px/sn, görüş kanalda kesilir; zırh ve ganimet çantası sığmaz (yalnız veri/mücevher cepte), zırhlı Muscle giremez. Perk: Ghost "sessiz adım" kanal gürültüsünü de yarılar. | Izgara sökme 8 sn tut (gürültü 60 px); kanalda her 2 sn'de bir 40 px metalik ses (yakın sivilde "?"); ızgarayı düşürmek 140 px. Kanal "gizli ama yavaş"tır, hiç gürültüsüz değildir. | Dış ızgaralar dışarıdaki rolünce (arka cephe, çatı), iç ızgaralar içeridekince tavanda görülür; kroki ikonu "kanal" hafızadan konur. Keşif-soygun değişimi kanalı kapatabilir (T6+). Insider teklifi: "havalandırma planı". |
+| Zayıf duvar patlatma (bina kabuğu ya da kasa dairesi arka duvarı) | T6 müze dış duvarı (ilk), T8 banka kasa dairesi arka duvarı; T9'da zayıf nokta görünmez (yalnız insider/plan) | Şekilli patlayıcı (Gadget sarf, ~4.000, Muscle taşır, 1 slot); yerleştirme çift anahtar: biri yerleştirir, biri gözetler. Perk: Muscle "sarsmaz" yerleştirmeyi %25 kısaltır; Tech "döngü süresi" düğümü maskeleme penceresini 3 → 5 sn yapar. | Yerleştirme 10 sn tut + 5 sn fitil geri sayımı; patlama 400 px (bina geneli) → uyarı doğrudan 2 (arama). Maskeleme: keşifte öğrenilen ya da modifikatörden gelen gürültü penceresi (tren geçişi, jeneratör testi, havai fişek; 3 sn) içinde patlatılırsa yarıçap ×0,3 → yalnız yakın muhafız. Yıkık duvar kalıcıdır; devriye görürse 2 → 3 (sessiz alarm). Isı +10. | Dışarıdaki: tadilat, çatlak, ek bina dikişi görünür ipucu (T6-T8); içerideki: "yalnızca personel" arkasındaki duvarı yoklama (bakış şüphesi işler). T9: yalnız insider teklifi "zayıf duvar". |
+| Alttan patlatıp kasayı alt kata düşürme | Yalnız T9-T10 (çok katlı, yeraltı girişli şablonlar) | Ağır patlayıcı (2 slot, Muscle), kat delici (Alet), termal lans (düşen kasayı açma 60 sn); zemin zayıf noktası insider zinciri ya da satın alınan bina planıyla bilinir. | Hazırlık eşzamanlı 2 × 10 sn (çift anahtar: üst katta yerleştirme, alt katta boşaltma alanı) + 5 sn fitil; gürültü 600 px → uyarı doğrudan 4 (yüksek alarm, müdahale dalgaları). İstisna: düşen kasa saat kilidi/kepenk/boya kilidini atlar (kasa artık kilitli odada değil), ana ganimet alınabilir; aracı %45, ısı sıçrar; altın ağır lojistik (2 kişi taşır). "Büyük final" seçeneği: yüksek risk, yüksek getiri. | Alt kat ve zemin kalınlığı keşifte görülmez; yalnız insider zinciri (T10 "zorunlu keşif" + insider) ya da satın alınan plan. Keşif-soygun değişimi: alt kat dolu olabilir (tadilat). |
+
+Not: perk ağacı (§7.3) büyümez, etkiler mevcut düğümlere eklenir (karar gereken: ağaç büyüsün mü). Hiçbir yöntem şablonun "gizli rota" garantisinin (§10) yerine geçmez; ekipmansız ekip her zaman kapıdan girebilmelidir.
 
 ## 8. Ekonomi
 
@@ -146,26 +158,27 @@ Karakter (seviye, perk, ekipman, cüzdan) oyuncuda. Ekip kampanyası (ısı, iti
 
 | # | Mekân | Hedef | Yeni mekanik / fiil | Görünmeyen önlem | Keşif değeri | Süre | Varyasyon |
 |---|---|---|---|---|---|---|---|
-| 1 | Köşe bakkalı | Kasa + arka oda nakdi | Sessiz/koşma, gürültü, kasa boşaltma (tut), sivili sindirme, T1 kilit, kaçış noktası | yok | Düşük (camdan bak) | 3-5 dk | Tezgâhtar/nakit yeri, müşteri, devriye polisin periyodu |
+| 1 | Köşe bakkalı | Kasa + arka oda nakdi | Sessiz/koşma, gürültü, kasa boşaltma (tut 3 sn, +150, yalnız tezgâh arkasından), sivili sindirme, T1 kilit (arka kapı; ön kapı mesaide açık), kaçış noktası | yok | Düşük (camdan bak) | 3-5 dk | Tezgâhtar/nakit yeri, müşteri, devriye polisin periyodu |
 | 2 | Benzinlik / gece eczanesi | Kasa + ilaç dolabı | Kamera (sabit/dönen), DVR silme, tezgâh altı sessiz alarm, rehine = üçüncü el | Sahte kamera | Orta (hangi kamera gerçek) | 4-6 dk | Kamera açıları, DVR odası, sivil sayısı |
 | 3 | Rehinci / kuyumcu | Kasa + vitrinler | Kasa çevirme vs matkap, cam kesici vs kırma, tuş takımı kodu; ilk çift anahtar | yok | Orta (kod yeri, bekçi) | 5-7 dk | Kasa modeli, kod yeri, gece bekçisi, insider |
-| 4 | Depo / nakliye ambarı | Manifestodaki kasalar | Devriye rotaları/programı, ışık-karanlık, ceset saklama, ağır ganimet (2 kişi), forklift | yok | Yüksek (devriye periyodu, manifesto) | 6-8 dk | Rota grafiği, manifesto, köpek |
+| 4 | Depo / nakliye ambarı | Manifestodaki kasalar | Devriye rotaları/programı, ışık-karanlık, ceset saklama, ağır ganimet (2 kişi), forklift, havalandırma kanalı (ilk; §7.6) | yok | Yüksek (devriye periyodu, manifesto) | 6-8 dk | Rota grafiği, manifesto, köpek |
 | 5 | Kumarhane sayım odası | Sayım nakdi | Kılık, kalabalık (örtü/tanık), kart klonlama, zaman penceresi, rüşvetli krupiye | Gizli kamera, sivil polis | Yüksek (kim kart taşıyor, sayım saati) | 8-10 dk | Sayım saati, müdür rotası, kalabalık |
-| 6 | Sanat müzesi | 1-3 eser | Lazer ızgara, basınç plakası, kırılgan taşıma, telsiz yoklaması, çok kat | Basınç plakası, kızılötesi lazer (görünür kademe) | Yüksek (yoklama aralığı, sensör düzeni) | 8-12 dk | Eser yeri, sensör düzeni, kat modülleri |
+| 6 | Sanat müzesi | 1-3 eser | Lazer ızgara, basınç plakası, kırılgan taşıma, telsiz yoklaması, çok kat, zayıf duvar patlatma (ilk; §7.6) | Basınç plakası, kızılötesi lazer (görünür kademe) | Yüksek (yoklama aralığı, sensör düzeni) | 8-12 dk | Eser yeri, sensör düzeni, kat modülleri |
 | 7 | Zırhlı araç transferi | Transfer anındaki para | Zamanlama soygunu; kontrollü gürültü: koridor tutma, çanta zinciri; gizli varyant: araç/manifesto değişimi | Sivil polis eskort | Kritik (transfer saati) | 6-10 dk | Transfer saati, araç sayısı, rota |
 | 8 | Banka şubesi | Kasa dairesi | Saat kilidi penceresi, müdür biyometrisi, boya paketi, çoklu eşzamanlı gereksinim, matkap ısı bakımı, rehine pazarlığı | GPS'li çanta, gizli kamera | Kritik (kilit penceresi, müdür) | 10-14 dk | Kasa tipi, müdür konumu, şube modülleri |
 | 9 | Şirket merkezi / kripto borsası | Veri + cüzdan anahtarı | Hack'in mekânsal bulmacası (sunucu odası), rozet/kat erişimi, güvenlik ofisi işgali, yükleme baskısı | Görünmez lazer, ağ tuzağı | Kritik (erişim seviyeleri) | 10-15 dk | Kat modülleri, erişim dağılımı |
-| 10 | Merkez bankası / darphane | Altın | Çok aşamalı (yeraltı giriş, termal lans, altın lojistiği, askeri müdahale, insider zinciri, çoklu giriş vektörü) | Hepsi + dönen kodlar | Zorunlu | 15-25 dk | Aşama modülleri, giriş vektörleri, insider zinciri |
+| 10 | Merkez bankası / darphane | Altın | Çok aşamalı (yeraltı giriş, termal lans, altın lojistiği, askeri müdahale, insider zinciri, çoklu giriş vektörü, alttan kasa düşürme; §7.6) | Hepsi + dönen kodlar | Zorunlu | 15-25 dk | Aşama modülleri, giriş vektörleri, insider zinciri |
 
 Her kademede 2-3 elle yapılmış şablon + risk seviyesi + modifikatör + tohum. Keşif-soygun arası değişim olasılığı T1 %5 → T10 %30.
+Alternatif giriş vektörlerinin merdiveni (GB-02, §7.6): T1-T3 yok (yalnız kapı/pencere) · T4-T5 havalandırma kanalı · T6-T8 zayıf duvar (görünür ipucu) · T9 görünmez zayıf duvar + kat geçişi · T10 hepsi + kasayı alt kata düşürme. Her yeni vektör ilk göründüğü kademede "öğretilir": o kademenin bir şablonunda vektör, tohumdan bağımsız açıktır.
 
 ## 10. Senaryo üretimi
 
 Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gelir.
-- Şablon (elle): bina kabuğu, odalar, kapılar, pencereler, giriş noktaları, görüş hatları; slot taşır. Her şablonda garanti: bir gizli rota, bir sessiz yedek, bir gürültülü çıkış.
+- Şablon (elle): bina kabuğu, odalar, kapılar, pencereler, giriş noktaları, görüş hatları; slot taşır. Her şablonda garanti: bir gizli rota, bir sessiz yedek, bir gürültülü çıkış. T4+ şablonlarında ek olarak en az bir alternatif giriş vektörü slotu (kanal ya da zayıf duvar; tohum açar/kapatır, "öğreten" şablonda hep açık), T9+'ta kat geçişi düğümleri (§7.6, §9). Karo türleri: duvar, pencere (görüşü geçirir), raf, tezgâh, kapı, kanal (yalnız sürünme, görüşü keser), zayıf duvar (yıkılabilir), kat geçişi.
 - Modül (elle, varyantlı): oda ölçeğinde prefab; kendi güvenlik düğümlerini ve kapı sözleşmesini bildirir. T8+'ta şablonlar kanatlardan birleşir (lobi + ofis + kasa).
 - Tohum: slot başına modül varyantı; güvenlik yapılandırması (kamera açık/kapalı/sahte, DVR yeri, muhafız sayısı ve yazarlı waypoint grafından rota, kart sahibi, kasa tipi, kod yeri, sivil programı); ganimet yerleşimi; insider teklifi; modifikatörler; saat ve hava; keşif-soygun arası değişim.
-- Doğrulayıcı (headless): muhafız görüş kapsamını zaman adımlarıyla simüle eden yol arama: bütçe içinde gizli rota var mı, gürültülü kaçış ulaşılabilir mi, çift anahtar anları fiziksel olarak mümkün mü, keşifle öğrenilebilir en az bir zamansal bilgi var mı. Geçmezse yeniden üret.
+- Doğrulayıcı (headless): muhafız görüş kapsamını zaman adımlarıyla simüle eden yol arama: bütçe içinde gizli rota var mı, gürültülü kaçış ulaşılabilir mi, çift anahtar anları fiziksel olarak mümkün mü, keşifle öğrenilebilir en az bir zamansal bilgi var mı. Geçmezse yeniden üret. Alternatif vektörler (§7.6) için ek kurallar: gizli rota garantisi ekipman gerektiren vektörlere dayanamaz (ekipmansız ekip kapıdan girebilmeli); kanal karoları görüş simülasyonunda görüşü keser ve yalnız sürünme hızıyla yürünür; zayıf duvarın iki yanı yol aramada "patlayıcı varsa bağlı" sayılır; çok katlı şablonda kat geçişi düğümleri yol aramaya girer ve kasa düşürme için üst/alt kat çifti fiziksel olarak hizalı olmalıdır.
 - İçerik verisi metin tabanlı kaynaklardır (şablon, modül, eşya, perk, modifikatör, cihaz, rota, insider teklifi); kod içinde sabit içerik yoktur. AI ajan içerik varyantı üretir, doğrulayıcı eler.
 
 ## 11. Co-op ve ölçekleme
@@ -181,9 +194,10 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 
 - Topoloji: host oyunculardan biri (İsveç'ten seçilir; iki oyuncu İsveç, biri Türkiye, ~50-90 ms RTT). Ayrı sunucu yok.
 - Yetki: oyuncunun kendi avatarının hareketi istemci yetkili (anında his). Sonuç üreten her şey host yetkili: etkileşim başlat/bitir, kilit/hack ilerlemesi, muhafız ve sivil AI, şüphe ölçeri, uyarı kademesi, kapı/ganimet/çanta durumu, hasar, ekonomi.
-- Oyuncu lehine tolerans: saklanma/görüş hattından çıkma kararında 0,2 sn oyuncu lehine; "tut" eylemlerinde ilerleme yerelde gösterilir, host onaylar; iptal host'tan gelirse ilerleme geri alınır ama ceza uygulanmaz.
+- Oyuncu lehine tolerans: saklanma/görüş hattından çıkma kararında 0,2 sn oyuncu lehine; "tut" eylemlerinde ilerleme yerelde gösterilir, host onaylar; iptal host'tan gelirse ilerleme geri alınır ama ceza uygulanmaz. Faz 1'de kesinleşen host payları (mimari S2, `core/interaction_rules.gd`): menzile +24 px, taraf kısıtına 16 px (müşteri tarafı yine reddedilir), basılı tutma süresine +0,25 sn (yerelde çubuk dolmuşken bırakan oyuncu cezalanmaz); istemci istemi toleranssız, host onun üst kümesini kabul eder.
 - Tepki pencereleri: muhafız tespit öncesi "?" ≥0,5 sn; çift anahtar pencereleri ≥0,5-1 sn; çanta devri 0,3 sn kilitli el sıkışma (host).
-- Uzak oyuncular 100 ms interpolasyon tamponuyla çizilir; muhafız konumu host'tan 15-20 Hz, istemcide yumuşatılır; görüş konisi istemcide senkron yön ve durumdan çizilir.
+- Uzak oyuncular 100 ms interpolasyon tamponuyla çizilir (Faz 1: `interpolation_delay` 0,1 sn; hareket senkronu istemci yetkili 20 Hz; veri gecikirse son durumda bekler, ileri tahmin yok); muhafız konumu host'tan 15-20 Hz, istemcide yumuşatılır; görüş konisi istemcide senkron yön ve durumdan çizilir.
+- Ölçülen (Faz 1, US-004/US-005): 150 ms RTT'de hareket sırasında senkron farkı host↔istemci < 32 px (1 karo), istemci↔istemci < 48 px (host üzerinden iki bacak); kasa sonucu istemcilerde ~85 ms içinde görünür (kabul ≤ RTT + 200 ms). Faz 2 şüphe/tespit kararları bu payın içinde kalmalıdır: host oyuncuyu ~100-175 ms eski konumda görür, bu yüzden 0,2 sn oyuncu lehine payı tasarım değil zorunluluktur.
 - Plan masası ve keşif notları host'ta tutulur; çizimler eşzamanlı, çakışmada son yazan kazanır.
 - Test kuralı: ilk fazdan itibaren gerçek internet (Tailscale) + yapay gecikme (150 ms, 30 ms jitter, %1 kayıp) ile oynanır. "Beni görmemişti" türü şikâyet tasarım hatası sayılır, oyuncu hatası değil.
 - Oyun mantığı görselden ayrıdır: mantık 2D düzlemde (konum, görüş hattı, gürültü) hesaplanır; görsel katman durumu okur. 3D'ye geçişte mantık değişmez.
@@ -198,9 +212,44 @@ Tamamen prosedürel bina yok. Adalet elle kurulur, çeşitlilik parametreyle gel
 ## 14. Görsel ve ses yönü
 
 - 2D üstten, hafif eğik "3/4" bakış. Sanatı ışık yapar: 2D ışık + oklüder, görüş konileri, görülmeyen alan sisi, neredeyse tek renk palet + tek uyarı vurgu rengi.
-- Karakterler siluet/piyon (CC0 üstten paketleri ya da prosedürel gövde + şapka); binalar tile kitleri ya da düz renk vektör geometrisi; ikonlar CC-BY oyun ikon seti; insider portreleri siluet + kod adı.
+- Karakterler prosedürel "kukla" (§14.1; KR-017); binalar tile kitleri ya da düz renk vektör geometrisi; ikonlar CC-BY oyun ikon seti; insider portreleri siluet + kod adı.
 - Okunabilirlik önceliği: kamera konisi, muhafız bakış yönü, şüphe ölçeri ("?" ve "!"), gürültü halkası, karanlık bölge, plan katmanı her zaman ayırt edilir.
 - Ses: gürültü olaylarının duyulabilirliği oyun bilgisidir (koşma adımı, cam, matkap); alarm, telsiz ve yoklama sesleri uyarı kademesini taşır. Müzik kademe ile gerilir, tespitte kesilir.
+
+### 14.1 Karakter ve animasyon stili (KR-017, GB-03)
+Referans ilkeler:
+- Hedef his: anime oyunlarının tatlılığı ve zarafeti, kendine has akıcılık; ne retro/pixel platform ne gerçekçi; sert ve itici hiçbir hareket yok. Dünya noir ve koyu kalır (KR-005); sıcak ton yalnız karakterlerde (ten, atkı, yanak, vurgu rengi).
+- Sanatçısız üretim: karakter, tamamen kodla canlanan prosedürel bir kukladır: iri baş + yüz (gözler, göz parıltısı, yanak), rol siluetini veren başlık (Ghost kapüşon, Tech bere + kulaklık, Muscle kasket, muhafız/polis şapka + rozet, sivil başlıksız), küçük gövde, iki el, atkı/palto ucu. Oran chibi'ye yakın: baş çapı ≈ gövde yüksekliği, toplam ~44 birim × kukla ölçeği. Rol ayrı sınıf değil, loadout + kozmetik parametre (mimari S10).
+- Animasyon ilkeleri (hepsi kodla, sprite tablosu yok): lineer hareket yok (yumuşatma + yay/aşma); hazırlık ve devam (kalkışta minik çökme, duruşta öne taşıp yerine yaylanma, atkının savrulmayı sürdürmesi); ezilme-esneme (adım inişinde, tepkide); yürüyüşte sekme + gidilen yöne eğilme + ellerin karşıt salınımı; sızmada çömelme + kısa adım + öne uzanan eller; koşuda uzama + daha çok eğilme + toz; beklemede nefes + göz kırpma + etrafa ve ekibe bakınma; ikincil hareket (atkı verlet zinciri); tepki balonları "?" ve "!" aşmalı pop; fark edilince sıçrama + göz büyümesi (hem muhafız hem oyuncu).
+- Görsel katman yalnız durumu okur (KR-003): kukla, oyuncunun kip/hız/yön/etkileşim durumundan ve NPC'nin senkronlanan yön/kademesinden beslenir; mantığa, çarpışmaya ve ağa dokunmaz. Uzak kopyada aynı animasyon ara değerlenmiş durumdan üretilir (girdiden değil). 3D'ye geçilirse aynı ilkeler toon/cel shading ile sürer.
+
+Zamanlama aralıkları — başlangıç değerleri (`docs/tasarim/kukla-denemesi.html` varsayılanları); kullanıcının kaydırıcı denemesiyle ayarlanır, son değerler `data/puppet_tuning.tres`'e yazılır:
+
+| Öğe | Başlangıç | Aralık / not |
+|---|---|---|
+| Yay frekansı (gövde ezilme / eğilme) | 4,5 Hz; sönüm 0,32 / 0,42 | 1,5-10 Hz; düşük = salınımlı, yüksek = çevik |
+| Sekme çarpanı | 1,0 | 0-2; adım inişi ezilme darbesi 0,9 (sızma ×0,45, koşu ×1,4) |
+| Abartı çarpanı | 1,0 | 0-2; eğilme, kalkış çökmesi ve ezilme-esnemeyi ölçekler |
+| Hız yumuşatma | kalkış k=10, duruş k=13 (≈%95'e 0,30 / 0,23 sn) | üstel; rampa yok |
+| Yön dönüşü | k=9 (≈0,33 sn) | gövde ve bakış birlikte |
+| Adım boyu / sekme genliği | sız 13 / yürü 20 / koş 30 px; genlik 0,9 / 2,2 / 3,4 birim | kadans = hız ÷ adım boyu |
+| Gövde ölçeği (kip) | sız 0,84 / yürü 1,00 / koş 1,07; etkileşimde 0,95 | sızma siluet olarak ayrı okunmalı |
+| Eğilme | hız/220 × 0,16 rad (koşuda ×1,35); tavan ±0,38 rad (~22°) | ivmede ek öne taşma |
+| Nefes | ~2,7 sn periyot, ±%2,4 ölçek | yalnız beklerken |
+| Göz kırpma / bakınma | 0,13 sn, her 2-5,5 sn / her 1,4-3,6 sn, ±1,2 rad | beklerken; %35 yeniden ileri |
+| Tepki balonu | easeOutBack pop 0,2 sn; "!" 0,4 sn titreme | "?" şüphe 30 (≥0,5 sn görüldükten sonra), "!" 100 |
+| Sıçrama (fark edilince) | 260 px/sn, yerçekimi 1500 (~0,35 sn havada) | inişte ezilme |
+| Atkı / toz | 6 parça, sönüm 0,92 / koşu adımında 3 parçacık, 0,45-0,7 sn | ikincil hareket |
+
+Okunabilirlik kuralları:
+1. Kip siluetten okunur: sızma = çömelmiş ve alçak; yürüme = dik; koşma = uzamış, eğik, tozlu. Uzak oyuncunun kipi atkı renginden sonra ikinci bakışta anlaşılmalı (ekip bilgisidir).
+2. Oyun bilgisi taşıyan işaretler (görüş konisi, şüphe halkası, "?"/"!", gürültü halkası, etkileşim halkası) kuklanın üstünde, animasyondan bağımsız sabit bağlantı noktasında ve 1280×720'de ≥ 22 px çizilir; sekme/eğilme bunları oynatmaz.
+3. Animasyon çarpışma yarıçapını (12 px) ve etkileşim menzilini değiştirmez; görsel aşma ≤ 6 px.
+4. Rol silueti başlıktan, oyuncu kimliği atkı renginden (`ThemeTokens.PLAYER_COLORS[slot]`); muhafız/polis ayrı palet + rozet; sivil başlıksız ve atkısız.
+5. Hareket azaltma seçeneği (ayarlar): sekme, eğilme ve toz kapanır; balonlar ve halkalar kalır.
+6. 150 ms gecikmede uzak kopyanın kalkış/duruş yumuşatması tampondan gelen hız değişimine uygulanır; tampon sıfırlanınca animasyon da sessizce yeniden kurulur, "pop" yapmaz.
+
+Kabul (Faz 2 "karakter kuklası v0"): oyuncu, tezgâhtar ve muhafız için yürü/sız/koş/bekle/etkileşim/tepki; parametreler `.tres`'te; görsel katmanın bağımlılık yönü testi geçer; headless ekran görüntüsünde üç kip silueti ayırt edilir; kullanıcı kaydırıcı değerleri kaydedilmiş olur.
 
 ## 15. MVP kapsamı
 
