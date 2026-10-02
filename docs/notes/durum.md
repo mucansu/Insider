@@ -15,6 +15,13 @@ Faz 1 — İki kişi bakkalda (EP-01): kod kalemleri bitti, test-1 checkpoint'i 
 - Sürüyor: US-008 bakkal sahibi · US-033 koliler · IS-038/039 · IS-047 t1b · IS-067 · IS-053 (dev) · IS-052 (denetim IS-053 ile).
 - Sırada: US-011b → US-010 → US-016 → IS-028 → IS-015 → test-2 (IS-017).
 
+## Devam planı (kullanım sınırı sonrası, sırayla)
+1. Durdurulan işleri SendMessage ile sürdür: US-012 t2 (worktree agent-ae406ef9…; son CI kalmıştı) → denetim; US-033 denetimi (agent-ad9d3af2…); IS-038/039 faz2-int'e taşıma (agent-ab38a74d…).
+2. Bekleyen denetimler: US-008 (denetci + çürütme; agent-aad82679…), IS-067 (agent-a5da28a4…), IS-046 (agent-a92fa3e6…, dev), IS-047 (agent-ad20d6ad…), IS-024 sızıntı düzeltmesi (faz2-int 03c1771).
+3. Birleştirmeler faz2-int'e; game.gd/player.gd/texts.csv çakışmaları iki tarafı koruyarak; PhysicsLayers taraması (IS-037) yeni kopyaları yakalar.
+4. Sonra: US-011b (attach_fog bağlama Game'den), US-010, US-016, US-037 (Fable), IS-015 → test-2.
+5. Kullanıcıdan: test-1 sonuçları; KR-024/025; itch kararı.
+
 ## Araştırma
 - Teknik (`docs/arastirma/teknik/`, arastirmaci, sürekli tur): ag-kodu, operasyon-guvenilirlik, mimari-test, cizim-performans, ses (tur 2 sürüyor); oyun-yz, ajan-sureci (tur 2 bitti).
 - Tasarım: `docs/tasarim/arastirma/` (Fable); KR-026 bakkal etkileşim kararları.
