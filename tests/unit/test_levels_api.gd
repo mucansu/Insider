@@ -67,7 +67,7 @@ func test_missing_children_are_safe() -> void:
 	eq(level.spawn_count(), 0)
 	eq(level.spawn_position(0), Vector2.ZERO)
 	is_true(level.marker(&"Exit") == null)
-	eq(level.marker_sequence(&"PolicePatrol").size(), 0)
+	eq(level.marker_sequence(&"StreetRoute").size(), 0)
 	is_true(level.zone(&"EscapeZone") == null and level.navigation_region() == null and level.door_link(&"BackDoor") == null)
 
 
@@ -98,7 +98,7 @@ func test_sequence_zone_and_navigation_lookup() -> void:
 	is_true(level.door_link(&"BackDoor") == link, "kapı bağı")
 	is_true(level.door_link(&"FrontDoor") == null and level.door_link(&"BackDoor/x") == null, "olmayan bağ null")
 	var store: Level = autofree((load(LEVELS[0]) as PackedScene).instantiate()) as Level
-	eq(store.marker_sequence(&"PolicePatrol").size(), 6, "store_a: PolicePatrol1..6")
+	eq(store.marker_sequence(&"StreetRoute").size(), 6, "store_a: StreetRoute1..6 (IS-023)")
 	is_true(store.zone(&"EscapeZone") != null and store.navigation_region() != null, "store_a: EscapeZone ve Navigation")
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		is_true(store.door_link(door) != null, "store_a: %s bağı" % door)

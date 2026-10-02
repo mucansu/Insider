@@ -4,11 +4,18 @@
 ; Satış alanı rafları yatay koridorlar; tezgâh (C) ve kasa (R) ön kapıya bakar; tezgâhtar (K) arkada.
 ; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D; nakit (M) raf arkasındaki köşede,
 ; iç kapıdan görünmez. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
-; Dış devriye (US-007, KR-019 K2): a→f sırası ön camlar → ön kapı → köşe → yan camlar → yan sokak → arka kapı;
-; ara sokak batıda kapalı (ön cepheye yalnız yan sokaktan dönülür). Kaçış bölgesi (X, E dahil) caddenin
-; güneydoğu köşesinde: ön kapıdan kaldırım boyunca, arka kapıdan yan sokaktan ulaşılır.
+; Sokak rotası (IS-023, eski PolicePatrol; yoldan geçen + mahalleli yaklaşma yolu): a→f sırası ön camlar → ön kapı
+; → köşe → yan camlar → yan sokak → arka kapı; ara sokak batıda kapalı (ön cepheye yalnız yan sokaktan dönülür).
+; Kaçış bölgesi (X, E dahil) caddenin güneydoğu köşesinde: ön kapıdan kaldırım boyunca, arka kapıdan yan sokaktan.
+; Mekân nüfusu (IS-023, GDD §9.2-9.3): camdan bakış g h i (cam parçası başına bir, kaldırımda camın önü); komşu N
+; (yan sokak, arka kapı ile cadde arası); müşteri raf noktaları j-n (raf önü / koridor ağzı) ve kuyruk q u (kasanın
+; müşteri tarafı, q kasanın tam önü); sahip: raf düzeltme o p r (batı rafları, kasaya görüş hattı raflarla kesik),
+; telefon P (tezgâh arkası doğu duvarı; camın değil duvarın önü), arka oda O; raf ucu prop yerleri x y z (US-010).
+; Bölgeler: müşteri alanı (satış + tezgâhın batısı), personel tarafı (tezgâh hattı ve doğusu, iç kapıya açılır),
+; arka oda. Kapı karoları bölgesizdir (eşik); bölgeler örtüşmez, iç zeminin her karosu tam bir bölgededir.
 ; İşaret satırı: @ <harf> <Marker adı> <zemin karakteri>; Spawn* adları SpawnPoints'e, diğerleri Markers'a gider.
 ; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
+; Boyamasız bölge: = <Bölge adı> <sütun> <satır> <genişlik> <yükseklik> (karo; aynı ad yinelenirse çok parçalı).
 @ F FrontDoor +
 @ B BackDoor +
 @ D BackroomDoor +
@@ -18,33 +25,56 @@
 @ V BackroomSafe :
 @ M BackroomCash :
 @ E Exit _
-@ a PolicePatrol1 ,
-@ b PolicePatrol2 ,
-@ c PolicePatrol3 ,
-@ d PolicePatrol4 ,
-@ e PolicePatrol5 ,
-@ f PolicePatrol6 ,
+@ a StreetRoute1 ,
+@ b StreetRoute2 ,
+@ c StreetRoute3 ,
+@ d StreetRoute4 ,
+@ e StreetRoute5 ,
+@ f StreetRoute6 ,
+@ N NeighbourSpawn ,
+@ g WindowLook1 ,
+@ h WindowLook2 ,
+@ i WindowLook3 ,
+@ j ShopSpot1 .
+@ k ShopSpot2 .
+@ l ShopSpot3 .
+@ m ShopSpot4 .
+@ n ShopSpot5 .
+@ q QueueSpot1 .
+@ u QueueSpot2 .
+@ o RestockSpot1 .
+@ p RestockSpot2 .
+@ r RestockSpot3 .
+@ P PhoneSpot .
+@ O BackroomSpot :
+@ x ShelfProp1 .
+@ y ShelfProp2 .
+@ z ShelfProp3 .
 @ 1 Spawn1 ,
 @ 2 Spawn2 ,
 @ 3 Spawn3 ,
 @ 4 Spawn4 ,
 = X EscapeZone _
+= CustomerArea 2 4 12 10
+= CustomerArea 14 9 3 5
+= StaffArea 17 9 5 5
+= Backroom 15 4 7 4
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %,,,,,,,,,,,,,,,,,,,f,,,,____%
 %,,,,,,,,,,,,,,,,,,,,,,e,____%
 %###################B##,,____%
 %#..SSSSSSSS..#V::::::#,,____%
-%#............#:::::::#,,____%
-%#S.SSSSSS....#:SS::::#,,____%
-%#S...........#MSS::::#,,____%
-%#S.SSSSSS....#####D###,,____%
-%#S..............T....#,,____%
-%#S.SSSSSS.......C....wd,____%
-%#S..............RK...w,,____%
-%#....................#,,____%
+%#..o..j......#:::O:::#,,____%
+%#S.SSSSSSx...#:SS::::#,,____%
+%#S.p.....k...#MSS::::#,,____%
+%#S.SSSSSSy...#####D###,N____%
+%#S.r..l.........T....#,,____%
+%#S.SSSSSSz.....uC....wd,____%
+%#Sn......m.....qRK...wi,____%
+%#...................P#,,____%
 %#....................#,,____%
 %##wwwwwww#F#wwww######,,____%
-%,,a,,,,,,b,,,,,,,,,,,,c,____%
+%,,a,,g,,,b,,,h,,,,,,,,c,____%
 %,,1234,,,,,,,,,,,,,,,,,,____%
 %________________________XXXX%
 %________________________XXEX%

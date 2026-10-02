@@ -1,6 +1,9 @@
 ; test_arena — boş 20×15 karo oda (US-002 AC4). Lejant: levels/level_layout.gd.
-; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa, NPC devriyesi, kaçış) burada yalıtık denenir.
+; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa, NPC rotası, kaçış) burada yalıtık denenir.
+; IS-023: bakkal nüfus işaretlerinin asgari karşılıkları (sıralı adlardan birer tane) ve üç bölge (örtüşmez;
+; doğma noktaları bölge dışında, "dışarısı").
 ; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
+; Boyamasız bölge: = <Bölge adı> <sütun> <satır> <genişlik> <yükseklik> (karo; aynı ad yinelenirse çok parçalı).
 @ F FrontDoor .
 @ B BackDoor .
 @ R Register .
@@ -9,22 +12,33 @@
 @ V BackroomSafe .
 @ M BackroomCash .
 @ E Exit .
-@ a PolicePatrol1 .
-@ b PolicePatrol2 .
-@ c PolicePatrol3 .
+@ a StreetRoute1 .
+@ b StreetRoute2 .
+@ c StreetRoute3 .
+@ N NeighbourSpawn .
+@ g WindowLook1 .
+@ j ShopSpot1 .
+@ q QueueSpot1 .
+@ o RestockSpot1 .
+@ P PhoneSpot .
+@ O BackroomSpot .
+@ x ShelfProp1 .
 @ 1 Spawn1 .
 @ 2 Spawn2 .
 @ 3 Spawn3 .
 @ 4 Spawn4 .
 = X EscapeZone .
+= CustomerArea 6 5 9 5
+= StaffArea 15 5 4 3
+= Backroom 1 1 4 3
 ####################
-#..................#
+#...O.......g.....N#
 #.VM.......a....b..#
 #..................#
 #.........B........#
-#..................#
-#..............CR..#
-#...............K..#
+#........o.........#
+#......jx......CRP.#
+#.............q.K..#
 #...............c..#
 #.........F........#
 #..................#

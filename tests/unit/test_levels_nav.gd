@@ -2,7 +2,7 @@ extends TestCase
 ## US-007: bakkal v1 seviye eki (mimari.md S4 Faz 2 eki, S11; KR-019 K1/K2; GDD §9 T1, §10).
 ## AC1 camlar `see_through` gövdeleri (görüş hattı camı geçer, raf ve duvar keser; gerçek fizik sorgusuyla),
 ## AC2 üretimde bake edilen gezinme çokgeni (deterministik) ve headless yol sorguları (kapı bağı kapanınca yol
-## değişir), AC3 yeni işaretler/bölge (EscapeZone, PolicePatrol*, ClerkSpot, BackroomCash), düzen dosyası
+## değişir), AC3 yeni işaretler/bölge (EscapeZone, StreetRoute*, ClerkSpot, BackroomCash), düzen dosyası
 ## bölge sözdizimi.
 
 const STORE := "res://levels/store_a.tscn"
@@ -145,7 +145,7 @@ func test_store_navigation_paths() -> void:
 	var cash: Vector2 = level.marker(&"BackroomCash").position
 	var clerk: Vector2 = level.marker(&"ClerkSpot").position
 	var customer: Vector2 = _center(Vector2i(16, 11))  # kasanın müşteri tarafı (tezgâhın batısı)
-	var alley: Vector2 = level.marker(&"PolicePatrol6").position  # arka kapının önündeki ara sokak
+	var alley: Vector2 = level.marker(&"StreetRoute6").position  # arka kapının önündeki ara sokak
 	var escape: Vector2 = level.zone(&"EscapeZone").position
 
 	var to_register: PackedVector2Array = _path(map, spawn, customer)
@@ -178,23 +178,23 @@ func test_store_navigation_paths() -> void:
 	_leave(level, map)
 
 
-func test_police_patrol_route_is_walkable_outside() -> void:
+func test_street_route_is_walkable_outside() -> void:
 	var level: Level = _load(STORE)
 	if level == null:
 		return
-	var points: Array[Node2D] = level.marker_sequence(&"PolicePatrol")
-	is_true(points.size() >= 4, "dış devriye en az 4 nokta (gelen %d)" % points.size())
+	var points: Array[Node2D] = level.marker_sequence(&"StreetRoute")
+	is_true(points.size() >= 4, "sokak rotası en az 4 nokta (gelen %d)" % points.size())
 	var map: RID = await _enter_with_map(level)
 	if not map.is_valid():
 		return
-	# Devriye kapıları kullanmadan dışarıda dolaşır: kapı bağları kapalıyken de ardışık noktalar bağlı.
+	# Sokak rotası kapıları kullanmadan dışarıda kalır: kapı bağları kapalıyken de ardışık noktalar bağlı.
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		level.door_link(door).enabled = false
 	await _sync(map)
 	for i: int in range(1, points.size()):
 		var from: Vector2 = points[i - 1].position
 		var to: Vector2 = points[i].position
-		is_true(_arrives(_path(map, from, to), to), "PolicePatrol%d → PolicePatrol%d dışarıdan yürünür" % [i, i + 1])
+		is_true(_arrives(_path(map, from, to), to), "StreetRoute%d → StreetRoute%d dışarıdan yürünür" % [i, i + 1])
 	is_true(_arrives(_path(map, points[-1].position, points[0].position), points[0].position), "rota geri dönebilir")
 	_leave(level, map)
 
@@ -210,7 +210,7 @@ func test_arena_navigation_paths() -> void:
 	var path: PackedVector2Array = _path(map, level.spawn_position(0), exit)
 	is_true(_arrives(path, exit), "arena: spawn → Exit")
 	near(_length(path), level.spawn_position(0).distance_to(exit), 1.0, "arena boş: yol düz çizgi")
-	for marker_name: StringName in [&"BackroomCash", &"ClerkSpot", &"PolicePatrol1"]:
+	for marker_name: StringName in [&"BackroomCash", &"ClerkSpot", &"StreetRoute1"]:
 		var to: Vector2 = level.marker(marker_name).position
 		is_true(_arrives(_path(map, level.spawn_position(0), to), to), "arena: spawn → %s" % marker_name)
 	_leave(level, map)
@@ -225,9 +225,9 @@ func test_us007_markers_and_escape_zone() -> void:
 			continue
 		for marker_name: StringName in [&"ClerkSpot", &"BackroomCash"]:
 			is_true(level.marker(marker_name) is Marker2D, "%s: Markers/%s" % [path, marker_name])
-		var patrol: Array[Node2D] = level.marker_sequence(&"PolicePatrol")
-		is_true(patrol.size() >= 3, "%s: PolicePatrol1..N (gelen %d)" % [path, patrol.size()])
-		is_true(level.marker(StringName("PolicePatrol%d" % (patrol.size() + 2))) == null, "%s: devriye numaraları boşluksuz" % path)
+		var patrol: Array[Node2D] = level.marker_sequence(&"StreetRoute")
+		is_true(patrol.size() >= 3, "%s: StreetRoute1..N (gelen %d)" % [path, patrol.size()])
+		is_true(level.marker(StringName("StreetRoute%d" % (patrol.size() + 2))) == null, "%s: rota numaraları boşluksuz" % path)
 		var zone: Area2D = level.zone(&"EscapeZone")
 		if not is_true(zone != null and zone == level.get_node_or_null("Zones/EscapeZone"), "%s: Zones/EscapeZone Area2D" % path):
 			continue
@@ -271,9 +271,11 @@ func test_zones_match_layout_sources() -> void:
 		eq(zones.get_child_count() if zones != null else -1, (layout["zones"] as Array).size(), "%s: bölge sayısı" % path)
 		for z: Dictionary in layout["zones"]:
 			var area: Area2D = level.zone(StringName(z["name"]))
-			var cells: Rect2i = z["rect"]
+			var expected: Array[Rect2] = []
+			for cells: Rect2i in z["rects"]:
+				expected.append(Rect2(Vector2(cells.position) * TILE, Vector2(cells.size) * TILE))
 			if is_true(area != null, "%s: Zones/%s yok: build_levels.gd'yi koştur" % [path, z["name"]]):
-				eq(_zone_rect(area), Rect2(Vector2(cells.position) * TILE, Vector2(cells.size) * TILE), "%s: %s dikdörtgeni" % [path, z["name"]])
+				eq(_zone_rects(area), expected, "%s: %s dikdörtgenleri" % [path, z["name"]])
 
 
 func test_layout_zone_syntax() -> void:
@@ -289,14 +291,51 @@ func test_layout_zone_syntax() -> void:
 		var zones: Array = ok["zones"]
 		if eq(zones.size(), 1, "tek bölge"):
 			eq(zones[0]["name"], "Zone")
-			eq(zones[0]["rect"], Rect2i(1, 1, 2, 2), "bölge dikdörtgeni (işaret dahil)")
+			eq(zones[0]["rects"], [Rect2i(1, 1, 2, 2)], "bölge dikdörtgeni (işaret dahil)")
 		eq((ok["rows"] as PackedStringArray)[2], "#...#", "bölge ve işaret karoları zemine döner")
+	# IS-023: boyamasız dikdörtgen bölge (raf/işaret üstünde); aynı ad yinelenince çok parçalı, tanım sırasıyla.
+	var grid: String = "#####\n#S.A#\n#..S#\n#####\n"
+	var spawn_def: String = "@ A Spawn1 .\n"
+	var rects: Dictionary = builder.call("parse_layout", _write("rects.txt",
+		spawn_def + "= Room 1 1 2 2\n= Hall 3 1 1 1\n= Room 3 2 1 1\n" + grid))
+	# Kontrol: aynı ızgara bölgesiz de geçerli (aşağıdaki red satırları yalnız bölge yüzünden reddedilir).
+	is_false((builder.call("parse_layout", _write("plain.txt", spawn_def + grid)) as Dictionary).is_empty(), "bölgesiz ızgara geçerli")
+	if is_true(not rects.is_empty(), "boyamasız bölge okunmalı"):
+		var zones: Array = rects["zones"]
+		eq(zones.size(), 2, "iki bölge")
+		if zones.size() == 2:
+			eq([zones[0]["name"], zones[1]["name"]], ["Room", "Hall"], "ilk tanım sırası")
+			eq(zones[0]["rects"], [Rect2i(1, 1, 2, 2), Rect2i(3, 2, 1, 1)], "Room iki parça")
+			eq(zones[1]["rects"], [Rect2i(3, 1, 1, 1)], "Hall tek parça (işaret üstünde)")
+		eq((rects["rows"] as PackedStringArray)[1], "#S..#", "boyamasız bölge ızgarayı değiştirmez")
+		# Üretim: parça başına şekil (Shape, Shape2), kök kapsayıcının merkezinde; ikinci üretim dosyayı değiştirmez.
+		var scene_path: String = TMP_DIR.path_join("rects.tscn")
+		var texts: PackedStringArray = []
+		for i: int in 2:
+			eq(builder.call("build_scene", TMP_DIR.path_join("rects.txt"), scene_path), OK, "%d. üretim" % (i + 1))
+			texts.append(FileAccess.get_file_as_string(scene_path))
+		is_true(texts.size() == 2 and texts[0] == texts[1], "çok parçalı bölge yeniden üretimde değişmemeli")
+		var level: Level = autofree((ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene).instantiate()) as Level
+		var room: Area2D = level.zone(&"Room") if level != null else null
+		if is_true(room != null, "Zones/Room"):
+			eq(room.get_child(0).name, &"Shape")
+			eq(room.get_child(1).name, &"Shape2")
+			eq(_zone_rects(room), [Rect2(32, 32, 64, 64), Rect2(96, 64, 32, 32)], "Room şekilleri")
+			near(room.position, Vector2(80, 64), 0.001, "kök kapsayıcı merkezinde")
 	allow_errors()
 	for bad: String in [
 		header + "#####\n#Z..#\n#.ZA#\n#####\n",  # dolu dikdörtgen değil
 		header + "#####\n#...#\n#..A#\n#####\n",  # bölge ızgarada yok
 		"@ A Spawn1 .\n= A Zone .\n#####\n#AA.#\n#####\n",  # harf hem işaret hem bölge
 		"= Z ../Zone .\n#####\n#Z..#\n#####\n",  # düğüm adı olamaz
+		spawn_def + "= Room 2 1 4 1\n" + grid,  # ızgara dışına taşar (genişlik 5)
+		spawn_def + "= Room 1 3 1 2\n" + grid,  # ızgara dışına taşar (yükseklik 4)
+		spawn_def + "= Room 1 1 0 1\n" + grid,  # boyut sıfır
+		spawn_def + "= Room -1 1 1 1\n" + grid,  # negatif konum
+		spawn_def + "= Room 1 x 1 1\n" + grid,  # sayı değil
+		spawn_def + "= ../Room 1 1 1 1\n" + grid,  # düğüm adı olamaz
+		"= Z Room .\n= Room 1 1 1 1\n#####\n#Z..#\n#####\n",  # boyalı bölgeyle aynı ad
+		"= Room 1 1 1 1\n= Z Room .\n#####\n#Z..#\n#####\n",  # aynı ad (ters sıra)
 	]:
 		is_true((builder.call("parse_layout", _write("bad.txt", bad)) as Dictionary).is_empty(), "geçersiz bölge reddedilmeli:\n" + bad)
 	_clear_tmp()
@@ -410,6 +449,17 @@ static func _zone_rect(zone: Area2D) -> Rect2:
 	if rect_shape == null:
 		return Rect2()
 	return Rect2(zone.position + cs.position - rect_shape.size / 2.0, rect_shape.size)
+
+
+## Bölgenin tüm dikdörtgen şekilleri (seviye koordinatında, çocuk sırasıyla); dikdörtgen olmayan şekil atlanır.
+static func _zone_rects(zone: Area2D) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for node: Node in zone.find_children("*", "CollisionShape2D", false, false):
+		var cs: CollisionShape2D = node as CollisionShape2D
+		var rect_shape: RectangleShape2D = cs.shape as RectangleShape2D
+		if rect_shape != null:
+			out.append(Rect2(zone.position + cs.position - rect_shape.size / 2.0, rect_shape.size))
+	return out
 
 
 ## Nokta çokgenlerden birinin içinde mi (sınır dahil değil sayılmaz; merkez yoklaması için yeterli).

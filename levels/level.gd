@@ -50,8 +50,8 @@ func marker(marker_name: StringName) -> Node2D:
 	return _child_of(_MARKERS, marker_name) as Node2D
 
 
-## Sıralı işaret dizisi: `<prefix>1`, `<prefix>2` … ilk eksik numaraya kadar (ör. &"PolicePatrol" devriye
-## rotası noktaları, US-007). Yoksa boş dizi.
+## Sıralı işaret dizisi: `<prefix>1`, `<prefix>2` … ilk eksik numaraya kadar (ör. &"StreetRoute" sokak
+## rotası, &"ShopSpot" müşteri raf noktaları; IS-023). Yoksa boş dizi.
 func marker_sequence(prefix: StringName) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	var next: Node2D = marker(StringName("%s%d" % [prefix, 1]))
