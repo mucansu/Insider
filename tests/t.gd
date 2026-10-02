@@ -65,13 +65,35 @@ func near(actual: Variant, expected: Variant, tolerance: float, msg: String = ""
 ## Kap öğeyi içermeli: Array/Packed*Array (öğe), Dictionary (anahtar), String/StringName (alt dize).
 func has(container: Variant, item: Variant, msg: String = "") -> bool:
 	var found: bool = false
+	# Her kap kendi tipine çevrilip kendi has()'i çağrılır (unsafe_method_access = hata; davranış Variant
+	# üzerinden dinamik çağrıyla aynı: öğe çalışma anında parametre tipine çevrilir).
 	match typeof(container):
 		TYPE_STRING, TYPE_STRING_NAME:
 			found = str(container).contains(str(item))
-		TYPE_ARRAY, TYPE_DICTIONARY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, \
-		TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_VECTOR2_ARRAY, \
-		TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY:
-			found = container.has(item)
+		TYPE_ARRAY:
+			found = (container as Array).has(item)
+		TYPE_DICTIONARY:
+			found = (container as Dictionary).has(item)
+		TYPE_PACKED_BYTE_ARRAY:
+			found = (container as PackedByteArray).has(item)
+		TYPE_PACKED_INT32_ARRAY:
+			found = (container as PackedInt32Array).has(item)
+		TYPE_PACKED_INT64_ARRAY:
+			found = (container as PackedInt64Array).has(item)
+		TYPE_PACKED_FLOAT32_ARRAY:
+			found = (container as PackedFloat32Array).has(item)
+		TYPE_PACKED_FLOAT64_ARRAY:
+			found = (container as PackedFloat64Array).has(item)
+		TYPE_PACKED_STRING_ARRAY:
+			found = (container as PackedStringArray).has(item)
+		TYPE_PACKED_VECTOR2_ARRAY:
+			found = (container as PackedVector2Array).has(item)
+		TYPE_PACKED_VECTOR3_ARRAY:
+			found = (container as PackedVector3Array).has(item)
+		TYPE_PACKED_COLOR_ARRAY:
+			found = (container as PackedColorArray).has(item)
+		TYPE_PACKED_VECTOR4_ARRAY:
+			found = (container as PackedVector4Array).has(item)
 		_:
 			return _record("has: desteklenmeyen kap tipi %s" % type_string(typeof(container)), msg)
 	if found:

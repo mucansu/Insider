@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → araç testleri (Python) →
+# Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → araç testleri (Python) + uyarı kapısı →
 # ağ duman senaryoları (0 ve 150 ms). İlk hatada sıfır olmayan kodla çıkar. Push öncesi yeşil olmalı.
 # Kullanım: tools/ci_local.sh [godot|import|unit|tools|net|export ...]
 #   Adım verilmezse godot import unit tools net (bu sırayla; dev ve main push'unda CI de bunları koşar).
@@ -85,13 +85,19 @@ find_python() {
 	return 1
 }
 
-# Araç testleri: gecikme proxy'si ve net_smoke süreç ağacı öldürme (Godot gerekmez).
+# Araç testleri: gecikme proxy'si, net_smoke süreç ağacı öldürme, ekran görüntüsü ve uyarı sayımı yardımcıları
+# (Godot gerekmez). Ardından GDScript uyarı sayımı + kapısı (IS-047; Godot ister, import'tan sonra):
+# project.godot'ta düzeyi 2 olan türde uyarı varsa ya da sayım alınamazsa adım KIRMIZI; düzeyi 0/1 olan türlerin
+# sayımı yalnız bilgi (JSON: build/warn_count.json).
 step_tools() {
 	find_python || return 1
 	"${PYTHON[@]}" --version
 	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
 	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
 	"${PYTHON[@]}" tools/test_screenshot.py || return 1
+	"${PYTHON[@]}" tools/test_warn_count.py || return 1
+	echo "-- GDScript uyarı sayımı (düzey 2 = kapı, diğerleri bilgi)"
+	"${PYTHON[@]}" tools/warn_count.py --gate || return 1
 }
 
 # Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.

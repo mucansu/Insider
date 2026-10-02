@@ -25,6 +25,10 @@ NoiseBus="*res://autoload/noise.gd"
 [debug]
 
 gdscript/warnings/untyped_declaration=2
+gdscript/warnings/unsafe_property_access=2
+gdscript/warnings/unsafe_method_access=2
+gdscript/warnings/unsafe_call_argument=1
+gdscript/warnings/return_value_discarded=1
 
 [display]
 
