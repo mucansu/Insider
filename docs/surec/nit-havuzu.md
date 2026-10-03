@@ -31,3 +31,7 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | IS-093 (altyapi) | tools/net_smoke.py | 3 docstring'de yorum içi kod örneği girintisi sadeleşti (ör. `expand_bot_loop`) |
 | 2026-10-04 | US-037 (oynanis) | entities/player/player_status.gd | Omuzla ÇEK, Rescue bileşeninin `completed` sinyalini dışarıdan yayarak tetikleniyor; temiz yol `PlayerStatus.host_rescue(rescuer)` API'si |
 | 2026-10-04 | US-037 (oynanis) | tests/net | Omuzla kurtarma (TUT'ta ekip arkadaşının omzu) yalnız birim testte; net senaryosu yok |
+| 2026-10-04 | US-037 (denetci) | entities/npc/components/npc_contact.gd:233, player.gd:318 | Kızışmışta host +8 px pay kullanıyor, istemci tahmini kullanmıyor → 24-32 px'te iten yerel yavaşlamayı uygulamaz (his farkı) |
+| 2026-10-04 | IS-015a (oynanis) | core/bot_rules.gd | Tezgâh/kasa durma noktaları store_a geometrisine göre; katı karakter listesi LevelLayout lejantının kopyası |
+| 2026-10-04 | IS-015a (oynanis) | autoload/game.gd | `--quit-on-heist-end` döküm yazımı main.gd'deki ~6 satırın kopyası; main.gd'ye taşınabilir |
+| 2026-10-04 | IS-015a (oynanis) | entities/npc/chaser | Takım koşusunda iş bittikten sonra kaçış bölgesindeki oyunculara chaser `player_caught` olayları düşüyor (sonuç yine escaped) — IS-081 AC3 (5 player_caught) ile birlikte bakılmalı |

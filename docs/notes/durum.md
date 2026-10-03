@@ -1,17 +1,18 @@
-# Durum (2026-10-03 23:05)
+# Durum (2026-10-04 00:30)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **09c3f27** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
+Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **505fc48** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
 
-Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
+Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-- **IS-015a** bot beyni (oynanis, worktree, taban faz2-int c741981) → bitince IS-015b (cekirdek) toplu istatistik.
-- **US-037** NPC teması/itme (oynanis, worktree; ağ kalemi → denetci).
-- IS-081 Fable danışması bitti → KR-031; IS-081 daraldı (owner.log + kullanıcı tekrarı), yeni IS-096 okunurluk (US-037 sonrası), IS-097 açık kapı izi (test-2 sonrası). GDD v0.5 faz2-int 09c3f27'de (Fable; KR-026/027/029/031 + keşif akışı). Not: GDD'nin güncel kopyası faz2-int'te, dev'deki geride — faz kapanışında gelir; tasarım ajanına GDD işi verirken faz2-int worktree'sini göster.
-- Worktree temizliği yapıldı (35 ajan worktree'si + dalları silindi; kalan dev, faz2-int, main).
+- **IS-058b** (oynanis): `Game.session_seed()` (--seed; otomasyonda 0 = eski davranış; gerçek oyunda her iş rastgele), bot beyni adil görüş varsayılan (+omni eski), `--brain-loop`.
+- **IS-015b** (cekirdek): `tools/heist_stats.py` toplu istatistik + `brain_disconnect.json`. Sonra: IS-058b birleşince gerçek dağılım → Fable'a zorluk sorusu (KR-026 260 px eşiği; IS-015a ilk izlenim: tek kişi çok kolay).
+- **IS-096** (oynanis): sahip koni α + görev glifi + `npc_pushed` toast yalnız sakin.
+- Sırada: IS-081 (owner.log; IS-058b brain_owner'a dokunduğu için sonra), 150 ms 20 dk beyin döngüsüyle dayanıklılık.
+- Not: GDD ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
 
 ## Yeni sohbette ilk adımlar
 1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
