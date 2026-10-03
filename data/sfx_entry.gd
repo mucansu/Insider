@@ -1,29 +1,27 @@
 class_name SfxEntry
 extends Resource
-## Ses kataloğunda tek olay (IS-024; S10 kalıbı, docs/tasarim/arastirma/ses-ve-sfx.md §2). Kod sesi yalnız
-## olay adıyla çalar (`SfxEmitter.play_on(self, &"door_open")`, `UiSfx.of(self).play_event(&"ui_click")`);
-## dosya yolu yalnız burada durur. Sesi değiştirmek = `stream` dosyasını yenilemek (aynı yol) ya da bu
-## girdide başka dosyaya işaret etmek; kod değişmez. Değişen her dosya docs/notes/assetler.md'de satırdır.
+## A single event in the sound catalogue (IS-024; S10 pattern, docs/tasarim/arastirma/ses-ve-sfx.md §2). Code plays sound only by event name (`SfxEmitter.play_on(self, &"door_open")`, `UiSfx.of(self).play_event(&"ui_click")`);
+## the file path lives only here. Changing a sound = refreshing the `stream` file (same path) or pointing this entry to another file; no code change. Every changed file gets a line in docs/notes/assetler.md.
 
-## Olay adı (katalogda tekil; ör. &"door_open").
+## Event name (unique in the catalogue; e.g. &"door_open").
 @export var event: StringName = &""
 @export var stream: AudioStream
-## Taban ses düzeyi (dB); çalar her çalışta buna ayarlanır.
+## Base volume (dB); the player is set to it on every play.
 @export_range(-40.0, 12.0, 0.5) var volume_db: float = 0.0
-## Perde aralığı: her çalışta [pitch_min, pitch_max] içinden rastgele (tekrarda bıkkınlığı azaltır).
+## Pitch range: random in [pitch_min, pitch_max] on every play (reduces fatigue on repeats).
 @export_range(0.25, 4.0, 0.01) var pitch_min: float = 1.0
 @export_range(0.25, 4.0, 0.01) var pitch_max: float = 1.0
-## Aynı çalardan aynı olayın iki çalışı arasındaki en kısa süre (sn). Tekrarlayan seste (kasa tiki) ritmi de
-## belirler (`SfxEmitter.repeat_while`).
+## Min time between two plays of the same event from the same player (s). For repeating sounds (register tick) it also sets the rhythm
+## (`SfxEmitter.repeat_while`).
 @export_range(0.0, 5.0, 0.01) var min_interval: float = 0.08
-## Konumlu seste (AudioStreamPlayer2D) duyulma mesafesi, px; 0 = çaların kendi değeri. Kural: gürültü
-## yarıçapının (S8) 2 katı (ses-ve-sfx §1 kural 3); arayüz seslerinde kullanılmaz.
+## Audible distance for positional sound (AudioStreamPlayer2D), px; 0 = the player's own value. Rule: 2x the noise radius (S8)
+## (ses-ve-sfx §1 rule 3); not used for UI sounds.
 @export_range(0.0, 4000.0, 1.0) var max_distance: float = 0.0
-## Geçici yer tutucu ses (CC0 indirme; ileride üretilecek sesle değişecek). Üretim sesi gelince false.
+## Temporary placeholder sound (CC0 download; to be replaced by produced sound). Set false once the production sound arrives.
 @export var placeholder: bool = true
 
 
-## Bu çalış için perde (aralık ters girilmişse uçlar yer değiştirir).
+## Pitch for this play (if the range is entered reversed, the ends swap).
 func pick_pitch(rng: RandomNumberGenerator) -> float:
 	var lo: float = minf(pitch_min, pitch_max)
 	var hi: float = maxf(pitch_min, pitch_max)

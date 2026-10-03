@@ -1,28 +1,22 @@
 class_name PerfReport
 extends RefCounted
-## Döküm "render" bölümünün saf şema kurucusu (IS-067; mimari.md S6 `--perf`). Ölçümü PerfProbe yapar (motor
-## tekilleri), burası yalnız değerleri özetler: düğümsüz, test edilir.
+## Pure schema builder for the dump "render" section (IS-067; mimari.md S6 `--perf`). PerfProbe does the measuring (engine singletons); this only summarises values: node-free, testable.
 
-## Monitör adları (dökümdeki anahtarlar; PerfProbe bu sırayla okur). Süreler ms, kare başına:
-## `process_ms`/`physics_ms` = _process/_physics_process geri çağrıları; `process_total_ms` = işleme adımının
-## tamamı (geri çağrılar + ertelenmiş çağrılar + `_draw` kayıtları; yalnız pencereli). `*_max_1s_ms` motorun
-## Performance.TIME_* değeridir (saniyede bir güncellenir, son saniyenin en kötü karesi — kare başı değil).
+## Monitor names (dump keys; PerfProbe reads in this order). Times are ms per frame: `process_ms`/`physics_ms` = _process/_physics_process callbacks;
+## `process_total_ms` = the whole processing step (callbacks + deferred + `_draw` records; windowed only). `*_max_1s_ms` is the engine's Performance.TIME_* value (updated once per second: worst frame of the last second, not per frame).
 const MONITOR_KEYS: Array[String] = [
 	"process_ms", "physics_ms", "process_max_1s_ms", "physics_max_1s_ms", "process_total_ms", "draw_calls",
 	"objects", "primitives", "render_cpu_ms", "render_gpu_ms", "frame_setup_ms",
 ]
-## Renderer gerektiren (headless'ta ölçülemeyen, 0 kalan) monitörler.
+## Monitors that need a renderer (cannot be measured headless, stay 0).
 const RENDER_ONLY_KEYS: Array[String] = [
 	"process_total_ms", "draw_calls", "objects", "primitives", "render_cpu_ms", "render_gpu_ms", "frame_setup_ms",
 ]
 
 
-## `frames`: kare süreleri (ms); `means`/`peaks`: monitör adı -> aralık ortalamaları / aralık en büyükleri
-## (PackedFloat32Array); `info`: donanım/pencere alanları (olduğu gibi kopyalanır; taban anahtarları ezemez).
-## Şema: {"headless", "valid", "note", "window_s", "measured_s", "interval_s", "frames", "frame_ms": özet,
-## "fps": {"avg","min","p1_low"}, <info alanları>, <her MONITOR_KEYS>: özet}; özet = FrameStats.summarize
-## (ortalamalar), "max" = aralık en büyüklerinin en büyüğü. Headless'ta RENDER_ONLY_KEYS boş özet (hepsi 0),
-## "valid": false ve "note" bunu söyler.
+## `frames`: frame times (ms); `means`/`peaks`: monitor name -> interval means / interval maxima (PackedFloat32Array); `info`: hardware/window fields (copied as-is; cannot override base keys).
+## Schema: {"headless", "valid", "note", "window_s", "measured_s", "interval_s", "frames", "frame_ms": summary, "fps": {"avg","min","p1_low"}, <info fields>, <each MONITOR_KEYS>: summary};
+## summary = FrameStats.summarize (of means), "max" = largest of the interval maxima. Headless: RENDER_ONLY_KEYS get an empty summary (all 0), "valid": false and "note" says so.
 static func build(headless: bool, frames: PackedFloat32Array, means: Dictionary, peaks: Dictionary,
 		info: Dictionary, window_s: float, interval_s: float) -> Dictionary:
 	var measured: float = 0.0

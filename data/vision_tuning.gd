@@ -1,40 +1,37 @@
 class_name VisionTuning
 extends Resource
-## Oyuncu görüşü ve sis ayarları (US-011a AC1; GDD §6.5, KR-022/KR-023; mimari.md S10 ayar dosyası kalıbı).
-## Değerlerin tek kaynağı `data/vision_tuning.tres`; buradaki varsayılanlar nötrdür. Hesap core/'da
-## (`VisionGrid`); sis katmanı (`FogLayer`, levels/fog) bu kaynağı okuyup `VisionGrid.Params`'a çevirir.
-## Başlangıç sayıları oyun testiyle ayarlanır (GDD §6.5 "başlangıç değerleri").
+## Player vision and fog tuning (US-011a AC1; GDD §6.5, KR-022/KR-023; mimari.md S10 tuning-file pattern). Single source is `data/vision_tuning.tres`; defaults here are neutral.
+## The maths is in core/ (`VisionGrid`); the fog layer (`FogLayer`, levels/fog) reads this resource and converts it to `VisionGrid.Params`. Starting numbers are tuned by playtest (GDD §6.5 "starting values").
 
 const PATH := "res://data/vision_tuning.tres"
 
 @export_group("Menzil")
-## Aydınlıkta görüş yarıçapı (px): NPC menzili + 1 karo.
+## View radius in light (px): NPC range + 1 tile.
 @export_range(0.0, 2048.0, 1.0, "suffix:px") var view_radius: float = 0.0
-## Karanlık bölgede duran oyuncunun yarıçapı (px; KR-019 ikili ışık).
+## Radius of a player standing in a dark zone (px; KR-019 binary light).
 @export_range(0.0, 2048.0, 1.0, "suffix:px") var dark_radius: float = 0.0
-## Görüş kenarı soluklaşması (yalnız görsel, px): yarıçapın son bu kadarı hafıza tonuna kayar.
+## View-edge fade (visual only, px): the last this-much of the radius slides to the memory tone.
 @export_range(0.0, 256.0, 1.0, "suffix:px") var soft_edge_px: float = 0.0
 
 @export_group("Kip")
-## Varsayılan görüş kipi (VisionGrid.Mode: 0 peripheral = çevresel 360°, 1 directional = yönlü). Host kuralı;
-## seçimi US-011b/US-011d.
+## Default vision mode (VisionGrid.Mode: 0 peripheral = 360 deg, 1 directional). Host rule; chosen in US-011b/US-011d.
 @export_enum("Peripheral", "Directional") var default_mode: int = 0
-## Yönlü kip: net koni yarım açısı (derece; 45 → 90° koni), menzil = view_radius.
+## Directional mode: sharp cone half angle (degrees; 45 -> 90 deg cone), range = view_radius.
 @export_range(0.0, 180.0, 0.5, "suffix:°") var cone_half_angle_deg: float = 0.0
-## Yönlü kip: çevresel bölge yarım açısı (derece; 90 → önde 180°) ve menzili (px).
+## Directional mode: peripheral zone half angle (degrees; 90 -> 180 deg ahead) and its range (px).
 @export_range(0.0, 180.0, 0.5, "suffix:°") var peripheral_half_angle_deg: float = 0.0
 @export_range(0.0, 2048.0, 1.0, "suffix:px") var peripheral_radius: float = 0.0
-## 360° yakın halka (px): her kipte bu mesafe her yönde görünür (görüş hattı yine gerekir).
+## 360 deg near ring (px): in every mode this distance is visible in every direction (line of sight still required).
 @export_range(0.0, 512.0, 1.0, "suffix:px") var near_radius: float = 0.0
-## Bakış dönüş tavanı (derece/sn); bakış girdisi US-011b'de uygular, burada yalnız sayı.
+## Look turn-rate cap (degrees/s); US-011b applies the look input, here only the number.
 @export_range(0.0, 1080.0, 1.0, "suffix:°/s") var max_turn_deg_per_sec: float = 0.0
 
 @export_group("Zamanlama ve hafıza")
-## Izgara güncelleme aralığı (sn).
+## Grid update interval (s).
 @export_range(0.01, 1.0, 0.01, "suffix:s") var update_interval_sec: float = 0.1
-## Görülen karo görüşten çıkınca hafızada kalır (faz içi; seviye yüklenince sıfırlanır).
+## A seen tile stays in memory after leaving sight (within a phase; reset when a level loads).
 @export var memory_enabled: bool = true
-## Karo tonu geçişi (sn); hareket azaltma açıkken anlık.
+## Tile tone transition (s); instant when reduce motion is on.
 @export_range(0.0, 2.0, 0.01, "suffix:s") var transition_sec: float = 0.0
-## Karo kenarı yumuşatma (px; yalnız görsel).
+## Tile edge softening (px; visual only).
 @export_range(0.0, 32.0, 1.0, "suffix:px") var edge_blur_px: float = 0.0

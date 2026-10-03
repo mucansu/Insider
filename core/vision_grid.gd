@@ -1,65 +1,56 @@
 class_name VisionGrid
 extends RefCounted
-## Oyuncu görüş ızgarası (US-011a AC1; GDD §6.5, §14, KR-022/KR-023). Düğümsüz: sahne ağacını, fizik
-## uzayını ve proje dizinlerini bilmez (KR-018). Girdi: engel ızgarası (karo sınıfları) + gözlemci konumu +
-## bakış yönü + görüş hattı sonucu veren Callable; çıktı: karo durumları.
+## Player vision grid (US-011a AC1; GDD §6.5, §14, KR-022/KR-023). Node-free: no scene tree, physics space or project dirs (KR-018).
+## Input: obstacle grid (tile classes) + observer position + look direction + a Callable for the line-of-sight result; output: tile states.
 ##
-## Karo durumu (1 karo = 32 px, ızgara kökü (0, 0)): 0 bilinmeyen / 1 hafıza / 2 görünen / 3 çevresel (yalnız
-## yönlü kip). Her `update()` çağrısında:
-## - Bölge: gözlemciden karo merkezine uzaklık ve açı → görünen / çevresel / dışarıda (`zone_of`). Çevresel kip
-##   (`Mode.PERIPHERAL`, 360°): yarıçap içinde her yön görünen. Yönlü kip: net koni (yarım açı, yarıçap) görünen;
-##   çevresel bölge (daha geniş yarım açı, daha kısa menzil) durum 3; 360° yakın halka her kipte görünen.
-## - Görüş hattı: bölgedeki açık (OPEN) ve geçit (PORTAL: kapı, cam) karolarının merkezine `sight(from, to)` ışını;
-##   kural NPC'ninkiyle aynıdır (çağıran fizik sorgusunu verir: world + vision_block keser, `see_through`
-##   gövdeleri geçer). Gözlemcinin kendi karosuna ışın atılmaz.
-## - Komşuluk kuralı: katı karolar (SOLID: duvar, sınır, raf, tezgâh) ve ışını kesilen geçitler (kapalı kapı)
-##   ışınla değil, 8 komşusundan biri bu güncellemede **ışınla** görülmüşse kendi bölgesinin durumunu alır.
-##   Zincirlenmez: komşuluktan görünen katı karo başka bir katı karoyu açmaz (duvarın arkasındaki raf görünmez).
-## - Karanlık karo (dark maskesi) görüş hattında bile hafıza tonunda kalır; gözlemci de karanlıktaysa ve karo
-##   `dark_radius` içindeyse görünen olur. Karanlıktaki gözlemcinin yarıçapı `dark_radius` ile sınırlanır.
-## - Hafıza: önceki güncellemede 2/3 olan karo artık görülmüyorsa 1 olur ve `reset()`e kadar 1 kalır
-##   (`memory_enabled` kapalıysa 0'a döner). Hafıza faz içidir: seviye yüklenince yeni ızgara kurulur.
-## - Maliyet: tarama yalnız önceki ∪ yeni görüş dikdörtgenidir (2/3 karolar yalnız önceki dikdörtgende olabilir);
-##   sayımlar artımlı tutulur.
-## Aynı girdi aynı diziyi verir (sabit tarama sırası, rastgelelik yok).
+## Tile states (1 tile = 32 px, grid origin (0, 0)): 0 unknown / 1 memory / 2 visible / 3 peripheral (directional mode only). On each `update()`:
+## - Zone: distance/angle from observer to tile centre -> visible / peripheral / outside (`zone_of`). Peripheral mode (`Mode.PERIPHERAL`, 360 deg): everything within the radius is visible.
+##   Directional mode: the sharp cone (half angle, radius) is visible; the peripheral zone (wider half angle, shorter range) is state 3; the 360 deg near ring is visible in every mode.
+## - Line of sight: a `sight(from, to)` ray to the centre of OPEN and PORTAL (door, window) tiles in the zone; same rule as the NPC's (the caller supplies the physics query: world + vision_block cut, `see_through` bodies pass). No ray to the observer's own tile.
+## - Neighbour rule: SOLID tiles (wall, border, shelf, counter) and portals whose ray is cut (closed door) are not ray-tested; they take their own zone's state if one of their 8 neighbours was seen **by ray** this update.
+##   Not chained: a solid tile seen via a neighbour does not open another solid tile (a shelf behind a wall stays hidden).
+## - Dark tiles (dark mask) stay in the memory tone even in line of sight; if the observer is dark too and the tile is within `dark_radius` it becomes visible. A dark observer's radius is capped by `dark_radius`.
+## - Memory: a tile that was 2/3 in the previous update and is no longer seen becomes 1 and stays 1 until `reset()` (back to 0 if `memory_enabled` is off). Memory is per phase: a new grid is built when a level loads.
+## - Cost: scanning covers only the previous ∪ new view rectangle (2/3 tiles can only be in the previous rectangle); counts are kept incrementally.
+## Same input gives the same sequence (fixed scan order, no randomness).
 
-## Durum değişen karolar (sabit sırada: satır satır, soldan sağa). Değişim yoksa yayılmaz.
+## Tiles whose state changed (fixed order: row by row, left to right). Not emitted if nothing changed.
 signal changed(cells: Array[Vector2i])
 
 enum State { UNKNOWN = 0, MEMORY = 1, VISIBLE = 2, PERIPHERAL = 3 }
-## Görüş kipi (host kuralı, GDD §6.5): çevresel 360° ya da yönlü. Adları: &"peripheral", &"directional".
+## Vision mode (host rule, GDD §6.5): peripheral 360 deg or directional. Names: &"peripheral", &"directional".
 enum Mode { PERIPHERAL = 0, DIRECTIONAL = 1 }
-## Karo sınıfı (engel ızgarası): OPEN ışınla, SOLID komşulukla, PORTAL önce ışınla sonra komşulukla.
+## Tile class (obstacle grid): OPEN by ray, SOLID by neighbour, PORTAL by ray then neighbour.
 enum Cell { OPEN = 0, SOLID = 1, PORTAL = 2 }
 
 const TILE := 32
-## Bölge sınırlarında kayan nokta payı (px ve kosinüs).
+## Float margin on zone bounds (px and cosine).
 const EPSILON := 0.0001
-## `zone_of` sonucu: bölge dışı.
+## `zone_of` result: outside the zone.
 const OUTSIDE := -1
 const MODE_NAMES: Array[StringName] = [&"peripheral", &"directional"]
 const _UNLIT := 255
 
 
-## Görüş ayarları (değer nesnesi; sis katmanı `VisionTuning`'den doldurur).
+## Vision settings (value object; the fog layer fills it from `VisionTuning`).
 class Params:
 	extends RefCounted
 	var mode: int = Mode.PERIPHERAL
-	## Aydınlıkta yarıçap (px); yönlü kipte net koninin menzili.
+	## Radius in light (px); in directional mode the range of the sharp cone.
 	var view_radius: float = 0.0
-	## Karanlıktaki gözlemcinin yarıçapı (px).
+	## Radius of an observer in the dark (px).
 	var dark_radius: float = 0.0
-	## Yönlü kip: net koni ve çevresel bölge yarım açıları (derece), çevresel menzil (px).
+	## Directional mode: half angles of the sharp cone and the peripheral zone (degrees), peripheral range (px).
 	var cone_half_angle_deg: float = 0.0
 	var peripheral_half_angle_deg: float = 0.0
 	var peripheral_radius: float = 0.0
-	## Her kipte her yönde görünen yakın halka (px).
+	## Near ring visible in every direction in every mode (px).
 	var near_radius: float = 0.0
 	var memory_enabled: bool = true
 
 
 var params: Params = Params.new()
-## Son güncellemede atılan ışın sayısı.
+## Rays cast in the last update.
 var last_ray_count: int = 0
 
 var _size: Vector2i = Vector2i.ZERO
@@ -70,13 +61,13 @@ var _lit: PackedByteArray = PackedByteArray()
 var _zone: PackedByteArray = PackedByteArray()
 var _old: PackedByteArray = PackedByteArray()
 var _counts: PackedInt32Array = PackedInt32Array([0, 0, 0, 0])
-## Önceki güncellemenin tarama dikdörtgeni (karo, uçlar dahil); boşsa x > y.x.
+## Previous update's scan rectangle (tiles, ends inclusive); empty if lo.x > hi.x.
 var _prev_lo := Vector2i(1, 1)
 var _prev_hi := Vector2i(0, 0)
 
 
-## Izgarayı kurar: `grid_size` karo, `cells` satır satır `Cell` değerleri (boyu genişlik × yükseklik), `dark` aynı
-## düzende 0/1 karanlık maskesi (boşsa her yer aydınlık). Bütün karolar bilinmeyen olur (değişim yayılmaz).
+## Builds the grid: `grid_size` tiles, `cells` row-major `Cell` values (length width x height), `dark` a 0/1 darkness mask in the same layout
+## (empty = everywhere lit). All tiles become unknown (no change emitted).
 func setup(grid_size: Vector2i, cells: PackedByteArray, dark: PackedByteArray = PackedByteArray()) -> void:
 	var total: int = maxi(grid_size.x, 0) * maxi(grid_size.y, 0)
 	if cells.size() != total:
@@ -102,7 +93,7 @@ func setup(grid_size: Vector2i, cells: PackedByteArray, dark: PackedByteArray = 
 	last_ray_count = 0
 
 
-## Hafızayı siler: bütün karolar bilinmeyen (değişen karolar yayılır).
+## Clears memory: all tiles unknown (changed tiles are emitted).
 func reset() -> Array[Vector2i]:
 	var diff: Array[Vector2i] = []
 	for y: int in _size.y:
@@ -127,24 +118,24 @@ func has_cell(cell: Vector2i) -> bool:
 	return cell.x >= 0 and cell.y >= 0 and cell.x < _size.x and cell.y < _size.y
 
 
-## Karo durumu (`State`); ızgara dışı bilinmeyen.
+## Tile state (`State`); unknown outside the grid.
 func state_at(cell: Vector2i) -> int:
 	if not has_cell(cell):
 		return State.UNKNOWN
 	return _states[cell.y * _size.x + cell.x]
 
 
-## Izgara koordinatındaki noktanın karo durumu.
+## Tile state of a point in grid coordinates.
 func state_at_position(pos: Vector2) -> int:
 	return state_at(cell_of(pos))
 
 
-## Nokta şu an görünen karoda mı (durum 2; çevresel sayılmaz).
+## Whether the point is on a currently visible tile (state 2; peripheral does not count).
 func is_visible(pos: Vector2) -> bool:
 	return state_at_position(pos) == State.VISIBLE
 
 
-## Nokta çevresel karoda mı (durum 3, yalnız yönlü kip).
+## Whether the point is on a peripheral tile (state 3, directional mode only).
 func is_peripheral(pos: Vector2) -> bool:
 	return state_at_position(pos) == State.PERIPHERAL
 
@@ -153,12 +144,12 @@ func is_dark(cell: Vector2i) -> bool:
 	return has_cell(cell) and _dark[cell.y * _size.x + cell.x] != 0
 
 
-## Durum dizisinin kopyası (satır satır).
+## Copy of the state array (row by row).
 func states() -> PackedByteArray:
 	return _states.duplicate()
 
 
-## Durumdaki karo sayısı.
+## Number of tiles in the state.
 func count(state: int) -> int:
 	return _counts[state] if state >= 0 and state < _counts.size() else 0
 
@@ -171,7 +162,7 @@ static func cell_center(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2(0.5, 0.5)) * TILE
 
 
-## Ad → kip (`&"peripheral"` / `&"directional"`); bilinmeyen ad uyarıyla çevresel.
+## Name -> mode (`&"peripheral"` / `&"directional"`); an unknown name falls back to peripheral with a warning.
 static func mode_from_name(mode_name: StringName) -> int:
 	var index: int = MODE_NAMES.find(mode_name)
 	if index < 0:
@@ -184,8 +175,8 @@ static func mode_name(mode: int) -> StringName:
 	return MODE_NAMES[mode] if mode >= 0 and mode < MODE_NAMES.size() else MODE_NAMES[Mode.PERIPHERAL]
 
 
-## Gözlemciye göre `offset`teki noktanın bölgesi: State.VISIBLE, State.PERIPHERAL ya da OUTSIDE. Yönlü kipte
-## bakış sıfırsa yalnız yakın halka görünür. Sınırlar dahil.
+## Zone of the point at `offset` from the observer: State.VISIBLE, State.PERIPHERAL or OUTSIDE. In directional mode a zero look
+## direction shows only the near ring. Bounds inclusive.
 static func zone_of(offset: Vector2, look_dir: Vector2, p: Params, observer_dark: bool = false) -> int:
 	var cap: float = minf(p.view_radius, p.dark_radius) if observer_dark else p.view_radius
 	var dist: float = offset.length()
@@ -206,13 +197,13 @@ static func zone_of(offset: Vector2, look_dir: Vector2, p: Params, observer_dark
 	return OUTSIDE
 
 
-## Gözlemci `origin`de (ızgara koordinatı, px), `look_dir` yönüne bakarken ızgarayı günceller. `sight` =
-## func(from: Vector2, to: Vector2) -> bool (görüş hattı açık mı). Değişen karoları döndürür ve `changed` yayar.
+## Updates the grid with the observer at `origin` (grid coordinates, px) looking along `look_dir`. `sight` =
+## func(from: Vector2, to: Vector2) -> bool (whether line of sight is clear). Returns the changed tiles and emits `changed`.
 func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector2i]:
 	var diff: Array[Vector2i] = []
 	if _size.x <= 0 or _size.y <= 0:
 		return diff
-	# Bölge eşikleri (zone_of ile aynı kurallar; döngü içinde yeniden hesaplanmasın diye bir kez).
+	# Zone thresholds (same rules as zone_of; computed once so they are not recomputed in the loop).
 	var w: int = _size.x
 	var origin_cell: Vector2i = cell_of(origin)
 	var observer_dark: bool = is_dark(origin_cell)
@@ -227,7 +218,7 @@ func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector
 	var look: Vector2 = look_dir.normalized() if not look_dir.is_zero_approx() else Vector2.ZERO
 	var cos_cone: float = cos(deg_to_rad(clampf(params.cone_half_angle_deg, 0.0, 180.0))) - EPSILON
 	var cos_peri: float = cos(deg_to_rad(clampf(params.peripheral_half_angle_deg, 0.0, 180.0))) - EPSILON
-	# Karo merkezi en çok (k - 0,5) karo uzakta olabilir: k ≤ ceil(erişim / TILE + 0,5) - 1.
+	# A tile centre can be at most (k - 0.5) tiles away: k <= ceil(reach / TILE + 0.5) - 1.
 	var span: int = ceili(maxf(cap, near_r) / TILE + 0.5) - 1
 	var lo := Vector2i(clampi(origin_cell.x - span, 0, w - 1), clampi(origin_cell.y - span, 0, _size.y - 1))
 	var hi := Vector2i(clampi(origin_cell.x + span, 0, w - 1), clampi(origin_cell.y + span, 0, _size.y - 1))
@@ -238,7 +229,7 @@ func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector
 		u_hi = Vector2i(maxi(hi.x, _prev_hi.x), maxi(hi.y, _prev_hi.y))
 	var u_w: int = u_hi.x - u_lo.x + 1
 	_old.resize(u_w * (u_hi.y - u_lo.y + 1))
-	# 0) Önceki ∪ yeni dikdörtgen: eski durumu sakla, görülenleri hafızaya indir.
+	# 0) Previous ∪ new rectangle: save the old state, drop seen tiles to memory.
 	var forget: int = State.MEMORY if params.memory_enabled else State.UNKNOWN
 	for y: int in range(u_lo.y, u_hi.y + 1):
 		var row: int = y * w
@@ -248,7 +239,7 @@ func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector
 			_old[old_row + x] = s
 			if s == State.VISIBLE or s == State.PERIPHERAL:
 				_states[row + x] = forget
-	# 1) Bölge (bütün karolar) ve ışın (açık ve geçit karoları). _lit: ışınla görülen bölge, _zone: bölge.
+	# 1) Zone (all tiles) and ray (open and portal tiles). _lit: zone seen by ray, _zone: zone.
 	var rays: int = 0
 	for y: int in range(lo.y, hi.y + 1):
 		var row: int = y * w
@@ -277,8 +268,8 @@ func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector
 				if not bool(sight.call(origin, Vector2(cx, cy) + origin)):
 					continue
 			_lit[i] = zone
-	# 2) Işınla görülenler ve komşuluk kuralı (katı karolar, kesilen geçitler; yalnız ışınla görülen komşudan,
-	# zincirlenmez). Karanlık karo hafıza tonunda kalır; gözlemci de karanlıkta ve yakınsa görünür.
+	# 2) Ray-seen tiles and the neighbour rule (solid tiles, cut portals; only from a ray-seen neighbour,
+	# not chained). A dark tile stays in the memory tone; visible if the observer is dark too and near.
 	for y: int in range(lo.y, hi.y + 1):
 		var row: int = y * w
 		for x: int in range(lo.x, hi.x + 1):
@@ -298,7 +289,7 @@ func update(origin: Vector2, look_dir: Vector2, sight: Callable) -> Array[Vector
 		var row: int = y * w
 		for x: int in range(lo.x, hi.x + 1):
 			_lit[row + x] = _UNLIT
-	# 3) Fark (satır satır, soldan sağa) ve sayımlar.
+	# 3) Diff (row by row, left to right) and counts.
 	for y: int in range(u_lo.y, u_hi.y + 1):
 		var row: int = y * w
 		var old_row: int = (y - u_lo.y) * u_w - u_lo.x

@@ -1,12 +1,10 @@
 class_name PhysicsLayers
 extends RefCounted
-## Fizik katmanı bitleri, maskeler ve oyun grubu adları için tek kaynak (IS-037; mimari.md §4, S4/S7/S8/S11 ekleri).
-## Yalnız sabit; düğümsüz (KR-003). Katman bitleri project.godot `layer_names/2d_physics/layer_N` adlarıyla
-## eşleşir: sabit adı = katman adının büyük harfi, değer = 1 << (N - 1) (tests/unit/test_smoke.gd denetler).
-## Başka betikler katman sayısı ya da grup adı dizesi yazmaz, buradan alır (tests/unit/test_physics_layers.gd
-## tarar). Sahne dosyalarındaki (.tscn) katman değerleri veri olarak kalır; testleri ayrıca denetler.
+## Single source for physics layer bits, masks and game group names (IS-037; mimari.md §4, S4/S7/S8/S11 addenda).
+## Constants only; node-free (KR-003). Layer bits match the project.godot `layer_names/2d_physics/layer_N` names: constant name = upper-cased layer name, value = 1 << (N - 1) (checked by tests/unit/test_smoke.gd).
+## Other scripts do not write layer numbers or group-name strings; they take them from here (scanned by tests/unit/test_physics_layers.gd). Layer values in .tscn files stay data; tests check them separately.
 
-## Katman bitleri (§4).
+## Layer bits (§4).
 const WORLD := 1
 const PLAYERS := 2
 const NPCS := 4
@@ -14,14 +12,14 @@ const INTERACTABLES := 8
 const TRIGGERS := 16
 const VISION_BLOCK := 32
 
-## Görüş hattını ve sesi kesen katmanlar: world + vision_block (S11 Faz 2 eki, S8). Oyuncu ve NPC gövdeleri yok.
+## Layers that block sight and sound: world + vision_block (S11 Phase 2 addendum, S8). Player and NPC bodies excluded.
 const SIGHT_MASK := WORLD | VISION_BLOCK
 
-## Görüşü (ve sesi) geçiren gövdelerin grubu (S4/S11 eki; US-007 camları, her `Window*` ayrı gövde).
+## Group of bodies that let sight (and sound) through (S4/S11 addendum; US-007 windows, each `Window*` a separate body).
 const SEE_THROUGH_GROUP := &"see_through"
-## Etkileşim bileşenlerinin (Interactable) grubu (S7).
+## Group of interaction components (Interactable) (S7).
 const INTERACTABLES_GROUP := &"interactables"
-## Etkileşebilen aktörlerin grubu (S7; oyuncu kendini ekler, `interaction_position()` sunar).
+## Group of actors that can interact (S7; the player adds itself and exposes `interaction_position()`).
 const ACTORS_GROUP := &"interaction_actors"
-## Gürültü dinleyicilerinin grubu (S8; NoiseBus `hear_noise` çağırır).
+## Group of noise listeners (S8; NoiseBus calls `hear_noise`).
 const NOISE_LISTENER_GROUP := &"noise_listener"

@@ -1,8 +1,7 @@
 class_name NoiseProfile
 extends Resource
-## Gürültü ayarları (US-009; mimari.md S8, S10 ayar dosyası kalıbı). Değerlerin tek kaynağı
-## `data/noise_profile.tres` (yürüme 0, sızma 0, koşma 120, kapı 160, kasa 90, sindirme 140 px); buradaki
-## varsayılanlar nötrdür. Kurallar `core/noise_rules.gd`'de (düğümsüz). Tür adları ağda giden StringName'lerdir.
+## Noise tuning (US-009; mimari.md S8, S10 tuning-file pattern). Single source is `data/noise_profile.tres` (walk 0, sneak 0, sprint 120, door 160, register 90, intimidate 140 px);
+## defaults here are neutral. Rules are node-free in `core/noise_rules.gd`. Kind names are the StringNames sent over the network.
 
 const PATH := "res://data/noise_profile.tres"
 
@@ -12,42 +11,42 @@ const KIND_RUN := &"run"
 const KIND_DOOR := &"door"
 const KIND_REGISTER := &"register"
 const KIND_INTIMIDATE := &"intimidate"
-## Sahibin ajanda sesleri (US-011b AC6; GDD §6.5: görüş yoksa "sahip nerede" dinlemeyle cevaplanır): telefon
-## konuşması, raf düzeltme, kapı zili. Host'ta NPC beyninden doğar; sahibin kendi işitmesi bunları yok sayar.
+## Owner agenda sounds (US-011b AC6; GDD §6.5: without sight, "where is the owner" is answered by listening): phone call, shelf tidying, door bell.
+## Born from the NPC brain on the host; the owner's own hearing ignores them.
 const KIND_PHONE := &"phone"
 const KIND_SHELF := &"shelf"
 const KIND_BELL := &"bell"
-## İstemcinin kendi adına üretebileceği türler (S2: istemci yalnız kendi hareketinde yetkili). Kapı, kasa,
-## sindirme gibi sonuç sesleri host'ta doğar.
+## Kinds a client may produce for itself (S2: a client is authoritative only over its own movement).
+## Result sounds such as door, register and intimidate are born on the host.
 const MOVEMENT_KINDS: Array[StringName] = [KIND_WALK, KIND_SNEAK, KIND_RUN]
 
-## Adım başına yarıçaplar (px); 0 = sessiz.
+## Per-step radii (px); 0 = silent.
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var walk_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var sneak_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var sprint_radius: float = 0.0
-## Olay yarıçapları (px).
+## Event radii (px).
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var door_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var register_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var intimidate_radius: float = 0.0
-## Sahip ajanda sesleri (px; US-011b): telefon 160, raf düzeltme 96, kapı zili 160. Tempo ajanda görevinde
+## Owner agenda sounds (px; US-011b): phone 160, shelf tidying 96, door bell 160. Cadence lives in the agenda task
 ## (`AgendaTask.noise_interval_sec`).
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var phone_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var shelf_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var bell_radius: float = 0.0
-## Adım sesleri arası en kısa süre (sn; S8 "en fazla ~3 Hz").
+## Minimum time between step sounds (s; S8 "at most ~3 Hz").
 @export_range(0.0, 5.0, 0.01, "suffix:s") var step_interval: float = 0.0
-## Bu gerçek hızın altında (px/sn) adım sesi çıkmaz (koşu tuşu basılı ama duruyor/duvara itiyor). Her kipin
-## hızından (sızma 70) küçük tutulur: kipin sessizliğini yalnız yarıçapı belirler.
+## Below this real speed (px/s) no step sound is made (sprint key held but standing still or pushing a wall).
+## Kept below every mode's speed (sneak 70): only the radius decides a mode's silence.
 @export_range(0.0, 1000.0, 1.0, "suffix:px/s") var step_min_speed: float = 0.0
-## Kasa boşaltılırken ses aralığı (sn; ilk ses de bu kadar sonra); tamamlanınca ayrıca bir ses.
+## Sound interval while emptying the register (s; the first sound comes after this too); one more sound on completion.
 @export_range(0.0, 10.0, 0.05, "suffix:s") var register_interval: float = 0.0
-## Görüş hattı yoksa (duvar arkası) yarıçap çarpanı (S8: 0,5).
+## Radius multiplier without line of sight (behind a wall) (S8: 0.5).
 @export_range(0.0, 1.0, 0.05) var wall_factor: float = 1.0
 
 static var _default: NoiseProfile = null
 
 
-## `data/noise_profile.tres` (süreç başına bir kez yüklenir).
+## `data/noise_profile.tres` (loaded once per process).
 static func load_default() -> NoiseProfile:
 	if _default == null:
 		_default = load(PATH) as NoiseProfile
@@ -57,7 +56,7 @@ static func load_default() -> NoiseProfile:
 	return _default
 
 
-## Türün yarıçapı (px); bilinmeyen tür sessiz (0).
+## Radius of the kind (px); an unknown kind is silent (0).
 func radius_for(kind: StringName) -> float:
 	match kind:
 		KIND_WALK:
