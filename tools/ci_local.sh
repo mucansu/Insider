@@ -143,6 +143,7 @@ step_tools() {
 	py_test tools/test_net_smoke.py || return 1
 	py_test tools/test_screenshot.py || return 1
 	py_test tools/test_perf_run.py || return 1
+	py_test tools/test_heist_stats.py || return 1
 	py_test tools/test_warn_count.py || return 1
 	py_test tools/test_agent_guard.py || return 1
 	py_test tools/test_run_tests.py || return 1
