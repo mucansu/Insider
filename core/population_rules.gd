@@ -15,6 +15,12 @@ enum Role { CUSTOMER, PASSERBY }
 const ROLE_NAMES: Array[StringName] = [&"customer", &"passerby"]
 
 
+## Seed input of the schedule (IS-058b): the data seed (`population_tuning.population_seed`) mixed with the session seed
+## (`Game.session_seed()`); session seed 0 -> the data seed unchanged (SessionSeed.derive).
+static func schedule_seed(session_seed: int, data_seed: int) -> int:
+	return SessionSeed.derive(session_seed, data_seed, SessionSeed.SALT_POPULATION)
+
+
 ## Settings (value object; `data/npc/population.tres` fills it, defaults neutral).
 class Params:
 	extends RefCounted

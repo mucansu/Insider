@@ -67,7 +67,7 @@ func _ready() -> void:
 		return
 	var windows: int = _owner.senses().marker_names(tuning.window_prefix).size()
 	schedule = PopulationRules.Schedule.new(tuning.rules_params(windows, _owner.owner_tuning.customer_sec),
-		tuning.population_seed)
+		PopulationRules.schedule_seed(Game.session_seed(), tuning.population_seed))
 	_owner.senses().customers_query = customers_inside
 	_owner.brain().shouted.connect(_on_owner_shouted)
 	if _alert != null:

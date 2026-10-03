@@ -388,10 +388,12 @@ func reset_loiter(peer_id: int) -> void:
 	_senses.reset_loiter(peer_id)
 
 
-## Agenda seed (host; single point). For now from data (owner_tuning.agenda_seed); combined with the session seed
-## (`Game.session_seed()`, `--seed=`) once it exists (IS-058).
+## Agenda seed (host; single point). `agenda_seed_override` >= 0 wins as is (test fixture); else owner_tuning.agenda_seed mixed with
+## the session seed (IS-058b: `Game.session_seed()`; 0 = the data seed unchanged; SessionSeed.derive).
 func agenda_seed() -> int:
-	return agenda_seed_override if agenda_seed_override >= 0 else owner_tuning.agenda_seed
+	if agenda_seed_override >= 0:
+		return agenda_seed_override
+	return SessionSeed.derive(Game.session_seed(), owner_tuning.agenda_seed, SessionSeed.SALT_OWNER_AGENDA)
 
 
 ## Visual's cone: half angle (degrees; the task's if it narrows) and range (px).

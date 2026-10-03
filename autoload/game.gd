@@ -54,6 +54,7 @@ const BASE_DUMP_KEYS: Array[String] = [
 	"peer_id", "is_host", "peers", "players", "team_cash", "level", "player_nodes", "events", "host_lost",
 	"ping_ms", "ping", "alert",
 	"vision",  # US-011b vision addendum (S3 addendum; dump built in `_vision_dump` below)
+	"session_seed",  # IS-058b (host only)
 ]
 ## Max alert levels kept in history.
 const MAX_ALERT_HISTORY := 64
@@ -258,6 +259,8 @@ func collect_dump() -> Dictionary:
 		"alert": {"level": _alert_level, "timer_left": _alert_timer, "history": _alert_history.duplicate()},
 		"vision": to_json_value(_vision_dump()),  # US-011b
 	}
+	if _has_host_authority():
+		dump["session_seed"] = _session_seed  # IS-058b
 	for key: String in _dump_providers:
 		var provider: Callable = _dump_providers[key]
 		if provider.is_valid():
@@ -367,6 +370,7 @@ func _try_start_pending_level() -> void:
 	_freeze_acks.clear()
 	_despawn_all_players()
 	_unload_level()
+	_session_seed_new_job()  # IS-058b: before the level's NPCs read it
 	if not _load_level_local(level_path):
 		return
 	if Net.is_online():
@@ -1878,3 +1882,37 @@ func _heist_end_quit() -> void:
 			file.close()
 	Net.leave()
 	get_tree().quit(0)
+
+
+# =====================================================================================================================
+# IS-058b — session seed (S3 addendum). The host picks a seed for every job (each level start: first load, "Again" / restart, level
+# change) right before the level is instantiated; NPC code on the host derives its random streams from it (SessionSeed.derive: owner
+# agenda, population schedule, civilian routes). Policy (core/session_seed.gd): `--seed=N` -> N (later jobs of the process: derived
+# from N and the job index); automation (`--bot`, `--brain`, `--dump`, `--quit-after`, or a script main loop such as the unit test
+# runner) -> 0 = today's behaviour; otherwise a new random seed per job. Clients do not need it (NPC randomness runs on the host only):
+# not replicated, a client reads 0. Dump key "session_seed" (host only).
+# =====================================================================================================================
+
+var _session_seed: int = 0
+var _session_jobs: int = 0
+var _session_rng := RandomNumberGenerator.new()
+
+
+## Seed of the current job (host); 0 = data seeds unchanged. A client reads 0 (not replicated).
+func session_seed() -> int:
+	return _session_seed
+
+
+## Whether this process is an automation/test run for the seed policy.
+func _session_seed_automated() -> bool:
+	if Args.is_automated() or not Args.bot_path.is_empty() or not Args.brain.is_empty():
+		return true
+	var loop: MainLoop = Engine.get_main_loop()
+	return loop != null and loop.get_script() != null  # `-s` script (unit test runner, tools)
+
+
+func _session_seed_new_job() -> void:
+	if _session_jobs == 0:
+		_session_rng.randomize()
+	_session_seed = SessionSeed.pick(_session_jobs, Args.run_seed_given, Args.run_seed, _session_seed_automated(), _session_rng)
+	_session_jobs += 1

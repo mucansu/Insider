@@ -88,10 +88,10 @@ func setup(civilian: Civilian, civ_perception: Perception, civ_suspicion: Suspic
 	_was_inside = CivilianRules.is_inside(senses.zone_of(body.global_position))
 	if body.is_customer():
 		_speed = tuning.customer_speed
-		agenda.setup_route(_customer_route(), body.serial, senses.marker_positions)
+		agenda.setup_route(_customer_route(), _route_seed(), senses.marker_positions)
 	else:
 		_speed = tuning.passerby_speed
-		agenda.setup_route(_passerby_route(), body.serial, senses.marker_positions)
+		agenda.setup_route(_passerby_route(), _route_seed(), senses.marker_positions)
 
 
 func state() -> int:
@@ -244,7 +244,7 @@ func _leave(next_state: int, speed: float) -> void:
 	var exit: StringName = tuning.customer_exit_marker if body.is_customer() else _nearest_route_end()
 	if not exit.is_empty():
 		tasks.append(_task(&"exit", exit, 0.0, Vector2.ZERO))
-	agenda.setup_route(tasks, body.serial, senses.marker_positions)
+	agenda.setup_route(tasks, _route_seed(), senses.marker_positions)
 
 
 func _top_peer() -> int:
@@ -365,6 +365,11 @@ func _bell() -> void:
 
 
 ## --- route setup ---
+
+## Route agenda seed: the civilian's serial mixed with the session seed (IS-058b; session seed 0 -> the serial, today's behaviour).
+func _route_seed() -> int:
+	return SessionSeed.derive(Game.session_seed(), body.serial, SessionSeed.SALT_CIVILIAN_ROUTE)
+
 
 func _customer_route() -> Array[AgendaTask]:
 	var tasks: Array[AgendaTask] = [_task(&"door", tuning.front_door_marker, 0.0, Vector2.ZERO)]

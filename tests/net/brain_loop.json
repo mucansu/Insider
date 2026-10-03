@@ -1,0 +1,25 @@
+{
+  "_doc": "IS-058b: beyin döngüsü, host tek başına gerçek bakkalda (levels/store_a.tscn) `rush` stratejisi (bot dosyası brain_loop.json, tohum 1, brain_loop 3 sn): iş biter -> 3 sn sonra host \"Bir daha\" ister (seviye yeniden yüklenir) -> beyin sıfırlanıp ikinci işe başlar ve onu da bitirir. Beklenti iş bitti düzeyinde: en az iki koşu kaydı (brain.runs[0..1] outcome/time_s/strategy), ikinci koşunun tohumu 2 (tohum + koşu sırası), takılma küçük, oturum tohumu 0 (otomasyon, --seed yok: NPC davranışı bugünkü). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 0,
+  "duration": 45,
+  "bots": {
+    "host": "res://tests/net/bots/brain_loop.json"
+  },
+  "expect": [
+    {"eq": ["host.level", "res://levels/store_a.tscn"]},
+    {"eq": ["host.session_seed", 0]},
+    {"eq": ["host.brain.strategy", "rush"]},
+    {"between": ["host.brain.run", 1, 20]},
+    {"has": ["host.brain.runs.0", "outcome"]},
+    {"has": ["host.brain.runs.1", "outcome"]},
+    {"ne": ["host.brain.runs.1.outcome", "unfinished"]},
+    {"eq": ["host.brain.runs.0.strategy", "rush"]},
+    {"eq": ["host.brain.runs.0.seed", 1]},
+    {"eq": ["host.brain.runs.1.seed", 2]},
+    {"between": ["host.brain.runs.1.time_s", 1, 40]},
+    {"between": ["host.brain.runs.0.stuck_s", 0, 3]},
+    {"between": ["host.brain.runs.1.stuck_s", 0, 3]}
+  ]
+}

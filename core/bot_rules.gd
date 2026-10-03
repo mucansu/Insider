@@ -16,6 +16,12 @@ extends RefCounted
 ## Global overrides: job over or caught -> done; held -> held (resumes); alert >= ALERT_FLEE -> escape (sprint) unless the register is
 ## being emptied. Randomness only from the seeded RNG at decision points (wait timeout, reaction delay, retry, rebuy), so the same seed
 ## and the same view sequence give the same phase log.
+## Fair sight (IS-058b, default): the brain knows the owner's pose, reaction state and agenda task only from what its own player sees
+## (BotBrain fills `View` from a `Sighting` memory: `owner_seen` now, `owner_age` since the last sight). The shout is heard (always
+## known). Seen -> the rules use the live pose; unseen -> the last sighting with its age: e.g. the register window opens once the owner
+## has been out of sight UNSEEN_OPEN_S after leaving for an away task (or walking far from the register), never on a sighting older than
+## MEMORY_STALE_S or before the owner was ever seen. `+omni` suffix (`window+omni`, `team+bag+omni`): the old all-knowing view
+## (`owner_seen` always true). No sharing between teammates: every brain has its own eyes.
 
 enum Phase { START, STAGE, WAIT, LURE, GO_REGISTER, EMPTY, GO_BAG, TAKE_BAG, ESCAPE, PULL, HELD, DONE }
 const PHASE_NAMES: Array[String] = ["start", "stage", "wait", "lure", "go_register", "empty", "go_bag", "take_bag", "escape", "pull",
@@ -26,6 +32,8 @@ enum Step { GO, USE, WAIT }
 
 const STRATEGIES: Array[String] = ["rush", "window", "send", "distract", "buy", "team"]
 const BAG_SUFFIX := "+bag"
+## All-knowing view (IS-058b; default is fair sight).
+const OMNI_SUFFIX := "+omni"
 
 ## Spots (BotBrain resolves them to world positions from the level and props).
 const SPOT_NONE := &""
@@ -60,6 +68,8 @@ const RESULT_OK := 1
 ## Owner replicated brain state "agenda" (OwnerBrain.State.AGENDA); any other value is a reaction (look, question, shout ...).
 const OWNER_STATE_AGENDA := 0
 const TASK_COUNTER := &"counter"
+## Agenda task after a SEND TO BACKROOM (the brain infers it after its own successful SEND; IS-058b).
+const TASK_SENT := &"sent"
 ## Owner agenda tasks that keep them away from the register (GDD §9.3 windows; `sent` = SEND TO BACKROOM, `listen` = DISTRACT).
 const WINDOW_TASKS: Array[StringName] = [&"restock", &"backroom", &"phone", &"sent", &"listen"]
 ## Tasks during which the back room is free (owner at the west shelves or the phone wall).
@@ -68,6 +78,10 @@ const BAG_TASKS: Array[StringName] = [&"restock", &"phone"]
 # Tuning (file-top consts; first guesses, IS-015b measures).
 ## Owner at least this far from the register counts as "away" (4 tiles: GDD §9.3 KAP-KAÇ).
 const SAFE_DISTANCE_PX := 128.0
+## Fair sight (IS-058b): an owner last seen leaving for an away task must stay out of sight this long before the register (or back room)
+## counts as unwatched (s); a sighting older than MEMORY_STALE_S says nothing any more (an agenda window lasts ~20 s).
+const UNSEEN_OPEN_S := 3.0
+const MEMORY_STALE_S := 15.0
 ## Owner at least this far from the bag counts as "away from the back room".
 const BAG_SAFE_PX := 160.0
 ## Owner facing . direction(owner -> register) below this = facing away (cone half-angle 25 deg is far above).
@@ -136,6 +150,10 @@ class View:
 	## Result of the Mind's own interaction finished since the last decide (RESULT_*).
 	var result: int = RESULT_NONE
 	var owner_present: bool = false
+	## Fair sight (IS-058b): owner seen this step (pose fields live) or not (fields = last sighting, `owner_age` s old; INF = never
+	## seen). Defaults = all-knowing (omni and older tests).
+	var owner_seen: bool = true
+	var owner_age: float = 0.0
 	var owner_pos: Vector2 = Vector2.INF
 	var owner_facing: Vector2 = Vector2.LEFT
 	var owner_state: int = OWNER_STATE_AGENDA
@@ -175,12 +193,72 @@ class Intent:
 	var look: Vector2 = Vector2.ZERO
 
 
-## Strategy name -> {"base": String, "bag": bool, "valid": bool}.
+## What the brain remembers of the owner (IS-058b fair sight): the last sighting and when it was.
+class Sighting:
+	extends RefCounted
+	var known: bool = false
+	var t: float = 0.0
+	var pos: Vector2 = Vector2.INF
+	var facing: Vector2 = Vector2.LEFT
+	var state: int = BotRules.OWNER_STATE_AGENDA
+	var task: StringName = &""
+
+	func observe(now: float, at: Vector2, face: Vector2, owner_state: int, owner_task: StringName) -> void:
+		known = true
+		t = now
+		pos = at
+		facing = face
+		state = owner_state
+		task = owner_task
+
+	## Knowledge without a sighting (IS-058b): the brain's own successful SEND TO BACKROOM tells it the owner now heads for the back room
+	## (agenda task `owner_task`, reaction state cleared, last position kept). Counts as a sighting at `now` for ageing.
+	func infer(now: float, owner_task: StringName) -> void:
+		known = true
+		t = now
+		state = BotRules.OWNER_STATE_AGENDA
+		task = owner_task
+
+	## Seconds since the last sighting (INF if never seen).
+	func age(now: float) -> float:
+		return now - t if known else INF
+
+	func forget() -> void:
+		known = false
+		t = 0.0
+		pos = Vector2.INF
+		facing = Vector2.LEFT
+		state = BotRules.OWNER_STATE_AGENDA
+		task = &""
+
+	## Copies the memory into `v` (`seen`: sighted this step).
+	func fill(v: View, now: float, seen: bool) -> void:
+		v.owner_seen = seen and known
+		v.owner_age = 0.0 if v.owner_seen else age(now)
+		v.owner_pos = pos
+		v.owner_facing = facing
+		v.owner_state = state
+		v.owner_task = task
+
+
+## Strategy name -> {"base": String, "bag": bool, "omni": bool, "valid": bool}. Suffixes `+bag` / `+omni` in any order, once each.
 static func parse_strategy(strategy_name: String) -> Dictionary:
-	var text: String = strategy_name.strip_edges().to_lower()
-	var bag: bool = text.ends_with(BAG_SUFFIX)
-	var base: String = text.trim_suffix(BAG_SUFFIX) if bag else text
-	return {"base": base, "bag": bag, "valid": STRATEGIES.has(base)}
+	var parts: PackedStringArray = strategy_name.strip_edges().to_lower().split("+")
+	var base: String = parts[0] if not parts.is_empty() else ""
+	var bag: bool = false
+	var omni: bool = false
+	var valid: bool = STRATEGIES.has(base)
+	for i: int in range(1, parts.size()):
+		match "+" + parts[i]:
+			BAG_SUFFIX:
+				valid = valid and not bag
+				bag = true
+			OMNI_SUFFIX:
+				valid = valid and not omni
+				omni = true
+			_:
+				valid = false
+	return {"base": base, "bag": bag, "omni": omni, "valid": valid}
 
 
 static func is_valid_strategy(strategy_name: String) -> bool:
@@ -200,11 +278,15 @@ static func role_for(base: String, slot: int) -> Role:
 
 
 ## Whether the register is unwatched: no owner, or the owner on the agenda (not reacting, not shouted), at least SAFE_DISTANCE_PX away
-## and on a window task or facing away from the register.
+## and on a window task or facing away from the register. Unseen owner (fair sight): `unseen_away`.
 static func window_open(v: View) -> bool:
 	if not v.owner_present:
 		return true
-	if v.owner_shouted or v.owner_state != OWNER_STATE_AGENDA or v.register_pos == Vector2.INF:
+	if v.owner_shouted or v.register_pos == Vector2.INF:
+		return false
+	if not v.owner_seen:
+		return unseen_away(v, WINDOW_TASKS, v.register_pos, SAFE_DISTANCE_PX)
+	if v.owner_state != OWNER_STATE_AGENDA:
 		return false
 	if v.owner_pos.distance_to(v.register_pos) < SAFE_DISTANCE_PX:
 		return false
@@ -214,26 +296,46 @@ static func window_open(v: View) -> bool:
 	return v.owner_facing.normalized().dot(to_register) < FACING_AWAY_DOT
 
 
-## Whether the back room is unwatched (owner at the shelves or the phone, far from the bag).
+## Whether the back room is unwatched (owner at the shelves or the phone, far from the bag). Unseen owner: last seen on a BAG_TASKS task
+## and `unseen_away`.
 static func bag_window_open(v: View) -> bool:
 	if not v.owner_present:
 		return true
-	if v.owner_shouted or v.owner_state != OWNER_STATE_AGENDA or not BAG_TASKS.has(v.owner_task):
+	if v.owner_shouted:
+		return false
+	if not v.owner_seen:
+		return BAG_TASKS.has(v.owner_task) and unseen_away(v, BAG_TASKS, v.bag_pos, BAG_SAFE_PX)
+	if v.owner_state != OWNER_STATE_AGENDA or not BAG_TASKS.has(v.owner_task):
 		return false
 	return v.bag_pos == Vector2.INF or v.owner_pos.distance_to(v.bag_pos) >= BAG_SAFE_PX
 
 
-## Owner standing at the counter on the agenda (DISTRACT target: the topple is heard from there).
+## Fair sight: the owner is out of sight, was last seen on the agenda leaving for an away task (`tasks`) or at least `away_px` from
+## `spot` (and not heading back to the counter), has stayed unseen at least UNSEEN_OPEN_S, and that sighting is not stale.
+static func unseen_away(v: View, tasks: Array[StringName], spot: Vector2, away_px: float) -> bool:
+	if v.owner_age < UNSEEN_OPEN_S or v.owner_age > MEMORY_STALE_S:
+		return false
+	if v.owner_state != OWNER_STATE_AGENDA or v.owner_task == TASK_COUNTER:
+		return false
+	if tasks.has(v.owner_task):
+		return true
+	return spot != Vector2.INF and v.owner_pos != Vector2.INF and v.owner_pos.distance_to(spot) >= away_px
+
+
+## Owner standing at the counter on the agenda (DISTRACT target: the topple is heard from there). Unseen owner: last seen there, not
+## stale.
 static func owner_at_counter(v: View) -> bool:
 	if not v.owner_present:
 		return true
+	if not v.owner_seen and v.owner_age > MEMORY_STALE_S:
+		return false
 	return not v.owner_shouted and v.owner_state == OWNER_STATE_AGENDA and v.owner_task == TASK_COUNTER \
 		and v.owner_pos.distance_to(v.register_pos) <= AT_COUNTER_PX
 
 
-## Owner came back to the counter (abort a run to the register that has not committed yet).
+## Owner came back to the counter (abort a run to the register that has not committed yet). Fair sight: only when seen now.
 static func owner_back(v: View) -> bool:
-	return v.owner_present and not v.owner_shouted and v.owner_task == TASK_COUNTER \
+	return v.owner_present and v.owner_seen and not v.owner_shouted and v.owner_task == TASK_COUNTER \
 		and v.owner_pos.distance_to(v.register_pos) <= OWNER_BACK_PX
 
 
@@ -342,6 +444,8 @@ class Mind:
 	var strategy: String = ""
 	var base: String = ""
 	var bag: bool = false
+	## All-knowing view (`+omni`; BotBrain fills the View accordingly).
+	var omni: bool = false
 	var seed_value: int = 0
 	var role: Role = Role.SOLO
 	var phase: Phase = Phase.START
@@ -371,6 +475,7 @@ class Mind:
 		strategy = strategy_name.strip_edges().to_lower()
 		base = str(parsed["base"])
 		bag = bool(parsed["bag"])
+		omni = bool(parsed["omni"])
 		seed_value = run_seed
 		rng.seed = hash("%d:%s" % [run_seed, strategy])
 

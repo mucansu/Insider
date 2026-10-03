@@ -1,0 +1,7 @@
+{
+  "_doc": "IS-058b: kapalı döngü beyin döngüsü - rush stratejisi (tohum 1), iş bitince 3 sn sonra host'un beyni \"Bir daha\" (Game.request_restart) ister ve yeni koşu başlar (brain_loop; --brain-loop ile aynı). Biçim: entities/player/bot_brain.gd.",
+  "brain": "rush",
+  "seed": 1,
+  "brain_loop": 3,
+  "steps": []
+}
