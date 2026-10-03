@@ -84,6 +84,23 @@ const LINES := {
 		"func attach_fog(observer: Node2D) -> FogLayer",
 		"func fog_layer() -> FogLayer",
 	],
+	# S6 addition (IS-015a): closed-loop bot brain arguments (autoload Args; checked by test_smoke like the other autoloads).
+	"Args": [
+		"var brain: String",
+		"var run_seed: int",
+		"var run_seed_given: bool",
+		"var quit_on_heist_end: float",
+	],
+	# S6 addition (IS-015a): bot brain surface the statistics runner (IS-015b) relies on (entities/player/bot_brain.gd; checked in
+	# tests/unit/test_bot_brain.gd). Dump section "brain": strategy, seed, role, phase, phase_log, stuck_s (+ counters).
+	"BotBrain": [
+		"const DUMP_KEY := \"brain\"",
+		"func requested() -> bool",
+		"func from_args() -> BotBrain",
+		"func spec_from_file(path: String) -> Dictionary",
+		"func tick(player: Player, frame: int, delta: float) -> void",
+		"func dump_state() -> Dictionary",
+	],
 }
 
 const PENDING := {

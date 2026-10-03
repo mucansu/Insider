@@ -1,0 +1,6 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, window stratejisi. Biçim: entities/player/bot_brain.gd.",
+  "brain": "window",
+  "seed": 2,
+  "steps": []
+}

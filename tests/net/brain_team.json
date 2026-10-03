@@ -1,0 +1,25 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, host + 2 istemci gerçek bakkalda (levels/store_a.tscn) `team` stratejisi (üçü aynı bot dosyası brain_team.json; her süreç kendi beynini koşar, rolü katılım sırasından: host 0 oyalayıcı = tezgâhta kasacıyı bekler, ARKAYA GÖNDER, müşteri gibi bekler; c1 1 kasacı = sıra noktasında bekler, pencerede kasa; c2 2 çantacı = dışarıda bekler, sahip raf/telefondayken arka oda çantası). c1/c2 sırayla katılır (rol sırası sabit). Beyin yalnız çoğaltılmış durumu okur: istemcilerde de aynı çalışır. Sonucu kazanmak zorunda değil; iş biter, sonuç üç süreçte aynı, her beyin `done`, roller doğru, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 120,
+  "start_delay": {"c2": 2.0},
+  "bots": {
+    "host": "res://tests/net/bots/brain_team.json",
+    "c1": "res://tests/net/bots/brain_team.json",
+    "c2": "res://tests/net/bots/brain_team.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.brain.strategy", "team"]},
+    {"eq": ["host.brain.role", "lure"]},
+    {"eq": ["c1.brain.role", "thief"]},
+    {"eq": ["c2.brain.role", "bagger"]},
+    {"eq": ["*.brain.phase", "done"]},
+    {"between": ["*.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"all_equal": "heist.result.outcome"},
+    {"eq": ["*.heist.active", false]}
+  ]
+}

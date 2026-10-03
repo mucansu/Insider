@@ -2,7 +2,8 @@ extends Node
 ## Command-line arguments (autoload `Args`, S6 — docs/notes/mimari.md).
 ## User args follow `--`: --host · --join=ADDR · --port=N · --name=NAME · --level=res://... · --bot=PATH.json · --dump=PATH.json
 ## · --quit-after=SEC · --player-scene=res://... (test only) · --screenshot-at=SEC[,SEC…] · --screenshot-dir=PATH · --window-size=WxH (IS-022)
-## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump).
+## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump)
+## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file).
 ## Parsed from `OS.get_cmdline_user_args()` at startup (tests may call `parse()` with their own list). Unknown args go to `unknown`
 ## without a warning (e.g. the test runner's --filter); a recognised key with a bad value warns and keeps the default.
 
@@ -126,6 +127,7 @@ func parse(args: PackedStringArray) -> void:
 		push_warning("Args: --screenshot-at için --screenshot-dir gerekir; görüntü alınmayacak")
 	_parse_vision_args()  # US-011d
 	_parse_perf_args()  # IS-067
+	_parse_brain_args()  # IS-015a
 
 
 ## Whether the args start a session directly (host or join).
@@ -322,3 +324,66 @@ static func parse_perf_seconds(value: String) -> float:
 	if not is_finite(t) or t < PERF_SECONDS_MIN or t > PERF_SECONDS_MAX:
 		return 0.0
 	return t
+
+
+# --- IS-015a: closed-loop bot brain (--brain=STRATEGY, --seed=N, --quit-on-heist-end=SEC; S6 test args) -------------------------
+# Separate block (US-011d pattern), pulled from `unknown` at the end of `parse()`.
+# `--brain`: strategy of the local player's brain (BotRules.STRATEGIES, optional "+bag" suffix; entities/player/bot_brain.gd). Given
+# together with `--bot` it is an error: the brain replaces the timeline (`--bot` is dropped). A bot file may select a brain too
+# ({"brain": ..., "seed": ...}; BotBrain.spec_from_file).
+# `--seed`: run seed. Today only the brain's randomness uses it (reaction delay, wait times, path jitter); the game's NPC randomness has
+# no session seed yet (IS-058) and may bind to the same argument later.
+# `--quit-on-heist-end`: SEC seconds after the job ends (Game.heist_finished) the process writes the dump (exit_reason "heist_end") and
+# exits 0 (statistics runner); independent of `--quit-after`, whichever comes first.
+
+## Brain strategy (lower case); empty = no brain.
+var brain: String = ""
+## Run seed (`--seed`); 0 if not given.
+var run_seed: int = 0
+## Whether `--seed` was given with a valid value.
+var run_seed_given: bool = false
+## Seconds after the job ends to dump and quit; < 0 = off.
+var quit_on_heist_end: float = -1.0
+
+
+func _parse_brain_args() -> void:
+	brain = ""
+	run_seed = 0
+	run_seed_given = false
+	quit_on_heist_end = -1.0
+	var rest: PackedStringArray = []
+	for raw: String in unknown:
+		var arg: String = raw.strip_edges()
+		var eq: int = arg.find("=")
+		var key: String = arg.substr(0, eq) if eq >= 0 else arg
+		var value: String = arg.substr(eq + 1).strip_edges() if eq >= 0 else ""
+		match key:
+			"--brain":
+				if not _need_value(key, value, eq >= 0):
+					continue
+				if BotRules.is_valid_strategy(value):
+					brain = value.to_lower()
+				else:
+					push_warning("Args: geçersiz --brain '%s' (%s, isteğe bağlı %s eki)"
+						% [value, "|".join(PackedStringArray(BotRules.STRATEGIES)), BotRules.BAG_SUFFIX])
+			"--seed":
+				if not _need_value(key, value, eq >= 0):
+					continue
+				if value.is_valid_int():
+					run_seed = value.to_int()
+					run_seed_given = true
+				else:
+					push_warning("Args: geçersiz --seed '%s' (tam sayı)" % value)
+			"--quit-on-heist-end":
+				if not _need_value(key, value, eq >= 0):
+					continue
+				if value.is_valid_float() and is_finite(value.to_float()) and value.to_float() >= 0.0:
+					quit_on_heist_end = value.to_float()
+				else:
+					push_warning("Args: geçersiz --quit-on-heist-end '%s' (SN >= 0)" % value)
+			_:
+				rest.append(raw)
+	unknown = rest
+	if not brain.is_empty() and not bot_path.is_empty():
+		push_error("Args: --brain ve --bot birlikte verilemez (beyin zaman çizelgesinin yerini alır); --bot yok sayılıyor")
+		bot_path = ""

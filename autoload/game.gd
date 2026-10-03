@@ -1036,6 +1036,7 @@ func _notification(what: int) -> void:
 
 func _heist_setup() -> void:
 	set_physics_process(true)
+	_heist_end_quit_bind()  # IS-015a (block at the end of the file)
 	_heist_bind_optional()
 	if level_loaded.is_connected(_heist_on_level_loaded):
 		return
@@ -1842,3 +1843,38 @@ func escape_status() -> Dictionary:
 			if _heist_in_zone(zone, pos):
 				in_zone += 1
 	return {"in_zone": in_zone, "free": free}
+
+
+# =====================================================================================================================
+# IS-015a — `--quit-on-heist-end=SEC` (S6 test arg; statistics runner). SEC seconds after `heist_finished` the process writes the dump
+# (`--dump`; "exit_reason": "heist_end") and exits 0, like main.gd's `--quit-after` exit. Without the arg nothing is connected.
+# =====================================================================================================================
+
+const HEIST_END_EXIT_REASON := "heist_end"
+var _heist_end_quit_armed: bool = false
+
+
+func _heist_end_quit_bind() -> void:
+	if Args.quit_on_heist_end < 0.0 or heist_finished.is_connected(_heist_end_quit_arm):
+		return
+	heist_finished.connect(_heist_end_quit_arm)
+
+
+func _heist_end_quit_arm(_result: Dictionary) -> void:
+	if _heist_end_quit_armed:
+		return
+	_heist_end_quit_armed = true
+	get_tree().create_timer(Args.quit_on_heist_end).timeout.connect(_heist_end_quit)
+
+
+func _heist_end_quit() -> void:
+	register_dump_provider("exit_reason", func() -> String: return HEIST_END_EXIT_REASON)
+	if not Args.dump_path.is_empty():
+		var file: FileAccess = FileAccess.open(Args.dump_path, FileAccess.WRITE)
+		if file == null:
+			push_error("Game: döküm yazılamadı: %s (%s)" % [Args.dump_path, error_string(FileAccess.get_open_error())])
+		else:
+			file.store_string(JSON.stringify(collect_dump(), "  ", true))
+			file.close()
+	Net.leave()
+	get_tree().quit(0)
