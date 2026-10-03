@@ -1,0 +1,34 @@
+{
+  "_doc": "US-040 eli boş çekilme: sahipsiz bakkal (tests/fixtures/store_a_quiet.tscn; sahip, uyarı ve nüfus kapalı), host + c1. İkisi de hiçbir şeye dokunmadan kaçış bölgesine yürür ve bekler: yakalanmamış herkes bölgede, ganimet 0 → 3 sn (data/heist_tuning.tres) sonra host `aborted` kararı verir; sonuç iki peer'da aynı (pay 0, ısı 0, kefalet 0, kasa 0 → 0, ikisi de kaçtı). İstemci geri sayımı RPC'siz, yerel kopyadan türetir: c1'in yerel sayacı (döküm heist.abort_peak_s) görünür; istemci kendi konumunu host'tan önce gördüğü ve sonuç bir yol gecikmesiyle geldiği için 150 ms'de 3 sn'yi ~0,25 sn aşabilir (gösterim 0'da bekler; karar host'ta). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 14,
+  "bots": {
+    "host": "res://tests/net/bots/abort_walk.json",
+    "c1": "res://tests/net/bots/abort_walk.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.result.outcome", "aborted"]},
+    {"all_equal": "heist.result"},
+    {"len": ["*.heist.history", 1]},
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["host.heist.result.payout", 0]},
+    {"eq": ["host.heist.result.loot_total", 0]},
+    {"eq": ["host.heist.result.heat", 0]},
+    {"eq": ["host.heist.result.bail", 0]},
+    {"eq": ["host.heist.result.cash_before", 0]},
+    {"eq": ["host.heist.result.cash_after", 0]},
+    {"eq": ["host.heist.result.players.$host.escaped", true]},
+    {"eq": ["host.heist.result.players.$c1.escaped", true]},
+    {"eq": ["host.heist.result.players.$c1.caught", false]},
+    {"between": ["host.heist.result.duration_s", 8.5, 12]},
+    {"between": ["host.heist.abort_peak_s", 2.98, 3.05]},
+    {"between": ["c1.heist.abort_peak_s", 1.5, 3.6]},
+    {"eq": ["*.team_cash", 0]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

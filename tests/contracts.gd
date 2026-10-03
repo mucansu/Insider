@@ -56,6 +56,8 @@ const LINES := {
 		# S3 eki adayı (US-038, kaçış okunurluğu; mimari.md'ye koordinatör işler): salt okunur, RPC yok.
 		"func escape_point() -> Vector2",
 		"func escape_status() -> Dictionary",
+		# S3 eki (US-040, eli boş çekilme): HUD geri sayımı; salt okunur, RPC yok.
+		"func abort_left() -> float",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",

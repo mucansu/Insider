@@ -6,6 +6,9 @@ extends Control
 ## "Bir daha" (yalnız host ve Game `request_restart()` taşıyorsa; S3 eki) ve "Menü" (`menu_requested`). Ekran hesap yapmaz:
 ## sayılar `result` sözlüğünden. Kayıp ekranı aynı sahnenin hâli; başlık ALERT, geri kalan FG.
 ## Açıkken oyun girdisi engellenir (S5). HUD `bind(game, net)` ile bağlar; geç katılan `heist_result()` alır.
+## US-040: `aborted` (eli boş çekilme) kayıp değildir: normal başlık. US-041 (KR-029): yakalanan satırında kefalet,
+## ödeme altında "− Kefalet" (toplam > 0 ise) ve "Ekip kasası a → b" (sonuçta `cash_before`/`cash_after` varsa);
+## eksi tutar uyarı renginde.
 
 ## "Bir daha" (host): seviyeyi yeniden başlatma isteği; Game.request_restart() çağrıldıktan sonra yayılır.
 signal retry_requested()
@@ -172,6 +175,13 @@ func _fill_payout() -> void:
 	_payout_row(tr(&"END_LOOT"), _cash(int(_result.get("loot_total", 0))), &"HeadingLabel")
 	_payout_row(tr(&"END_RATIO"), tr(&"END_RATIO_VALUE") % ratio_pct, &"HeadingLabel")
 	_payout_row(tr(&"END_PAYOUT"), _cash(int(_result.get("payout", 0))), &"CashLabel")
+	var bail: int = int(_result.get("bail", 0))
+	if bail > 0:
+		_payout_row(tr(&"END_BAIL"), _cash(-bail), &"AlertLabel")
+	if _result.has("cash_before") and _result.has("cash_after"):
+		var after: int = int(_result["cash_after"])
+		var change: String = tr(&"END_TEAM_CASH_CHANGE") % [_cash(int(_result["cash_before"])), _cash(after)]
+		_payout_row(tr(&"END_TEAM_CASH"), change, &"AlertLabel" if after < 0 else &"CashLabel")
 
 
 func _payout_row(caption: String, value: String, value_style: StringName) -> void:
@@ -185,7 +195,7 @@ func _payout_row(caption: String, value: String, value_style: StringName) -> voi
 
 # --- oyuncular ---
 
-## Sonuçtaki oyuncular, slot sırasıyla: [{peer, name, slot, escaped, caught, loot}].
+## Sonuçtaki oyuncular, slot sırasıyla: [{peer, name, slot, escaped, caught, loot, bail}].
 func player_entries() -> Array[Dictionary]:
 	var players: Dictionary = _result.get("players", {})
 	var out: Array[Dictionary] = []
@@ -198,6 +208,7 @@ func player_entries() -> Array[Dictionary]:
 			"escaped": bool(info.get("escaped", false)),
 			"caught": bool(info.get("caught", false)),
 			"loot": int(info.get("loot", 0)),
+			"bail": int(info.get("bail", 0)),
 		})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["peer"] < b["peer"])
@@ -221,7 +232,10 @@ func _fill_players() -> void:
 		elif bool(p["escaped"]):
 			status_key = &"END_STATUS_ESCAPED"
 			status_style = &""
-		_player_grid.add_child(_label(tr(status_key), status_style))
+		var status: String = tr(status_key)
+		if int(p["bail"]) > 0:
+			status = tr(&"END_STATUS_WITH_BAIL") % [status, _cash(int(p["bail"]))]
+		_player_grid.add_child(_label(status, status_style))
 		var loot: Label = _label(_cash(int(p["loot"])), &"")
 		loot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		loot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -335,8 +349,10 @@ func _fill_notes() -> void:
 
 # --- yardımcılar ---
 
+## Eksi tutar (kefalet, borç) işaret para biriminin önünde: "-$100" (Hud.format_cash ile aynı).
 func _cash(value: int) -> String:
-	return tr(&"HUD_CASH_VALUE") % Hud.group_digits(value, tr(&"NUMBER_GROUP_SEPARATOR"))
+	var text: String = tr(&"HUD_CASH_VALUE") % Hud.group_digits(absi(value), tr(&"NUMBER_GROUP_SEPARATOR"))
+	return "-" + text if value < 0 else text
 
 
 static func _label(text: String, style: StringName) -> Label:

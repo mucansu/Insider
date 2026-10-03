@@ -938,7 +938,13 @@ static func _sanitize_name(value: Variant) -> String:
 #   "data": {...}} adımları — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart" —
 #   yukarıdaki session_event'lerle (ve request_restart ile) uygulanır; US-008 gelene dek sahip olaylarının
 #   yerine geçer. Zaman, bot zaman çizelgesi gibi ilk yerel oyuncunun ilk fizik adımından sayılır.
-# Döküm (S6 "heist", yalnız --dump): {"active", "max_alert", "elapsed", "result", "history"}.
+# - US-040 eli boş çekilme: kural ve sayaç `HeistRules.AbortClock` (Tracker içinde, host karar verir; süre
+#   data/heist_tuning.tres). `abort_left()` HUD geri sayımı: host'ta Tracker'ın sayacı, istemcide aynı sınıfla
+#   yerel kopyadan (escape_status + çoğaltılan çanta taşıyanı / kasa `emptied`) türetilir — RPC yok; sonuç yine
+#   heist_finished ile gelir.
+# - US-041 kefalet (KR-029): yakalanan başına `bail_by_tier[venue_tier()]` (data/heist_tuning.tres); ekip kasası
+#   = iş öncesi + ödeme − kefalet, eksiye düşebilir (borç). Sonuçta `bail`, `cash_before`, `cash_after`.
+# Döküm (S6 "heist", yalnız --dump): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s"}.
 # =====================================================================================================================
 
 signal heist_finished(result: Dictionary)
@@ -972,6 +978,10 @@ var _heist_hook_started: bool = false
 var _heist_bound: Dictionary = {}
 ## request_restart: ekip nakdi yeni seviye yüklenince sıfırlanır.
 var _heist_reset_cash: bool = false
+## US-040: istemcinin yerel eli boş çekilme sayacı (yalnız HUD; karar host'ta Tracker.abort).
+var _heist_abort_view: HeistRules.AbortClock = null
+## Seviyedeki nakit prop'ları (kasa; `emptied` çoğaltılır): istemcinin yerel ganimet kestirimi için.
+var _heist_cash_props: Array[Node] = []
 
 
 ## Bitmiş işin sonucu (S3 eki; geç katılan da alır); iş sürüyorsa ya da yoksa boş.
@@ -995,6 +1005,16 @@ func request_restart() -> void:
 ## Mekân kademesi (uyarı merdiveni metinleri `ALERT_T<k>_<level>`).
 func venue_tier() -> int:
 	return HEIST_VENUE_TIER
+
+
+## US-040 (S3 eki): eli boş çekilme geri sayımının kalan süresi (sn); sayaç yoksa ya da iş bittiyse −1. Host'ta
+## kararı veren sayaç; istemcide yerel kopyadan türetilen tahmin (yalnız gösterim).
+func abort_left() -> float:
+	if _heist == null or _heist.finished:
+		return -1.0
+	if _has_host_authority():
+		return _heist.abort.left()
+	return _heist_abort_view.left() if _heist_abort_view != null else -1.0
 
 
 ## Bölümün tek motor girişi: `_enter_tree`/`_physics_process` tanımlanmaz ki başka bölümler (US-008) kendi
@@ -1024,7 +1044,10 @@ func _heist_setup() -> void:
 
 func _heist_physics(delta: float) -> void:
 	_heist_run_hook(delta)
-	if _heist == null or _heist.finished or _level == null or not _has_host_authority():
+	if _heist == null or _heist.finished or _level == null:
+		return
+	if not _has_host_authority():
+		_heist_client_abort(delta)
 		return
 	var views: Dictionary = _heist_views()
 	if views.is_empty():
@@ -1071,6 +1094,10 @@ func _heist_on_level_loaded(level: Node) -> void:
 	if lvl == null or lvl.zone(HEIST_ESCAPE_ZONE) == null:
 		return
 	_heist = HeistRules.Tracker.new()
+	var tuning: HeistTuning = HeistTuning.load_default()
+	_heist.abort.hold_s = tuning.abort_hold_s
+	_heist_abort_view = HeistRules.AbortClock.new(tuning.abort_hold_s)
+	_heist_cash_props.clear()
 	if not level.tree_exiting.is_connected(_heist_on_level_exiting):
 		level.tree_exiting.connect(_heist_on_level_exiting, CONNECT_ONE_SHOT)
 	for node: Node in get_tree().get_nodes_in_group(HEIST_INTERACTABLES_GROUP):
@@ -1082,6 +1109,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 		var cash: int = int(def.get(&"cash_value")) if def != null and "cash_value" in def else 0
 		if cash <= 0:
 			continue
+		_heist_cash_props.append(prop)
 		node.connect(&"completed", _heist_on_cash_taken.bind(cash))
 		# İş bitince host yeni ganimet etkileşimini reddeder (bileşenin kendi engeli yoksa; çanta kendi kilitlenir).
 		if "start_blocker" in node and not (node.get(&"start_blocker") as Callable).is_valid():
@@ -1096,6 +1124,31 @@ func _heist_on_level_loaded(level: Node) -> void:
 func _heist_on_level_exiting() -> void:
 	_heist = null
 	_heist_result = {}
+	_heist_abort_view = null
+	_heist_cash_props.clear()
+
+
+## İstemci (US-040 HUD): eli boş çekilme koşulunun yerel kestirimi — yakalanmamış herkes bölgede (escape_status,
+## host'un `_heist_views` kuralı) ve ganimet görünmüyor (taşınan çanta yok, nakit prop boşaltılmamış). Kasayı
+## sonradan yakalanan biri boşalttıysa host sayar, istemci saymaz: o durumda geri sayım yalnız host'ta görünür.
+func _heist_client_abort(delta: float) -> void:
+	if _heist_abort_view == null:
+		return
+	var status: Dictionary = escape_status()
+	var free: int = int(status.get("free", 0))
+	var holding: bool = free > 0 and int(status.get("in_zone", 0)) >= free and not _heist_loot_seen()
+	_heist_abort_view.step(holding, delta, free)  # serbest sayısı değişti (yakalanma): baştan
+
+
+## İstemcinin gördüğü ganimet: çoğaltılan çanta taşıyanı ya da boşaltılmış nakit prop'u.
+func _heist_loot_seen() -> bool:
+	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
+		if _level != null and _level.is_ancestor_of(bag) and int(bag.get(&"carrier")) != 0:
+			return true
+	for prop: Node in _heist_cash_props:
+		if is_instance_valid(prop) and "emptied" in prop and bool(prop.get(&"emptied")):
+			return true
+	return false
 
 
 ## Kasa nakdi kimin (prop kendi işleyicisinde ekip nakdine ekledi). Sonuçtan sonra biten (iş bitmeden başlamış)
@@ -1218,8 +1271,11 @@ func _heist_finish(decision: StringName, views: Dictionary) -> void:
 	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
 		if bag.has_method(&"host_lock"):
 			bag.call(&"host_lock")
-	var result: Dictionary = _heist.build_result(decision, views, _players)
-	var cash_delta: int = maxi(int(result["payout"]) - _heist.cash_grabbed(), -_team_cash)
+	var bail_each: int = HeistRules.bail_for_tier(HeistTuning.load_default().bail_by_tier, venue_tier())
+	var cash_before: int = _team_cash - _heist.cash_grabbed()
+	var result: Dictionary = _heist.build_result(decision, views, _players, bail_each, cash_before)
+	# Ekip kasası = iş öncesi + ödeme − kefalet (KR-029: eksiye düşebilir); kasadan anında giren ham nakit değişir.
+	var cash_delta: int = int(result["cash_after"]) - _team_cash
 	if cash_delta != 0:
 		add_team_cash(cash_delta)
 	_to_all(&"_rpc_heist_finished", [result])
@@ -1254,7 +1310,15 @@ func _heist_dump() -> Dictionary:
 		"elapsed": snappedf(_heist.elapsed, 0.01) if _heist != null else 0.0,
 		"result": _heist_result,
 		"history": _heist_history,
+		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
 	}
+
+
+## Bu peer'da görülen en uzun eli boş çekilme sayacı (sn): host'ta karar sayacı, istemcide yerel kestirim.
+func _heist_abort_peak() -> float:
+	if _has_host_authority():
+		return _heist.abort.peak_s if _heist != null else 0.0
+	return _heist_abort_view.peak_s if _heist_abort_view != null else 0.0
 
 
 # --- test kancası (yalnız otomasyon + host) ---

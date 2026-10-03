@@ -135,6 +135,12 @@ class FakeGame extends FakeGameBase:
 	func escape_status() -> Dictionary:
 		return escape
 
+	## US-040 eli boş çekilme geri sayımı (sn); sayaç yoksa -1.
+	var abort: float = -1.0
+
+	func abort_left() -> float:
+		return abort
+
 
 ## S3 + S3 eki + görüş eki (mimari.md, US-011b/c): maruziyet, oyuncu dünya konumu, host'un görüş kipi.
 class FakeVisionGame extends FakeGame:

@@ -139,7 +139,7 @@ func test_police_catches_player_inside() -> void:
 		eq(r["players"]["1"]["escaped"], false)
 		eq(r["payout"], 0)
 		has(r["notes"], {"kind": &"bail", "peer": 1})
-	eq(Game.team_cash(), 0, "kasa nakdi kayboldu")
+	eq(Game.team_cash(), -100, "kasa nakdi kayboldu; kefalet 100 düştü (US-041, KR-029)")
 	await _stop()
 
 
@@ -193,7 +193,7 @@ func test_loot_locked_after_finish() -> void:
 	for i: int in roundi(2.2 / DT):
 		reg.step(DT)
 	is_true((_level().props_root().get_node("Register") as Register).emptied, "süren boşaltma bitti")
-	eq(Game.team_cash(), 0, "sonuçtan sonra nakit eklenmez (geri alındı)")
+	eq(Game.team_cash(), -100, "sonuçtan sonra nakit eklenmez (geri alındı); kefalet 100 (KR-029)")
 	var bag: Bag = _level().props_root().get_node("Bag") as Bag
 	me.position = NEAR_BAG
 	(bag.get_node("Take") as Interactable).host_start(1, 2)
@@ -244,6 +244,72 @@ func test_level_without_escape_zone_is_not_a_heist() -> void:
 	await _frames()
 	eq(_results.size(), 0, "EscapeZone yok: iş izlenmez")
 	eq(Game.heist_result(), {})
+	await _stop()
+
+
+## US-040: ganimetsiz kaçış bölgesinde 3 sn (data/heist_tuning.tres) kesintisiz → `aborted`; çıkınca sayaç sıfır.
+func test_empty_handed_abort() -> void:
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	eq(Game.abort_left(), -1.0, "bölge dışında: sayaç yok")
+	me.position = IN_ZONE
+	await _frames(90)
+	var left: float = Game.abort_left()
+	is_true(left > 1.0 and left < 2.0, "1,5 sn sonra kalan ~1,5 sn: %s" % left)
+	me.position = STAFF
+	await _frames(3)
+	eq(Game.abort_left(), -1.0, "bölgeden çıktı: sayaç sıfırlandı")
+	me.position = IN_ZONE
+	await _frames(150)
+	eq(_results.size(), 0, "yeniden sayıyor: 2,5 sn'de bitmez")
+	await _frames(40)
+	if eq(_results.size(), 1, "3 sn kesintisiz: iş bitti"):
+		var r: Dictionary = _results[0]
+		eq(r["outcome"], &"aborted")
+		eq(r["payout"], 0)
+		eq(r["heat"], 0)
+		eq(r["bail"], 0)
+		eq(r["players"]["1"]["escaped"], true, "yakalanmadı, kaçtı sayılır")
+		eq(r["players"]["1"]["caught"], false)
+		eq([r["cash_before"], r["cash_after"]], [0, 0], "kasa değişmez")
+	eq(Game.abort_left(), -1.0, "iş bitti: sayaç yok")
+	eq(Game.team_cash(), 0)
+	await _stop()
+
+
+## US-041 (KR-029): yakalanan başına kefalet 100 (T1); kasa eksiye düşer; sonraki işin ödemesi borcu kapatır
+## (yeniden başlatma değil, aynı seviyenin düz yüklenmesi: kasa taşınır).
+func test_bail_debt_closed_by_next_payout() -> void:
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	Game.raise_session_event(&"police_arrived")
+	await _frames()
+	if eq(_results.size(), 1):
+		var r: Dictionary = _results[0]
+		eq(r["outcome"], &"police")
+		eq(r["bail"], 100, "bir yakalanan: 100")
+		eq(r["players"]["1"]["bail"], 100)
+		eq([r["cash_before"], r["cash_after"]], [0, -100])
+	eq(Game.team_cash(), -100, "borç")
+	Game.start_level(STORE)
+	me = Game.local_player() as Player
+	eq(Game.team_cash(), -100, "borç sonraki işe taşınır")
+	me.position = STAFF
+	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
+	eq(Game.team_cash(), 50, "kasa nakdi anında (-100 + 150)")
+	me.position = IN_ZONE
+	await _frames()
+	if eq(_results.size(), 2):
+		var r: Dictionary = _results[1]
+		eq(r["outcome"], &"clean")
+		eq(r["payout"], 135)
+		eq(r["bail"], 0)
+		eq([r["cash_before"], r["cash_after"]], [-100, 35], "iş öncesi + ödeme − kefalet")
+	eq(Game.team_cash(), 35, "ödeme borcu kapattı")
 	await _stop()
 
 

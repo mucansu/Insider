@@ -12,6 +12,13 @@ extends RefCounted
 ##   herkes yakalanır; kalanlar (bölgedekiler) ganimetliyse iş sıcak kazanılır, değilse `police`.
 ## - held ≠ caught: tutulan oyuncu yakalanmış sayılmaz (kurtarılabilir; süresi dolunca US-008 caught yapar).
 ## - Ödeme = ganimet × aracı oranı (tamsayı yüzde, yarım yukarı yuvarlanır); yakalananın payı (ganimeti) 0.
+## - Eli boş çekilme (US-040): yakalanmamış herkes kaçış bölgesinde ve ganimet 0 iken `abort_hold_s` (data/
+##   heist_tuning.tres, 3 sn) kesintisiz kalınırsa iş `aborted` biter: pay 0, bölgedekiler kaçmış sayılır, ısı
+##   uyarı ≥ 2 ise +5. Biri çıkar/yakalanırsa sayaç sıfırlanır; ganimet > 0 ise kazanma kuralı anında; polis
+##   geldiyse polis kuralı.
+## - Kefalet (US-041, KR-029): iş sonunda yakalanan her oyuncu için ekip kasasından mekân kademesinin tutarı
+##   (data/heist_tuning.tres) düşer; kasa eksiye düşebilir (borç), sonraki ödeme doğal olarak kapatır.
+##   Ekip kasası = iş öncesi + ödeme − kefalet.
 ## - Çanta: koşulan her tam saniyede %25 düşer (gürültü 160); devir 0,3 sn; alma süresi data/props/bag.tres.
 
 const OUTCOME_CLEAN := &"clean"
@@ -19,6 +26,8 @@ const OUTCOME_SHOUTED := &"shouted"
 const OUTCOME_HOT := &"hot"
 const OUTCOME_CAUGHT_ALL := &"caught_all"
 const OUTCOME_POLICE := &"police"
+## Eli boş çekilme (US-040): kayıp değil, kazanma da değil; pay 0.
+const OUTCOME_ABORTED := &"aborted"
 const LOSS_OUTCOMES: Array[StringName] = [OUTCOME_CAUGHT_ALL, OUTCOME_POLICE]
 ## `decide` dönüşü: iş sürüyor / kazanıldı (sonuç türü kademeden) / kaybedildi (OUTCOME_POLICE, OUTCOME_CAUGHT_ALL).
 const DECISION_NONE := &""
@@ -38,6 +47,12 @@ const HEAT_SHOUTED := 5
 const HEAT_HOT := 10
 const HEAT_POLICE := 15
 const HEAT_CAUGHT_ALL := 15
+## Eli boş çekilme: bağırış olduysa (uyarı ≥ ALERT_SHOUTED) +5, değilse 0 (US-040).
+const HEAT_ABORTED_SHOUTED := 5
+## Eli boş çekilme sayacının yedek süresi (sn): asıl değer data/heist_tuning.tres `abort_hold_s` (Game verir).
+const ABORT_HOLD_S := 3.0
+## Kayan nokta birikimi için tolerans (60 Hz adımların toplamı 3,0'ı 1e-9 ıskalamasın).
+const ABORT_EPS := 1e-6
 
 ## Çanta (GDD §9.3; kart US-012).
 const BAG_GROUP := &"loot_bags"
@@ -97,8 +112,11 @@ static func ratio_pct(outcome: StringName, shouted: bool) -> int:
 	return 0
 
 
-static func heat_for(outcome: StringName) -> int:
+## Isı değişimi; `max_alert` yalnız eli boş çekilmede (bağırış olduysa +5) kullanılır.
+static func heat_for(outcome: StringName, max_alert: int = 0) -> int:
 	match outcome:
+		OUTCOME_ABORTED:
+			return HEAT_ABORTED_SHOUTED if max_alert >= ALERT_SHOUTED else 0
 		OUTCOME_CLEAN:
 			return HEAT_CLEAN
 		OUTCOME_SHOUTED:
@@ -117,9 +135,41 @@ static func payout(loot: int, pct: int) -> int:
 	return (maxi(loot, 0) * maxi(pct, 0) + 50) / 100
 
 
+## Kefalet tutarı: `table` (kademe -> tutar) içinde kademenin kendisi, yoksa en yakın alt kademesi; hiçbiri yoksa 0.
+static func bail_for_tier(table: Dictionary, tier: int) -> int:
+	var best_tier: int = -1
+	var amount: int = 0
+	for key: Variant in table:
+		var t: int = int(key)
+		if t <= tier and t > best_tier:
+			best_tier = t
+			amount = maxi(int(table[key]), 0)
+	return amount
+
+
+## İş sonu ekip kasası = iş öncesi + ödeme − kefalet (eksi olabilir: borç; sonraki ödeme kapatır, KR-029).
+static func cash_after(before: int, payout_value: int, bail: int) -> int:
+	return before + maxi(payout_value, 0) - maxi(bail, 0)
+
+
+## Eli boş çekilme koşulu (anlık): en az bir yakalanmamış oyuncu var, hepsi kaçış bölgesinde ve ganimet 0.
+## `players` biçimi `decide` ile aynı.
+static func abort_ready(players: Dictionary) -> bool:
+	var free: int = 0
+	for peer: Variant in players:
+		var p: Dictionary = players[peer]
+		if bool(p.get("caught", false)):
+			continue
+		free += 1
+		if not bool(p.get("in_zone", false)) or int(p.get("loot", 0)) > 0:
+			return false
+	return free > 0
+
+
 ## İşin durumu. `players`: peer -> {"caught": bool, "in_zone": bool, "loot": int} (loot: yakalanmamışın kaçırdığı
 ## ganimet). `police`: polis geldi (bölge dışındakiler çağıran tarafından zaten yakalanmış işaretlenir).
-static func decide(players: Dictionary, police: bool) -> StringName:
+## `abort_due`: eli boş çekilme sayacı doldu (AbortClock.done); yalnız koşul hâlâ sağlanıyorsa `aborted`.
+static func decide(players: Dictionary, police: bool, abort_due: bool = false) -> StringName:
 	if players.is_empty():
 		return DECISION_NONE
 	var free: int = 0
@@ -136,7 +186,11 @@ static func decide(players: Dictionary, police: bool) -> StringName:
 		return OUTCOME_POLICE if police else OUTCOME_CAUGHT_ALL
 	if all_in_zone and loot > 0:
 		return DECISION_WIN
-	return OUTCOME_POLICE if police else DECISION_NONE
+	if police:
+		return OUTCOME_POLICE
+	if abort_due and all_in_zone and loot == 0:
+		return OUTCOME_ABORTED
+	return DECISION_NONE
 
 
 ## Çanta: koşu süresi `prev_s`'ten `new_s`'e çıkınca atılacak zar sayısı (geçilen tam saniyeler).
@@ -238,6 +292,41 @@ static func _before(a: int, b: int, slots: Dictionary) -> bool:
 	return sa < sb if sa != sb else a < b
 
 
+## Eli boş çekilme sayacı (US-040): koşul (`abort_ready`) her adımda verilir; kesintisiz `hold_s` sağlanınca dolar,
+## koşul bozulunca ya da `epoch` değişince (yakalanan sayısı: biri yakalandı) sıfırlanır. Host'ta Tracker'ın içinde
+## karar verir; istemcide Game aynı sınıfla yerel kopyadan yalnız HUD geri sayımını türetir (karar host'ta).
+class AbortClock:
+	extends RefCounted
+
+	var hold_s: float = HeistRules.ABORT_HOLD_S
+	## Koşulun kesintisiz sağlandığı süre (sn); 0 = sayaç yok.
+	var held_s: float = 0.0
+	## Bu sayaçta görülen en uzun süre (yalnız döküm/teşhis).
+	var peak_s: float = 0.0
+	var _epoch: int = 0
+
+	func _init(hold: float = HeistRules.ABORT_HOLD_S) -> void:
+		hold_s = maxf(hold, 0.0)
+
+	## `epoch`: değişirse sayaç baştan başlar (ör. yakalanan sayısı; koşul sürse bile kesinti sayılır).
+	func step(holding: bool, delta: float, epoch: int = 0) -> void:
+		if epoch != _epoch:
+			_epoch = epoch
+			held_s = 0.0
+		held_s = held_s + maxf(delta, 0.0) if holding else 0.0
+		peak_s = maxf(peak_s, held_s)
+
+	func running() -> bool:
+		return held_s > 0.0
+
+	func done() -> bool:
+		return running() and held_s >= hold_s - HeistRules.ABORT_EPS
+
+	## Kalan süre (sn); sayaç yoksa −1.
+	func left() -> float:
+		return maxf(hold_s - held_s, 0.0) if running() else -1.0
+
+
 ## Bir işin host'taki sayaçları ve kararı. Game her fizik adımında `observe` + `evaluate` çağırır; olaylar
 ## (uyarı, polis, yakalanma, kasa nakdi, çanta alma) ilgili yöntemlerle girer. Görünüm (`views`):
 ## peer -> {"in_zone": bool, "caught": bool, "held": bool, "bag_value": int, "sprinting": bool}.
@@ -257,6 +346,8 @@ class Tracker:
 	var bags: Dictionary = {}
 	## peer -> koşu süresi (sn).
 	var sprint_s: Dictionary = {}
+	## Eli boş çekilme sayacı (US-040); Game `abort.hold_s`'i data/heist_tuning.tres'ten verir.
+	var abort: HeistRules.AbortClock = HeistRules.AbortClock.new()
 
 	func set_alert(level: int) -> void:
 		max_alert = maxi(max_alert, level)
@@ -310,6 +401,7 @@ class Tracker:
 				mark_caught(int(peer))
 			if bool(v.get("sprinting", false)):
 				sprint_s[int(peer)] = float(sprint_s.get(int(peer), 0.0)) + maxf(delta, 0.0)
+		abort.step(not police and HeistRules.abort_ready(players_state(views)), delta, caught.size())
 
 	## Kural girdisi: peer -> {"caught", "in_zone", "loot"}.
 	func players_state(views: Dictionary) -> Dictionary:
@@ -328,23 +420,29 @@ class Tracker:
 	func evaluate(views: Dictionary) -> StringName:
 		if finished:
 			return HeistRules.DECISION_NONE
-		return HeistRules.decide(players_state(views), police)
+		return HeistRules.decide(players_state(views), police, abort.done())
 
-	## Sonuç sözlüğü (S3 eki): `roster` = Game.players() (peer -> {"name", "slot"}).
-	func build_result(decision: StringName, views: Dictionary, roster: Dictionary) -> Dictionary:
+	## Sonuç sözlüğü (S3 eki): `roster` = Game.players() (peer -> {"name", "slot"}). `bail_each`: yakalanan başına
+	## kefalet (KR-029); `cash_before`: iş öncesi ekip kasası (kasadan anında giren ham nakit hariç).
+	func build_result(decision: StringName, views: Dictionary, roster: Dictionary, bail_each: int = 0,
+			cash_before: int = 0) -> Dictionary:
 		var win: bool = decision == HeistRules.DECISION_WIN
 		var outcome: StringName = HeistRules.win_outcome(max_alert) if win else decision
+		var got_away: bool = win or outcome == HeistRules.OUTCOME_ABORTED
 		var state: Dictionary = players_state(views)
 		var players: Dictionary = {}
 		var slots: Dictionary = {}
 		var loot_total: int = 0
+		var bail_total: int = 0
 		for key: Variant in roster:
 			var id: int = int(key)
 			var entry: Dictionary = roster[key]
 			var s: Dictionary = state.get(id, {"caught": is_caught(id), "in_zone": false, "loot": 0})
-			var escaped: bool = win and not bool(s["caught"]) and bool(s["in_zone"])
-			var loot: int = int(s["loot"]) if escaped else 0
+			var escaped: bool = got_away and not bool(s["caught"]) and bool(s["in_zone"])
+			var loot: int = int(s["loot"]) if escaped and win else 0
+			var bail: int = maxi(bail_each, 0) if bool(s["caught"]) else 0
 			loot_total += loot
+			bail_total += bail
 			slots[id] = int(entry.get("slot", 0))
 			players[str(id)] = {
 				"name": str(entry.get("name", "")),
@@ -352,6 +450,7 @@ class Tracker:
 				"escaped": escaped,
 				"caught": bool(s["caught"]),
 				"loot": loot,
+				"bail": bail,
 			}
 		var pct: int = HeistRules.ratio_pct(outcome, shouted())
 		var caught_now: Dictionary = {}
@@ -361,14 +460,18 @@ class Tracker:
 		var stats: Dictionary = {
 			"max_alert": max_alert, "caught": caught_now, "bags": bags, "sprint_s": sprint_s, "slots": slots,
 		}
+		var paid: int = HeistRules.payout(loot_total, pct)
 		return {
 			"outcome": outcome,
 			"loot_total": loot_total,
 			"payout_ratio": pct / 100.0,
-			"payout": HeistRules.payout(loot_total, pct),
+			"payout": paid,
 			"duration_s": snappedf(elapsed, 0.01),
 			"players": players,
 			"notes": HeistRules.pick_notes(HeistRules.note_candidates(stats)),
-			"heat": HeistRules.heat_for(outcome),
+			"heat": HeistRules.heat_for(outcome, max_alert),
 			"max_alert": max_alert,
+			"bail": bail_total,
+			"cash_before": cash_before,
+			"cash_after": HeistRules.cash_after(cash_before, paid, bail_total),
 		}
