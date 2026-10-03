@@ -41,3 +41,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-015b (cekirdek) | tests/net/brain_disconnect.json | Her gecikmede ~153 sn → tam ci_local'a ~5 dk ekler |
 | 2026-10-04 | IS-098 (oynanis) | entities/npc/components/perception.gd, levels/fog/fog_layer.gd | `SEE_THROUGH_GROUP` sabitleri artık yalnız test_physics_layers için duruyor |
 | 2026-10-04 | IS-098 (oynanis) | entities/npc/civilian/civilian_senses.gd | `_sees_owner` "tezgâh alçak, satış alanı içi her zaman görür" kısayolu artık gereksiz (IS-098 sınıf kuralı) |
+| 2026-10-04 | IS-058b (oynanis) | entities/player/bot_brain.gd | Adil kipte window/distract/buy çoğunlukla bekleme zaman aşımıyla gidiyor (ön kaldırım/raf ucundan sahip görülmüyor) — bekleme noktası seçimi; prop durumları (kasa/çanta) hâlâ her şeyi bilen kipte; çevresel silüet görüşü sayılmıyor |

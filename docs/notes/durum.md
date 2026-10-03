@@ -3,13 +3,12 @@
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **6511bc3** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
+Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **5c5da85** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
 
-Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5, IS-096, GDD v0.6, IS-015b, IS-098 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
+Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5, IS-096, GDD v0.6, IS-015b, IS-098, IS-058b · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-- **IS-058b** (oynanis): `Game.session_seed()` (--seed; otomasyonda 0 = eski davranış; gerçek oyunda her iş rastgele), bot beyni adil görüş varsayılan (+omni eski), `--brain-loop`.
-- IS-015b birleşti (heist_stats). Sonra: IS-058b + IS-098 birleşince `python tools/heist_stats.py --seeds 1-50 --cell team:2,3:1-20` gerçek dağılım → Fable'a zorluk sorusu (KR-026 260 px eşiği).
+- **IS-015 ölçümü** koşuyor: `python tools/heist_stats.py --seeds 1-50 --cell team:2,3:1-20 --jobs 8` (290 koşu; adil bot + oturum tohumu + alçak tezgâh) → sonuç Fable'a zorluk sorusu (KR-026 260 px eşiği, KR-031 shouted > %70 eşiği). Birleşik ağaç: unit 801 + 12 ağ senaryosu 0 ms yeşil (2026-10-04).
 - Sırada: IS-081 (owner.log; IS-058b brain_owner'a dokunduğu için sonra), 150 ms 20 dk beyin döngüsüyle dayanıklılık.
 - Not: GDD ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
 
