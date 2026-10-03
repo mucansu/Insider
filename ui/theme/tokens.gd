@@ -87,6 +87,14 @@ const GAMEPLAY_FOG_PERIPHERAL_SATURATION := 0.6
 ## Dark-zone scan (45 deg; dark tiles in memory tone even inside the line of sight): MUTED, alpha 0.35.
 const GAMEPLAY_FOG_DARK_HATCH := Color(MUTED.r, MUTED.g, MUTED.b, 0.35)
 
+# --- NPC attention readability (IS-096; GDD §9.3 "Sahip okunurluğu"): NpcVisual cone, drawn in the tone's FG ---
+## Cone fill opacity when calm (the local player is not inside it).
+const GAMEPLAY_CONE_ALPHA := 0.15
+## Cone fill opacity while the local player stands inside the cone, plus an edge line of this opacity and width (px).
+const GAMEPLAY_CONE_WATCHED_ALPHA := 0.25
+const GAMEPLAY_CONE_EDGE_ALPHA := 0.35
+const GAMEPLAY_CONE_EDGE_WIDTH := 1.0
+
 ## Player colours, in join order (max 4 players).
 const PLAYER_COLORS: Array[Color] = [
 	Color("#4f9ddf"),

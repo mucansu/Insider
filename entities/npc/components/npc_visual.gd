@@ -17,6 +17,9 @@ extends Node2D
 ## IS-087: while the parent's `is_listening()` is true (owner in LISTEN) and there is no indicator, "?" is drawn.
 ## US-037 (KR-027): in calm (ContactRules.is_calm) the drawing leans `lean_px` away from the nearest overlapping player (this node's
 ## position; visual and local on every peer - no logic or replication).
+## IS-096 (KR-031; GDD §9.3 "Sahip okunurluğu"): cone fill ThemeTokens.GAMEPLAY_CONE_ALPHA; while the local player (fog observer, else
+## `Game.local_player()`) stands inside the drawn cone (PerceptionRules.in_cone: range + half angle; FULL already implies line of sight)
+## the fill is GAMEPLAY_CONE_WATCHED_ALPHA plus a GAMEPLAY_CONE_EDGE_* outline. Cone only while FULL (`cone_style`).
 
 enum Role { OWNER, CHASER, CUSTOMER, PASSERBY }
 
@@ -24,7 +27,6 @@ const RADIUS := 12.0
 const OUTLINE_WIDTH := 1.5
 const INDICATOR_LENGTH := 7.0
 const INDICATOR_HALF_WIDTH := 5.0
-const CONE_ALPHA := 0.07
 const CONE_SEGMENTS := 12
 const GLYPH_OFFSET := Vector2(0.0, -30.0)
 const GLYPH_HEIGHT := 12.0
@@ -153,6 +155,7 @@ func _process(_delta: float) -> void:
 	if p.has_method(&"cone_half_angle"):
 		state.append(p.call(&"cone_half_angle"))
 	state.append(_listening(p))
+	state.append(_watched(p))
 	if state != _drawn:
 		_drawn = state
 		queue_redraw()
@@ -177,7 +180,8 @@ func _draw() -> void:
 		else Vector2.LEFT
 	face = face.rotated(-global_rotation)
 	if p.has_method(&"cone_half_angle") and p.has_method(&"cone_range"):
-		_draw_cone(face, float(p.call(&"cone_half_angle")), float(p.call(&"cone_range")), tone.fg_color)
+		var style: Vector2 = cone_style(_gate.is_full(), _watched(p))
+		_draw_cone(face, float(p.call(&"cone_half_angle")), float(p.call(&"cone_range")), tone.fg_color, style)
 	var body: Color = _body_color(tone)
 	draw_circle(Vector2.ZERO, RADIUS, body)
 	draw_arc(Vector2.ZERO, RADIUS, 0.0, TAU, 24, tone.bg_color, OUTLINE_WIDTH)
@@ -236,14 +240,53 @@ func _held_point() -> Vector2:
 	return Vector2.INF
 
 
-func _draw_cone(face: Vector2, half_deg: float, reach: float, color: Color) -> void:
-	if half_deg <= 0.0 or reach <= 0.0:
+## IS-096 AC1: cone opacity (x = fill, y = edge line; 0 = not drawn). Only while FULL; calm fill, or the watched fill + edge while the
+## local player is inside the cone.
+static func cone_style(full: bool, watched: bool) -> Vector2:
+	if not full:
+		return Vector2.ZERO
+	if watched:
+		return Vector2(ThemeTokens.GAMEPLAY_CONE_WATCHED_ALPHA, ThemeTokens.GAMEPLAY_CONE_EDGE_ALPHA)
+	return Vector2(ThemeTokens.GAMEPLAY_CONE_ALPHA, 0.0)
+
+
+## Whether `point` is inside the drawn cone of an NPC at `at` facing `face` (same geometry the cone is drawn with).
+static func in_drawn_cone(at: Vector2, face: Vector2, half_deg: float, reach: float, point: Vector2) -> bool:
+	if half_deg <= 0.0 or reach <= 0.0 or not point.is_finite():
+		return false
+	return PerceptionRules.in_cone(at, face, minf(half_deg, MAX_CONE_DEG), reach, point)
+
+
+## Whether the local player stands inside the parent's cone (drawing only; local on every peer).
+func _watched(p: Node) -> bool:
+	var body: Node2D = p as Node2D
+	if body == null or not p.has_method(&"cone_half_angle") or not p.has_method(&"cone_range"):
+		return false
+	var face_v: Variant = p.get(&"facing")
+	if not face_v is Vector2:
+		return false
+	return in_drawn_cone(body.global_position, face_v as Vector2, float(p.call(&"cone_half_angle")),
+		float(p.call(&"cone_range")), _local_player_position())
+
+
+## Local player's position: the fog observer, else `Game.local_player()`; INF if none (menu, offline test).
+func _local_player_position() -> Vector2:
+	var fog: Object = FogView.fog_of(self)
+	var observer: Node2D = FogView.observer_of(fog) if fog != null else Game.local_player() as Node2D
+	return observer.global_position if observer != null else Vector2.INF
+
+
+func _draw_cone(face: Vector2, half_deg: float, reach: float, color: Color, style: Vector2) -> void:
+	if half_deg <= 0.0 or reach <= 0.0 or style.x <= 0.0:
 		return
 	var points := PackedVector2Array([Vector2.ZERO])
 	var half: float = deg_to_rad(minf(half_deg, MAX_CONE_DEG))  # a full circle cannot be triangulated
 	for i: int in CONE_SEGMENTS + 1:
 		points.append(face.rotated(-half + 2.0 * half * i / CONE_SEGMENTS) * reach)
-	draw_colored_polygon(points, Color(color, CONE_ALPHA))
+	draw_colored_polygon(points, Color(color, style.x))
+	if style.y > 0.0:
+		points.append(Vector2.ZERO)
+		draw_polyline(points, Color(color, style.y), ThemeTokens.GAMEPLAY_CONE_EDGE_WIDTH)
 
 
 ## "!": vertical bar + dot.

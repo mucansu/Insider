@@ -25,6 +25,9 @@ const EVENT_KEY_OVERRIDES := {&"owner_discover": "EVENT_OWNER_DISCOVERED"}
 ## Events with no notice: another HUD element already shows them (alert_level -> alert ladder, US-013;
 ## cover_broken -> cover row in the escape panel, US-042).
 const SILENT_EVENTS: Array[StringName] = [&"alert_level", &"cover_broken"]
+## Events shown only when the named data field is true (kind -> field). IS-096 (US-037 decision): `npc_pushed` toasts only for a
+## calm shove; heated shoves stay silent (no spam during a chase).
+const CONDITIONAL_EVENTS := {&"npc_pushed": "calm"}
 ## Event data field naming the player (S3 addendum, US-008: player_held/caught/rescued {peer}); enters the text as {name}.
 const EVENT_PEER_FIELD := "peer"
 const EVENT_NAME_FIELD := "name"
@@ -297,8 +300,17 @@ func show_toast(text: String) -> void:
 		_remove_toast(_toasts.get_child(0) as Control)
 
 
-func _on_session_event(kind: StringName, data: Dictionary) -> void:
+## Whether an event gets a toast (S9 text): not silent and, for CONDITIONAL_EVENTS, its data field is true.
+static func wants_toast(kind: StringName, data: Dictionary) -> bool:
 	if kind in SILENT_EVENTS:
+		return false
+	if CONDITIONAL_EVENTS.has(kind):
+		return data.get(str(CONDITIONAL_EVENTS[kind])) == true
+	return true
+
+
+func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if not wants_toast(kind, data):
 		return
 	show_toast(event_text(kind, data))
 
