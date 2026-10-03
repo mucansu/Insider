@@ -20,7 +20,8 @@ signal taken(peer_id: int)
 signal dropped(peer_id: int)
 
 const DEF_PATH := "res://data/props/bag.tres"
-## Taşınırken taşıyan merkezine göre konum (görsel ve devir bileşeni).
+## Taşınırken taşıyan merkezine göre düğüm konumu (devir bileşeni, sis hafızası, döküm). Çizilen tutuş ayrı:
+## BagVisual, taşıyanın kukla elinden BagCarry ile türetir (IS-085).
 const CARRY_OFFSET := Vector2(10.0, 6.0)
 
 @export var def: PropDef
@@ -203,6 +204,11 @@ func _emit_noise(at: Vector2, peer: int) -> void:
 		noise_sink.call(at, HeistRules.BAG_DROP_NOISE_RADIUS, HeistRules.BAG_DROP_NOISE_KIND, peer)
 	else:
 		NoiseBus.emit_noise(at, HeistRules.BAG_DROP_NOISE_RADIUS, HeistRules.BAG_DROP_NOISE_KIND, peer)
+
+
+## Taşıyan oyuncu düğümü (her peer'da çoğaltılan `carrier`'dan); yoksa null. Görsel okur.
+func carrier_node() -> Node2D:
+	return _carrier_node()
 
 
 # --- durum ---
