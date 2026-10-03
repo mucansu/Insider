@@ -10,7 +10,7 @@ Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040
 ## Sürüyor / yarım kalan
 - **IS-058b** (oynanis): `Game.session_seed()` (--seed; otomasyonda 0 = eski davranış; gerçek oyunda her iş rastgele), bot beyni adil görüş varsayılan (+omni eski), `--brain-loop`.
 - **IS-015b** (cekirdek): `tools/heist_stats.py` toplu istatistik + `brain_disconnect.json`. Sonra: IS-058b birleşince gerçek dağılım → Fable'a zorluk sorusu (KR-026 260 px eşiği; IS-015a ilk izlenim: tek kişi çok kolay).
-- **IS-098** Fable danışması: tezgâh görüşü kesiyor (oyuncu sahibi silüet görüyor, sahip önünü görmüyor) — GB-04a'nın ikinci olası kökü.
+- **IS-098** (oynanis + Fable GDD v0.6, ikisi de worktree): tezgâh herkes için alçak engel + sahibe 48 px 360° yakın bant (KR-031 eki). Not: IS-058b ile entities/npc/owner çakışabilir — birleştirme sırası IS-058b → IS-098.
 - Sırada: IS-081 (owner.log; IS-058b brain_owner'a dokunduğu için sonra), 150 ms 20 dk beyin döngüsüyle dayanıklılık.
 - Not: GDD ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
 
