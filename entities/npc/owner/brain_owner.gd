@@ -619,6 +619,19 @@ func _find_phone() -> void:
 		Game.raise_session_event(PHONE_FOUND_SESSION_EVENT, {})
 
 
+## US-037 (KR-027): shoved by `peer_id` (host; NpcContact already applied the calm cost). Calm on the agenda -> LOOK at the pusher; while
+## chasing the hold contact window restarts.
+func on_pushed(peer_id: int, calm: bool) -> void:
+	if calm and fsm.state == State.AGENDA:
+		target = peer_id
+		_reaction.reset()
+		_end_talk()
+		fsm.go(State.LOOK)
+		mover.stop()
+	elif fsm.state == State.CHASE:
+		_reaction.reset()
+
+
 ## --- general helpers used by the reaction layer ---
 
 ## Shout: detection latch, noise, event; `late` = from discovery (US-039).

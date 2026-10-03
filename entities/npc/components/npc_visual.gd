@@ -15,6 +15,8 @@ extends Node2D
 ## US-016 addition (additive): customer and passerby roles (body colour), civilian/discovery balloons; a civilian overlapping a player is
 ## drawn translucent (GDD §9.2 "Obstacle": no collision, stay readable).
 ## IS-087: while the parent's `is_listening()` is true (owner in LISTEN) and there is no indicator, "?" is drawn.
+## US-037 (KR-027): in calm (ContactRules.is_calm) the drawing leans `lean_px` away from the nearest overlapping player (this node's
+## position; visual and local on every peer - no logic or replication).
 
 enum Role { OWNER, CHASER, CUSTOMER, PASSERBY }
 
@@ -35,6 +37,8 @@ const OVERLAP_PX := 24.0
 const OVERLAP_ALPHA := 0.5
 ## Widest half angle of the drawn cone (degrees; 180 = full circle, polygon cannot be triangulated).
 const MAX_CONE_DEG := 175.0
+## US-037: lean smoothing rate (1/s; visual only).
+const LEAN_RATE := 18.0
 ## Event -> balloon text key (i18n/texts.csv).
 const BALLOON_KEYS := {
 	&"owner_question": "OWNER_QUESTION",
@@ -64,6 +68,7 @@ const BALLOON_KEYS := {
 var _drawn: Array = []
 var _gate := SightGate.new()
 var _seen_face: Vector2 = Vector2.LEFT
+var _contact_params: ContactRules.Params = null
 
 
 func _ready() -> void:
@@ -86,6 +91,7 @@ func _physics_process(delta: float) -> void:
 	_gate.step(full, peripheral, at, delta)
 	if role == Role.CUSTOMER or role == Role.PASSERBY:
 		modulate.a = OVERLAP_ALPHA if _overlaps_player(at) else 1.0
+	_lean(at, delta)
 	if full or peripheral:
 		var face_v: Variant = p.get(&"facing")
 		if face_v is Vector2 and not (face_v as Vector2).is_zero_approx():
@@ -100,6 +106,24 @@ func _overlaps_player(at: Vector2) -> bool:
 		if p != null and p.global_position.distance_to(at) < OVERLAP_PX:
 			return true
 	return false
+
+
+## US-037 calm contact lean: offset toward `lean_offset` of the nearest player (smoothed; instant under reduced motion).
+func _lean(at: Vector2, delta: float) -> void:
+	if _contact_params == null:
+		_contact_params = ContactTuning.load_default().rules_params()
+	var target: Vector2 = Vector2.ZERO
+	if ContactRules.is_calm(_contact_params, Game.alert_level()):
+		var best: float = INF
+		for node: Node in get_tree().get_nodes_in_group(PhysicsLayers.ACTORS_GROUP):
+			var player: Node2D = node as Node2D
+			if player != null and player.global_position.distance_to(at) < best:
+				best = player.global_position.distance_to(at)
+				target = ContactRules.lean_offset(_contact_params, at, player.global_position)
+	if Puppet.is_reduced_motion():
+		position = target
+	else:
+		position = position.lerp(target, 1.0 - exp(-LEAN_RATE * delta))
 
 
 ## Whether fully drawn on this peer (markers included; dump `visible_npcs`).

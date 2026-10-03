@@ -1,0 +1,26 @@
+[gd_resource type="Resource" script_class="ContactTuning" format=3]
+
+[ext_resource type="Script" path="res://data/npc/contact_tuning.gd" id="1_ctune"]
+
+[resource]
+script = ExtResource("1_ctune")
+contact_px = 24.0
+calm_max_alert = 1
+calm_speed_factor = 0.5
+lean_px = 8.0
+push_half_angle_deg = 60.0
+min_push_speed = 20.0
+slide_px = 24.0
+slide_sec = 0.25
+stagger_sec = 0.8
+repush_sec = 1.0
+pusher_slow_sec = 0.2
+pusher_speed_factor = 0.7
+push_window_sec = 10.0
+push_count_cap = 3
+pushed_suspicion = 30.0
+observer_suspicion = 15.0
+chaser_stagger_sec = 0.8
+chaser_immune_sec = 4.0
+back_half_angle_deg = 90.0
+hot_slack_px = 8.0

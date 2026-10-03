@@ -8,6 +8,8 @@ extends CharacterBody2D
 ## US-043: `Misdirect` Interactable (REDIRECT "they ran that way!"; same tuning as the owner's, tag `cover`); enabled on every peer from
 ## the owner's `misdirect_open()`; on completion the host calls the owner's `misdirect(peer)`. The neighbour stands still while held (brain
 ## `listening`). `mislead(point, s)` host API (the owner calls it).
+## US-037 (KR-027): `Contact` component (NpcContact, chaser rules): a shove from the front slides it, stops the brain for the stagger, resets
+## the catch window (`ChaserBrain.on_pushed`) and makes it immune for a while; contact from its back is not a shove.
 
 const TUNING_PATH := "res://data/npc/chaser_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
@@ -29,6 +31,8 @@ var bubble: int = CivilianRules.Bubble.ALARM
 ## Run target (spawn data; host).
 var goal: Vector2 = Vector2.INF
 
+var _contact: NpcContact = null
+
 @onready var _perception: Perception = $Perception
 @onready var _mover: NpcMover = $Mover
 @onready var _senses: CivilianSenses = $Senses
@@ -42,6 +46,7 @@ func _ready() -> void:
 	if civilian_tuning == null:
 		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
 	net_position = position
+	_contact = NpcContact.attach(self, true, _perception, Callable(), _on_pushed)
 	StoreOwner.setup_misdirect_item(_misdirect, StoreToolsTuning.load_default())
 	_misdirect.completed.connect(_on_misdirect)
 	_refresh_misdirect()
@@ -60,10 +65,15 @@ func _physics_process(delta: float) -> void:
 
 func step(delta: float) -> void:
 	_refresh_misdirect()
+	var slide: Vector2 = _contact.step(delta)
 	if _host_side():
 		_brain.listening = _misdirect.busy_by != 0
-		var want: Vector2 = _brain.step(delta)
-		velocity = velocity.move_toward(want, tuning.acceleration * delta)
+		if _contact.is_staggering():
+			velocity = Vector2.ZERO  # US-037: stagger stops the brain
+		else:
+			velocity = velocity.move_toward(_brain.step(delta), tuning.acceleration * delta)
+		if not slide.is_zero_approx():
+			velocity = slide
 		move_and_slide()
 		if velocity.length() > 1.0:
 			facing = velocity.normalized()
@@ -86,6 +96,17 @@ func brain() -> ChaserBrain:
 ## Host API (US-043): sent running the wrong way; true if accepted.
 func mislead(point: Vector2, sec: float) -> bool:
 	return _brain.mislead(point, sec) if _host_side() else false
+
+
+## Contact component (US-037; tests).
+func contact() -> NpcContact:
+	return _contact
+
+
+## US-037 shove hook (host): the catch window restarts; never a rescue.
+func _on_pushed(_peer_id: int, _calm: bool) -> bool:
+	_brain.on_pushed()
+	return false
 
 
 func misdirect_interactable() -> Interactable:

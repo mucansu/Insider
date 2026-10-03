@@ -77,6 +77,11 @@ func mislead(point: Vector2, sec: float) -> bool:
 	return true
 
 
+## US-037 (KR-027): shoved - the catch contact window restarts (the stagger itself is the root's: the brain is not stepped).
+func on_pushed() -> void:
+	_contact = 0.0
+
+
 func step(delta: float) -> Vector2:
 	fsm.step(delta)
 	if listening:
