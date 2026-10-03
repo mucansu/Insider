@@ -109,6 +109,7 @@ func test_hud_fits() -> void:
 		var player: Node = autofree(Fakes.FakePlayer.new()) as Node
 		game.local_player_changed.emit(player)
 		player.emit_signal(&"interaction_target_changed", "MENU_ERROR_CONNECTION_FAILED")
+		player.emit_signal(&"interaction_alt_target_changed", "MENU_ERROR_CONNECTION_FAILED")  # IS-091 Q satırı
 		await _settle()
 		_check_fits(hud.get_node("%Root"), size, label + " HUD istem")
 		near((hud.get_node("%Prompt") as Control).get_global_rect().get_center().x, size.x / 2.0, 2.0, label + ": istem ortada")

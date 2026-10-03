@@ -301,6 +301,69 @@ func test_prompt_gives_way_to_progress() -> void:
 	is_false(prompt.visible)
 
 
+# --- IS-091: ikinci istem satırı (Q / intimidate) ---
+
+func test_alt_prompt_row_follows_alt_target_and_device() -> void:
+	await _open()
+	UiInput.using_gamepad = false
+	var player: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var prompt: Control = _node("Prompt") as Control
+	var main_row: Control = _node("PromptLabel") as Control
+	var alt_row: Control = _node("PromptAltLabel") as Control
+	game.local_player_changed.emit(player)
+	player.interaction_alt_target_changed.emit("INTERACT_COUNTER_SEND")
+	is_true(prompt.visible, "yalnız Q hedefi varken de istem görünür")
+	is_false(main_row.visible, "E hedefi yokken E satırı gizli")
+	is_true(alt_row.visible)
+	eq(_text("PromptAltLabel"), tr("HUD_PROMPT") % ["Q", tr("INTERACT_COUNTER_SEND")], "klavye: [Q] eylem")
+	player.interaction_target_changed.emit("PAUSE_RESUME")
+	is_true(main_row.visible and alt_row.visible, "iki hedef: iki satır")
+	is_true(main_row.get_index() < alt_row.get_index(), "E satırı üstte")
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_Y
+	pad.pressed = true
+	viewport.push_input(pad)
+	eq(_text("PromptAltLabel"), tr("HUD_PROMPT") % ["X", tr("INTERACT_COUNTER_SEND")], "gamepad: [X]")
+	eq(_text("PromptLabel"), tr("HUD_PROMPT") % ["A", tr("PAUSE_RESUME")], "gamepad: [A]")
+	player.interaction_alt_target_changed.emit("")
+	is_false(alt_row.visible, "boş Q anahtarı satırı gizler")
+	is_true(prompt.visible and main_row.visible, "E satırı kalır")
+	player.interaction_target_changed.emit("")
+	is_false(prompt.visible, "hiç hedef yokken istem gizli")
+	UiInput.using_gamepad = false
+
+
+func test_alt_action_progress_uses_same_bar() -> void:
+	await _open()
+	var player: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var prompt: Control = _node("Prompt") as Control
+	var progress: Control = _node("Interaction") as Control
+	game.local_player_changed.emit(player)
+	player.interaction_target_changed.emit("PAUSE_LEAVE")
+	player.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	player.interaction_started.emit("INTERACT_PHONE_DROP", 2.0)
+	is_false(prompt.visible, "Q eylemi sürerken istem yok")
+	is_true(progress.visible)
+	eq(_text("InteractionLabel"), tr("INTERACT_PHONE_DROP"))
+	hud.advance(1.0)
+	near((_node("InteractionBar") as ProgressBar).value, 0.5, 0.01, "Q basılı tutma ilerlemesi")
+	player.interaction_finished.emit(true)
+	hud.advance(Hud.INTERACTION_LINGER_SEC + 0.05)
+	is_true(prompt.visible and (_node("PromptAltLabel") as Control).visible, "Q hedefi sürüyorsa satır geri gelir")
+
+
+func test_alt_prompt_resets_on_player_change() -> void:
+	await _open()
+	var first: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var second: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	game.local_player_changed.emit(first)
+	first.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	game.local_player_changed.emit(second)
+	is_false((_node("Prompt") as Control).visible, "oyuncu değişince Q satırı sıfırlanır")
+	first.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	is_false((_node("Prompt") as Control).visible, "eski oyuncunun Q sinyali dinlenmez")
+
+
 func test_player_without_prompt_signals_is_tolerated() -> void:
 	await _open()
 	var legacy: Node = autofree(Node.new()) as Node
