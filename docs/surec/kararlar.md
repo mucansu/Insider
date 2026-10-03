@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-031 — Görülmeyen ihlal ve sahip okunurluğu (2026-10-03, Fable → koordinatör; IS-081)
+- GB-05a/b denemesi (faz2-int 22e9392) eksik ganimet keşfinden (US-039, IS-086, IS-087) önceydi; o build'de tepkisizlik beklenendi. Mevcut model korunur: arka oda girişi yalnız iz (kapı sesi → DİNLE), çanta eksik = sahip arka odaya varınca keşif, kasa boş = sonraki servis ya da 45 sn → DISCOVER → bağırış → uyarı 2. Geç keşif sonucu `shouted` kalır (ayrı "sonradan anlaşıldı" sonucu yok; test-2 / IS-015 verisiyle yeniden bakılır — IS-015'te `shouted` > %70 ise `idle_discover_sec` 45 → 60).
+- GB-04a'nın olası kökü okunurluk (sahip telefonda/rafta iken "önümde" okunuyor, koni α 0,07 neredeyse görünmez) → IS-096: koni α sakin 0,15 / yerel oyuncu konide 0,25 + kenar 0,35; sahip üstünde görev glifi.
+- Açık arka kapı izi (D açık + sahip tezgâhta sakin → 3 sn → kapıyı kapatmaya gider) → IS-097, test-2 sonrası.
+- Nit kararları: tanığın +60'ı sahip görmese de sönmez — `question_max_sec` boyunca sabit, sahip işaret edilen yere BAK; tezgâh siviller için alçak engel (kuyruktaki müşteri kasayı görür) → IS-092'ye eklendi.
+
 ### KR-030 — Token tasarrufu: ajan dili ve okuma kuralı (2026-10-03, kullanıcı)
 Ajan tanımları (`.claude/agents/`), skill'ler (`.claude/skills/`) ve `AGENTS.md` İngilizce; kullanıcıya giden belgeler (GDD, backlog, kararlar, durum, araştırma notları, tasarım raporları), oyuncu metinleri ve ajan raporları Türkçe kalır; protokol anahtar sözcükleri (`Kalem:`, `Karar gereken`, `Dokunulacak`…) değişmez. Ajan kuralı: büyük dosyalar bütün okunmaz (grep + aralık), yineleme sırasında `--filter`/tek senaryo. Test çıktısı kısaltılır (IS-090). Toplu belge çevirisi yapılmaz. Ek (2026-10-03, kullanıcı): kod yorumları İngilizceye çevrilir ve özetlenir (IS-093; yalnız yorum, kod aynı — otomatik doğrulama).
 

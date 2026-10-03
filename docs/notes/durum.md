@@ -10,7 +10,7 @@ Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040
 ## Sürüyor / yarım kalan
 - **IS-015a** bot beyni (oynanis, worktree, taban faz2-int c741981) → bitince IS-015b (cekirdek) toplu istatistik.
 - **US-037** NPC teması/itme (oynanis, worktree; ağ kalemi → denetci).
-- **IS-081** Fable danışması (görülmeyen ihlal: arka oda/çanta/kasa keşfi) → sonra oynanis paketi.
+- IS-081 Fable danışması bitti → KR-031; IS-081 daraldı (owner.log + kullanıcı tekrarı), yeni IS-096 okunurluk (US-037 sonrası), IS-097 açık kapı izi (test-2 sonrası). Fable GDD güncellemesi sürüyor (KR-026/027/031 + keşif akışı; yalnız docs/tasarim).
 - Worktree temizliği yapıldı (35 ajan worktree'si + dalları silindi; kalan dev, faz2-int, main).
 
 ## Yeni sohbette ilk adımlar
