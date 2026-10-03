@@ -48,4 +48,4 @@ Providers (registered only when `--dump` is given): `heist`, `owner`, `populatio
 PYTHONUTF8=1 python tools/net_smoke.py tests/net/<name>.json
 PYTHONUTF8=1 python tools/net_smoke.py tests/net/<name>.json --latency-ms 150
 ```
-`--keep -v` keeps dumps. Ports are chosen free, so open game windows do not clash. `tools/ci_local.sh net` runs the `tests/net/*.json` glob at both latencies - adding a file is enough. One scenario takes ~15-100 s; iterate on one scenario, not the whole set.
+On FAIL only failed assertions + a log excerpt are printed; `--keep -v` keeps dumps and full logs. Ports are chosen free, so open game windows do not clash. `tools/ci_local.sh net` runs the `tests/net/*.json` glob at both latencies - adding a file is enough. One scenario takes ~15-100 s; iterate on one scenario, not the whole set.

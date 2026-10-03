@@ -7,7 +7,7 @@ description: Recipe for Insiders unit tests - tests/run_tests.gd runner, TestCas
 
 ## File and runner
 - `tests/unit/test_<topic>.gd`, `extends TestCase`; a test = argument-less `func test_*()` (`await` allowed; a test with arguments FAILS). Each test runs on a fresh instance. Start the file with a `##` description.
-- Run: `"$GODOT" --headless --path . -s res://tests/run_tests.gd -- --filter=test_heist` (`--filter` matches a substring of "file.gd::test_name"; `--timeout=SEC`, default 30).
+- Run: `"$GODOT" --headless --path . -s res://tests/run_tests.gd -- --filter=test_heist` (`--filter` matches a substring of "file.gd::test_name"; `--timeout=SEC`, default 30). The runner prints only [FAIL]/[ORPHAN] lines and the summary "N test: N geçti, M başarısız (T ms)"; per-test [PASS] with `-- --verbose-tests` or `TESTS_VERBOSE=1`.
 - Gate: `bash tools/ci_local.sh import unit tools` (import after adding files; leave no warnings/errors).
 
 ## Assert API (`tests/t.gd`; returns bool, does not stop the test)

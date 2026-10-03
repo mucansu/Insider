@@ -16,7 +16,7 @@ Process sources: `docs/surec/surec.md` (§4 DoD, §6 worktrees), `docs/surec/kar
 - Full `tools/ci_local.sh` (~18 min) once a day and before a test-N checkpoint.
 
 ## CI
-`bash tools/ci_local.sh [godot|import|unit|tools|net|export]` - no args = `godot import unit tools net`. import runs twice (WARNING/ERROR on the 2nd = red); unit has a leak gate; tools = Python tool tests + `warn_count --gate`; net = `tests/net/*.json` x {0, 150 ms}.
+`bash tools/ci_local.sh [godot|import|unit|tools|net|export]` - no args = `godot import unit tools net`. import runs twice (WARNING/ERROR on the 2nd = red); unit has a leak gate; tools = Python tool tests + `warn_count --gate`; net = `tests/net/*.json` x {0, 150 ms}. Default short mode: one line per step on success (`... tamam`, final `CI yeşil`); full detail with `CI_VERBOSE=1 bash tools/ci_local.sh ...` (remote CI is verbose).
 
 ## If you are an agent
 - No commit/push/branch switching (`.claude/hooks/agent_guard.py` blocks it); do not touch board files.
