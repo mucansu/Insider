@@ -29,3 +29,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | IS-093 (arayuz) | levels/store_a.tscn | build_levels.gd yeniden üretince Props altındaki 4 düğümde (Counter, ShelfProp1-3) `unique_id=` farkı çıkıyor; commit'li .tscn üretici çıktısından sapmış |
 | 2026-10-03 | IS-093 (altyapi) | tools/perf_dump.bat | `rem` yorumları Türkçe kaldı (ASCII, CRLF; export.sh build'e kopyalar) |
 | 2026-10-03 | IS-093 (altyapi) | tools/net_smoke.py | 3 docstring'de yorum içi kod örneği girintisi sadeleşti (ör. `expand_bot_loop`) |
+| 2026-10-04 | US-037 (oynanis) | entities/player/player_status.gd | Omuzla ÇEK, Rescue bileşeninin `completed` sinyalini dışarıdan yayarak tetikleniyor; temiz yol `PlayerStatus.host_rescue(rescuer)` API'si |
+| 2026-10-04 | US-037 (oynanis) | tests/net | Omuzla kurtarma (TUT'ta ekip arkadaşının omzu) yalnız birim testte; net senaryosu yok |
