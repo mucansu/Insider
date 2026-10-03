@@ -1,4 +1,4 @@
-# Durum (2026-10-03 22:50)
+# Durum (2026-10-03 23:05)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
@@ -8,13 +8,15 @@ Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **c741981** (worktre
 Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-Yok — çalışan ajan yok, tüm işler birleşik (IS-093 son, faz2-int c741981, push edildi). Deneme paketi 7a6e233'te kaldı; IS-093 yalnız yorum, yeni paket gerekmez.
+- **IS-015a** bot beyni (oynanis, worktree, taban faz2-int c741981) → bitince IS-015b (cekirdek) toplu istatistik.
+- **US-037** NPC teması/itme (oynanis, worktree; ağ kalemi → denetci).
+- **IS-081** Fable danışması (görülmeyen ihlal: arka oda/çanta/kasa keşfi) → sonra oynanis paketi.
+- Worktree temizliği yapıldı (35 ajan worktree'si + dalları silindi; kalan dev, faz2-int, main).
 
 ## Yeni sohbette ilk adımlar
 1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
 2. Test-2 (IS-017): kullanıcı arkadaşlarla paketle oynar; istenirse `test-2` etiketi → CI Release. Öncesinde tam CI zaten yeşil.
 3. Sıradaki Faz 2 kalemleri: IS-015 oyun testi botları + strateji istatistiği (tek kişi kolay geçiyor mu), US-037 NPC teması (KR-027), IS-092 küçük GDD bedelleri, IS-081 (GB-04/05 sonrası kalan sahip tepkisi), nit havuzundan dosyası dokunulanlar.
-4. Temizlik: ~35 birleşmiş ajan worktree'si (`git worktree list`) — kullanıcı izniyle `git worktree remove`.
 
 ## Kullanıcıdan bekleyen
 - Tailscale kurulumu ve arkadaşları tailnet'e davet (internet testi için); deneme paketinin paylaşımı.
