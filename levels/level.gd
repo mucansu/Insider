@@ -91,7 +91,7 @@ func vision_size() -> Vector2i:
 
 
 ## Vision obstacle grid (US-011a; `VisionGrid.Cell`, row by row). Classes: `LevelLayout.SIGHT_SOLID` (wall, border,
-## shelf, counter) and `SIGHT_PORTAL` (door gap, shop window: a physics query decides); the rest are open.
+## shelf, cooler, crate) and `SIGHT_PORTAL` (door gap, shop window, counter - IS-098: a physics query decides); the rest are open.
 func vision_cells() -> PackedByteArray:
 	var out := PackedByteArray()
 	var tiles: LevelLayout = layout()

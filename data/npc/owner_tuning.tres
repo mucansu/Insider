@@ -55,6 +55,7 @@ sent_sec = 10.0
 listen_sec = 8.0
 bell_radius = 48.0
 hearing_corner_px = 12.0
+arm_reach_px = 48.0
 counter_marker = &"ClerkSpot"
 backroom_marker = &"BackroomSpot"
 front_door_marker = &"FrontDoor"

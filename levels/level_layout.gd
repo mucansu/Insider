@@ -12,7 +12,7 @@ extends Node2D
 ##   w  shop window (collides; lets sight through, US-007)    +  door gap (1 tile; door object US-005)
 ##   .  interior floor (sales area)                            :  back-room floor
 ##   ,  pavement / alley                                       _  street
-##   S  shelf (collides, obstacle)                             T  counter (collides)
+##   S  shelf (collides, obstacle)                             T  counter (collides; low obstacle: sight passes, IS-098)
 ##   I  drinks cooler (collides, blocks sight; US-033)         G  crate stack (collides, blocks sight; US-033)
 
 const TILE := 32
@@ -49,10 +49,10 @@ const SOLID_PREFIX := {
 }
 
 ## Sight classes (US-011a; `Level.vision_cells` -> VisionGrid.Cell). Solid: always blocks sight, no ray cast, visible only by adjacency (structure).
-## Portal: a physics query decides (glass lets sight through, a closed door blocks). Other types are open.
+## Portal: a physics query decides (glass and the low-obstacle counter let sight through - IS-098; a closed door blocks). Other types are open.
 ## A new sight-blocking type is added to SIGHT_SOLID with one line (US-033: cooler, crate).
-const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRATE]
-const SIGHT_PORTAL: Array[Kind] = [Kind.WINDOW, Kind.DOOR]
+const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COOLER, Kind.CRATE]
+const SIGHT_PORTAL: Array[Kind] = [Kind.WINDOW, Kind.DOOR, Kind.COUNTER]
 
 # Line widths and spacings (colours come from the tone: ThemeTokens.tone()).
 const WALL_EDGE_WIDTH := 2.0

@@ -63,6 +63,8 @@ var _cone_half_angle: float = 0.0
 var _cone_range: float = 0.0
 var _hyst_angle: float = 0.0
 var _hyst_range: float = 0.0
+## Arm reach (px; 0 = off; IS-098): 360 deg near band, see `set_arm_reach`.
+var _arm_reach: float = 0.0
 ## peer_id -> whether in cone with clear line of sight at the last observation (hysteresis).
 var _inside: Dictionary = {}
 
@@ -108,11 +110,13 @@ func refresh() -> void:
 		_params.half_angle_deg = _cone_half_angle
 	if _cone_range > 0.0:
 		_params.view_range = _cone_range
+	_params.reach_px = _arm_reach
 	_wide = null
 	if _hyst_angle > 0.0 or _hyst_range > 0.0:
 		_wide = params_for(tuning, observer)
 		_wide.half_angle_deg = _params.half_angle_deg + _hyst_angle
 		_wide.view_range = _params.view_range + _hyst_range
+		_wide.reach_px = _arm_reach
 
 
 ## Overrides the observer cone (half angle degrees, range px; 0 = the tuning cone).
@@ -130,6 +134,17 @@ func set_hysteresis(angle_deg: float, range_px: float) -> void:
 	_hyst_angle = maxf(angle_deg, 0.0)
 	_hyst_range = maxf(range_px, 0.0)
 	refresh()
+
+
+## Arm reach (IS-098, KR-031 addendum; owner only, from `owner_tuning.arm_reach_px`): a target within `px` is in the near band in
+## every direction (no cone condition; line of sight still required). 0 = off (default: civilians, chaser unchanged).
+func set_arm_reach(px: float) -> void:
+	_arm_reach = maxf(px, 0.0)
+	refresh()
+
+
+func arm_reach() -> float:
+	return _arm_reach
 
 
 ## Whether the target was seen at the last observation (cone + line of sight; hysteresis input).
@@ -171,7 +186,8 @@ func observe_target(target: Node) -> Observation:
 	if obs.band != PerceptionRules.Band.NONE and cone != p:
 		# Hysteresis only on the cone's outer limit: the near/far band limit is unchanged.
 		var near_limit: float = p.view_range * p.near_ratio + PerceptionRules.EPSILON
-		var near: bool = global_position.distance_to(obs.position) <= near_limit
+		var near: bool = global_position.distance_to(obs.position) <= near_limit \
+			or PerceptionRules.in_reach(p, global_position, obs.position)
 		obs.band = PerceptionRules.Band.NEAR if near else PerceptionRules.Band.FAR
 	if obs.band != PerceptionRules.Band.NONE:
 		obs.line_clear = has_line_of_sight(global_position, obs.position)
@@ -208,7 +224,8 @@ func is_dark(pos: Vector2) -> bool:
 	return bool(dark_query.call(pos))
 
 
-## Whether line of sight is clear from `from` to `to` (world + vision_block block; `see_through` bodies are excluded and the ray
+## Whether line of sight is clear from `from` to `to` (world + vision_block block; `see_through` and `low_obstacle` bodies
+## (PhysicsLayers.passes_sight: glass, counter - IS-098) are excluded and the ray
 ## re-cast from the start - no continuation point is computed, so a wall adjacent to a window cannot be skipped).
 func has_line_of_sight(from: Vector2, to: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
@@ -222,7 +239,7 @@ func has_line_of_sight(from: Vector2, to: Vector2) -> bool:
 		if hit.is_empty():
 			return true
 		var collider: Node = hit.get("collider") as Node
-		if collider != null and collider.is_in_group(SEE_THROUGH_GROUP):
+		if collider != null and PhysicsLayers.passes_sight(collider.get_groups()):
 			exclude.append(hit["rid"] as RID)
 			continue
 		return false

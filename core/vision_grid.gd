@@ -7,7 +7,7 @@ extends RefCounted
 ## - Zone: distance/angle from observer to tile centre -> visible / peripheral / outside (`zone_of`). Peripheral mode (`Mode.PERIPHERAL`, 360 deg): everything within the radius is visible.
 ##   Directional mode: the sharp cone (half angle, radius) is visible; the peripheral zone (wider half angle, shorter range) is state 3; the 360 deg near ring is visible in every mode.
 ## - Line of sight: a `sight(from, to)` ray to the centre of OPEN and PORTAL (door, window) tiles in the zone; same rule as the NPC's (the caller supplies the physics query: world + vision_block cut, `see_through` bodies pass). No ray to the observer's own tile.
-## - Neighbour rule: SOLID tiles (wall, border, shelf, counter) and portals whose ray is cut (closed door) are not ray-tested; they take their own zone's state if one of their 8 neighbours was seen **by ray** this update.
+## - Neighbour rule: SOLID tiles (wall, border, shelf, cooler, crate) and portals whose ray is cut (closed door) are not ray-tested; they take their own zone's state if one of their 8 neighbours was seen **by ray** this update.
 ##   Not chained: a solid tile seen via a neighbour does not open another solid tile (a shelf behind a wall stays hidden).
 ## - Dark tiles (dark mask) stay in the memory tone even in line of sight; if the observer is dark too and the tile is within `dark_radius` it becomes visible. A dark observer's radius is capped by `dark_radius`.
 ## - Memory: a tile that was 2/3 in the previous update and is no longer seen becomes 1 and stays 1 until `reset()` (back to 0 if `memory_enabled` is off). Memory is per phase: a new grid is built when a level loads.

@@ -19,6 +19,12 @@ const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4: layer 2 `players`
 const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4: layer 5 `triggers`
 ## Group of sight-passing bodies (S11 Phase 2 addendum; perception skips colliders in this group).
 const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
+## Types built as their own StaticBody2D (+ `Shape` child) in a sight-passing group: glass and the low obstacle (IS-098: counter
+## stops walking, passes sight and sound for everyone). Group membership works per body, so these cannot share the `Walls` body.
+const OWN_BODY_GROUP := {
+	LevelLayout.Kind.WINDOW: PhysicsLayers.SEE_THROUGH_GROUP,
+	LevelLayout.Kind.COUNTER: PhysicsLayers.LOW_OBSTACLE_GROUP,
+}
 ## Navigation agent radius (px): character diameter ~24 px (S4); the bake grows obstacles by this much.
 const NAV_AGENT_RADIUS := 12.0
 const LAYOUT_SCRIPT := preload("res://levels/level_layout.gd")
@@ -252,6 +258,7 @@ static func _zone_rect(cells: Array, marker_cells: Array) -> Rect2i:
 
 ## Collision shapes: merged rectangles per type, named <Prefix><n> (Bound/Wall/Window/Shelf/Counter; US-033: Cooler/Crate - solid obstacle, `Walls` shape on the world layer: collides and blocks sight).
 ## Glass (`Window<n>`) is a separate StaticBody2D + `Shape` child in the `see_through` group: a line-of-sight query returns the collider as a body, so glass needs its own body to be told apart from a wall (KR-019 K1).
+## The counter (`Counter<n>`, IS-098) is built the same way in the `low_obstacle` group (OWN_BODY_GROUP); still on the world layer (collides).
 static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:
 	walls.collision_layer = WORLD_LAYER
 	walls.collision_mask = 0
@@ -265,11 +272,11 @@ static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:
 			var node_name: String = "%s%d" % [prefix, n]
 			var node: Node2D
 			var cs: CollisionShape2D
-			if kind == LevelLayout.Kind.WINDOW:
+			if OWN_BODY_GROUP.has(kind):
 				var body: StaticBody2D = _ensure(walls, node_name, "StaticBody2D") as StaticBody2D
 				body.collision_layer = WORLD_LAYER
 				body.collision_mask = 0
-				body.add_to_group(SEE_THROUGH_GROUP, true)
+				body.add_to_group(OWN_BODY_GROUP[kind] as StringName, true)
 				cs = _ensure(body, "Shape", "CollisionShape2D") as CollisionShape2D
 				cs.position = Vector2.ZERO
 				_prune(body, {cs: true})

@@ -238,8 +238,11 @@ shape = SubResource("Shelf_5")
 position = Vector2(224, 336)
 shape = SubResource("Shelf_6")
 
-[node name="Counter1" type="CollisionShape2D" parent="Walls" unique_id=1796622432]
+[node name="Counter1" type="StaticBody2D" parent="Walls" unique_id=405257694 groups=["low_obstacle"]]
 position = Vector2(560, 336)
+collision_mask = 0
+
+[node name="Shape" type="CollisionShape2D" parent="Walls/Counter1" unique_id=513049642]
 shape = SubResource("Counter_1")
 
 [node name="Cooler1" type="CollisionShape2D" parent="Walls" unique_id=1194024517]
@@ -288,16 +291,16 @@ position = Vector2(624, 272)
 [node name="Bag" parent="Props" unique_id=692715059 instance=ExtResource("4_bag")]
 position = Vector2(496, 240)
 
-[node name="Counter" parent="Props" instance=ExtResource("8_counter")]
+[node name="Counter" parent="Props" unique_id=1467719551 instance=ExtResource("8_counter")]
 position = Vector2(560, 336)
 
-[node name="ShelfProp1" parent="Props" instance=ExtResource("9_shelf")]
+[node name="ShelfProp1" parent="Props" unique_id=1209059459 instance=ExtResource("9_shelf")]
 position = Vector2(336, 208)
 
-[node name="ShelfProp2" parent="Props" instance=ExtResource("9_shelf")]
+[node name="ShelfProp2" parent="Props" unique_id=1849719417 instance=ExtResource("9_shelf")]
 position = Vector2(336, 272)
 
-[node name="ShelfProp3" parent="Props" instance=ExtResource("9_shelf")]
+[node name="ShelfProp3" parent="Props" unique_id=541154717 instance=ExtResource("9_shelf")]
 position = Vector2(336, 336)
 
 [node name="NPCs" type="Node2D" parent="." unique_id=1842885990]

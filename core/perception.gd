@@ -31,6 +31,9 @@ class Params:
 	var walk_factor: float = 0.0
 	var sneak_factor: float = 0.0
 	var dark_factor: float = 0.0
+	## Arm reach (IS-098, KR-031 addendum): a target this close is in the near band in every direction (360 deg, no cone
+	## condition; line of sight is still required by the caller). 0 = off.
+	var reach_px: float = 0.0
 
 
 ## Whether the target is inside the cone: range (inclusive) and half angle (inclusive). Zero facing = no cone (false);
@@ -49,13 +52,21 @@ static func in_cone(observer_pos: Vector2, facing: Vector2, half_angle_deg: floa
 	return offset.dot(facing.normalized()) / dist >= cos_limit - EPSILON
 
 
-## Target's band: NONE outside the cone; inside, NEAR if distance <= range x near_ratio, else FAR.
+## Target's band: within arm reach (`reach_px` > 0) NEAR regardless of facing; otherwise NONE outside the cone; inside, NEAR if
+## distance <= range x near_ratio, else FAR.
 static func band(params: Params, observer_pos: Vector2, facing: Vector2, target_pos: Vector2) -> Band:
+	if in_reach(params, observer_pos, target_pos):
+		return Band.NEAR
 	if not in_cone(observer_pos, facing, params.half_angle_deg, params.view_range, target_pos):
 		return Band.NONE
 	if observer_pos.distance_to(target_pos) <= params.view_range * params.near_ratio + EPSILON:
 		return Band.NEAR
 	return Band.FAR
+
+
+## Whether the target is within arm reach (inclusive; false if `reach_px` is 0).
+static func in_reach(params: Params, observer_pos: Vector2, target_pos: Vector2) -> bool:
+	return params.reach_px > 0.0 and observer_pos.distance_to(target_pos) <= params.reach_px + EPSILON
 
 
 static func band_factor(params: Params, which: Band) -> float:

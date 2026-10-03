@@ -184,7 +184,8 @@ func is_peripheral_at(global_pos: Vector2) -> bool:
 	return _grid.is_peripheral(to_local(global_pos))
 
 
-## Line of sight (global endpoints): world + vision_block block; **bodies** in the `see_through` group are excluded and the ray is recast from the start
+## Line of sight (global endpoints): world + vision_block block; **bodies** in the `see_through` or `low_obstacle` group
+## (PhysicsLayers.passes_sight: glass, counter - IS-098) are excluded and the ray is recast from the start
 ## (no continuation point is computed, so an adjacent wall cannot be skipped). The group applies at body level only; player and NPC bodies are not in the mask.
 ## Same rule as perception.gd `has_line_of_sight`.
 func line_clear(from: Vector2, to: Vector2) -> bool:
@@ -200,7 +201,7 @@ func line_clear(from: Vector2, to: Vector2) -> bool:
 		if hit.is_empty():
 			return true
 		var collider: Node = hit.get("collider") as Node
-		if collider != null and collider.is_in_group(SEE_THROUGH_GROUP):
+		if collider != null and PhysicsLayers.passes_sight(collider.get_groups()):
 			_exclude.append(hit["rid"] as RID)
 			_query.exclude = _exclude
 			continue

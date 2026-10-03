@@ -24,6 +24,9 @@ extends Resource
 ## Hearing corner diffraction (px; Hearing.corner_spread_px, US-010: the owner at the counter also hears a shelf-end knock-over
 ## from a sound grazing a wall corner; 0 = off).
 @export_range(0.0, 32.0, 0.5, "suffix:px") var hearing_corner_px: float = 0.0
+## Arm reach (IS-098, KR-031 addendum): a player this close to the owner is in the near band in every direction (360 deg, no cone
+## condition; line of sight still required; Perception.set_arm_reach). 0 = off.
+@export_range(0.0, 128.0, 1.0, "suffix:px") var arm_reach_px: float = 0.0
 ## Radius for counting a front-door pass as a bell (px; from the door marker).
 @export_range(0.0, 256.0, 1.0, "suffix:px") var bell_radius: float = 0.0
 ## Markers for customer service and the back-room interruption.

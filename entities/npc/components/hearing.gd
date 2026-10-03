@@ -6,8 +6,9 @@ extends Node2D
 ## pass; S11 Phase 2 addendum) is cast, and without line of sight the radius shrinks by `NoiseProfile.wall_factor`. Rules live in
 ## NoiseRules (node-free). On hearing it emits `heard(pos, radius, kind)` with the effective radius after attenuation. Linking to suspicion
 ## is the observer item's job (US-008); this component only emits the signal.
-## Low obstacle (US-010, KR-026): the counter (`Counter*` collision shapes, S4) blocks sight but not sound - sound passes over it; the ray
-## continues through the counter (the owner at the counter hears a shelf toppled on the shop floor).
+## Low obstacle (US-010, KR-026; IS-098 KR-031 addendum): the counter is a `low_obstacle` body (S4) that blocks walking but neither sight
+## nor sound - the same class rule as glass (PhysicsLayers.passes_sight via SightLine), no shape-name exception here (the owner at the
+## counter hears a shelf toppled on the shop floor).
 ## Corner diffraction (US-010; optional, `corner_spread_px` > 0): if the center ray is blocked, two parallel rays offset +/-`corner_spread_px`
 ## from the ear are tried; if either is clear there is line of sight (sound grazes a wall corner; a thick wall still blocks). Default 0
 ## (off); the owner's tuning enables it.
@@ -21,15 +22,10 @@ signal heard(pos: Vector2, radius: float, kind: StringName)
 const GROUP := PhysicsLayers.NOISE_LISTENER_GROUP
 ## Physics layers that block sound: world (1) + vision_block (6) (architecture §4; SightLine).
 const BLOCK_MASK := SightLine.MASK
-## Bodies in this group (windows, S4 addendum) do not block sound (SightLine).
+## Bodies in this group (windows, S4 addendum) and in `low_obstacle` (counter, IS-098) do not block sound (SightLine).
 const SEE_THROUGH_GROUP := SightLine.SEE_THROUGH_GROUP
 ## Position margin in the own-sound match (px; the sound is emitted at the source's own position).
 const OWN_NOISE_PX := 1.0
-## Shape-name prefixes of low obstacles that do not block sound (S4 collision shape names) and the ray continuation step (px).
-const LOW_SHAPE_PREFIXES: Array[String] = ["Counter"]
-const LOW_STEP_PX := 1.0
-## Maximum low obstacles passed on one ray (infinite-loop guard).
-const MAX_LOW_HITS := 4
 
 @export var profile: NoiseProfile
 @export var enabled: bool = true
@@ -78,32 +74,10 @@ func has_line_of_sight(to: Vector2) -> bool:
 	return _ray_clear(space, from + side, to + side) or _ray_clear(space, from - side, to - side)
 
 
-## One ray: low obstacles (counter) are passed, the source's own body does not block.
+## One ray: passed bodies (glass, low obstacles - SightLine) do not block, nor does the source's own body (NoiseRules.hit_blocks).
 static func _ray_clear(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> bool:
-	var dir: Vector2 = (to - from).normalized()
-	for _i: int in MAX_LOW_HITS + 1:
-		var hit: Dictionary = SightLine.first_blocker(space, from, to, BLOCK_MASK)
-		if hit.is_empty() or not NoiseRules.hit_blocks(hit["position"] as Vector2, to):
-			return true
-		if not is_low_obstacle(hit):
-			return false
-		from = (hit["position"] as Vector2) + dir * LOW_STEP_PX  # continue through the low obstacle (no inside hit)
-	return false
-
-
-## Whether the ray hit a low obstacle (counter: shape name starts with LOW_SHAPE_PREFIXES).
-static func is_low_obstacle(hit: Dictionary) -> bool:
-	var body: CollisionObject2D = hit.get("collider") as CollisionObject2D
-	if body == null or not hit.has("shape"):
-		return false
-	var owner_id: int = body.shape_find_owner(int(hit["shape"]))
-	var shape_node: Node = body.shape_owner_get_owner(owner_id) as Node
-	if shape_node == null:
-		return false
-	for prefix: String in LOW_SHAPE_PREFIXES:
-		if String(shape_node.name).begins_with(prefix):
-			return true
-	return false
+	var hit: Dictionary = SightLine.first_blocker(space, from, to, BLOCK_MASK)
+	return hit.is_empty() or not NoiseRules.hit_blocks(hit["position"] as Vector2, to)
 
 
 ## Number of sounds this component heard (diagnostics).
