@@ -530,6 +530,118 @@ class LogExcerptTest(unittest.TestCase):
         self.assertEqual(net_smoke.log_excerpt([]), ["(boş)"])
 
 
+class LeaveTimingTest(unittest.TestCase):
+    """IS-095: varsayılan --quit-after kuralı ve döküm yayılması (zamanlama yarışı) denetimi."""
+
+    def test_every_client_dumps_after_host_staggered_within_linger(self) -> None:
+        duration = 40.0
+        # (ad, host başlangıcından istemci başlangıcına sn): aynı anda başlayanlar ve geç katılan (start_delay).
+        for starts in ([("c1", 1.8), ("c2", 1.8)], [("c1", 1.7), ("c2", 30.2)], [("c1", 0.4)]):
+            moments = {n: e + net_smoke.default_quit_after(n, duration, e) for n, e in starts}
+            for i, (name, _) in enumerate(starts):
+                # c1 dahil her istemci host'un döküm anından (duration) sonra döker.
+                self.assertAlmostEqual(moments[name] - duration, net_smoke.LEAVE_STAGGER * (i + 1))
+            ordered = [moments[n] for n, _ in starts]
+            for a, b in zip(ordered, ordered[1:]):
+                self.assertGreaterEqual(b - a, net_smoke.LEAVE_STAGGER - 1e-9)  # aynı host karesinde kopmasınlar
+            # Oyun en çok 3 kişi (host + 2 istemci): adı geçen yayılma bekleme payının epey altında kalır.
+            self.assertLess(max(ordered) - duration, net_smoke.LINGER_SEC - 0.3)
+
+    def test_quit_after_floor(self) -> None:
+        self.assertEqual(net_smoke.default_quit_after("c1", 5.0, 20.0), 1.0)
+
+    def test_timing_race(self) -> None:
+        linger = net_smoke.LINGER_SEC
+        self.assertEqual(net_smoke.timing_race({}), "")
+        self.assertEqual(net_smoke.timing_race({"host": 100.0}), "")
+        self.assertEqual(net_smoke.timing_race({"host": 100.0, "c1": 100.3, "c2": 100.6}), "")
+        self.assertEqual(net_smoke.timing_race({"host": 100.0 + linger - 0.01, "c1": 100.0}), "")
+        late_host = net_smoke.timing_race({"host": 101.6, "c1": 100.3, "c2": 100.6})
+        self.assertIn("zamanlama yarışı", late_host)
+        self.assertIn("host dökümü c1 dökümünden 1.30 sn sonra", late_host)
+        self.assertIn("c2 dökümü host", net_smoke.timing_race({"host": 100.0, "c1": 100.3, "c2": 100.0 + linger}))
+
+
+# `fake_godot.py`: Godot yerine; net_smoke'un kullanıcı argümanlarını (--host/--join, --dump, --quit-after) alır,
+# INSIDERS_READY basar, --quit-after sn sonra {"peer_id", "x": 1} dökümü yazar ve 0 ile çıkar. Host, ortamdaki
+# FAKE_STATE sayaç dosyasına göre ilk FAKE_LATE_RUNS başlatılışında dökümü FAKE_HOST_LATE sn geciktirir (yük
+# altında saati geri kalan host).
+FAKE_GODOT_SCRIPT = r"""
+import json, os, sys, time
+args = dict((a.split("=", 1) + [""])[:2] for a in sys.argv[1:])
+host = "--host" in args
+delay = float(args["--quit-after"])
+if host:
+    path = os.environ["FAKE_STATE"]
+    n = int(open(path).read()) if os.path.exists(path) else 0
+    open(path, "w").write(str(n + 1))
+    if n < int(os.environ["FAKE_LATE_RUNS"]):
+        delay += float(os.environ["FAKE_HOST_LATE"])
+print("INSIDERS_READY", flush=True)
+time.sleep(delay)
+with open(args["--dump"], "w", encoding="utf-8") as f:
+    json.dump({"peer_id": 1 if host else 2, "x": 1}, f)
+"""
+
+
+class RaceRetryTest(unittest.TestCase):
+    """IS-095: ortak döküm anları LINGER_SEC'ten fazla yayılan koşu değerlendirilmez, yeniden koşulur; yarış
+    sürerse FAIL (beklentiler gevşemez)."""
+
+    def run_fake(self, late_runs: int, retries: int) -> tuple[int, str, int]:
+        tmp = tempfile.mkdtemp(prefix="test_net_smoke_")
+        script = os.path.join(tmp, "fake_godot.py")
+        with open(script, "w", encoding="utf-8") as f:
+            f.write(FAKE_GODOT_SCRIPT)
+        scenario = os.path.join(tmp, "race.json")
+        with open(scenario, "w", encoding="utf-8") as f:
+            json.dump({"level": "res://x.tscn", "clients": 1, "duration": 1.0, "expect": [{"eq": ["*.x", 1]}]}, f)
+        state = os.path.join(tmp, "state.txt")
+
+        class FakeProc(net_smoke.Proc):
+            def start(self) -> None:
+                self.cmd = [sys.executable, script] + self.cmd[self.cmd.index("--") + 1 :]
+                super().start()
+
+        out: list[str] = []
+        env = {"FAKE_STATE": state, "FAKE_LATE_RUNS": str(late_runs), "FAKE_HOST_LATE": "1.6"}
+        try:
+            with (
+                mock.patch.dict(os.environ, env),
+                mock.patch.object(net_smoke, "Proc", FakeProc),
+                mock.patch.object(net_smoke, "RACE_RETRIES", retries),
+                mock.patch.object(net_smoke, "find_godot", lambda: "godot-yerine-sahte-betik"),
+                mock.patch("builtins.print", lambda *a, **_k: out.append(" ".join(str(x) for x in a))),
+            ):
+                code = net_smoke.run(scenario, 0.0, 0.0, 0.0, False, False, False)
+            with open(state, encoding="utf-8") as f:
+                starts = int(f.read())
+            return code, "\n".join(out), starts
+        finally:
+            for name in os.listdir(tmp):
+                os.remove(os.path.join(tmp, name))
+            os.rmdir(tmp)
+
+    def test_race_rerun_then_pass(self) -> None:
+        code, text, starts = self.run_fake(late_runs=1, retries=2)
+        self.assertEqual(code, 0, text)
+        self.assertEqual(starts, 2, "yarışlı ilk koşudan sonra bir kez yeniden koşulmalı")
+        self.assertIn("UYARI race.json (0 ms): zamanlama yarışı: host dökümü c1 dökümünden", text)
+        self.assertIn("PASS race.json (0 ms): 2/2 beklenti", text)
+
+    def test_persistent_race_fails(self) -> None:
+        code, text, starts = self.run_fake(late_runs=99, retries=1)
+        self.assertEqual(code, 1, text)
+        self.assertEqual(starts, 2)
+        self.assertIn("FAIL race.json (0 ms)", text)
+        self.assertIn("  FAIL zamanlama yarışı: host dökümü c1 dökümünden", text)
+
+    def test_no_race_single_run(self) -> None:
+        code, text, starts = self.run_fake(late_runs=0, retries=2)
+        self.assertEqual((code, starts), (0, 1), text)
+        self.assertNotIn("zamanlama", text)
+
+
 class TimeoutPathTest(unittest.TestCase):
     """net_smoke.run(): senaryonun sert üst süresi dolunca asılı süreç ağaçları öldürülür ve FAIL raporlanır."""
 
