@@ -16,6 +16,8 @@ extends Node2D
 ## host kararından bu süreçte görünmesine; değişim yoksa -1), "consistent" (son durum = başlangıç durumu +
 ## görülen değişim sayısının paritesi: bu süreç her değişimi gördü), "interact": Interactable.stats()}.
 ## Gürültü (US-009, S8): host her açma/kapamada kapı konumunda `NoiseProfile.KIND_DOOR` sesi yayar.
+## NPC kapatması (IS-087 AC2): NPC kapıyı yalnız `host_close_by_npc(actor_pos)` ile kapatır (iç kapıyı arkasından);
+## aynı Interactable NPC yolundan geçer (menzil + S2 payı, tekrar beklemesi, kanat engeli `is_closing_blocked`).
 
 const DEF_PATH := "res://data/props/door.tres"
 ## Kapanmayı engelleyen gövdelerin fizik katmanı: players (mimari.md §4, 2. katman).
@@ -31,6 +33,8 @@ const NPC_LAYERS := PhysicsLayers.NPCS
 var changed_at: float = 0.0
 
 var _flips: int = 0
+## host_close_by_npc sürerken true: NPC tamamlaması (peer 0) kapatabilir.
+var _npc_closing: bool = false
 var _start_open: bool = false
 var _seen_at: float = -1.0
 
@@ -119,9 +123,21 @@ func dump_state() -> Dictionary:
 	}
 
 
-## Yalnız host'ta (Interactable.completed). NPC (peer 0) kapıyı yalnız açar: açık kapıya dokunmaz (US-008 t2).
+## Yalnız host: NPC açık kapıyı kapatır (IS-087 AC2; `actor_pos` NPC konumu). Kapandıysa true; kapı kapalıysa,
+## NPC menzil dışındaysa ya da kanat bir gövdeye değecekse false.
+func host_close_by_npc(actor_pos: Vector2) -> bool:
+	if not is_open:
+		return false
+	_npc_closing = true
+	var done: bool = _interactable.host_use_by_npc(actor_pos)
+	_npc_closing = false
+	return done and not is_open
+
+
+## Yalnız host'ta (Interactable.completed). NPC (peer 0) kapıyı açar; açık kapıya yalnız host_close_by_npc içinde
+## dokunur (US-008 t2, IS-087).
 func _on_completed(peer_id: int) -> void:
-	if peer_id == 0 and is_open:
+	if peer_id == 0 and is_open and not _npc_closing:
 		return
 	changed_at = PropDump.wall_time()
 	is_open = not is_open

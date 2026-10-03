@@ -14,6 +14,13 @@ extends CharacterBody2D
 ## peak, agenda, states, rescues, discoveries, serves, register_opens}.
 ## US-016/US-039 ekleri: servis kancası ve müşteri API'si (`serve_customer(id)`, `serve_state`, `door_bell`), keşif
 ## olayları `owner_discover_register` / `owner_discover_cash` (balon; AC8) ve host API `discover(source)`.
+## US-010 ekleri (bakkal etkileşimleri): host API `serve_player(peer)` / `can_serve_player(peer)` (SATIN AL),
+## `send_to_backroom(peer)` / `can_send(peer)` (GÖNDER), `is_active()`, `has_shouted()` (çoğaltılan `net_shouted`:
+## tezgâh istemleri gizlenir); sahibin üstünde `Talk` Interactable (OYALA: E, basılı tut, `talk_range`; masum
+## eylem; her peer'da çoğaltılan durumdan etkin: sakin ajandada, servis/gönderilme dışında, bağırmadan önce);
+## olay kanalı genişledi (`owner_serve`, `owner_talk`, `owner_sent`, `owner_listen`, `owner_again`,
+## `owner_phone_found`, `owner_loiter`; balonlar NpcVisual'da). Döküm ekleri: her peer'da `talk_peer`, `facing`,
+## `shouted`, `talk_gaze`; host'ta `loiter_s` (peer → sn), `player_serves`, `sent_windows`, `distractions`, `phones_found`.
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
@@ -23,18 +30,35 @@ signal owner_stagger(peer_id: int)
 ## US-039 AC8: keşif balonu (peer her zaman 0).
 signal owner_discover_register(peer_id: int)
 signal owner_discover_cash(peer_id: int)
+## US-010 olay kanalı (her peer'da aynı sırada; balon metinleri NpcVisual.BALLOON_KEYS).
+signal owner_serve(peer_id: int)
+signal owner_talk(peer_id: int)
+signal owner_sent(peer_id: int)
+signal owner_listen(peer_id: int)
+signal owner_again(peer_id: int)
+signal owner_phone_found(peer_id: int)
+signal owner_loiter(peer_id: int)
 ## Her peer'da: görev değişti (çoğaltılan; görev ikonu US-011).
 signal task_changed(task_name: StringName)
+## Yalnız host (US-010): oyuncu aracı başarıyla uygulandı (OwnerBrain.social_action aktarımı; kind buy|talk|send|
+## distract). US-042 `Tracker.note_social` buna bağlanır (koordinatör birleştirmesi).
+signal social_action(peer_id: int, kind: StringName)
 
 const OWNER_TUNING_PATH := "res://data/npc/owner_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
 const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
-	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash"]
+	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
+	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter"]
+## OYALA bileşeninin istem anahtarı (i18n) ve konuşmanın kapalı olduğu görevler (servis, gönderilme).
+const TALK_ACTION_KEY := "INTERACT_OWNER_TALK"
+const TALK_CLOSED_TASKS: Array[StringName] = [&"customer", &"sent"]
 ## İstemci yumuşatması (1/sn) ve sıçrama eşiği (px).
 const SMOOTHING := 14.0
 const SNAP_PX := 96.0
 const HEARING_CLASS := &"Hearing"
+## DİNLE kesmesinin çoğaltılan görev adı (Agenda.INTERRUPT_NAMES).
+const LISTEN_TASK := &"listen"
 ## Dökümde tutulan en fazla olay.
 const MAX_EVENTS := 128
 
@@ -56,6 +80,8 @@ var net_task: StringName = &"":
 	set = _set_task
 var net_alarmed: bool = false
 var net_hold_peer: int = 0
+## Sahip bu işte bağırdı mı (US-010: tezgâh istemleri gizlenir).
+var net_shouted: bool = false
 
 ## Görselin okuduğu durum (her peer'da).
 var facing: Vector2 = Vector2.LEFT
@@ -75,10 +101,12 @@ var _bubbles: Array[int] = []
 @onready var _mover: NpcMover = $Mover
 @onready var _senses: CivilianSenses = $Senses
 @onready var _brain: OwnerBrain = $Brain
+@onready var _talk: Interactable = $Talk
 
 
 func _ready() -> void:
 	_suspicion.set_physics_process(false)  # beyin sırayla işletir (etkin değilse hiç işlemez)
+	_setup_talk()
 	if not active:
 		hide()
 		collision_layer = 0
@@ -99,6 +127,8 @@ func _ready() -> void:
 		_brain.owner_tuning = owner_tuning
 		_brain.civilian_tuning = civilian_tuning
 		_brain.agenda_seed = agenda_seed()
+		_brain.talk_item = _talk
+		_brain.social_action.connect(social_action.emit)
 		_brain.setup(self, _perception, _suspicion, _agenda, _mover, _senses)
 		_bind_hearing()
 	if not Args.dump_path.is_empty():
@@ -121,6 +151,7 @@ func step(delta: float) -> void:
 	else:
 		_follow(delta)
 	last_event_age += delta
+	_refresh_talk()
 	var next: int = CivilianRules.bubble(_rules, net_meter, net_alarmed, bubble)
 	if next != bubble:
 		bubble = next
@@ -137,6 +168,11 @@ func agenda() -> Agenda:
 
 func perception() -> Perception:
 	return _perception
+
+
+## Her peer'da: sahip bir sesi dinliyor mu (DİNLE kesmesi; çoğaltılan görev adından). Görsel "?" çizer (IS-087 AC4).
+func is_listening() -> bool:
+	return net_task == LISTEN_TASK
 
 
 func suspicion() -> Suspicion:
@@ -183,9 +219,51 @@ func discover(source: int) -> bool:
 	return _brain.discover(source) if _is_host() and active else false
 
 
-## Host API (US-010): "arkada X var mı?".
-func send_to_backroom() -> bool:
-	return _brain.send_to_backroom() if _is_host() else false
+## Host API (US-010 GÖNDER): "arkada X var mı?" (`peer_id` soran oyuncu; 0 = test).
+func send_to_backroom(peer_id: int = 0) -> bool:
+	return _brain.send_to_backroom(peer_id) if _is_host() and active else false
+
+
+## Host API (US-010): GÖNDER şu an kabul edilir mi (tezgâhın host engeli).
+func can_send(peer_id: int = 0) -> bool:
+	return _brain.can_send(peer_id) if _is_host() and active else false
+
+
+## Host API (US-010 SATIN AL): oyuncuyu servis eder (kasa kancası dahil). Kabul edilirse true.
+func serve_player(peer_id: int) -> bool:
+	return _brain.serve_player(peer_id) if _is_host() and active else false
+
+
+## Host API (US-010): SATIN AL şu an kabul edilir mi (tezgâhın host engeli).
+func can_serve_player(peer_id: int) -> bool:
+	return _brain.can_serve_player(peer_id) if _is_host() and active else false
+
+
+## Her peer'da: sahip etkin mi (fikstürde kapalı olabilir; tezgâh istemleri buna bakar).
+func is_active() -> bool:
+	return active
+
+
+## Her peer'da: sahip bu işte bağırdı mı (çoğaltılan).
+func has_shouted() -> bool:
+	return net_shouted
+
+
+## Her peer'da: bakışın konuşan oyuncuya yönelimi (bakış · yön; konuşma yoksa 0). OYALA bakış kilidinin ölçüsü.
+func talk_gaze() -> float:
+	var talker: int = _talk.busy_by
+	if talker == 0:
+		return 0.0
+	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
+		if node.get_multiplayer_authority() == talker and node is Node2D:
+			var to: Vector2 = (node as Node2D).global_position - global_position
+			return facing.normalized().dot(to.normalized()) if not to.is_zero_approx() else 1.0
+	return 0.0
+
+
+## OYALA bileşeni (testler, görsel).
+func talk_interactable() -> Interactable:
+	return _talk
 
 
 ## Host API (US-010 SATIN AL): oyalanma sayacı sıfır.
@@ -256,6 +334,10 @@ func dump_state() -> Dictionary:
 		"events": _events.duplicate(),
 		"event_peers": _event_peers.duplicate(),
 		"bubbles": _bubbles.duplicate(),
+		"talk_peer": _talk.busy_by,
+		"talk_gaze": snappedf(talk_gaze(), 0.01),
+		"facing": [snappedf(facing.x, 0.01), snappedf(facing.y, 0.01)],
+		"shouted": net_shouted,
 	}
 	if _is_host():
 		var states: Array = _brain.fsm.history_rows(OwnerBrain.STATE_NAMES)
@@ -274,6 +356,11 @@ func dump_state() -> Dictionary:
 		out["discoveries"] = _brain.discoveries.duplicate(true)
 		out["serves"] = _brain.serves_done
 		out["register_opens"] = _brain.register_opens
+		out["loiter_s"] = _senses.loiter_dump()
+		out["player_serves"] = _brain.player_serves
+		out["sent_windows"] = _brain.sent_windows.duplicate()
+		out["distractions"] = _brain.distractions.count
+		out["phones_found"] = _brain.phones_found
 	return out
 
 
@@ -285,6 +372,7 @@ func _publish() -> void:
 	net_task = _agenda.task_name() if _brain.state() == OwnerBrain.State.AGENDA else &""
 	net_alarmed = _brain.is_alarmed()
 	net_hold_peer = _brain.held_peer()
+	net_shouted = net_shouted or _brain.has_shouted
 	var top: float = 0.0
 	for peer_id: int in _suspicion.peers():
 		top = maxf(top, _suspicion.value_of(peer_id))
@@ -307,6 +395,22 @@ func _set_task(value: StringName) -> void:
 	task_changed.emit(value)
 
 
+## OYALA bileşeni (US-010): değerler StoreToolsTuning'den; sahip etkin değilse hiç açılmaz.
+func _setup_talk() -> void:
+	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	_talk.action_key = TALK_ACTION_KEY
+	_talk.hold_time = tools.talk_max_sec
+	_talk.interact_range = tools.talk_range
+	_talk.innocent = true
+	_refresh_talk()
+
+
+## Her peer'da çoğaltılan durumdan: sakin ajandada (servis ve gönderilme dışında), bağırmadan önce konuşulur.
+func _refresh_talk() -> void:
+	_talk.enabled = active and not net_shouted and net_state == OwnerBrain.State.AGENDA \
+		and not TALK_CLOSED_TASKS.has(net_task)
+
+
 ## İşitme bileşeni: sahnede `Hearing` yoksa genel sınıf varsa kurulur (US-009 birleşince kod değişmez).
 func _bind_hearing() -> void:
 	var hearing: Node = get_node_or_null(NodePath(String(HEARING_CLASS)))
@@ -317,6 +421,8 @@ func _bind_hearing() -> void:
 			if hearing != null:
 				hearing.name = String(HEARING_CLASS)
 				add_child(hearing)
+	if hearing != null and &"corner_spread_px" in hearing:
+		hearing.set(&"corner_spread_px", owner_tuning.hearing_corner_px)  # US-010: raf ucu sesi köşeden
 	if hearing != null and hearing.has_signal(&"heard"):
 		hearing.connect(&"heard", _brain.hear)
 

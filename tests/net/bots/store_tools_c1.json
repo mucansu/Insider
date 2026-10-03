@@ -1,0 +1,15 @@
+{
+  "_doc": "store_interactions.json c1 botu (US-010, müşteri): sola sınır duvarına hizalan, sağa ön kapı hizasına (x≈368), kapıdan kuzeye y≈350'ye, doğuya tezgâha yaslan (x≈532; tezgâh önü: E SATIN AL, Q GÖNDER). 26. sn SATIN AL (2,4 sn tut), 35. sn ARKA ODAYA GÖNDER (Q, 2,4 sn tut), 53. sn bir adım güneye (y≈390, kasa önü: E OYALA) ve konuşmayı tutar (döküm konuşma sürerken).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 5.271, "move": [1, 0]},
+    {"t": 6.8, "move": [0, 0]},
+    {"t": 26.0, "hold": "interact", "dur": 2.4},
+    {"t": 35.0, "hold": "intimidate", "dur": 2.4},
+    {"t": 53.0, "move": [0, 1]},
+    {"t": 53.286, "move": [0, 0]},
+    {"t": 53.7, "hold": "interact", "dur": 12.0}
+  ]
+}

@@ -7,8 +7,9 @@ extends Node
 ##
 ## Kesmeler (kesme/geri alma API'si): `interrupt(kind, …)` süren görevi duraklatır (kalan süresi korunur),
 ## kesme bitince ya da `cancel_interrupt()` ile görev kaldığı yerden sürer. Öncelik (Karar ön önerisi):
-## GÖNDERİLDİ > MÜŞTERİ > DİNLE > ZİL; düşük öncelikli kesme yüksek olanı kesmez, eşit olan yeniler. Kapı zili
-## `bell_interrupts = false` görevi (telefon) kesmez.
+## GÖNDERİLDİ > MÜŞTERİ > KONUŞ > DİNLE > ZİL; düşük öncelikli kesme yüksek olanı kesmez, eşit olan yeniler. Kapı zili
+## `bell_interrupts = false` görevi (telefon) kesmez. KONUŞ (US-010 OYALA): oyuncu konuştukça sürer, bakılan nokta
+## `retarget_look` ile konuşana güncellenir.
 ## Belirlenimcilik (I6): aynı görev listesi + tohum + aynı varış anları → aynı görev dizisi (`sequence`).
 ##
 ## Lineer rota kipi (US-016; oyun-yz tur 2 #12): `setup_route(tasks, …)` görevleri verilen sırayla birer kez
@@ -26,9 +27,9 @@ signal finished()
 ## Kesme bitti: `completed` = süresi doldu (false: bırakıldı/yeniden başlatıldı).
 signal interrupt_ended(kind: Interrupt, completed: bool)
 
-enum Interrupt { NONE, BELL, LISTEN, CUSTOMER, SENT }
+enum Interrupt { NONE, BELL, LISTEN, TALK, CUSTOMER, SENT }
 
-const INTERRUPT_NAMES: Array[StringName] = [&"", &"bell", &"listen", &"customer", &"sent"]
+const INTERRUPT_NAMES: Array[StringName] = [&"", &"bell", &"listen", &"talk", &"customer", &"sent"]
 ## `sequence` geçmişinde tutulan en fazla görev adı.
 const MAX_SEQUENCE := 512
 
@@ -239,6 +240,12 @@ func interrupt(kind: Interrupt, duration: float, spot: Vector2 = Vector2.INF, lo
 	_int_elapsed = 0.0
 	_note(before)
 	return true
+
+
+## Süren kesmenin bakılan noktasını değiştirir (KONUŞ: konuşan oyuncu yürüse de ona bakılır). Kesme yoksa etkisiz.
+func retarget_look(look_at: Vector2) -> void:
+	if _interrupt != Interrupt.NONE:
+		_int_look = look_at
 
 
 ## Süren kesmeyi bırakır; görev kaldığı yerden sürer.

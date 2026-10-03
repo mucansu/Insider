@@ -16,11 +16,12 @@ var level: Level = null
 var map: RID = RID()
 ## Nüfus üreticisi `run` içinde adımlansın mı (US-016).
 var with_population: bool = false
-## IS-086: store_a'nın iç kapısı (Props/BackroomDoor) sahnede kapalı başlar. `run` fizik/boşta karesi beklemeden
-## adımladığı için NPC'nin açtığı kapının gövdesi (ertelenmiş) ve gezinme bağı (harita yinelemesi) adım içinde
-## güncellenmez; kapıyla ilgisi olmayan sahip/ajanda testleri kapısız eski düzende sürsün diye varsayılan açık
-## başlatılır (sahnedeki başlangıç değeri; değişim sayılmaz). Kapalı kapıyı sınayan test false verir.
-var backroom_door_open: bool = true
+## IS-087: kapılar sahnedeki gibi başlar (iç kapı D kapalı). `run` fizik karesi beklemeden adımladığı için bir kapı
+## açılıp kapanınca (NPC açar/arkasından kapatır) kanat gövdesi (Door ertelenmiş uygular) ve gezinme bağı (harita
+## yinelemesi) adım içinde güncellenmez; `run` her adımdan sonra durumu değişen kapının gövdesini hemen uygular ve
+## yalıtık haritayı zorla eşitler (`map_force_update`; harita eşzamanlı, tek iş parçacığı).
+var _door_open: Dictionary = {}
+var _forced: bool = false
 
 
 func _init(owner_test: TestCase) -> void:
@@ -38,9 +39,6 @@ func enter(path: String = STORE, before_enter: Callable = Callable()) -> Level:
 	for child: Node in level.npcs_root().get_children():
 		if &"auto_step" in child:
 			child.set(&"auto_step", false)
-	var backroom_door: Node = level.props_root().get_node_or_null(^"BackroomDoor")
-	if backroom_door != null and &"is_open" in backroom_door:
-		backroom_door.set(&"is_open", backroom_door_open)
 	if before_enter.is_valid():
 		before_enter.call(level)
 	var region: NavigationRegion2D = level.navigation_region()
@@ -65,6 +63,10 @@ func enter(path: String = STORE, before_enter: Callable = Callable()) -> Level:
 ## Harita eşitlemesi (kapı bağı değişince de çağrılır): yineleme kimliği artana kadar fizik karesi beklenir
 ## (`map_force_update` 4.7'de kullanımdan kalkıyor; kullanılmaz).
 func sync() -> void:
+	if _forced and not _doors_dirty():
+		_forced = false  # `run` haritayı zaten zorla eşitledi, o günden beri kapı değişmedi
+		return
+	_forced = false
 	var before: int = NavigationServer2D.map_get_iteration_id(map)
 	for i: int in 30:
 		await test.tree().physics_frame
@@ -140,5 +142,37 @@ func run(seconds: float, probe: Callable = Callable(), dt: float = DT) -> void:
 			for c: Chaser in a.chasers():
 				c.auto_step = false
 				c.step(dt)
+		_sync_doors()
 		if probe.is_valid():
 			probe.call()
+
+
+## Durumu değişen kapının gövdesi hemen, gezinme haritası zorla eşitlenir (bkz. `_door_open` notu).
+func _sync_doors() -> void:
+	var changed: bool = false
+	for child: Node in level.props_root().get_children():
+		if not (&"is_open" in child):
+			continue
+		var open: bool = bool(child.get(&"is_open"))
+		if _door_open.has(child.name) and bool(_door_open[child.name]) == open:
+			continue
+		var known: bool = _door_open.has(child.name)
+		_door_open[child.name] = open
+		if not known:
+			continue  # ilk kayıt: sahnedeki/testin verdiği durum zaten eşitli
+		var shape: CollisionShape2D = child.get_node_or_null(^"Body/CollisionShape2D") as CollisionShape2D
+		if shape != null:
+			shape.disabled = open
+		changed = true
+	if changed and map.is_valid():
+		NavigationServer2D.map_force_update(map)
+		_forced = true
+
+
+## `run`ın son kaydından beri durumu değişmiş kapı var mı (test elle değiştirdiyse sync beklemeli).
+func _doors_dirty() -> bool:
+	for child: Node in level.props_root().get_children():
+		var known: bool = &"is_open" in child and _door_open.has(child.name)
+		if known and bool(_door_open[child.name]) != bool(child.get(&"is_open")):
+			return true
+	return false

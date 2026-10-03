@@ -7,6 +7,9 @@ extends Node
 ## `factor_for` algı bileşeninin `factor_query`'sidir. Ön kapıdan içeri/dışarı geçişte `door_crossed` (zil) yayar.
 ## Konum her zaman eşitleyicinin en güncel konumu (`interaction_position()`, S7): aleyhte kararlar (AC8).
 ## Seviyeye yalnız S4 Level API'siyle (duck typing: `zone`, `marker`, `marker_sequence`, `props_root`) erişir.
+## US-010 ekleri: oyalanma sayacı (`loiter_s`) dükkândan çıkınca sıfırlanır (GDD §9.3), dökümü `loiter_dump()`;
+## masum (sosyal) etkileşim (`Interactable.innocent`: satın al, konuş, gönder) kurcalama sayılmaz; dikkat dağıtma
+## kaynağı (`distraction_source(pos)`: o noktadaki `distraction_peer` sunan prop).
 
 ## Yalnız host: oyuncu ön kapı eşiğinden geçti (içeri/dışarı).
 signal door_crossed(peer_id: int, door_pos: Vector2)
@@ -18,6 +21,8 @@ const ZONE_NAMES := {
 }
 ## Arka oda nakdinin "alındı" sayıldığı prop yarıçapı (px; işaretten).
 const CASH_PROP_RADIUS := 32.0
+## Dikkat dağıtma sesinin prop'u: ses prop konumunda yayılır (px payı).
+const DISTRACTION_SOURCE_PX := 2.0
 
 var tuning: CivilianTuning
 var rules: CivilianRules.Params = null
@@ -78,9 +83,11 @@ func step(delta: float) -> void:
 		var peer_id: int = node.get_multiplayer_authority()
 		var pos: Vector2 = position_of(node as Node2D)
 		var inside: bool = CivilianRules.is_inside(zone_of(pos))
+		var was: Variant = _inside.get(peer_id)
 		if inside:
 			_loiter[peer_id] = float(_loiter.get(peer_id, 0.0)) + maxf(delta, 0.0)
-		var was: Variant = _inside.get(peer_id)
+		elif was != null and bool(was):
+			_loiter[peer_id] = 0.0  # dükkândan çıkış oyalanmayı sıfırlar (US-010, GDD §9.3)
 		_inside[peer_id] = inside
 		if was != null and bool(was) != inside and door.is_finite() and bell_radius > 0.0 \
 				and pos.distance_to(door) <= bell_radius:
@@ -105,6 +112,30 @@ func loiter_time(peer_id: int) -> float:
 ## Oyalanma sayacını sıfırlar (US-010 SATIN AL).
 func reset_loiter(peer_id: int) -> void:
 	_loiter[peer_id] = 0.0
+
+
+## Döküm (US-010 `loiter_s`): peer (dize) -> dükkân içi süre (sn, 0,1 adım).
+func loiter_dump() -> Dictionary:
+	var out: Dictionary = {}
+	for peer_id: int in _loiter:
+		out[str(peer_id)] = snappedf(float(_loiter[peer_id]), 0.1)
+	return out
+
+
+## Dikkat dağıtma sesinin kaynağı (US-010): `pos`taki, `distraction_peer(kind)` sunan prop; yoksa null.
+func distraction_source(pos: Vector2) -> Node2D:
+	if _level == null or not _level.has_method(&"props_root"):
+		return null
+	var props: Node = _level.call(&"props_root") as Node
+	if props == null:
+		return null
+	for child: Node in props.get_children():
+		var prop: Node2D = child as Node2D
+		if prop == null or not prop.has_method(&"distraction_peer"):
+			continue
+		if prop.global_position.distance_to(pos) <= DISTRACTION_SOURCE_PX:
+			return prop
+	return null
 
 
 ## Hedefin bu andaki bağlamı.
@@ -135,7 +166,7 @@ func behaviour_for(target: Node) -> CivilianRules.Behaviour:
 ## Oyuncunun sürdürdüğü etkileşimin türü (host'taki `busy_by`).
 func interaction_of(peer_id: int) -> CivilianRules.Interaction:
 	var item: Interactable = Interactable.held_by(get_tree(), peer_id)
-	if item == null:
+	if item == null or item.innocent:
 		return CivilianRules.Interaction.NONE
 	var def: Variant = item.get_parent().get(&"def") if item.get_parent() != null else null
 	if def is PropDef and (def as PropDef).cash_value > 0:

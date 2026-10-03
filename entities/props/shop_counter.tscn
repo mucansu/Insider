@@ -1,0 +1,28 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://entities/props/shop_counter.gd" id="1_counter"]
+[ext_resource type="Script" path="res://entities/props/interactable.gd" id="2_int"]
+[ext_resource type="Resource" path="res://data/props/counter_buy.tres" id="3_buy"]
+[ext_resource type="Resource" path="res://data/props/counter_send.tres" id="4_send"]
+[ext_resource type="Resource" path="res://data/props/store_tools.tres" id="5_tools"]
+
+[sub_resource type="SceneReplicationConfig" id="SceneReplicationConfig_counter"]
+properties/0/path = NodePath(".:sent_used")
+properties/0/spawn = false
+properties/0/replication_mode = 2
+
+[node name="Counter" type="Node2D"]
+script = ExtResource("1_counter")
+buy_def = ExtResource("3_buy")
+send_def = ExtResource("4_send")
+tuning = ExtResource("5_tools")
+
+[node name="Buy" type="Area2D" parent="."]
+script = ExtResource("2_int")
+
+[node name="Send" type="Area2D" parent="."]
+script = ExtResource("2_int")
+
+[node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
+delta_interval = 0.0
+replication_config = SubResource("SceneReplicationConfig_counter")

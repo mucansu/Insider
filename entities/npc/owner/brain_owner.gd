@@ -20,6 +20,21 @@ extends Node
 ## akışı (uyarı 2, gürültü, komşu). Kaynak başına bir keşif; sahip zaten alarmdaysa (ya da uyarı ≥ bağırış
 ## kademesi) yalnız balon + komşu +1. İş bittikten sonra keşif yok. Sakinleşince (arama 30 sn) ajandanın ilk görevi
 ## arka odaya zorlanır (nakit alınmışsa doğal keşif; eski sabit "60 sn sonra yeniden bağırış" yok).
+## Oyuncu araçları (US-010; GDD §9.3, KR-026; oyun-yz tur 2 #14-#15):
+## - SATIN AL `serve_player(peer)`: müşteri servisinin aynısı (MÜŞTERİ kesmesi, `register_opened` kancası; servis
+##   kimliği −peer), o oyuncuya şüphe 0 ve oyalanma 0, `owner_serve`. ARKA ODAYA GÖNDER `send_to_backroom(peer)`:
+##   GÖNDERİLDİ kesmesi, `owner_sent`; gönderilmeden tezgâha dönüşe kadar geçen süre `sent_windows` (kasa penceresi).
+##   İkisi de sakin durumlarda (AJANDA, BAK, SORGU) kabul edilir: BAK/SORGU'dan önce omuz silker (`owner_shrug`),
+##   ajandaya döner, sonra keser (kesme API'si; tur 2 #14).
+## - OYALA (konuşma): sahibin `Talk` Interactable'ını tutan oyuncu (`talk_item.busy_by`) varken sahip KONUŞ kesmesiyle
+##   durur ve konuşana döner; bakış konuşma boyunca konuşana kilitli (koni onda, kasa ve D arkada). Başlarken
+##   `owner_talk`; konuşanın oyalanma süresi eşiği (`loiter_grace`) geçince bir kez `owner_loiter` ("bu adam ne
+##   istiyor"; şüphe sivil çarpan tablosunun oyalanma satırıyla dolar). Ajanda dışında ya da yüksek öncelikli
+##   kesmede konuşma kesilir (`host_abort`).
+## - DİKKAT DAĞIT: dikkat dağıtma sesleri (StoreToolsTuning.DISTRACTION_KINDS) DİNLE'ye sokar (`owner_listen`;
+##   oturum olayı `owner_distracted`); kaynak (prop + tür) başına bir kez sayılır, ikinci ve sonrakinde sorumluya
+##   `again_suspicion` ("yine mi?", `owner_again`); dikkat dağıtma dinlemesi şüphe SORGU eşiğine (60) varmadıkça BAK'a
+##   bölünmez. Telefonun DİNLE noktasına varınca telefonu bulur (`owner_phone_found`, oturum olayı `phone_found`).
 
 ## Yalnız host: bağırış (ilk, keşif sonrası ya da alarmdayken keşif = komşu +1); `late` = keşiften (uyarı
 ## yöneticisi komşu üretir).
@@ -28,6 +43,9 @@ signal shouted(late: bool)
 signal register_opened(customer_id: int)
 ## Yalnız host: keşif (US-039; Source).
 signal discovered(source: int)
+## Yalnız host (US-010; US-042 strateji etiketi "sosyal" kancası): oyuncu aracı başarıyla uygulandı. `kind`: &"buy",
+## &"talk", &"send", &"distract" (sahibin duyup DİNLE'ye girdiği yeni dikkat dağıtmanın sorumlusu).
+signal social_action(peer_id: int, kind: StringName)
 
 enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH, DISCOVER }
 ## Keşif kaynağı (US-039).
@@ -64,6 +82,9 @@ const MAX_DETECTIONS := 64
 ## Sahibin kendi çıkardığı sesler: işitmesi bunlara tepki vermez (bağırış; US-011b ajanda sesleri).
 const OWN_NOISE_KINDS: Array[StringName] = [SHOUT_KIND, NoiseProfile.KIND_PHONE, NoiseProfile.KIND_SHELF,
 	NoiseProfile.KIND_BELL]
+## Oyuncu servisinin kimliği −peer (müşteri seri numaraları pozitif; US-010).
+const DISTRACTED_SESSION_EVENT := &"owner_distracted"
+const PHONE_FOUND_SESSION_EVENT := &"phone_found"
 
 var owner_tuning: OwnerTuning
 var civilian_tuning: CivilianTuning
@@ -86,6 +107,15 @@ var discoveries: Array[Dictionary] = []
 ## Tamamlanan servis ve "kasa açılır" sayısı (döküm; US-016).
 var serves_done: int = 0
 var register_opens: int = 0
+## US-010: oyuncu araçları ayarı, konuşma bileşeni (StoreOwner bağlar; yoksa konuşma yok) ve kayıtlar (döküm).
+var tools: StoreToolsTuning = null
+var talk_item: Interactable = null
+var player_serves: int = 0
+var sent_windows: Array[float] = []
+var phones_found: int = 0
+var distractions := CivilianRules.DistractionLog.new()
+## İlk bağırış oldu mu (tezgâh istemleri gizlenir; çoğaltılır).
+var has_shouted: bool = false
 
 ## Bileşenler (setup bağlar; okunur).
 var body: CharacterBody2D = null
@@ -107,6 +137,13 @@ var _serve_results: Dictionary = {}
 var _discovered: Dictionary = {}
 var _backroom_checked: bool = false
 var _idle_empty: float = 0.0
+## US-010: konuşulan oyuncu (KONUŞ kesmesi), "bu adam ne istiyor" denilenler, gönderilme anı (yoksa < 0), dikkat
+## dağıtma dinlemesi (kilit) ve dinlenen telefonun prop'u.
+var _talking: int = 0
+var _loiter_said: Dictionary = {}
+var _sent_at: float = -1.0
+var _distraction_listen: bool = false
+var _listen_phone: Node2D = null
 
 
 ## Bileşenleri bağlar (StoreOwner `_ready`'de, host'ta).
@@ -125,6 +162,11 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	suspicion.innocent_decay_per_sec = civilian_tuning.innocent_decay_per_sec
 	suspicion.threshold_reached.connect(_on_threshold)
 	agenda.setup(owner_tuning.tasks, agenda_seed, senses.marker_positions)
+	mover.door_shortcut = true  # IS-087 AC3: arka kapı açıkken caddeden dolaşmaz
+	if tools == null:
+		tools = StoreToolsTuning.load_default()
+	mover.close_behind = owner_tuning.close_behind_doors.duplicate()
+	mover.close_delay = owner_tuning.close_behind_sec
 	agenda.interrupt_ended.connect(_on_interrupt_ended)
 	senses.door_crossed.connect(_on_door_crossed)
 	# Keşif kaynaklarının prop'ları başta (yerlerindeyken) hatırlanır: ilk sorgu çanta taşındıktan sonra gelirse
@@ -166,6 +208,7 @@ func held_peer() -> int:
 func step(delta: float) -> Vector2:
 	senses.step(delta)
 	suspicion.tick(delta)
+	mover.close_enabled = not is_alarmed()  # IS-087 AC2: iç kapıyı yalnız sakinken arkasından kapatır
 	_record_peaks()
 	fsm.step(delta)
 	_tick_shouts(delta)
@@ -173,9 +216,11 @@ func step(delta: float) -> Vector2:
 	if CALM_STATES.has(fsm.state) and level >= Suspicion.Level.DETECT:
 		shout(top_peer(), false)
 	if fsm.state == State.DISCOVER:
+		_end_talk()
 		return _discover_step()
 	if fsm.state == State.AGENDA:
 		return _agenda_step(delta, level)
+	_end_talk()
 	return _reaction.step(delta, level)
 
 
@@ -212,10 +257,55 @@ func door_bell(door_pos: Vector2) -> void:
 	_on_door_crossed(0, door_pos)
 
 
-## "Arkada X var mı?": arka odaya gider, arar.
-func send_to_backroom() -> bool:
-	return _interrupt(Agenda.Interrupt.SENT, owner_tuning.sent_sec,
+## "Arkada X var mı?": arka odaya gider, arar (US-010 GÖNDER; `peer_id` soran oyuncu, 0 = test/NPC). Sakin
+## durumlarda kabul (BAK/SORGU'dan önce omuz silker).
+func send_to_backroom(peer_id: int = 0) -> bool:
+	if not can_send(peer_id):
+		return false
+	_settle_for_interrupt()
+	var ok: bool = _interrupt(Agenda.Interrupt.SENT, owner_tuning.sent_sec,
 		senses.marker_position(owner_tuning.backroom_marker), Vector2.INF, true)
+	if ok:
+		_sent_at = fsm.clock
+		if peer_id != 0:
+			event(&"owner_sent", peer_id)
+			social_action.emit(peer_id, &"send")
+	return ok
+
+
+## GÖNDER şu an kabul edilir mi (sakin durum, zaten gönderilmemiş).
+func can_send(_peer_id: int = 0) -> bool:
+	return CALM_STATES.has(fsm.state) and agenda.current_interrupt() != Agenda.Interrupt.SENT
+
+
+## SATIN AL (US-010 AC2): oyuncuyu müşteri gibi servis eder (servis kimliği −peer; `register_opened` kancası aynı).
+## O oyuncuya şüphe 0 ve oyalanma 0 (GDD §9.3). Kabul edilirse true ve `owner_serve`.
+func serve_player(peer_id: int) -> bool:
+	if not can_serve_player(peer_id):
+		return false
+	_settle_for_interrupt()
+	if not serve_customer(-peer_id):
+		return false
+	suspicion.forget(peer_id)
+	senses.reset_loiter(peer_id)
+	player_serves += 1
+	event(&"owner_serve", peer_id)
+	social_action.emit(peer_id, &"buy")
+	return true
+
+
+## SATIN AL şu an kabul edilir mi: sakin durum, süren servis yok, gönderilmemiş.
+func can_serve_player(peer_id: int) -> bool:
+	if peer_id <= 0 or not CALM_STATES.has(fsm.state):
+		return false
+	var current: Agenda.Interrupt = agenda.current_interrupt()
+	return not _serving and current != Agenda.Interrupt.SENT and current != Agenda.Interrupt.CUSTOMER
+
+
+## BAK/SORGU'dan kesmeye: omuz silker, ajandaya döner (kesme API'si LOOK/QUESTION'da da çalışır; tur 2 #14).
+func _settle_for_interrupt() -> void:
+	if fsm.state == State.LOOK or fsm.state == State.QUESTION:
+		shrug()
 
 
 ## Kapı zili: durur, kapıya bakar.
@@ -228,11 +318,36 @@ func ring_bell(door_pos: Vector2) -> bool:
 func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 	if OWN_NOISE_KINDS.has(kind) or not pos.is_finite():
 		return false
+	var distraction: bool = StoreToolsTuning.DISTRACTION_KINDS.has(kind)
+	var source: Node2D = senses.distraction_source(pos) if distraction else null
+	var fresh: bool = distraction and distractions.note(_distraction_key(source, pos, kind))
+	if fresh and distractions.is_again():
+		var culprit: int = int(source.call(&"distraction_peer", kind)) if source != null else 0
+		if culprit != 0 and CALM_STATES.has(fsm.state):
+			suspicion.apply_delta(culprit, tools.again_suspicion)  # "yine mi?" (US-010 AC5)
+			event(&"owner_again", culprit)
 	var here: Vector2 = body.global_position
 	var spot: Vector2 = Vector2.INF
 	if here.distance_to(pos) > owner_tuning.question_stop:
 		spot = pos + (here - pos).normalized() * owner_tuning.question_stop
-	return _interrupt(Agenda.Interrupt.LISTEN, owner_tuning.listen_sec, spot, pos, false)
+	var was_listening: bool = agenda.current_interrupt() == Agenda.Interrupt.LISTEN
+	if not _interrupt(Agenda.Interrupt.LISTEN, owner_tuning.listen_sec, spot, pos, false):
+		return false
+	_distraction_listen = distraction
+	_listen_phone = source if kind == StoreToolsTuning.KIND_CELLPHONE else null
+	if not was_listening:
+		event(&"owner_listen", 0)
+	if fresh:
+		Game.raise_session_event(DISTRACTED_SESSION_EVENT, {"kind": String(kind)})
+		var by: int = int(source.call(&"distraction_peer", kind)) if source != null else 0
+		if by != 0:
+			social_action.emit(by, &"distract")
+	return true
+
+
+static func _distraction_key(source: Node2D, pos: Vector2, kind: StringName) -> String:
+	var where: String = String(source.name) if source != null else str(pos.round())
+	return "%s:%s" % [where, kind]
 
 
 func _interrupt(kind: Agenda.Interrupt, duration: float, spot: Vector2, look: Vector2, on_arrival: bool) -> bool:
@@ -325,12 +440,23 @@ func _heist_running() -> bool:
 ## --- AJANDA katmanı ---
 
 func _agenda_step(delta: float, level: int) -> Vector2:
-	if level >= Suspicion.Level.NOTICE:
+	var listening: bool = agenda.current_interrupt() == Agenda.Interrupt.LISTEN
+	if not listening:
+		_distraction_listen = false
+		_listen_phone = null
+	# Dikkat dağıtma dinlemesi "yine mi?" şüphesiyle BAK'a bölünmez; SORGU eşiğinde (60) bölünür (US-010).
+	var held_by_listen: bool = listening and _distraction_listen and level < Suspicion.Level.INVESTIGATE
+	if level >= Suspicion.Level.NOTICE and not held_by_listen:
 		target = top_peer()
 		_reaction.reset()
+		_end_talk()
 		fsm.go(State.LOOK)
 		mover.stop()
 		return Vector2.ZERO
+	_talk_step()
+	_sent_window_step()
+	if listening and _listen_phone != null and agenda.has_arrived():
+		_find_phone()
 	var goal: Vector2 = agenda.goal_position()
 	if goal.is_finite():
 		mover.move_to(goal, owner_tuning.walk_speed, STAND_PX)
@@ -354,6 +480,73 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 	return velocity
 
 
+## --- oyuncu araçları (US-010) ---
+
+## KONUŞ: `talk_item`'ı tutan oyuncu varken sahip durur ve ona döner (bakış kilitli); bırakınca ajanda sürer.
+func _talk_step() -> void:
+	var talker: int = talk_item.busy_by if talk_item != null else 0
+	var current: Agenda.Interrupt = agenda.current_interrupt()
+	if talker == 0:
+		_talking = 0
+		if current == Agenda.Interrupt.TALK:
+			agenda.cancel_interrupt()
+		return
+	var player: Node2D = senses.player(talker)
+	var at: Vector2 = CivilianSenses.position_of(player) if player != null else Vector2.INF
+	if current == Agenda.Interrupt.TALK and _talking == talker:
+		agenda.retarget_look(at)
+	elif agenda.interrupt(Agenda.Interrupt.TALK, tools.talk_max_sec + 1.0, Vector2.INF, at, false):
+		_talking = talker
+		mover.stop()
+		event(&"owner_talk", talker)
+		social_action.emit(talker, &"talk")
+	else:
+		_end_talk()  # yüksek öncelikli kesme (müşteri, gönderilme) sürüyor: konuşma olmaz
+		return
+	var grace: float = senses.rules.loiter_grace if senses.rules != null else 0.0
+	if grace > 0.0 and not _loiter_said.has(talker) and senses.loiter_time(talker) >= grace:
+		_loiter_said[talker] = true
+		event(&"owner_loiter", talker)  # "bu adam ne istiyor" (şüphe oyalanma satırıyla dolar)
+
+
+## Konuşmayı keser (host): bileşen bırakılır, KONUŞ kesmesi biter.
+func _end_talk() -> void:
+	if talk_item != null and talk_item.busy_by != 0:
+		talk_item.host_abort()
+	if _talking != 0 and agenda.current_interrupt() == Agenda.Interrupt.TALK:
+		agenda.cancel_interrupt()
+	_talking = 0
+
+
+## Şu an konuşulan oyuncu (0 = yok).
+func talking_to() -> int:
+	return _talking
+
+
+## Kasa penceresi ölçümü: gönderilmeden tezgâha (ev görevi) dönüşe kadar geçen süre.
+func _sent_window_step() -> void:
+	if _sent_at < 0.0 or agenda.current_interrupt() != Agenda.Interrupt.NONE:
+		return
+	var task: AgendaTask = agenda.current_task()
+	if task != null and task.home and agenda.has_arrived():
+		sent_windows.append(snappedf(fsm.clock - _sent_at, 0.01))
+		_sent_at = -1.0
+
+
+## Telefonun DİNLE noktasına varıldı: telefonu bulur.
+func _find_phone() -> void:
+	var phone: Node2D = _listen_phone
+	_listen_phone = null
+	if phone == null or not is_instance_valid(phone) or not phone.has_method(&"host_take_phone"):
+		return
+	if body.global_position.distance_to(phone.global_position) > maxf(tools.phone_find_px, owner_tuning.question_stop):
+		return
+	if bool(phone.call(&"host_take_phone")):
+		phones_found += 1
+		event(&"owner_phone_found", 0)
+		Game.raise_session_event(PHONE_FOUND_SESSION_EVENT, {})
+
+
 ## --- tepki katmanının kullandığı genel yardımcılar ---
 
 ## Bağırış: tespit kilidi, gürültü, olay; `late` = keşiften (US-039).
@@ -361,6 +554,7 @@ func shout(peer_id: int, late: bool) -> void:
 	if peer_id != 0:
 		target = peer_id
 	suspicion.latch_level = Suspicion.Level.DETECT
+	has_shouted = true
 	mover.stop()
 	agenda.cancel_interrupt()
 	_shout_left = owner_tuning.shout_repeat_sec

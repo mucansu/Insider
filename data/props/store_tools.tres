@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="StoreToolsTuning" format=3]
+
+[ext_resource type="Script" path="res://data/props/store_tools_tuning.gd" id="1_tools"]
+
+[resource]
+script = ExtResource("1_tools")
+buy_price = 10
+talk_max_sec = 8.0
+talk_range = 72.0
+topple_radius = 320.0
+phone_delay_sec = 3.0
+phone_radius = 240.0
+phone_ring_interval_sec = 2.0
+phone_ring_max = 8
+phone_find_px = 80.0
+again_suspicion = 30.0
