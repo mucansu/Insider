@@ -116,6 +116,10 @@ func dump_state() -> Dictionary:
 	var out := {"spawned": _seen_spawns, "states": states}
 	if _host_side():
 		out["catches"] = catches
+		var misled: int = 0
+		for c: Chaser in chasers():
+			misled += c.brain().misled_count
+		out["misled"] = misled  # US-043: YÖNLENDİR ile yanlış yöne koşan mahalleli sayısı
 		out["ladder"] = ladder.history_rows()  # [kademe, giriş anı]; I4 kanıtı (istemcide Game "alert.history")
 	return out
 

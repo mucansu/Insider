@@ -43,13 +43,28 @@ signal task_changed(task_name: StringName)
 ## Yalnız host (US-010): oyuncu aracı başarıyla uygulandı (OwnerBrain.social_action aktarımı; kind buy|talk|send|
 ## distract). US-042 `Tracker.note_social` buna bağlanır (koordinatör birleştirmesi).
 signal social_action(peer_id: int, kind: StringName)
+## US-010 izi / US-043 / US-044 olay kanalı (her peer'da): OYALA söndürmesi tükendi ("bir daha tutmaz"),
+## YÖNLENDİR ("o tarafa kaçtı!"), vitrinden bakana kapıdan sorgu ("Bir şey mi arıyorsun?").
+signal owner_soothe_refused(peer_id: int)
+signal owner_misdirect(peer_id: int)
+signal owner_question_window(peer_id: int)
+## Yalnız host (US-044): sahip oyuncuyu tanıdı (vitrin sorgusu); Game iş sonucunda `recognized` +1 sayar.
+signal recognized(peer_id: int)
 
 const OWNER_TUNING_PATH := "res://data/npc/owner_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
 const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
-	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter"]
+	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
+	&"owner_misdirect", &"owner_question_window"]
+## YÖNLENDİR bileşeninin istem anahtarı, gereken etiket (oyuncunun örtüsü sağlam; Player.interaction_tags) ve oturum
+## olayı (HUD metni EVENT_MISDIRECT).
+const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
+const COVER_TAG := &"cover"
+const MISDIRECT_SESSION_EVENT := &"misdirect"
+## OYALA'nın açık olduğu sahip durumları (US-010 izi: BAK/SORGU'daki sahip de konuşulup söndürülebilir).
+const TALK_STATES: Array[int] = [OwnerBrain.State.AGENDA, OwnerBrain.State.LOOK, OwnerBrain.State.QUESTION]
 ## OYALA bileşeninin istem anahtarı (i18n) ve konuşmanın kapalı olduğu görevler (servis, gönderilme).
 const TALK_ACTION_KEY := "INTERACT_OWNER_TALK"
 const TALK_CLOSED_TASKS: Array[StringName] = [&"customer", &"sent"]
@@ -82,6 +97,10 @@ var net_alarmed: bool = false
 var net_hold_peer: int = 0
 ## Sahip bu işte bağırdı mı (US-010: tezgâh istemleri gizlenir).
 var net_shouted: bool = false
+## YÖNLENDİR bu işte kullanıldı mı (US-043: iş başına 1; istemler gizlenir).
+var net_misdirected: bool = false
+## Host kayıtları (döküm): YÖNLENDİR [{"peer", "chasers", "point"}].
+var misdirects: Array[Dictionary] = []
 
 ## Görselin okuduğu durum (her peer'da).
 var facing: Vector2 = Vector2.LEFT
@@ -102,11 +121,13 @@ var _bubbles: Array[int] = []
 @onready var _senses: CivilianSenses = $Senses
 @onready var _brain: OwnerBrain = $Brain
 @onready var _talk: Interactable = $Talk
+@onready var _misdirect: Interactable = $Misdirect
 
 
 func _ready() -> void:
 	_suspicion.set_physics_process(false)  # beyin sırayla işletir (etkin değilse hiç işlemez)
 	_setup_talk()
+	_setup_misdirect()
 	if not active:
 		hide()
 		collision_layer = 0
@@ -129,6 +150,7 @@ func _ready() -> void:
 		_brain.agenda_seed = agenda_seed()
 		_brain.talk_item = _talk
 		_brain.social_action.connect(social_action.emit)
+		_brain.recognized.connect(recognized.emit)
 		_brain.setup(self, _perception, _suspicion, _agenda, _mover, _senses)
 		_bind_hearing()
 	if not Args.dump_path.is_empty():
@@ -152,6 +174,7 @@ func step(delta: float) -> void:
 		_follow(delta)
 	last_event_age += delta
 	_refresh_talk()
+	_refresh_misdirect()
 	var next: int = CivilianRules.bubble(_rules, net_meter, net_alarmed, bubble)
 	if next != bubble:
 		bubble = next
@@ -261,6 +284,64 @@ func talk_gaze() -> float:
 	return 0.0
 
 
+## YÖNLENDİR bileşeni (testler).
+func misdirect_interactable() -> Interactable:
+	return _misdirect
+
+
+## Her peer'da: YÖNLENDİR şu an açık mı (sahip ve mahalleli istemleri; uyarı ≥ eşik, iş başına 1). Örtü koşulu
+## Interactable gereksiniminde (etiket `cover`).
+func misdirect_open() -> bool:
+	return active and not net_misdirected \
+		and Game.alert_level() >= StoreToolsTuning.load_default().misdirect_min_alert
+
+
+## Host API (US-043 YÖNLENDİR "o tarafa kaçtı!"): örtüsü sağlam `peer_id` gösterir → söyleyene `misdirect_radius`
+## içindeki mahalleliler `misdirect_run_sec` boyunca kaçış noktasının tersine (`CivilianRules.misdirect_point`)
+## koşar; söyleyene sahipte +`misdirect_suspicion`; iş başına 1 (`net_misdirected`). Sahibin ve mahallelinin
+## bileşeni buraya bağlanır. Kabul edilirse true.
+func misdirect(peer_id: int) -> bool:
+	if not _is_host() or not misdirect_open() or peer_id <= 0 or not _senses.cover_intact(peer_id):
+		return false
+	var player: Node2D = _senses.player(peer_id)
+	if player == null:
+		return false
+	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var at: Vector2 = CivilianSenses.position_of(player)
+	var level: Node = _level()
+	var point: Vector2 = CivilianRules.misdirect_point(at, _escape_point(level), tools.misdirect_run_px)
+	var misled: int = 0
+	var npcs: Node = level.call(&"npcs_root") as Node if level != null and level.has_method(&"npcs_root") else null
+	if npcs != null:
+		for node: Node in npcs.get_children():
+			var npc: Node2D = node as Node2D
+			if npc == null or not npc.has_method(&"mislead") or npc.global_position.distance_to(at) > tools.misdirect_radius:
+				continue
+			if bool(npc.call(&"mislead", point, tools.misdirect_run_sec)):
+				misled += 1
+	net_misdirected = true
+	_suspicion.apply_delta(peer_id, tools.misdirect_suspicion)
+	misdirects.append({"peer": peer_id, "chasers": misled, "point": [roundf(point.x), roundf(point.y)]})
+	host_event(&"owner_misdirect", peer_id)
+	Game.raise_session_event(MISDIRECT_SESSION_EVENT, {"peer": peer_id})
+	social_action.emit(peer_id, &"misdirect")
+	_refresh_misdirect()
+	return true
+
+
+## Kaçış noktası: Game'in (S3 eki), yoksa seviyenin `EscapeZone` bölgesinin ilk şeklinin merkezi (S4 eki); yoksa INF.
+static func _escape_point(level: Node) -> Vector2:
+	var p: Vector2 = Game.escape_point()
+	if p.is_finite() or level == null or not level.has_method(&"zone"):
+		return p
+	var zone: Area2D = level.call(&"zone", &"EscapeZone") as Area2D
+	if zone == null:
+		return Vector2.INF
+	for node: Node in zone.find_children("*", "CollisionShape2D", false, false):
+		return (node as CollisionShape2D).global_position
+	return zone.global_position
+
+
 ## OYALA bileşeni (testler, görsel).
 func talk_interactable() -> Interactable:
 	return _talk
@@ -338,6 +419,7 @@ func dump_state() -> Dictionary:
 		"talk_gaze": snappedf(talk_gaze(), 0.01),
 		"facing": [snappedf(facing.x, 0.01), snappedf(facing.y, 0.01)],
 		"shouted": net_shouted,
+		"misdirected": net_misdirected,
 	}
 	if _is_host():
 		var states: Array = _brain.fsm.history_rows(OwnerBrain.STATE_NAMES)
@@ -361,6 +443,9 @@ func dump_state() -> Dictionary:
 		out["sent_windows"] = _brain.sent_windows.duplicate()
 		out["distractions"] = _brain.distractions.count
 		out["phones_found"] = _brain.phones_found
+		out["soothed"] = _brain.soothed.duplicate(true)
+		out["misdirects"] = misdirects.duplicate(true)
+		out["window_questions"] = _brain.window_questions.duplicate()
 	return out
 
 
@@ -405,10 +490,34 @@ func _setup_talk() -> void:
 	_refresh_talk()
 
 
-## Her peer'da çoğaltılan durumdan: sakin ajandada (servis ve gönderilme dışında), bağırmadan önce konuşulur.
+## Her peer'da çoğaltılan durumdan: sakin durumlarda (ajanda, BAK, SORGU; servis ve gönderilme dışında), bağırmadan
+## önce konuşulur.
 func _refresh_talk() -> void:
-	_talk.enabled = active and not net_shouted and net_state == OwnerBrain.State.AGENDA \
-		and not TALK_CLOSED_TASKS.has(net_task)
+	_talk.enabled = active and not net_shouted and TALK_STATES.has(net_state) \
+		and not TALK_CLOSED_TASKS.has(net_task) and not misdirect_open()
+
+
+## YÖNLENDİR bileşeni (US-043): E, basılı tut, menzil; masum eylem; yalnız örtüsü sağlam oyuncu (etiket `cover`).
+func _setup_misdirect() -> void:
+	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	setup_misdirect_item(_misdirect, tools)
+	_misdirect.completed.connect(func(peer_id: int) -> void: misdirect(peer_id))
+	_refresh_misdirect()
+
+
+## Sahip ve mahallelinin YÖNLENDİR bileşeni aynı ayarla kurulur.
+static func setup_misdirect_item(item: Interactable, tools: StoreToolsTuning) -> void:
+	item.action_key = MISDIRECT_ACTION_KEY
+	item.hold_time = tools.misdirect_hold_sec
+	item.interact_range = tools.misdirect_range
+	item.innocent = true
+	var need := InteractionRequirement.new()
+	need.required_tag = COVER_TAG
+	item.requirement = need
+
+
+func _refresh_misdirect() -> void:
+	_misdirect.enabled = misdirect_open()
 
 
 ## İşitme bileşeni: sahnede `Hearing` yoksa genel sınıf varsa kurulur (US-009 birleşince kod değişmez).

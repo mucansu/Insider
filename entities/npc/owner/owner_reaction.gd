@@ -87,12 +87,12 @@ func _question(delta: float) -> Vector2:
 	if value < thresholds.notice_threshold - SuspicionMeter.EPSILON and fsm.time_in_state >= t.look_min_sec:
 		_b.shrug()
 		return Vector2.ZERO
-	var spot: Vector2 = _b.seen_at(_b.target)
+	var spot: Vector2 = _b.question_spot(_b.target)
 	var near: bool = spot.is_finite() and _b.body.global_position.distance_to(spot) <= t.question_stop
 	if not _asked and near:
 		_asked = true
 		fsm.time_in_state = 0.0
-		_b.event(&"owner_question", _b.target)
+		_b.ask(_b.target)
 	if _asked:
 		var calm: bool = value < thresholds.investigate_threshold - SuspicionMeter.EPSILON
 		if (fsm.time_in_state >= t.question_wait_sec and calm) or fsm.time_in_state >= t.question_max_sec:

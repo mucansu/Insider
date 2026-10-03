@@ -229,30 +229,34 @@ static func bail_for_tier(table: Dictionary, tier: int) -> int:
 	return amount
 
 
-## İş sonu ekip kasası = iş öncesi + ödeme − kefalet (eksi olabilir: borç; sonraki ödeme kapatır, KR-029).
-static func cash_after(before: int, payout_value: int, bail: int) -> int:
-	return before + maxi(payout_value, 0) - maxi(bail, 0)
+## İş sonu ekip kasası = iş öncesi + ödeme − kefalet − iş içi alışveriş (US-010 SATIN AL; eksi olabilir: borç;
+## sonraki ödeme kapatır, KR-029).
+static func cash_after(before: int, payout_value: int, bail: int, purchases: int = 0) -> int:
+	return before + maxi(payout_value, 0) - maxi(bail, 0) - maxi(purchases, 0)
 
 
 ## Eli boş çekilme koşulu (anlık): en az bir yakalanmamış oyuncu var, hepsi kaçış bölgesinde ve ganimet 0.
-## `players` biçimi `decide` ile aynı.
-static func abort_ready(players: Dictionary) -> bool:
+## `players` biçimi `decide` ile aynı. `secured` ≥ 0 ise ganimet ekibin güvenceye aldığı toplamdır (IS-094).
+static func abort_ready(players: Dictionary, secured: int = -1) -> bool:
 	var free: int = 0
 	for peer: Variant in players:
 		var p: Dictionary = players[peer]
 		if bool(p.get("caught", false)) or bool(p.get("released", false)):
 			continue
 		free += 1
-		if not bool(p.get("in_zone", false)) or int(p.get("loot", 0)) > 0:
+		if not bool(p.get("in_zone", false)) or (secured < 0 and int(p.get("loot", 0)) > 0):
 			return false
-	return free > 0
+	return free > 0 and secured <= 0
 
 
 ## İşin durumu. `players`: peer -> {"caught": bool, "in_zone": bool, "loot": int} (loot: yakalanmamışın kaçırdığı
 ## ganimet). `police`: polis geldi (bölge dışındakiler çağıran tarafından zaten yakalanmış işaretlenir).
 ## `abort_due`: eli boş çekilme sayacı doldu (AbortClock.done); yalnız koşul hâlâ sağlanıyorsa `aborted`.
 ## `"released": true` (tanık sorgusuyla serbest, US-042) yakalanmış gibi bölge koşuluna girmez.
-static func decide(players: Dictionary, police: bool, abort_due: bool = false) -> StringName:
+## `secured` ≥ 0 (IS-094): ekibin güvenceye aldığı ganimet (iş sırasında ekip nakdine giren kasa nakdi — boşaltan
+## sonradan yakalansa da — + yakalanmamışların taşıdığı çantalar); verilirse serbestlerin ganimet toplamının yerine
+## geçer: kasayı boşaltan yakalanınca bölgedeki arkadaşları yine kazanır (eli boş çekilme sayılmaz).
+static func decide(players: Dictionary, police: bool, abort_due: bool = false, secured: int = -1) -> StringName:
 	if players.is_empty():
 		return DECISION_NONE
 	var free: int = 0
@@ -267,6 +271,8 @@ static func decide(players: Dictionary, police: bool, abort_due: bool = false) -
 		loot += int(p.get("loot", 0))
 	if free == 0:
 		return OUTCOME_POLICE if police else OUTCOME_CAUGHT_ALL
+	if secured >= 0:
+		loot = secured
 	if all_in_zone and loot > 0:
 		return DECISION_WIN
 	if police:
@@ -447,6 +453,10 @@ class Tracker:
 	var back_door_used: bool = false
 	var register_emptied_at_s: float = -1.0
 	var cash_bag_taken_at_s: float = -1.0
+	## İş içinde ekip nakdinden ödenen alışveriş (US-010 SATIN AL bedeli; iş sonu kasasından düşer).
+	var purchases_paid: int = 0
+	## Ek tanınma (US-044: vitrinden bakarken sahibin kapıdan sorguladığı oyuncu): peer -> sayı.
+	var recognized_extra: Dictionary = {}
 
 	func set_alert(level: int) -> void:
 		max_alert = maxi(max_alert, level)
@@ -493,6 +503,15 @@ class Tracker:
 			interactions += 1
 
 	## Sosyal eylem (SATIN AL / oyala / gönder; US-010 bağlar).
+	## SATIN AL bedeli ödendi (US-010; ekip nakdinden anında düştü).
+	func note_purchase(cost: int) -> void:
+		purchases_paid += maxi(cost, 0)
+
+	## Sahip oyuncuyu tanıdı (US-044 vitrin sorgusu): sonuçta `recognized` +1.
+	func note_recognized(peer: int) -> void:
+		if peer > 0:
+			recognized_extra[peer] = int(recognized_extra.get(peer, 0)) + 1
+
 	func note_social(peer: int) -> void:
 		if peer > 0:
 			social_actions += 1
@@ -560,7 +579,8 @@ class Tracker:
 				var reason: StringName = HeistRules.cover_breaker(v)
 				if not reason.is_empty():
 					break_cover(int(peer), reason)
-		abort.step(not police and HeistRules.abort_ready(players_state(views)), delta, caught.size())
+		abort.step(not police and HeistRules.abort_ready(players_state(views), secured_loot(views)), delta,
+			caught.size())
 
 	## Kural girdisi: peer -> {"caught", "in_zone", "loot"}.
 	func players_state(views: Dictionary) -> Dictionary:
@@ -580,7 +600,20 @@ class Tracker:
 	func evaluate(views: Dictionary) -> StringName:
 		if finished:
 			return HeistRules.DECISION_NONE
-		return HeistRules.decide(players_state(views), police, abort.done())
+		return HeistRules.decide(players_state(views), police, abort.done(), secured_loot(views))
+
+	## Ekibin güvenceye aldığı ganimet (IS-094): iş sırasında ekip nakdine giren kasa nakdi (boşaltan sonradan
+	## yakalansa da ekipte kalır) + yakalanmamış (ve tanık sorgusuyla bırakılmamış) oyuncuların taşıdığı çantalar
+	## (yakalananın çantası kaybolur).
+	func secured_loot(views: Dictionary) -> int:
+		var total: int = cash_grabbed()
+		for peer: Variant in views:
+			var v: Dictionary = views[peer]
+			var id: int = int(peer)
+			if is_caught(id) or released.has(id) or bool(v.get("caught", false)):
+				continue
+			total += maxi(int(v.get("bag_value", 0)), 0)
+		return total
 
 	## Sonuç sözlüğü (S3 eki): `roster` = Game.players() (peer -> {"name", "slot"}). `bail_each`: yakalanan başına
 	## kefalet (KR-029); `cash_before`: iş öncesi ekip kasası (kasadan anında giren ham nakit hariç).
@@ -617,7 +650,7 @@ class Tracker:
 				"loot": loot,
 				"bail": bail,
 				"witness_released": witness,
-				"recognized": 1 if witness else 0,
+				"recognized": (1 if witness else 0) + int(recognized_extra.get(id, 0)),
 			}
 		var pct: int = HeistRules.ratio_pct(outcome, shouted())
 		var caught_now: Dictionary = {}
@@ -627,6 +660,10 @@ class Tracker:
 		var stats: Dictionary = {
 			"max_alert": max_alert, "caught": caught_now, "bags": bags, "sprint_s": sprint_s, "slots": slots,
 		}
+		# Ödeme ekibin güvenceye aldığı ganimetten (IS-094): yakalananın boşalttığı kasa nakdi ekipte kalır, onun kişisel
+		# payı 0; tüm kaçanlarda bu, eski "kaçanların ganimet toplamı" ile aynıdır.
+		if win:
+			loot_total = secured_loot(views)
 		var paid: int = HeistRules.payout(loot_total, pct)
 		return {
 			"outcome": outcome,
@@ -639,8 +676,9 @@ class Tracker:
 			"heat": HeistRules.heat_for(outcome, max_alert) + witnesses * maxi(witness_heat, 0),
 			"max_alert": max_alert,
 			"bail": bail_total,
+			"purchases": purchases_paid,
 			"cash_before": cash_before,
-			"cash_after": HeistRules.cash_after(cash_before, paid, bail_total),
+			"cash_after": HeistRules.cash_after(cash_before, paid, bail_total, purchases_paid),
 			"strategy": strategy(roster),
 		}
 

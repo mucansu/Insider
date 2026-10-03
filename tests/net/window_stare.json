@@ -1,0 +1,24 @@
+{
+  "_doc": "US-044 vitrinden bakma: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn), sahip tezgâhta batıya bakıyor (ajanda tohumu 3). c1 kaldırımda WindowLook2 önünde (vitrin camının 16 px önü, sahibin konisinde ~181 px, cam görüşü geçirir) durur ve içeri bakar. İlk 6 sn serbest (yoldan geçen örtüsü), sonra şüphe yavaş dolar (çarpan 0,15): \"?\" → sahip vitrine döner; 60'ta sorgu: sahip ön kapıya yürür ve sorar (owner_question_window, \"Bir şey mi arıyorsun?\"), bağırmaz (vitrin satırı şüpheyi 90'da durdurur), uyarı ≤ 1; host'ta oyuncu tanındı (heist.recognized). Olaylar her peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 40,
+  "bots": {
+    "c1": "res://tests/net/bots/window_stare_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"has": ["*.owner.events", "owner_question_window"]},
+    {"lacks": ["*.owner.events", "owner_question"]},
+    {"lacks": ["*.owner.events", "owner_shout"]},
+    {"has": ["host.owner.window_questions", "$c1"]},
+    {"between": ["host.owner.peak.$c1", 60, 90.5]},
+    {"eq": ["host.owner.detections", []]},
+    {"between": ["*.alert.level", 0, 1]},
+    {"between": ["host.heist.recognized.$c1", 1, 3]},
+    {"all_equal": "owner.events"},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

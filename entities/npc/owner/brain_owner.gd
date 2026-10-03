@@ -46,6 +46,8 @@ signal discovered(source: int)
 ## Yalnız host (US-010; US-042 strateji etiketi "sosyal" kancası): oyuncu aracı başarıyla uygulandı. `kind`: &"buy",
 ## &"talk", &"send", &"distract" (sahibin duyup DİNLE'ye girdiği yeni dikkat dağıtmanın sorumlusu).
 signal social_action(peer_id: int, kind: StringName)
+## Yalnız host (US-044): vitrinden bakan oyuncu kapıdan sorgulandı (tanındı).
+signal recognized(peer_id: int)
 
 enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH, DISCOVER }
 ## Keşif kaynağı (US-039).
@@ -116,6 +118,10 @@ var phones_found: int = 0
 var distractions := CivilianRules.DistractionLog.new()
 ## İlk bağırış oldu mu (tezgâh istemleri gizlenir; çoğaltılır).
 var has_shouted: bool = false
+## OYALA söndürmeleri (döküm/test): [{"peer", "amount"}].
+var soothed: Array[Dictionary] = []
+## Vitrin sorguları (US-044; döküm/test): sorgulanan peer'lar sırayla.
+var window_questions: Array[int] = []
 
 ## Bileşenler (setup bağlar; okunur).
 var body: CharacterBody2D = null
@@ -144,6 +150,11 @@ var _loiter_said: Dictionary = {}
 var _sent_at: float = -1.0
 var _distraction_listen: bool = false
 var _listen_phone: Node2D = null
+## OYALA söndürmesi: peer -> kullanım sayısı; bu konuşma değerlendirildi mi (konuşan peer).
+var _soothes: Dictionary = {}
+var _soothed_talk: int = 0
+## Süren sorgu vitrin sorgusu mu (US-044; sorgulanan peer, yoksa 0).
+var _door_question: int = 0
 
 
 ## Bileşenleri bağlar (StoreOwner `_ready`'de, host'ta).
@@ -158,7 +169,8 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	_reaction = OwnerReaction.new(self)
 	perception.set_cone(civilian_tuning.half_angle_deg, civilian_tuning.view_range)
 	perception.set_hysteresis(civilian_tuning.hysteresis_angle_deg, civilian_tuning.hysteresis_range)
-	perception.factor_query = senses.factor_for
+	perception.factor_query = _factor_for
+	senses.track_window_stare = true  # US-044: vitrinden bakma yalnız sahibin bağlamında
 	suspicion.innocent_decay_per_sec = civilian_tuning.innocent_decay_per_sec
 	suspicion.threshold_reached.connect(_on_threshold)
 	agenda.setup(owner_tuning.tasks, agenda_seed, senses.marker_positions)
@@ -220,6 +232,8 @@ func step(delta: float) -> Vector2:
 		return _discover_step()
 	if fsm.state == State.AGENDA:
 		return _agenda_step(delta, level)
+	if (fsm.state == State.LOOK or fsm.state == State.QUESTION) and _soothe_step():
+		return Vector2.ZERO
 	_end_talk()
 	return _reaction.step(delta, level)
 
@@ -518,6 +532,68 @@ func _end_talk() -> void:
 	_talking = 0
 
 
+## Algının çarpan sorgusu: sivil tablo; vitrinden bakma satırı (US-044) şüpheyi `outside_stare_cap`'te durdurur
+## (bağırmaz, yalnız sorar).
+func _factor_for(target: Node) -> float:
+	var f: float = senses.factor_for(target)
+	if f <= 0.0 or senses.behaviour_for(target) != CivilianRules.Behaviour.WINDOW_STARE:
+		return f
+	var cap: float = civilian_tuning.outside_stare_cap
+	return 0.0 if suspicion.value_of(target.get_multiplayer_authority()) >= cap else f
+
+
+## Sorgu noktası: vitrinden bakan (dışarıda) oyuncuya sahip ön kapıya yürür (US-044); diğerlerinde son görülen konum.
+## Bir sorgu boyunca karar kalıcıdır (bakan bir an başını çevirse de sahip dışarı yürümez).
+func question_spot(peer_id: int) -> Vector2:
+	if _door_question == peer_id or is_window_starer(peer_id):
+		var door: Vector2 = senses.marker_position(owner_tuning.front_door_marker)
+		if door.is_finite():
+			_door_question = peer_id
+			return door
+	return seen_at(peer_id)
+
+
+## Oyuncu dışarıda vitrinden bakıyor mu (US-044; bağlamın vitrin süresi > 0).
+func is_window_starer(peer_id: int) -> bool:
+	var player: Node2D = senses.player(peer_id)
+	if player == null or senses.window_stare_of(peer_id) <= 0.0:
+		return false
+	return senses.zone_of(CivilianSenses.position_of(player)) == CivilianRules.Zone.OUTSIDE
+
+
+## Sorgu anı (OwnerReaction): vitrinden bakana "Bir şey mi arıyorsun?" (tanındı), diğerlerine "Ne yapıyorsun?".
+func ask(peer_id: int) -> void:
+	if _door_question == peer_id:
+		window_questions.append(peer_id)
+		event(&"owner_question_window", peer_id)
+		recognized.emit(peer_id)
+	else:
+		event(&"owner_question", peer_id)
+
+
+## OYALA söndürmesi (GDD §9.3, US-010 izi): BAK/SORGU'daki sahiple konuşma başlayınca o oyuncunun sayacına göre
+## şüphesi düşer (40 / 20 / 0), sahip omuz silker ve ajandada konuşmaya geçer (true). Sayaç tükenmişse ("bir daha
+## tutmaz") `owner_soothe_refused` ve konuşma kesilir (false). Bir konuşma bir kez değerlendirilir.
+func _soothe_step() -> bool:
+	var talker: int = talk_item.busy_by if talk_item != null else 0
+	if talker == 0:
+		_soothed_talk = 0
+		return false
+	if _soothed_talk == talker:
+		return false
+	_soothed_talk = talker
+	var uses: int = int(_soothes.get(talker, 0))
+	_soothes[talker] = uses + 1
+	var amount: float = CivilianRules.soothe_amount(uses, tools.talk_soothe_steps)
+	if amount <= 0.0:
+		event(&"owner_soothe_refused", talker)
+		return false
+	suspicion.apply_delta(talker, -amount)
+	soothed.append({"peer": talker, "amount": amount})
+	shrug()
+	return true
+
+
 ## Şu an konuşulan oyuncu (0 = yok).
 func talking_to() -> int:
 	return _talking
@@ -571,6 +647,7 @@ func shout(peer_id: int, late: bool) -> void:
 func back_to_agenda(check_backroom: bool = false) -> void:
 	suspicion.latch_level = Suspicion.Level.CALM
 	target = 0
+	_door_question = 0
 	_reaction.reset()
 	fsm.go(State.AGENDA)
 	agenda.restart_home()

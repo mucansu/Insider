@@ -249,6 +249,14 @@ func _open(door: Node2D, here: Vector2) -> void:
 	_door = null
 
 
+## Gezinme ağında `point`a en yakın nokta (harita yoksa `point`; US-043 yanlış yöne koşu hedefi).
+func closest_reachable(point: Vector2) -> Vector2:
+	var map: RID = _map()
+	if not map.is_valid() or not point.is_finite():
+		return point
+	return NavigationServer2D.map_get_closest_point(map, point)
+
+
 ## Yol uzunluğu (px).
 static func path_length(path: PackedVector2Array) -> float:
 	var total: float = 0.0

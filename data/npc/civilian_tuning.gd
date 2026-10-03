@@ -34,6 +34,18 @@ extends Resource
 ## (personel tarafı ve kasa satırları etkilenmez); 1 = örtü yok.
 @export_range(0.0, 1.0, 0.05) var cover_factor: float = 1.0
 
+@export_group("Vitrinden bakma")
+## US-044: dışarıda vitrinin `outside_stare_px` yakınında, bakışı vitrine dönük (kosinüs ≥ `outside_stare_dot`),
+## `outside_stare_max_speed`'den yavaş duran oyuncu; `outside_stare_grace_sec` sonrası çarpan `outside_stare_factor`
+## (yalnız sahibin bağlamı; sahip görüş hattı ve konisiyle camdan görmeli). Bu satırla şüphe `outside_stare_cap`'te
+## durur: sahip bağırmaz, kapıdan sorar.
+@export_range(0.0, 60.0, 0.5, "suffix:s") var outside_stare_grace_sec: float = 0.0
+@export_range(0.0, 5.0, 0.01) var outside_stare_factor: float = 0.0
+@export_range(0.0, 256.0, 1.0, "suffix:px") var outside_stare_px: float = 0.0
+@export_range(-1.0, 1.0, 0.05) var outside_stare_dot: float = 0.7
+@export_range(0.0, 500.0, 1.0, "suffix:px/s") var outside_stare_max_speed: float = 40.0
+@export_range(0.0, 100.0, 1.0) var outside_stare_cap: float = 90.0
+
 @export_group("Gösterge ve temas")
 ## "?" göstergesi eşiğin bu kadar altına inince söner (istemci, ON-04).
 @export_range(0.0, 50.0, 0.5) var bubble_hysteresis: float = 0.0
@@ -59,6 +71,8 @@ func rules_params(perception: PerceptionTuning) -> CivilianRules.Params:
 	p.innocent_decay = innocent_decay_per_sec
 	p.bubble_hysteresis = bubble_hysteresis
 	p.cover_factor = cover_factor
+	p.window_stare_grace = outside_stare_grace_sec
+	p.window_stare_factor = outside_stare_factor
 	if perception != null:
 		p.notice_at = perception.notice_threshold
 		p.detect_at = perception.detect_threshold

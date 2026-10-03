@@ -173,3 +173,8 @@ EVENT_PURCHASE,{name} alışveriş yaptı.,{name} bought something.
 EVENT_OWNER_SENT,Bakkal arka odaya gitti.,The grocer went to the back room.
 EVENT_OWNER_DISTRACTED,Bakkal sese yöneldi.,The grocer is checking a noise.
 EVENT_PHONE_FOUND,Bakkal telefonu buldu.,The grocer found the phone.
+INTERACT_MISDIRECT,O tarafa kaçtı! (yönlendir),He went that way! (misdirect)
+OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
+OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
+OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
+EVENT_MISDIRECT,{name} mahalleliyi yanlış yöne yolladı.,{name} sent the neighbours the wrong way.

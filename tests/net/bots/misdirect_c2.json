@@ -1,0 +1,14 @@
+{
+  "_doc": "misdirect.json c2 botu (US-043, örtüsü sağlam): sola hizalan, sağa ön kapı hizasına (x≈368), kaldırımda kapının önünde (y≈500, kapının 36 px güneyi) bekle — sahibin görüş menzili dışı, mahalleli onu kovalamaz (örtü sağlam). Mahalleli aramadan sonra ön kapıda beklerken (40. sn'den) birkaç kez E tutar (2,2 sn): ilk tutuş mahallelinin menzilindeyken YÖNLENDİR olur; sonrakiler iş başına 1 kuralıyla istem göstermez.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.2, "move": [0, 0]},
+    {"t": 38.0, "hold": "interact", "dur": 2.2},
+    {"t": 40.5, "hold": "interact", "dur": 2.2},
+    {"t": 43.0, "hold": "interact", "dur": 2.2},
+    {"t": 45.5, "hold": "interact", "dur": 2.2},
+    {"t": 48.0, "hold": "interact", "dur": 2.2}
+  ]
+}
