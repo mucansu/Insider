@@ -21,6 +21,7 @@ extends CharacterBody2D
 ## sight -> `report_suspicion`); a calm shove adds suspicion and turns it to LOOK (`OwnerBrain.on_pushed`); while it staggers the brain is
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
 ## Interactable completes: free, `rescued`, owner STAGGER - the existing rescue path).
+## IS-096: a `TaskGlyph` under `Visual` (created in `_ready` when active) draws the task badge from `net_state`/`net_task`.
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
@@ -142,6 +143,9 @@ func _ready() -> void:
 		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
 	_contact = NpcContact.attach(self, false, _perception, report_suspicion, _on_pushed)
+	var visual: Node2D = get_node_or_null(^"Visual") as Node2D
+	if visual != null:
+		TaskGlyph.attach(visual, self)  # IS-096: task glyph from replicated state (visual only)
 	net_position = position
 	facing = _perception.facing
 	net_facing = facing
