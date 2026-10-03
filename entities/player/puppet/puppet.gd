@@ -167,6 +167,20 @@ func marker_anchor() -> Vector2:
 	return Vector2(0.0, -tuning.marker_anchor_height)
 
 
+## Taşıma bağlantı noktaları (IS-085): iki elin dünya konumu (px), PuppetBody.hands sırasıyla [sol, sağ]. `rest`
+## true ise yürüme salınımı ve iş/sızma pozu olmadan duruş eli (hareket azaltma). Rig yoksa boş.
+func hand_points(rest: bool = false) -> PackedVector2Array:
+	var out: PackedVector2Array = []
+	if _rig == null:
+		return out
+	var hands: PackedVector2Array = _rig.hand_offsets() if not rest \
+		else PuppetBody.hands(_rig.face_direction(), 0.0, 0.0, _rig.width, false, false, 0.0)
+	var to_world: Transform2D = global_transform * _rig.body_transform()
+	for hand: Vector2 in hands:
+		out.append(to_world * hand)
+	return out
+
+
 ## Etkileşim rozeti son durumda çiziliyor mu.
 func shows_interaction() -> bool:
 	return _markers.shows_interaction()
