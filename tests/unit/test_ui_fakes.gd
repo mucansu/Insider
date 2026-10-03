@@ -125,6 +125,16 @@ class FakeGame extends FakeGameBase:
 	func venue_tier() -> int:
 		return tier
 
+	## US-038 kaçış yardımcıları: escape_point() (yoksa INF) ve escape_status() {"in_zone", "free"}.
+	var escape_at: Vector2 = Vector2.INF
+	var escape: Dictionary = {"in_zone": 0, "free": 0}
+
+	func escape_point() -> Vector2:
+		return escape_at
+
+	func escape_status() -> Dictionary:
+		return escape
+
 
 ## S3 + S3 eki + görüş eki (mimari.md, US-011b/c): maruziyet, oyuncu dünya konumu, host'un görüş kipi.
 class FakeVisionGame extends FakeGame:

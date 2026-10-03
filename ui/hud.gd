@@ -4,6 +4,7 @@ extends CanvasLayer
 ## etkileşim istemi ("[E] eylem", tuş adı etkin cihaza göre) ve ilerlemesi, duraklat menüsü. Game, seviye yüklenince Game.HUD_SCENE olarak ekler (S3).
 ## US-013: uyarı merdiveni (ui/alert_ladder.gd) ve iş sonu ekranı (ui/heist_end.gd), S3 ekinden.
 ## US-011c: maruziyet rozeti (ui/exposure_badge.gd) ve ekip işaretleri (ui/team_markers.gd), S3 eki (mimari.md, US-011b/c) üyelerinden.
+## US-038: kaçış paneli (ui/escape_panel.gd: hedef, polis sayacı, n/m) ve kaçış kenar oku (ui/escape_arrow.gd).
 ## Yalnız S1/S3 sinyal ve fonksiyonlarını, yerel oyuncunun S7 sinyallerini okur. Testler `net` ve
 ## `game`'i sahneye eklemeden önce sahte nesnelerle değiştirir; zaman `advance()` ile ilerletilebilir.
 
@@ -66,6 +67,8 @@ var _leaving: bool = false
 @onready var _heist_end: HeistEnd = %HeistEnd
 @onready var _exposure_badge: ExposureBadge = %ExposureBadge
 @onready var _team_markers: TeamMarkers = %TeamMarkers
+@onready var _escape_panel: EscapePanel = %EscapePanel
+@onready var _escape_arrow: EscapeArrow = %EscapeArrow
 
 
 func _ready() -> void:
@@ -93,9 +96,16 @@ func _ready() -> void:
 	_heist_end.menu_requested.connect(_on_leave_requested)
 	_heist_end.bind(game, net)
 	_exposure_badge.bind(game, net)
-	_team_markers.avoid = [$Root/Frame/Layout/Top/CashPanel as Control, $Root/Frame/Layout/Top/Right as Control,
-		_alert_ladder, _exposure_badge, _prompt, _interaction]
+	var blocks: Array[Control] = [$Root/Frame/Layout/Top/CashPanel as Control,
+		$Root/Frame/Layout/Top/Right as Control, _alert_ladder, _escape_panel, _exposure_badge, _prompt, _interaction]
+	_team_markers.avoid = blocks
 	_team_markers.bind(game, net)
+	# US-038: kaçış paneli polis sayacını büyük gösterir; merdivenin küçük sayacı yalnız panel yoksa.
+	_escape_panel.bind(game)
+	_alert_ladder.show_timer = not EscapePanel.supports(game)
+	_alert_ladder.refresh_timer()
+	_escape_arrow.avoid = blocks
+	_escape_arrow.bind(game)
 
 
 func _process(delta: float) -> void:
@@ -123,6 +133,8 @@ func advance(delta: float) -> void:
 	_tick_toasts(delta)
 	_alert_ladder.advance(delta)
 	_team_markers.advance(delta)
+	_escape_panel.advance(delta)
+	_escape_arrow.advance(delta)
 
 
 func toggle_pause() -> void:

@@ -151,14 +151,19 @@ func _draw() -> void:
 
 
 func _draw_arrow(center: Vector2, dir: Vector2, color: Color) -> void:
-	var side: Vector2 = dir.orthogonal() * ARROW_SIZE * 0.45
-	var tip: Vector2 = center + dir * ARROW_SIZE * 0.5
-	var back: Vector2 = center - dir * ARROW_SIZE * 0.5
-	var points := PackedVector2Array([tip, back + side, center - dir * ARROW_SIZE * 0.25, back - side])
+	draw_arrow(self, center, dir, color, ARROW_SIZE)
+
+
+## Kenar oku (ok ucu `dir` yönünde, zemin renginde dış çizgili); kaçış oku da kullanır (US-038).
+static func draw_arrow(canvas: CanvasItem, center: Vector2, dir: Vector2, color: Color, arrow_size: float) -> void:
+	var side: Vector2 = dir.orthogonal() * arrow_size * 0.45
+	var tip: Vector2 = center + dir * arrow_size * 0.5
+	var back: Vector2 = center - dir * arrow_size * 0.5
+	var points := PackedVector2Array([tip, back + side, center - dir * arrow_size * 0.25, back - side])
 	var outline: PackedVector2Array = points.duplicate()
 	outline.append(tip)
-	draw_polyline(outline, ThemeTokens.tone().bg_color, OUTLINE_WIDTH * 2.0, true)
-	draw_colored_polygon(points, color)
+	canvas.draw_polyline(outline, ThemeTokens.tone().bg_color, OUTLINE_WIDTH * 2.0, true)
+	canvas.draw_colored_polygon(points, color)
 
 
 func _to_screen(world: Vector2) -> Vector2:

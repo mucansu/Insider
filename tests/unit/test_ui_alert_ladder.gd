@@ -90,6 +90,13 @@ func test_level_transitions_follow_signal() -> void:
 
 func test_police_timer_only_at_level_three() -> void:
 	await _open(func() -> void: game.timer_left = 83.2)
+	# US-038: HUD'da sayaç kaçış panelinde (test_ui_escape.gd); merdivenin kendi sayacı panelsiz Game için kalır.
+	is_false(ladder.show_timer, "HUD kaçış paneli varken merdiven sayacı kapalı")
+	game.alert_level_changed.emit(3)
+	is_false(_timer().visible, "kademe 3, show_timer kapalı: merdivende sayaç yok")
+	game.alert_level_changed.emit(0)
+	ladder.show_timer = true
+	ladder.refresh_timer()
 	is_false(_timer().visible, "kademe 0: sayaç yok")
 	for level: int in [1, 2]:
 		game.alert_level_changed.emit(level)
@@ -167,7 +174,8 @@ func test_legibility() -> void:
 	for i: int in AlertLadder.LEVEL_MAX + 1:
 		var step: PanelContainer = _step(i)
 		is_true(step.size.x >= 22.0 and step.size.y >= 22.0, "kutu %d ≥ 22 px (%s)" % [i, step.size])
-	for label: Label in [ladder.get_node("%LevelLabel"), _timer()]:
+	var police: Label = (hud.get_node("%EscapePanel") as EscapePanel).police_label()
+	for label: Label in [ladder.get_node("%LevelLabel"), police]:
 		is_true(label.visible, "%s görünür" % label.name)
 		is_true(label.get_theme_font_size(&"font_size") >= ThemeTokens.FONT_SIZE_BODY, "%s ≥ 18 px" % label.name)
 	# Metin dışı öge ≥ 3:1: boş kutu çerçevesi kendi zemininde, dolu kutu panel zemininde.

@@ -28,6 +28,16 @@ const MAX_NOTES := 3
 const SWATCH_SIZE := Vector2(14, 14)
 ## Oyuncu adı sütunu genişliği; uzun ad üç noktayla kısalır.
 const NAME_WIDTH := 240.0
+## Yakalanma nedeni (US-038 AC5): oturum olaylarından (S3 eki `player_caught {peer, by}`, `police_arrived`) her
+## peer'da toplanır; olayla yakalanmayan (polis kaçış bölgesi dışında yakaladı) sonuç POLICE ise ya da polis
+## geldiyse polis sayılır. Metinler END_STATUS_CAUGHT_<NEDEN> (oyuncu satırı) ve END_CAUSE_<NEDEN> (yerel oyuncu).
+const CAUSE_POLICE := &"police"
+const CAUSE_CHASER := &"chaser"
+const CAUSE_OWNER := &"owner"
+const EVENT_CAUGHT := &"player_caught"
+const EVENT_POLICE := &"police_arrived"
+const STATUS_CAUGHT_PREFIX := "END_STATUS_CAUGHT_"
+const CAUSE_KEY_PREFIX := "END_CAUSE_"
 
 var net: Object = null
 var game: Object = null
@@ -35,9 +45,14 @@ var game: Object = null
 var warn: Callable
 
 var _result: Dictionary = {}
+## peer -> yakalayan (&"chaser" | &"owner"), `player_caught` olaylarından (ilk kayıt kalır).
+var _caught_by: Dictionary = {}
+## Bu seviyede `police_arrived` olayı görüldü mü.
+var _police_seen: bool = false
 
 @onready var _title: Label = %OutcomeTitle
 @onready var _outcome_note: Label = %OutcomeNote
+@onready var _cause_note: Label = %CauseNote
 @onready var _duration: Label = %DurationValue
 @onready var _payout_grid: GridContainer = %PayoutGrid
 @onready var _player_grid: GridContainer = %PlayerGrid
@@ -71,6 +86,8 @@ func bind(game_source: Object, net_source: Object) -> void:
 	net = net_source
 	if game == null:
 		return
+	if game.has_signal(&"session_event"):
+		game.connect(&"session_event", _on_session_event)
 	if game.has_signal(&"heist_finished"):
 		game.connect(&"heist_finished", show_result)
 	if game.has_method(&"heist_result"):
@@ -92,6 +109,7 @@ func show_result(value: Dictionary) -> void:
 	_fill_header()
 	_fill_payout()
 	_fill_players()
+	_fill_cause()
 	_fill_notes()
 	var host: bool = _is_host()
 	_retry_button.visible = host and can_restart()
@@ -198,7 +216,7 @@ func _fill_players() -> void:
 		var status_key: StringName = &"END_STATUS_INSIDE"
 		var status_style: StringName = &"MutedLabel"
 		if bool(p["caught"]):
-			status_key = &"END_STATUS_CAUGHT"
+			status_key = caught_status_key(cause_of(p))
 			status_style = &"AlertLabel"
 		elif bool(p["escaped"]):
 			status_key = &"END_STATUS_ESCAPED"
@@ -208,6 +226,53 @@ func _fill_players() -> void:
 		loot.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		loot.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		_player_grid.add_child(loot)
+
+
+## Yakalanma nedeni: yakalanmadıysa &""; olayda yakalayan (mahalleli/sahip) varsa o; yoksa sonuç POLICE ya da polis
+## geldiyse CAUSE_POLICE (kaçış bölgesi dışında kalan); bilinmiyorsa &"" (geç katılan, olayı görmedi).
+static func caught_cause(caught: bool, by: StringName, outcome_kind: StringName, police_seen: bool) -> StringName:
+	if not caught:
+		return &""
+	if by == CAUSE_CHASER or by == CAUSE_OWNER:
+		return by
+	if outcome_kind == CAUSE_POLICE or police_seen:
+		return CAUSE_POLICE
+	return &""
+
+
+## `player_entries()` satırının yakalanma nedeni.
+func cause_of(p: Dictionary) -> StringName:
+	return caught_cause(bool(p["caught"]), StringName(str(_caught_by.get(int(p["peer"]), ""))), outcome(), _police_seen)
+
+
+## Oyuncu satırının durum anahtarı: nedenli (END_STATUS_CAUGHT_<NEDEN>) ya da genel END_STATUS_CAUGHT.
+static func caught_status_key(cause: StringName) -> StringName:
+	return &"END_STATUS_CAUGHT" if cause == &"" else StringName(STATUS_CAUGHT_PREFIX + String(cause).to_upper())
+
+
+## Yerel oyuncu yakalandıysa nedeninin açıklaması (END_CAUSE_<NEDEN>); değilse ya da neden bilinmiyorsa boş.
+func local_cause_text() -> String:
+	var local_id: int = int(net.call(&"local_peer_id")) if net != null else 0
+	for p: Dictionary in player_entries():
+		if int(p["peer"]) != local_id:
+			continue
+		var cause: StringName = cause_of(p)
+		return "" if cause == &"" else tr(CAUSE_KEY_PREFIX + String(cause).to_upper())
+	return ""
+
+
+func _fill_cause() -> void:
+	_cause_note.text = local_cause_text()
+	_cause_note.visible = not _cause_note.text.is_empty()
+
+
+func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if kind == EVENT_POLICE:
+		_police_seen = true
+	elif kind == EVENT_CAUGHT and typeof(data.get("peer")) == TYPE_INT:
+		var peer: int = int(data["peer"])
+		if not _caught_by.has(peer):
+			_caught_by[peer] = StringName(str(data.get("by", "")))
 
 
 func _player_name(p: Dictionary, local_id: int) -> String:

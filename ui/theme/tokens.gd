@@ -76,6 +76,9 @@ const SCREEN_MARGIN := 20
 # --- oyun için anlamlı renkler (her tonda aynı) ---
 const GAMEPLAY_ALERT := Color("#d8453a")
 const GAMEPLAY_CASH := Color("#58b368")
+## Kaçış noktası (US-038): dünya işareti, HUD kenar oku ve kaçış satırları. Sarı: nakit yeşili, uyarı kırmızısı ve
+## oyuncu renklerinden ayrık; noir zemininde (BG) yüksek kontrast.
+const GAMEPLAY_ESCAPE := Color("#e9dd4f")
 
 # --- görüş sisi (US-011a; GDD §6.5): karo tonları, levels/fog/fog_layer ---
 ## Sis tonu = BG + alfa ile üstüne bindirme; doygunluk çarpanı alttaki görüntüye önce uygulanır.

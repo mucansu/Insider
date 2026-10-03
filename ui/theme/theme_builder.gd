@@ -2,10 +2,11 @@ class_name ThemeBuilder
 extends RefCounted
 ## Bir `Tone`'dan Godot `Theme`'i kurar (S9). Çıktı deterministiktir; build_themes.gd bunu
 ## ui/theme/<id>.tres olarak kaydeder, test_ui_theme.gd kayıtlı dosyanın güncel olduğunu doğrular.
-## Oyun için anlamlı renkler (CashLabel, AlertLabel, AlertPanel) tondan değil ThemeTokens.GAMEPLAY_*'dan gelir.
+## Oyun için anlamlı renkler (CashLabel, AlertLabel, AlertPanel, EscapeLabel) tondan değil ThemeTokens.GAMEPLAY_*'dan gelir.
 ##
 ## Tür varyasyonları (sahnelerde `theme_type_variation`):
-##   Label: TitleLabel, AlertTitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel
+##   Label: TitleLabel, AlertTitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel,
+##          EscapeLabel
 ##   Button: PrimaryButton · HSeparator: AccentSeparator · MarginContainer: HudFrame
 ##   PanelContainer: CardPanel, HudPanel, HudChip, ToastPanel, AlertPanel, LadderStep, LadderStepActive
 ##   Panel: BackgroundPanel, DimPanel · VBoxContainer: LooseVBox · HBoxContainer: LooseHBox
@@ -65,6 +66,10 @@ static func _labels(t: Theme, tone: Tone) -> void:
 	_variation(t, &"CashLabel", &"Label")
 	t.set_font_size(&"font_size", &"CashLabel", tone.font_size_heading)
 	t.set_color(&"font_color", &"CashLabel", ThemeTokens.GAMEPLAY_CASH)
+	# Kaçış hedefi (US-038 HUD kaçış satırı): başlık boyu, kaçış renginde.
+	_variation(t, &"EscapeLabel", &"Label")
+	t.set_font_size(&"font_size", &"EscapeLabel", tone.font_size_heading)
+	t.set_color(&"font_color", &"EscapeLabel", ThemeTokens.GAMEPLAY_ESCAPE)
 
 
 static func _buttons(t: Theme, tone: Tone) -> void:
