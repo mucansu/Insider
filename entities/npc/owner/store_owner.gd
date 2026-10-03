@@ -11,13 +11,18 @@ extends CharacterBody2D
 ## değişince güvenilir. Sonuç olayları (`owner_question`, `owner_shrug`, `owner_shout`, `owner_held`,
 ## `owner_stagger`; AC10) güvenilir RPC ile her peer'da aynı sırada sinyal olur. İstemci konumu yumuşatarak izler.
 ## Döküm (S6, `--dump`): "owner" = {state, task, alarmed, events, event_peers, bubbles} + host'ta {detections,
-## peak, agenda, states, rescues}.
+## peak, agenda, states, rescues, discoveries, serves, register_opens}.
+## US-016/US-039 ekleri: servis kancası ve müşteri API'si (`serve_customer(id)`, `serve_state`, `door_bell`), keşif
+## olayları `owner_discover_register` / `owner_discover_cash` (balon; AC8) ve host API `discover(source)`.
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
 signal owner_shout(peer_id: int)
 signal owner_held(peer_id: int)
 signal owner_stagger(peer_id: int)
+## US-039 AC8: keşif balonu (peer her zaman 0).
+signal owner_discover_register(peer_id: int)
+signal owner_discover_cash(peer_id: int)
 ## Her peer'da: görev değişti (çoğaltılan; görev ikonu US-011).
 signal task_changed(task_name: StringName)
 
@@ -25,7 +30,7 @@ const OWNER_TUNING_PATH := "res://data/npc/owner_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
 const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
-	&"owner_stagger"]
+	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash"]
 ## İstemci yumuşatması (1/sn) ve sıçrama eşiği (px).
 const SMOOTHING := 14.0
 const SNAP_PX := 96.0
@@ -39,6 +44,8 @@ const MAX_EVENTS := 128
 @export var auto_step: bool = true
 ## false: sahip yok sayılır (gizli, çarpışmasız, işlemez; NPC'siz etkileşim senaryoları için fikstür).
 @export var active: bool = true
+## ≥ 0 ise ajanda tohumu ayar dosyası yerine bu (test fikstürü: ör. ilk pencere görevi arka oda; US-039).
+@export var agenda_seed_override: int = -1
 
 ## Çoğaltılan durum (host yazar).
 var net_position: Vector2 = Vector2.ZERO
@@ -145,9 +152,35 @@ func apply_suspicion(peer_id: int, delta: float) -> void:
 	_suspicion.apply_delta(peer_id, delta)
 
 
-## Host API (US-016): müşteri kuyrukta.
-func serve_customer() -> bool:
-	return _brain.serve_customer() if _is_host() else false
+## Host API (US-016 AC5): tanık sivil söyledi — o oyuncuya şüphe `delta`; `where` (tanığın gördüğü yer, sonlu
+## ise) sahibin son görülen konumu olur (sorgu oraya yürür).
+func report_suspicion(peer_id: int, delta: float, where: Vector2 = Vector2.INF) -> void:
+	if not _is_host() or not active or peer_id == 0:
+		return
+	_suspicion.apply_delta(peer_id, delta)
+	if where.is_finite():
+		_suspicion.hint_position(peer_id, where)
+
+
+## Host API (US-016): müşteri kuyrukta (kabul edilirse true; aynı müşterinin süren servisi de true).
+func serve_customer(customer_id: int = 0) -> bool:
+	return _brain.serve_customer(customer_id) if _is_host() and active else false
+
+
+## Host API (US-016): müşterinin servis durumu (OwnerBrain.Serve).
+func serve_state(customer_id: int) -> int:
+	return _brain.serve_state(customer_id) if _is_host() and active else OwnerBrain.Serve.NONE
+
+
+## Host API (US-016): müşteri ön kapıdan geçti (zil).
+func door_bell(door_pos: Vector2) -> void:
+	if _is_host() and active:
+		_brain.door_bell(door_pos)
+
+
+## Host API (US-039): soygunu fark et (OwnerBrain.Source).
+func discover(source: int) -> bool:
+	return _brain.discover(source) if _is_host() and active else false
 
 
 ## Host API (US-010): "arkada X var mı?".
@@ -163,7 +196,7 @@ func reset_loiter(peer_id: int) -> void:
 ## Ajandanın tohumu (host; tek nokta). Şimdilik veriden (owner_tuning.agenda_seed); oturum tohumu
 ## (`Game.session_seed()`, `--seed=`) gelince onunla birleştirilir (IS-058).
 func agenda_seed() -> int:
-	return owner_tuning.agenda_seed
+	return agenda_seed_override if agenda_seed_override >= 0 else owner_tuning.agenda_seed
 
 
 ## Görselin konisi: yarım açı (derece; görev daraltıyorsa o) ve menzil (px).
@@ -210,6 +243,11 @@ func _rpc_event(kind: StringName, peer_id: int) -> void:
 	emit_signal(kind, peer_id)
 
 
+## Bu peer'da görülen sonuç olayları (sırayla; en fazla MAX_EVENTS).
+func events() -> Array[StringName]:
+	return _events.duplicate()
+
+
 func dump_state() -> Dictionary:
 	var out := {
 		"state": OwnerBrain.STATE_NAMES[clampi(net_state, 0, OwnerBrain.STATE_NAMES.size() - 1)],
@@ -233,6 +271,9 @@ func dump_state() -> Dictionary:
 		out["rescues"] = _brain.rescues.duplicate(true)
 		out["shout_noises"] = _brain.shout_noises
 		out["agenda_noises"] = _brain.agenda_noises.duplicate()
+		out["discoveries"] = _brain.discoveries.duplicate(true)
+		out["serves"] = _brain.serves_done
+		out["register_opens"] = _brain.register_opens
 	return out
 
 

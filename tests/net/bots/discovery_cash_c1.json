@@ -1,0 +1,22 @@
+{
+  "_doc": "discovery_cash.json c1 botu (US-039 AC10 ii): sola sınır duvarına hizalan, kaldırımdan doğuya yan sokağa (x≈768) yürü, ara sokağa (y≈48) çık, batıya arka kapının önüne (x≈656) gel, güneye in ve kapıyı aç; arka odaya gir (y≈176), batıya nakit köşesine (x≈496) yürü, güneye bir adım, çantayı al (2 sn tut), aynı yoldan ara sokağa çık ve batıya (x≈448) yürüyüp bekle (arka odadan görünmez).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 6.771, "move": [0, -1]},
+    {"t": 10.2, "move": [-1, 0]},
+    {"t": 11.0, "move": [0, 1]},
+    {"t": 11.229, "move": [0, 0]},
+    {"t": 11.4, "press": "interact"},
+    {"t": 11.8, "move": [0, 1]},
+    {"t": 12.486, "move": [-1, 0]},
+    {"t": 13.629, "move": [0, 1]},
+    {"t": 13.858, "move": [0, 0]},
+    {"t": 14.0, "hold": "interact", "dur": 2.4},
+    {"t": 16.5, "move": [0, -1]},
+    {"t": 16.729, "move": [1, 0]},
+    {"t": 17.872, "move": [0, -1]},
+    {"t": 18.786, "move": [-1, 0]},
+    {"t": 20.272, "move": [0, 0]}
+  ]
+}

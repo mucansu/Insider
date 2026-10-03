@@ -23,6 +23,8 @@ const SWATCH_SIZE := Vector2(10, 10)
 const PLAYER_NAME_MAX_WIDTH := 170.0
 ## Oturum olayı anahtarı: EVENT_<KIND> (ör. &"police_called" → EVENT_POLICE_CALLED).
 const EVENT_KEY_PREFIX := "EVENT_"
+## Kalıp dışı olay metni anahtarları (tür -> anahtar).
+const EVENT_KEY_OVERRIDES := {&"owner_discover": "EVENT_OWNER_DISCOVERED"}
 ## Bildirim gösterilmeyen olaylar: başka HUD öğesi zaten gösterir (alert_level → uyarı merdiveni, US-013).
 const SILENT_EVENTS: Array[StringName] = [&"alert_level"]
 ## Olay verisinde oyuncuyu belirten alan (S3 eki, US-008: player_held/caught/rescued {peer}); metne {name} olarak girer.
@@ -244,8 +246,11 @@ func event_text(kind: StringName, data: Dictionary) -> String:
 	return text.format(fields) if not fields.is_empty() else text
 
 
-## Olay türünün HUD metin anahtarı (S9): &"player_held" → "EVENT_PLAYER_HELD".
+## Olay türünün HUD metin anahtarı (S9): &"player_held" → "EVENT_PLAYER_HELD"; kalıba uymayan anahtar
+## EVENT_KEY_OVERRIDES'tan (US-039: &"owner_discover" → "EVENT_OWNER_DISCOVERED").
 static func event_key(kind: StringName) -> String:
+	if EVENT_KEY_OVERRIDES.has(kind):
+		return str(EVENT_KEY_OVERRIDES[kind])
 	return EVENT_KEY_PREFIX + String(kind).to_upper()
 
 

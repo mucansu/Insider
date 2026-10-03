@@ -10,8 +10,21 @@ extends Node
 ## GÖNDERİLDİ > MÜŞTERİ > DİNLE > ZİL; düşük öncelikli kesme yüksek olanı kesmez, eşit olan yeniler. Kapı zili
 ## `bell_interrupts = false` görevi (telefon) kesmez.
 ## Belirlenimcilik (I6): aynı görev listesi + tohum + aynı varış anları → aynı görev dizisi (`sequence`).
+##
+## Lineer rota kipi (US-016; oyun-yz tur 2 #12): `setup_route(tasks, …)` görevleri verilen sırayla birer kez
+## işletir (müşteri: kapı → raf noktaları → kuyruk → kapı; yoldan geçen: sokak noktaları + cam önü bakışları),
+## son görev bitince `finished` yayar ve durur. Süresi 0 olan görev ara noktadır (varınca sıradakine geçer).
+## Nokta rezervasyonu ajandada değil, çağıranda (`SpotRegistry`); rota görevleri tam işaret adı taşır. Kesmeler ve
+## `advance()` (süren görevi bitir) rota kipinde de çalışır. Ev ↔ uzak kipi (sahip) değişmez.
+## US-039 ekleri: `begin_task(ad)` adlı görevi hemen başlatır (alarm sonrası arka oda kontrolü), `arrived_for()` /
+## `interrupt_elapsed()` varıştan beri geçen süre, `interrupt_ended(kind, completed)` kesme bitti (süre doldu ya da
+## bırakıldı; servis sonucu).
 
 signal task_changed(task_name: StringName)
+## Rota kipi: son görev bitti.
+signal finished()
+## Kesme bitti: `completed` = süresi doldu (false: bırakıldı/yeniden başlatıldı).
+signal interrupt_ended(kind: Interrupt, completed: bool)
 
 enum Interrupt { NONE, BELL, LISTEN, CUSTOMER, SENT }
 
@@ -41,6 +54,12 @@ var _int_arrived: bool = false
 ## Ajanda sesi (US-011b): o anki görevin temposu (görev değişince yeniden kurulur).
 var _noise_task: AgendaTask = null
 var _noise_cadence: NoiseRules.Cadence = null
+## Lineer rota kipi (US-016): sıradaki görev indisi; -1 = ev ↔ uzak kipi.
+var _route_index: int = -1
+var _route_done: bool = false
+## Varıştan beri geçen süre: görev ve kesme (US-039).
+var _arrived_time: float = 0.0
+var _int_elapsed: float = 0.0
 
 
 ## Listeyi ve tohumu kurar, ev görevinden başlar. `resolver`: func(marker) -> Array[Vector2].
@@ -50,8 +69,72 @@ func setup(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable) -> vo
 	_rng.seed = agenda_seed
 	_last_away = null
 	_interrupt = Interrupt.NONE
+	_route_index = -1
+	_route_done = false
 	sequence.clear()
 	_begin(_home())
+
+
+## Lineer rota kipi: görevler sırayla birer kez; son görev bitince `finished`. Tohum yalnız süre aralığı içindir.
+func setup_route(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable) -> void:
+	_tasks = tasks.duplicate()
+	_resolver = resolver
+	_rng.seed = agenda_seed
+	_last_away = null
+	_interrupt = Interrupt.NONE
+	_route_index = -1
+	_route_done = false
+	sequence.clear()
+	_advance_route()
+
+
+## Rota kipinde mi.
+func is_route() -> bool:
+	return _route_index >= 0 or _route_done
+
+
+## Rota bitti mi (rota kipi değilse false).
+func is_finished() -> bool:
+	return _route_done
+
+
+## Rota indisi (sıradaki görevin listedeki yeri; rota değilse -1).
+func route_index() -> int:
+	return _route_index
+
+
+## Süren görevi şimdi bitirir: rota kipinde sıradakine, değilse ajandanın sıradaki görevine geçer (kesme sürer).
+func advance() -> void:
+	if _route_index >= 0:
+		_advance_route()
+	elif _task != null:
+		_begin(_next())
+
+
+## Adlı görevi hemen başlatır (kesme bırakılır; ev ↔ uzak sırası sürer). Yoksa false.
+func begin_task(task_name: StringName) -> bool:
+	for t: AgendaTask in _tasks:
+		if t != null and t.name == task_name:
+			if _interrupt != Interrupt.NONE:
+				_end_interrupt(false)
+			_begin(t)
+			return true
+	return false
+
+
+## Görev noktasına varıştan beri geçen süre (varılmadıysa 0; kesmede kesmeninki).
+func arrived_for() -> float:
+	return _int_elapsed if _interrupt != Interrupt.NONE else _arrived_time
+
+
+## Kesmenin sayılan süresi (varınca başlayan kesmede varıştan beri; kesme yoksa 0).
+func interrupt_elapsed() -> float:
+	return _int_elapsed if _interrupt != Interrupt.NONE else 0.0
+
+
+## Göreve varıldı mı (kesmede kesmenin noktasına).
+func has_arrived() -> bool:
+	return _int_arrived if _interrupt != Interrupt.NONE else _arrived
 
 
 ## Bir adım: `at_goal` = NPC hedefe vardı (ya da gidemiyor: beyin donmasın diye vardı sayar, I7).
@@ -62,8 +145,9 @@ func step(delta: float, at_goal: bool) -> void:
 			_int_arrived = true
 		if not _int_on_arrival or _int_arrived:
 			_int_left -= dt
+			_int_elapsed += dt
 		if _int_left <= 0.0:
-			_end_interrupt()
+			_end_interrupt(true)
 		return
 	if _task == null:
 		return
@@ -71,8 +155,12 @@ func step(delta: float, at_goal: bool) -> void:
 		_arrived = true
 	if _arrived:
 		_time_left -= dt
+		_arrived_time += dt
 		if _time_left <= 0.0:
-			_begin(_next())
+			if _route_index >= 0:
+				_advance_route()
+			else:
+				_begin(_next())
 
 
 ## Bu adımda çıkan ajanda sesi (US-011b; görev noktasına varılmış, kesme yok, görevde `noise_kind` varsa
@@ -148,6 +236,7 @@ func interrupt(kind: Interrupt, duration: float, spot: Vector2 = Vector2.INF, lo
 	_int_look = look_at
 	_int_on_arrival = count_on_arrival
 	_int_arrived = false
+	_int_elapsed = 0.0
 	_note(before)
 	return true
 
@@ -155,29 +244,48 @@ func interrupt(kind: Interrupt, duration: float, spot: Vector2 = Vector2.INF, lo
 ## Süren kesmeyi bırakır; görev kaldığı yerden sürer.
 func cancel_interrupt() -> void:
 	if _interrupt != Interrupt.NONE:
-		_end_interrupt()
+		_end_interrupt(false)
 
 
-## Ajandayı ev görevinden yeniden başlatır (alarm sonrası dönüş); tohum dizisi sürer.
+## Ajandayı ev görevinden yeniden başlatır (alarm sonrası dönüş); tohum dizisi sürer. Süren kesme bırakılmış sayılır.
 func restart_home() -> void:
-	_interrupt = Interrupt.NONE
+	if _interrupt != Interrupt.NONE:
+		var kind: Interrupt = _interrupt
+		_interrupt = Interrupt.NONE
+		_int_elapsed = 0.0
+		interrupt_ended.emit(kind, false)
 	_begin(_home())
 
 
-func _end_interrupt() -> void:
+func _end_interrupt(completed: bool) -> void:
 	var before: StringName = task_name()
+	var kind: Interrupt = _interrupt
 	_interrupt = Interrupt.NONE
+	_int_elapsed = 0.0
 	_int_left = 0.0
 	_int_spot = Vector2.INF
 	_int_look = Vector2.INF
 	_arrived = false  # görev noktasına geri yürür; kalan süre korunur
 	_note(before)
+	interrupt_ended.emit(kind, completed)
+
+
+func _advance_route() -> void:
+	_route_index += 1
+	if _route_index >= _tasks.size():
+		_route_index = -1
+		_route_done = true
+		_begin(null)
+		finished.emit()
+		return
+	_begin(_tasks[_route_index])
 
 
 func _begin(task: AgendaTask) -> void:
 	var before: StringName = task_name()
 	_task = task
 	_arrived = false
+	_arrived_time = 0.0
 	_spot = Vector2.INF
 	_time_left = 0.0
 	if task == null:

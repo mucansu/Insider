@@ -57,6 +57,7 @@ EVENT_SHOUT,Biri bağırdı.,Someone shouted.
 EVENT_PLAYER_HELD,{name} tutuldu! Kurtarın.,{name} is being held! Get them out.
 EVENT_PLAYER_CAUGHT,{name} yakalandı.,{name} got caught.
 EVENT_PLAYER_RESCUED,{name} kurtarıldı.,{name} was pulled free.
+EVENT_OWNER_DISCOVERED,Bakkal soyulduğunu fark etti.,The grocer noticed the robbery.
 PAUSE_TITLE,Menü,Menu
 PAUSE_NOTE,Oyun arkada sürüyor; ekip seni bekliyor olabilir.,The game keeps running; your crew may be waiting.
 PAUSE_RESUME,Devam,Resume
@@ -131,3 +132,7 @@ OWNER_QUESTION,Ne yapıyorsun orada?,What are you doing back there?
 OWNER_SHRUG,Neyse… bir şey yok herhalde.,Huh… never mind.
 OWNER_SHOUT,Hırsız var! Yetişin!,Thief! Somebody help!
 OWNER_HELD,Yakaladım seni!,Got you!
+OWNER_DISCOVER_REGISTER,Kasa boş?!,The till is empty?!
+OWNER_DISCOVER_CASH,Para nerede?!,Where is the money?!
+CIVILIAN_TELL,Şu adam bir iş çeviriyor!,That one is up to something!
+CIVILIAN_FLEE,Ben karışmam!,Not my business!

@@ -9,6 +9,9 @@ extends RefCounted
 ##   etkileşimi (tut sürerken); bağırıştan sonra herkes. Dışarıda (sokak) yalnız kilit/çanta/kasa ve bağırış
 ##   satırları işler. Dolum = taban × bant × çarpan (PerceptionRules), boşalma görünmeyince `decay` (tuning),
 ##   görünüp masumken (çarpan 0) `innocent_decay`.
+## - Örtü (US-016 AC6, GDD §9.2): içeride ≥ 1 müşteri varken (`Context.customers_inside`, yalnız sahibin bağlamı
+##   doldurur) müşteri bölgesindeki hedefin çarpanı ×`cover_factor` (dikkat bölünür); personel tarafı ve kasa
+##   satırları etkilenmez.
 ## - Tepki göstergesi ("?"/"!"): istemcide çoğaltılan ölçerden eşikle türetilir (ON-04); "?" histerezisli,
 ##   "!" beyin alarm durumundayken kilitli (tespit sonrası kısa saklanmada titremez).
 ## - Temas (tutma/yakalama): host'un en güncel konumu `velocity × min(RTT/2, lead_cap)` ileri alınır (ON-03,
@@ -47,6 +50,8 @@ class Params:
 	var notice_at: float = 0.0
 	var detect_at: float = 0.0
 	var bubble_hysteresis: float = 0.0
+	## Örtü çarpanı (US-016): içeride müşteri varken müşteri bölgesi satırları; 1 = örtü yok.
+	var cover_factor: float = 1.0
 
 
 ## Bir hedefin bu adımdaki durumu.
@@ -59,6 +64,8 @@ class Context:
 	var alert_level: int = 0
 	## Dükkân içinde geçirilen toplam süre (sn; SATIN AL sıfırlar, US-010).
 	var loiter_time: float = 0.0
+	## İçerideki müşteri sayısı (US-016 örtü; yalnız sahibin bağlamı doldurur).
+	var customers_inside: int = 0
 
 
 static func is_inside(zone: Zone) -> bool:
@@ -67,7 +74,14 @@ static func is_inside(zone: Zone) -> bool:
 
 ## En şüpheli davranışın çarpanı (çarpılmaz, en büyüğü).
 static func factor(p: Params, ctx: Context) -> float:
-	return factor_of(p, behaviour(p, ctx))
+	var b: Behaviour = behaviour(p, ctx)
+	var f: float = factor_of(p, b)
+	return f * p.cover_factor if covered(ctx, b) else f
+
+
+## Örtü uygulanır mı (US-016 AC6): içeride müşteri var, hedef müşteri bölgesinde, satır personel/kasa değil.
+static func covered(ctx: Context, b: Behaviour) -> bool:
+	return ctx.customers_inside > 0 and ctx.zone == Zone.CUSTOMER and b != Behaviour.STAFF_SIDE 		and b != Behaviour.CASH
 
 
 ## Çarpanı veren satır: aday satırlardan çarpanı en büyük olan (eşitlikte tablodaki sonraki).

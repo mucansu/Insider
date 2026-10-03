@@ -39,9 +39,25 @@ extends Resource
 @export_range(0.0, 2048.0, 1.0, "suffix:px") var shout_radius: float = 0.0
 @export_range(0.0, 60.0, 0.1, "suffix:s") var shout_repeat_sec: float = 0.0
 @export_range(0.0, 600.0, 1.0, "suffix:s") var calm_after_sec: float = 0.0
-## Arka oda nakdi alınmışsa sakinleştikten bu kadar sonra yeniden bağırır (+1 komşu).
-@export_range(0.0, 600.0, 1.0, "suffix:s") var recheck_shout_sec: float = 0.0
+## Arka oda nakdinin işareti (US-039 keşif: çanta yerinden oynamış mı).
 @export var cash_marker: StringName = &""
+
+@export_group("Servis ve keşif")
+## Müşteri servisinde bakış yönü (global; GDD §9.2: batıya döner) ve "kasa açılır" anı (servisin kaçıncı sn'si;
+## US-039 satış tetiği, US-010 SATIN AL aynı kancayı kullanır).
+@export var serve_facing: Vector2 = Vector2.ZERO
+@export_range(0.0, 60.0, 0.1, "suffix:s") var register_open_sec: float = 0.0
+## Kasanın işareti (keşif: kasa `emptied`).
+@export var register_marker: StringName = &""
+## Keşif (US-039 AC4): DISCOVER durumu süresi (sn; durur, balon), sonra bağırış akışı.
+@export_range(0.0, 10.0, 0.05, "suffix:s") var discover_sec: float = 0.0
+## Arka oda tetiği (AC2): arka oda görevine (ya da gönderilmeye) varıştan bu kadar sonra nakit kontrolü (sn).
+@export_range(0.0, 30.0, 0.1, "suffix:s") var backroom_check_sec: float = 0.0
+## Arka oda görevinin adı (AgendaTask.name; sakinleşince ilk göreve zorlanır, AC6).
+@export var backroom_task: StringName = &""
+## Boşta tetiği (AC3): kasa boşken ve içeride müşteri yokken tezgâhta (ClerkSpot, ev görevi) geçen toplam süre (sn;
+## 0 = kapalı).
+@export_range(0.0, 600.0, 1.0, "suffix:s") var idle_discover_sec: float = 0.0
 
 @export_group("Tutma")
 ## Kovalama hızı (px/sn); tutma penceresi ilk / sonraki (sn); kurtarılınca sendeleme (sn) ve kurtarana şüphe.

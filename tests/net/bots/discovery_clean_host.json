@@ -1,0 +1,8 @@
+{
+  "_doc": "discovery_clean.json host botu: doğma noktasından caddeye in (y≈576) ve doğuya kaçış bölgesine (x≈860) yürüyüp bekle.",
+  "steps": [
+    {"t": 0.2, "move": [0, 1]},
+    {"t": 0.543, "move": [1, 0]},
+    {"t": 5.886, "move": [0, 0]}
+  ]
+}

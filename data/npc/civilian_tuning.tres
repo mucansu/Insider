@@ -18,6 +18,7 @@ cash_factor = 2.5
 alarm_factor = 2.5
 alarm_level = 2
 innocent_decay_per_sec = 10.0
+cover_factor = 0.5
 bubble_hysteresis = 5.0
 contact_reach = 28.0
 contact_time = 0.5

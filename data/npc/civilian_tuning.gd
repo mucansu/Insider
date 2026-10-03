@@ -30,6 +30,9 @@ extends Resource
 @export_range(0, 5) var alarm_level: int = 0
 ## Görünüp masumken (çarpan 0) boşalma (birim/sn); görünmeyince perception_tuning.decay_per_sec.
 @export_range(0.0, 1000.0, 0.5, "suffix:/s") var innocent_decay_per_sec: float = 0.0
+## Örtü (US-016, GDD §9.2): içeride ≥ 1 müşteri varken sahibin müşteri bölgesindeki oyunculara dolum çarpanı
+## (personel tarafı ve kasa satırları etkilenmez); 1 = örtü yok.
+@export_range(0.0, 1.0, 0.05) var cover_factor: float = 1.0
 
 @export_group("Gösterge ve temas")
 ## "?" göstergesi eşiğin bu kadar altına inince söner (istemci, ON-04).
@@ -55,6 +58,7 @@ func rules_params(perception: PerceptionTuning) -> CivilianRules.Params:
 	p.alarm_level = alarm_level
 	p.innocent_decay = innocent_decay_per_sec
 	p.bubble_hysteresis = bubble_hysteresis
+	p.cover_factor = cover_factor
 	if perception != null:
 		p.notice_at = perception.notice_threshold
 		p.detect_at = perception.detect_threshold

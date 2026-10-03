@@ -1,6 +1,6 @@
 {
-  "_doc": "US-008 AC9 (+ AC7, ON-03): store_a'da sahip TUTMA ve ÇEK kurtarma. c1 personel tarafında sahibin konisinde durur: \"?\" → sorgu → bağırış → sahip kovalar ve tutar (28 px + 0,5 sn; c1 donar, girdi kesilir, 6 sn pencere). c2 tezgâh ucunun batısında c1'e ~28 px uzakta bekler, c1 tutulduktan sonra ÇEK'i (c1 üzerindeki Interactable, 32 px, 1 sn) basılı tutar: c1 serbest (6 sn dolmadan), sahip SENDELE (`owner_stagger`, 2 sn), kurtarana (c2) şüphe 100. İkisi batıya yürüyerek uzaklaşır (sahip 120 px/sn). Olay sırası tüm peer'larda aynı; oturum olayları player_held → player_rescued; kimse yakalanmadı. Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 AC9 (+ AC7, ON-03): store_a'da sahip TUTMA ve ÇEK kurtarma. c1 personel tarafında sahibin konisinde durur: \"?\" → sorgu → bağırış → sahip kovalar ve tutar (28 px + 0,5 sn; c1 donar, girdi kesilir, 6 sn pencere). c2 tezgâh ucunun batısında c1'e ~28 px uzakta bekler, c1 tutulduktan sonra ÇEK'i (c1 üzerindeki Interactable, 32 px, 1 sn) basılı tutar: c1 serbest (6 sn dolmadan), sahip SENDELE (`owner_stagger`, 2 sn), kurtarana (c2) şüphe 100. İkisi batıya yürüyerek uzaklaşır (sahip 120 px/sn). Olay sırası tüm peer'larda aynı; oturum olayları player_held → player_rescued; kimse yakalanmadı. Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 15.5,
@@ -9,7 +9,7 @@
     "c2": "res://tests/net/bots/rescue_c2.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
     {"len": ["*.player_nodes", 3]},
     {"eq": ["*.owner.events", ["owner_question", "owner_shout", "owner_held", "owner_stagger"]]},
     {"all_equal": "owner.events"},

@@ -11,6 +11,9 @@ extends Node
 ##   ve `police_arrived` (session_event; US-012 sonucu).
 ## - Mahalleli: her bağırışta (ilk ve yeniden bağırış) `neighbour_delay_sec` sonra `NeighbourSpawn`'da bir komşu
 ##   (en fazla `max_neighbours`); koşu hedefi bağırış anındaki sahip konumu. `chaser_spawn` her peer'da yayılır.
+## - US-016 ekleri: NPC tavanı (`room_query`, nüfus üreticisi bağlar; boşsa sınırsız) doluyken vadesi gelen komşu
+##   yer açılana kadar bekler; yoldan geçen → mahalleli dönüşümü `spawn_chaser_at` (nüfus üreticisi bağırışta
+##   çağırır; komşu sayısına girmez). Mahalleli adları tek sayaçla (`Chaser<n>`).
 ## Döküm "chasers": {spawned, states, catches (host)}.
 
 ## Her peer'da: mahalleli üretildi (AC10).
@@ -32,6 +35,8 @@ const POLICE_EVENT := &"police_arrived"
 @export var auto_step: bool = true
 ## false: uyarı yöneticisi işlemez (NPC'siz fikstür).
 @export var active: bool = true
+## NPC tavanında yer var mı (US-016; func() -> bool). Boşsa sınırsız.
+var room_query: Callable = Callable()
 
 var ladder := Fsm.new(0, EDGES)
 
@@ -40,6 +45,8 @@ var _spawner: MultiplayerSpawner = null
 var _chaser_scene: PackedScene = null
 var _pending: Array[float] = []
 var _spawned: int = 0
+var _serial: int = 0
+var _converted: int = 0
 var _seen_spawns: int = 0
 var _calm_for: float = 0.0
 var _shout_at: Vector2 = Vector2.INF
@@ -72,7 +79,7 @@ func step(delta: float) -> void:
 		return
 	for i: int in range(_pending.size() - 1, -1, -1):
 		_pending[i] -= delta
-		if _pending[i] <= 0.0:
+		if _pending[i] <= 0.0 and _has_room():
 			_pending.remove_at(i)
 			_spawn_neighbour()
 	var want: int = _owner.brain().alarm_want()
@@ -152,11 +159,33 @@ func _spawn_neighbour() -> void:
 		push_warning("StoreAlert: %s işareti yok; komşu üretilmedi" % tuning.neighbour_marker)
 		return
 	_spawned += 1
+	_spawn(at, _shout_at)
+
+
+## Host (US-016 dönüşüm): `at`'ta (global) koşu hedefi `goal` olan mahalleli üretir; komşu sayısına girmez.
+func spawn_chaser_at(at: Vector2, goal: Vector2) -> Node:
+	if not active or not _host_side() or _spawner == null or not at.is_finite():
+		return null
+	_converted += 1
+	return _spawn(at, goal)
+
+
+func converted_count() -> int:
+	return _converted
+
+
+func _spawn(at: Vector2, goal: Vector2) -> Node:
+	_serial += 1
 	var root: Node2D = get_parent() as Node2D
-	var data := {"n": _spawned, "pos": root.to_local(at) if root != null else at, "goal": _shout_at}
+	var data := {"n": _serial, "pos": root.to_local(at) if root != null else at, "goal": goal}
 	var node: Node = _spawner.spawn(data)
 	if node != null:
 		_on_spawned(node)
+	return node
+
+
+func _has_room() -> bool:
+	return not room_query.is_valid() or bool(room_query.call())
 
 
 ## Spawner'ın spawn_function'ı (host'ta spawn() içinde, istemcide paket gelince).

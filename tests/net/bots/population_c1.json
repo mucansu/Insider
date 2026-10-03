@@ -1,0 +1,14 @@
+{
+  "_doc": "population.json c1 botu (US-016 tanık): sola sınır duvarına hizalan, sağa ön kapı hizasına yürü, kapıdan gir ve kuzeye (satır 5, y≈176) çık, batıya ShopSpot1'in bir karo doğusuna (x≈272) yürü, orada sızma basılı bekle (müşteri raf noktasında görür; sahibin görüş hattı ve menzili dışı), sonra aynı yoldan sokağa dön.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 6.514, "move": [-1, 0]},
+    {"t": 7.285, "move": [0, 0]},
+    {"t": 7.3, "hold": "sneak", "dur": 14.0},
+    {"t": 21.4, "move": [1, 0]},
+    {"t": 22.171, "move": [0, 1]},
+    {"t": 24.685, "move": [0, 0]}
+  ]
+}

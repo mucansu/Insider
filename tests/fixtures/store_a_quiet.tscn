@@ -9,3 +9,6 @@ active = false
 
 [node name="StoreAlert" parent="NPCs" index="2"]
 active = false
+
+[node name="Population" parent="NPCs" index="4"]
+active = false

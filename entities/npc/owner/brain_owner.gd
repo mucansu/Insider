@@ -9,19 +9,46 @@ extends Node
 ## Adalet (AC8, S2): aleyhte kararlar (şüphe, temas) eşitleyicinin en güncel konumuyla; lehte 0,2 sn pay ve koni
 ## histerezisi algı bileşeninde. Döküm `detections` (muhafiz-davranisi §4 alanları + behaviour).
 ## Bileşen alanları (`body`, `perception` …) yalnız tepki katmanı ve testler için okunur; beyin dışında yazılmaz.
+##
+## Servis (US-016 AC3): müşteri kuyrukta `serve_customer(id)` çağırır; sahip AJANDA'daysa ve başka servis yoksa
+## ajandasını keser (MÜŞTERİ kesmesi), ClerkSpot'a gelir, batıya döner, 6 sn servis eder. Servisin
+## `register_open_sec`'inde (2. sn) "kasa açılır" kancası `register_opened(customer_id)` (US-039 satış tetiği;
+## US-010 SATIN AL aynı kancayı kullanır). Müşteri sonucu `serve_state(id)` ile okur.
+## Keşif (US-039): sahip suçüstü görmediyse soygunu kasayı açınca (servis kancası), arka oda görevine varıştan
+## `backroom_check_sec` sonra (çanta yerinde değilse) ya da kasa boşken müşterisiz tezgâhta `idle_discover_sec`
+## (toplam) sonra fark eder → DISCOVER (durur, balon, `owner_discover` oturum olayı; `discover_sec`) → bağırış
+## akışı (uyarı 2, gürültü, komşu). Kaynak başına bir keşif; sahip zaten alarmdaysa (ya da uyarı ≥ bağırış
+## kademesi) yalnız balon + komşu +1. İş bittikten sonra keşif yok. Sakinleşince (arama 30 sn) ajandanın ilk görevi
+## arka odaya zorlanır (nakit alınmışsa doğal keşif; eski sabit "60 sn sonra yeniden bağırış" yok).
 
-## Yalnız host: ilk bağırış ya da yeniden bağırış (uyarı yöneticisi komşu üretir).
-signal shouted(recheck: bool)
+## Yalnız host: bağırış (ilk, keşif sonrası ya da alarmdayken keşif = komşu +1); `late` = keşiften (uyarı
+## yöneticisi komşu üretir).
+signal shouted(late: bool)
+## Yalnız host: servisin "kasa açılır" anı (US-016 AC3 kancası; US-039, US-010).
+signal register_opened(customer_id: int)
+## Yalnız host: keşif (US-039; Source).
+signal discovered(source: int)
 
-enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH }
+enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH, DISCOVER }
+## Keşif kaynağı (US-039).
+enum Source { REGISTER, CASH }
+## Servis durumu (müşteri okur).
+enum Serve { NONE, PENDING, ACTIVE, DONE, ABORTED }
 
 const STATE_NAMES: Array[StringName] = [&"agenda", &"look", &"question", &"shout", &"chase", &"hold",
-	&"stagger", &"search"]
+	&"stagger", &"search", &"discover"]
+const SOURCE_NAMES: Array[StringName] = [&"register", &"cash"]
+## Keşif balonu olayı (kök yayar; AC8) ve oturum olayı (HUD metni EVENT_OWNER_DISCOVERED).
+const DISCOVER_EVENTS: Array[StringName] = [&"owner_discover_register", &"owner_discover_cash"]
+const DISCOVER_SESSION_EVENT := &"owner_discover"
+## Servis bakışı verilmemişse bakılan nokta uzaklığı (px).
+const SERVE_LOOK_PX := 64.0
 ## Beynin izinli geçişleri (I3/I7 testleri bu tabloya dayanır).
 const EDGES := {
-	State.AGENDA: [State.LOOK, State.SHOUT],
-	State.LOOK: [State.AGENDA, State.QUESTION, State.SHOUT],
-	State.QUESTION: [State.AGENDA, State.SHOUT],
+	State.AGENDA: [State.LOOK, State.SHOUT, State.DISCOVER],
+	State.LOOK: [State.AGENDA, State.QUESTION, State.SHOUT, State.DISCOVER],
+	State.QUESTION: [State.AGENDA, State.SHOUT, State.DISCOVER],
+	State.DISCOVER: [State.SHOUT],
 	State.SHOUT: [State.CHASE],
 	State.CHASE: [State.HOLD, State.SEARCH],
 	State.HOLD: [State.CHASE, State.STAGGER],
@@ -54,6 +81,11 @@ var peaks: Dictionary = {}
 var shout_noises: int = 0
 ## Yayılan ajanda sesleri (US-011b; tür -> sayı): telefon, raf düzeltme, kapı zili.
 var agenda_noises: Dictionary = {}
+## Keşif kayıtları (döküm; US-039): {"source", "t", "full"}.
+var discoveries: Array[Dictionary] = []
+## Tamamlanan servis ve "kasa açılır" sayısı (döküm; US-016).
+var serves_done: int = 0
+var register_opens: int = 0
 
 ## Bileşenler (setup bağlar; okunur).
 var body: CharacterBody2D = null
@@ -65,9 +97,16 @@ var senses: CivilianSenses = null
 
 var _reaction: OwnerReaction = null
 var _shout_left: float = 0.0
-var _recheck_left: float = -1.0
-var _recheck_used: bool = false
 var _notice_at: Dictionary = {}
+## Süren servis (US-016): müşteri kimliği, kasa açıldı mı; sonuçlar id -> Serve.
+var _serving: bool = false
+var _serve_id: int = 0
+var _serve_opened: bool = false
+var _serve_results: Dictionary = {}
+## Keşif (US-039): kaynak -> true; arka oda kontrolü bu ziyarette yapıldı mı; kasa boşken müşterisiz tezgâh süresi.
+var _discovered: Dictionary = {}
+var _backroom_checked: bool = false
+var _idle_empty: float = 0.0
 
 
 ## Bileşenleri bağlar (StoreOwner `_ready`'de, host'ta).
@@ -86,7 +125,12 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	suspicion.innocent_decay_per_sec = civilian_tuning.innocent_decay_per_sec
 	suspicion.threshold_reached.connect(_on_threshold)
 	agenda.setup(owner_tuning.tasks, agenda_seed, senses.marker_positions)
+	agenda.interrupt_ended.connect(_on_interrupt_ended)
 	senses.door_crossed.connect(_on_door_crossed)
+	# Keşif kaynaklarının prop'ları başta (yerlerindeyken) hatırlanır: ilk sorgu çanta taşındıktan sonra gelirse
+	# işaretin yanında prop bulunmaz ve "alındı" hiç görülmezdi (US-039).
+	senses.prop_taken_near(owner_tuning.cash_marker)
+	senses.prop_taken_near(owner_tuning.register_marker)
 
 
 func state() -> int:
@@ -128,6 +172,8 @@ func step(delta: float) -> Vector2:
 	var level: int = _top_level()
 	if CALM_STATES.has(fsm.state) and level >= Suspicion.Level.DETECT:
 		shout(top_peer(), false)
+	if fsm.state == State.DISCOVER:
+		return _discover_step()
 	if fsm.state == State.AGENDA:
 		return _agenda_step(delta, level)
 	return _reaction.step(delta, level)
@@ -135,11 +181,35 @@ func step(delta: float) -> Vector2:
 
 ## --- Kesme API'si (US-016 müşteri, US-010 gönder, US-009 ses; yalnız AJANDA'da kabul) ---
 
-## Müşteri kuyrukta: tezgâha gelir, kapıya bakar, servis eder.
-func serve_customer() -> bool:
-	return _interrupt(Agenda.Interrupt.CUSTOMER, owner_tuning.customer_sec,
-		senses.marker_position(owner_tuning.counter_marker), senses.marker_position(owner_tuning.front_door_marker),
-		true)
+## Müşteri kuyrukta (US-016 AC3): sahip AJANDA'da ve başka servis yoksa tezgâha (ClerkSpot) gelir, batıya döner,
+## `customer_sec` servis eder. Aynı müşterinin süren servisi için true; başkası servisteyken false.
+func serve_customer(customer_id: int = 0) -> bool:
+	if _serving and agenda.current_interrupt() == Agenda.Interrupt.CUSTOMER:
+		return customer_id == _serve_id
+	var clerk: Vector2 = senses.marker_position(owner_tuning.counter_marker)
+	var look: Vector2 = senses.marker_position(owner_tuning.front_door_marker)
+	if clerk.is_finite() and not owner_tuning.serve_facing.is_zero_approx():
+		look = clerk + owner_tuning.serve_facing.normalized() * SERVE_LOOK_PX
+	if not _interrupt(Agenda.Interrupt.CUSTOMER, owner_tuning.customer_sec, clerk, look, true):
+		return false
+	_serving = true
+	_serve_id = customer_id
+	_serve_opened = false
+	_serve_results[customer_id] = Serve.PENDING
+	return true
+
+
+## Müşterinin servis durumu (Serve): PENDING sahip tezgâha geliyor, ACTIVE servis sürüyor, DONE bitti, ABORTED
+## bırakıldı (bağırış, sorgu), NONE hiç kabul edilmedi.
+func serve_state(customer_id: int) -> int:
+	if _serving and customer_id == _serve_id and agenda.current_interrupt() == Agenda.Interrupt.CUSTOMER:
+		return Serve.ACTIVE if agenda.has_arrived() else Serve.PENDING
+	return int(_serve_results.get(customer_id, Serve.NONE))
+
+
+## Ön kapıdan geçen müşteri (US-016 AC2): zil çalar, sahip 1 sn kapıya bakar (oyuncu geçişiyle aynı akış).
+func door_bell(door_pos: Vector2) -> void:
+	_on_door_crossed(0, door_pos)
 
 
 ## "Arkada X var mı?": arka odaya gider, arar.
@@ -176,14 +246,85 @@ func _on_door_crossed(_peer_id: int, door_pos: Vector2) -> void:
 	ring_bell(door_pos)
 
 
+func _on_interrupt_ended(kind: Agenda.Interrupt, completed: bool) -> void:
+	if kind != Agenda.Interrupt.CUSTOMER or not _serving:
+		return
+	_serving = false
+	_serve_results[_serve_id] = Serve.DONE if completed else Serve.ABORTED
+	if completed:
+		serves_done += 1
+
+
+## --- Keşif (US-039) ---
+
+## Soygunu fark et: kaynak başına bir kez, iş sürüyorken. Sakinse DISCOVER → bağırış; zaten alarmdaysa (ya da uyarı
+## bağırış kademesinde) yalnız balon + komşu +1. Kabul edilirse true.
+func discover(source: int) -> bool:
+	if source < 0 or source >= SOURCE_NAMES.size() or _discovered.has(source) or not _heist_running():
+		return false
+	_discovered[source] = true
+	var full: bool = not is_alarmed() and fsm.state != State.DISCOVER \
+		and Game.alert_level() < maxi(civilian_tuning.alarm_level, 1)
+	discoveries.append({"source": SOURCE_NAMES[source], "t": snappedf(fsm.clock, 0.01), "full": full})
+	discovered.emit(source)
+	event(DISCOVER_EVENTS[source], 0)
+	if not full:
+		shouted.emit(true)  # alarmdayken ikinci kaynak: yalnız balon + komşu +1 (max_neighbours korunur)
+		return true
+	Game.raise_session_event(DISCOVER_SESSION_EVENT, {"source": String(SOURCE_NAMES[source])})
+	target = 0
+	mover.stop()
+	agenda.cancel_interrupt()
+	_reaction.reset()
+	fsm.go(State.DISCOVER)
+	return true
+
+
+## DISCOVER: durur (balon görselde), süre dolunca bağırış akışı (hedefsiz; uyarı ≥ 2 satırı herkese işler).
+func _discover_step() -> Vector2:
+	mover.stop()
+	if fsm.time_in_state >= owner_tuning.discover_sec:
+		shout(0, true)
+	return Vector2.ZERO
+
+
+## Ajandadaki keşif tetikleri: servisin "kasa açılır" anı, arka oda varışı + 1 sn, müşterisiz tezgâhta boş kasa.
+## Durum değiştiyse true (adım kesilir).
+func _agenda_triggers(delta: float) -> bool:
+	if _serving and not _serve_opened and agenda.current_interrupt() == Agenda.Interrupt.CUSTOMER \
+			and agenda.has_arrived() and agenda.interrupt_elapsed() >= owner_tuning.register_open_sec:
+		_serve_opened = true
+		register_opens += 1
+		register_opened.emit(_serve_id)
+		if senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER):
+			return fsm.state != State.AGENDA
+	var interrupt: Agenda.Interrupt = agenda.current_interrupt()
+	var task: AgendaTask = agenda.current_task()
+	var backroom: bool = interrupt == Agenda.Interrupt.SENT or (interrupt == Agenda.Interrupt.NONE \
+		and task != null and task.name == owner_tuning.backroom_task)
+	if not backroom:
+		_backroom_checked = false
+	elif not _backroom_checked and agenda.has_arrived() and agenda.arrived_for() >= owner_tuning.backroom_check_sec:
+		_backroom_checked = true
+		if senses.prop_taken_near(owner_tuning.cash_marker) and discover(Source.CASH):
+			return fsm.state != State.AGENDA
+	var at_counter: bool = interrupt == Agenda.Interrupt.NONE and task != null and task.home and agenda.has_arrived()
+	if owner_tuning.idle_discover_sec > 0.0 and at_counter and senses.customers_inside() == 0 \
+			and not _discovered.has(Source.REGISTER) and senses.prop_taken_near(owner_tuning.register_marker):
+		_idle_empty += maxf(delta, 0.0)
+		if _idle_empty >= owner_tuning.idle_discover_sec and discover(Source.REGISTER):
+			return fsm.state != State.AGENDA
+	return false
+
+
+## İş sürüyor mu (sonuç yayılmadıysa; US-039 AC7: iş bittikten sonra keşif yok).
+func _heist_running() -> bool:
+	return Game.heist_result().is_empty()
+
+
 ## --- AJANDA katmanı ---
 
 func _agenda_step(delta: float, level: int) -> Vector2:
-	if _recheck_left >= 0.0:
-		_recheck_left -= delta
-		if _recheck_left < 0.0:
-			shout(0, true)
-			return Vector2.ZERO
 	if level >= Suspicion.Level.NOTICE:
 		target = top_peer()
 		_reaction.reset()
@@ -196,6 +337,8 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 	else:
 		mover.stop()
 	agenda.step(delta, mover.arrived() or mover.failed())
+	if _agenda_triggers(delta):
+		return Vector2.ZERO
 	var sound: StringName = agenda.take_noise(delta)
 	if not sound.is_empty():
 		_agenda_noise(sound, body.global_position)
@@ -213,44 +356,38 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 
 ## --- tepki katmanının kullandığı genel yardımcılar ---
 
-## Bağırış: tespit kilidi, gürültü, olay; `recheck` = arka oda nakdi kontrolünden sonra yeniden bağırış.
-func shout(peer_id: int, recheck: bool) -> void:
+## Bağırış: tespit kilidi, gürültü, olay; `late` = keşiften (US-039).
+func shout(peer_id: int, late: bool) -> void:
 	if peer_id != 0:
 		target = peer_id
 	suspicion.latch_level = Suspicion.Level.DETECT
 	mover.stop()
 	agenda.cancel_interrupt()
-	_recheck_left = -1.0
 	_shout_left = owner_tuning.shout_repeat_sec
 	_reaction.reset()
 	if fsm.state != State.SHOUT:
 		fsm.go(State.SHOUT)
 	event(&"owner_shout", target)
 	_noise()
-	shouted.emit(recheck)
+	shouted.emit(late)
 
 
-## Sakinleşme: kilit kalkar, ajanda tezgâhtan yeniden başlar.
-func back_to_agenda() -> void:
+## Sakinleşme: kilit kalkar, ajanda tezgâhtan yeniden başlar; `check_backroom` (alarm sonrası, US-039 AC6) ilk
+## görevi arka odaya zorlar (nakit alınmışsa varışta doğal keşif).
+func back_to_agenda(check_backroom: bool = false) -> void:
 	suspicion.latch_level = Suspicion.Level.CALM
 	target = 0
 	_reaction.reset()
 	fsm.go(State.AGENDA)
 	agenda.restart_home()
+	if check_backroom:
+		agenda.begin_task(owner_tuning.backroom_task)
 	restore_cone()
 
 
 func shrug() -> void:
 	event(&"owner_shrug", target)
 	back_to_agenda()
-
-
-## Ajandada `seconds` sonra yeniden bağır (arka oda nakdi alınmışsa; +1 komşu). GDD §9.3: oturum başına bir kez.
-func schedule_recheck(seconds: float) -> void:
-	if _recheck_used:
-		return
-	_recheck_used = true
-	_recheck_left = seconds
 
 
 func restore_cone() -> void:
