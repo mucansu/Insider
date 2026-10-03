@@ -12,7 +12,8 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
 ## Faz 2 (`faz2-int`, GitHub'a yedekli; plan backlog §2b)
 - Bitti (faz2-int): US-006, US-007, IS-023, US-009, US-013, US-014, US-011a, US-011c, US-011d, US-012, US-033, US-008 · IS-024, IS-037, IS-038, IS-039, IS-047, IS-067. Son tam CI yeşil (500 birim, 34 ağ koşusu).
 - IS-078 Bitti (faz2-int eac9088, dev birleşik; tam CI yeşil 578 birim + 46 ağ koşusu).
-- Denetimde: US-011b (worktree agent-ad9e586829b322a27, taban faz2-int 5ff9c28; rapor: tam CI yeşil 1065 sn; denetci + çürütmeli inceleme).
+- US-011b Bitti (faz2-int 94fe3c0, 2026-10-03).
+- Sürüyor (2026-10-03): US-016 + US-039 tek paket (oynanis, worktree; müşteriler/yoldan geçenler + eksik ganimet keşfi) · US-038 kaçış okunurluğu (arayuz, worktree).
 - IS-080 Bitti (faz2-int 22e9392).
 - Kullanıcı faz2-int'i yerelde denedi → GB-04 → IS-080 (HUD olay metinleri), IS-081 (sahip tepkisi), US-038 (kaçış okunurluğu), IS-079 (nit).
 - Önceki: US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
