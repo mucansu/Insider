@@ -39,3 +39,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-096 (oynanis) | entities/npc/components/npc_visual.gd | Koni duvara göre kırpılmıyor, sisin üstüne taşıyor; "konide" kararı yalnız geometri (karanlık bölge kuralı yok) |
 | 2026-10-04 | IS-015b (cekirdek) | tools/heist_stats.py | `--brain-loop` / `brain.runs[]` (IS-058b) satırlara açılmıyor; şema gelince küçük ek |
 | 2026-10-04 | IS-015b (cekirdek) | tests/net/brain_disconnect.json | Her gecikmede ~153 sn → tam ci_local'a ~5 dk ekler |
+| 2026-10-04 | IS-098 (oynanis) | entities/npc/components/perception.gd, levels/fog/fog_layer.gd | `SEE_THROUGH_GROUP` sabitleri artık yalnız test_physics_layers için duruyor |
+| 2026-10-04 | IS-098 (oynanis) | entities/npc/civilian/civilian_senses.gd | `_sees_owner` "tezgâh alçak, satış alanı içi her zaman görür" kısayolu artık gereksiz (IS-098 sınıf kuralı) |
