@@ -1,16 +1,13 @@
 extends Node
-## Komut satırı argümanları (autoload `Args`, S6 — docs/notes/mimari.md).
-## Kullanıcı argümanları `--` sonrasında: --host · --join=ADDR · --port=N · --name=AD · --level=res://...
-## · --bot=PATH.json · --dump=PATH.json · --quit-after=SN · --player-scene=res://... (yalnız test)
-## · ekran görüntüsü (IS-022): --screenshot-at=SN[,SN…] · --screenshot-dir=YOL · --window-size=GxY (ör. 1280x720)
-## · --camera-zoom=X (geliştirici; IS-027: yerel kameranın yakınlaştırması, PlayerTuning.camera_zoom yerine)
-## · --perf · --perf-seconds=N (geliştirici; IS-067: döküme "render" ölçüm bölümü, dosya sonundaki blok)
-## Açılışta `OS.get_cmdline_user_args()` ayrıştırılır; testler `parse()` ile kendi listesini verebilir.
-## Tanınmayan argümanlar `unknown` listesine girer (test koşucusunun --filter gibi argümanları için uyarı
-## basılmaz); tanınan anahtarın değeri bozuksa uyarı basılır ve varsayılan korunur.
+## Command-line arguments (autoload `Args`, S6 — docs/notes/mimari.md).
+## User args follow `--`: --host · --join=ADDR · --port=N · --name=NAME · --level=res://... · --bot=PATH.json · --dump=PATH.json
+## · --quit-after=SEC · --player-scene=res://... (test only) · --screenshot-at=SEC[,SEC…] · --screenshot-dir=PATH · --window-size=WxH (IS-022)
+## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump).
+## Parsed from `OS.get_cmdline_user_args()` at startup (tests may call `parse()` with their own list). Unknown args go to `unknown`
+## without a warning (e.g. the test runner's --filter); a recognised key with a bad value warns and keeps the default.
 
 const DEFAULT_PORT := 7777
-## `--camera-zoom` kabul aralığı (PlayerTuning.camera_zoom aralığıyla aynı).
+## `--camera-zoom` accepted range (same as PlayerTuning.camera_zoom).
 const CAMERA_ZOOM_MIN := 0.25
 const CAMERA_ZOOM_MAX := 4.0
 
@@ -21,16 +18,16 @@ var player_name: String = ""
 var level: String = ""
 var bot_path: String = ""
 var dump_path: String = ""
-## Saniye; 0 = kapalı.
+## Seconds; 0 = off.
 var quit_after: float = 0.0
 var player_scene: String = ""
-## Ekran görüntüsü anları (saniye, açılışa göre; --quit-after ile aynı saat); artan, tekrarsız. Boş = kapalı.
+## Screenshot times (seconds since start, same clock as --quit-after); ascending, unique. Empty = off.
 var screenshot_at: PackedFloat64Array = []
-## PNG'lerin yazılacağı dizin (mutlak, res:// ya da user://).
+## Directory the PNGs are written to (absolute, res:// or user://).
 var screenshot_dir: String = ""
-## Pencere boyutu (piksel); (0, 0) = proje ayarı.
+## Window size in pixels; (0, 0) = project setting.
 var window_size: Vector2i = Vector2i.ZERO
-## Kamera yakınlaştırması geçersiz kılma (`--camera-zoom`); 0 = verilmedi, tuning değeri kullanılır.
+## `--camera-zoom` override; 0 = not given, the tuning value is used.
 var camera_zoom: float = 0.0
 var unknown: PackedStringArray = []
 
@@ -42,7 +39,7 @@ func _init() -> void:
 	parse(OS.get_cmdline_user_args())
 
 
-## Önceki değerleri sıfırlar ve verilen argüman listesini ayrıştırır.
+## Resets previous values and parses the given argument list.
 func parse(args: PackedStringArray) -> void:
 	want_host = false
 	join_address = ""
@@ -131,23 +128,23 @@ func parse(args: PackedStringArray) -> void:
 	_parse_perf_args()  # IS-067
 
 
-## Argümanlar doğrudan bir oturum başlatıyor mu (host ya da katıl).
+## Whether the args start a session directly (host or join).
 func wants_session() -> bool:
 	return want_host or not join_address.is_empty()
 
 
-## Otomasyon/test koşusu mu (döküm ya da süreli çıkış istendi).
+## Whether this is an automation/test run (dump or timed quit requested).
 func is_automated() -> bool:
 	return not dump_path.is_empty() or quit_after > 0.0
 
 
-## Ekran görüntüsü istendi mi (anlar ve dizin birlikte verildi).
+## Whether screenshots were requested (times and directory both given).
 func wants_screenshots() -> bool:
 	return not screenshot_at.is_empty() and not screenshot_dir.is_empty()
 
 
-## "3,1.5,3" → [1.5, 3.0] (artan, tekrarsız). Boş öğe (sondaki virgül dahil), sayı olmayan, sonlu olmayan
-## ("1e400", "inf") ya da negatif değer varsa boş liste.
+## "3,1.5,3" → [1.5, 3.0] (ascending, unique). Empty list on an empty item (incl. trailing comma), a non-number,
+## a non-finite value ("1e400", "inf") or a negative value.
 static func parse_moments(value: String) -> PackedFloat64Array:
 	var out: PackedFloat64Array = []
 	for part: String in value.split(","):
@@ -163,7 +160,7 @@ static func parse_moments(value: String) -> PackedFloat64Array:
 	return out
 
 
-## "1280x720" (x ya da X) → Vector2i(1280, 720); bozuk ya da [WINDOW_SIZE_MIN, WINDOW_SIZE_MAX] dışıysa (0, 0).
+## "1280x720" (x or X) → Vector2i(1280, 720); (0, 0) if malformed or outside [WINDOW_SIZE_MIN, WINDOW_SIZE_MAX].
 static func parse_window_size(value: String) -> Vector2i:
 	var parts: PackedStringArray = value.strip_edges().to_lower().split("x")
 	if parts.size() != 2 or not parts[0].is_valid_int() or not parts[1].is_valid_int():
@@ -175,16 +172,16 @@ static func parse_window_size(value: String) -> Vector2i:
 	return Vector2i(w, h)
 
 
-## `--bot` dosyasının adımları (bkz. `load_bot`); dosya verilmediyse boş.
+## Steps of the `--bot` file (see `load_bot`); empty if no file was given.
 func bot_steps() -> Array[Dictionary]:
 	if bot_path.is_empty():
 		return []
 	return load_bot(bot_path)
 
 
-## Bot dosyasını (S6) okur: {"steps":[{"t":0.0,"move":[1,0]}, {"t":2.0,"hold":"interact","dur":4.5}, ...]}.
-## Dönen adımlar `t`'ye göre sıralıdır; `t` ve `dur` float'a, `move` Vector2'ye çevrilir; diğer alanlar
-## olduğu gibi kalır. Bozuk adım uyarıyla atlanır; dosya okunamazsa boş liste.
+## Reads the bot file (S6): {"steps":[{"t":0.0,"move":[1,0]}, {"t":2.0,"hold":"interact","dur":4.5}, ...]}.
+## Steps are sorted by `t`; `t`/`dur` become float, `move` a Vector2, other fields are kept as is.
+## Bad steps are skipped with a warning; an unreadable file yields an empty list.
 static func load_bot(path: String) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not FileAccess.file_exists(path):
@@ -204,7 +201,7 @@ static func load_bot(path: String) -> Array[Dictionary]:
 	return out
 
 
-## Tek bot adımını doğrular ve tiplerini düzeltir; geçersizse boş sözlük döner.
+## Validates one bot step and fixes its types; returns an empty dictionary if invalid.
 static func parse_bot_step(item: Variant) -> Dictionary:
 	if typeof(item) != TYPE_DICTIONARY:
 		return {}
@@ -238,16 +235,16 @@ func _need_value(key: String, value: String, has_value: bool) -> bool:
 	return false
 
 
-# --- US-011d: görüş kipi (--vision-mode=peripheral|directional; GDD §6.5, KR-023) -------------------
-# Ayrı blok: ana ayrıştırma döngüsü tanımadığı argümanları `unknown`a koyar; bu blok `parse()` sonunda
-# oradan `--vision-mode`'u çeker. Kip host'un oyun kuralıdır; Game/lobi bu değeri yalnız host'ta okur.
+# --- US-011d: vision mode (--vision-mode=peripheral|directional; GDD §6.5, KR-023) -------------------
+# Separate block: the main loop leaves unrecognised args in `unknown`; this block pulls `--vision-mode` out of it at the end of `parse()`.
+# The mode is a host game rule; Game/lobby read it on the host only.
 
 const VISION_MODES: Array[String] = ["peripheral", "directional"]
 const DEFAULT_VISION_MODE := "peripheral"
 
-## `VISION_MODES`'dan biri; argüman yoksa ya da geçersizse `DEFAULT_VISION_MODE`.
+## One of `VISION_MODES`; `DEFAULT_VISION_MODE` if the arg is missing or invalid.
 var vision_mode: String = DEFAULT_VISION_MODE
-## `--vision-mode` geçerli bir değerle verildi mi (vermezse kipi veri/lobi varsayılanı belirler).
+## Whether `--vision-mode` was given with a valid value (otherwise data/lobby defaults decide the mode).
 var vision_mode_given: bool = false
 
 
@@ -274,18 +271,17 @@ func _parse_vision_args() -> void:
 	unknown = rest
 
 
-# --- IS-067: çizim/performans ölçümü (--perf, --perf-seconds=N; S6 geliştirici argümanı) ----------------
-# Ayrı blok (US-011d kalıbı): `parse()` sonunda `unknown`dan çekilir. `--perf` açıkken main.gd kare süresi ve
-# Performance/RenderingServer monitörlerini örnekler, döküme `"render"` bölümünü ekler; kapalıyken hiçbir şey
-# bağlanmaz (sıfır maliyet). `--perf-seconds` ölçüm penceresidir: dökümde son N saniye özetlenir.
+# --- IS-067: render/perf measurement (--perf, --perf-seconds=N; S6 dev arg) ----------------
+# Separate block (US-011d pattern), pulled from `unknown` at the end of `parse()`. With `--perf` main.gd samples frame time and
+# Performance/RenderingServer monitors and adds a "render" section to the dump; when off nothing is hooked (zero cost).
 
 const DEFAULT_PERF_SECONDS := 10.0
 const PERF_SECONDS_MIN := 1.0
 const PERF_SECONDS_MAX := 600.0
 
-## `--perf` verildi mi.
+## Whether `--perf` was given.
 var perf: bool = false
-## Ölçüm penceresi (saniye; son N saniye özetlenir).
+## Measurement window (seconds); the dump summarises the last N seconds.
 var perf_seconds: float = DEFAULT_PERF_SECONDS
 
 
@@ -317,7 +313,7 @@ func _parse_perf_args() -> void:
 	unknown = rest
 
 
-## "15" / "2.5" → saniye; sayı değilse, sonlu değilse ya da [PERF_SECONDS_MIN, PERF_SECONDS_MAX] dışıysa 0.
+## "15" / "2.5" → seconds; 0 if not a number, not finite or outside [PERF_SECONDS_MIN, PERF_SECONDS_MAX].
 static func parse_perf_seconds(value: String) -> float:
 	var s: String = value.strip_edges()
 	if not s.is_valid_float():

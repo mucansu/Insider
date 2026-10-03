@@ -1,58 +1,42 @@
 extends Node
-## Oturum ve oyuncular (autoload `Game`, sözleşme S3 — docs/notes/mimari.md).
+## Session and players (autoload `Game`, contract S3 — docs/notes/mimari.md).
 ##
-## Oturum: `Net.local_peer_id() != 0` olduğu sürece (bağlanma ve el sıkışması dahil) oturum açık sayılır;
-## her karede ve her giriş noktasında `_sync_session()` geçişi yakalar. Oturum bitince (Net.leave(),
-## connection_failed ya da host_disconnected) seviye (HUD ile) kaldırılır, oyuncu/nakit/olay durumu sıfırlanır.
-## Seviye `current_scene` değildir; temizliği Game yapar. Menüye dönüşü arayüz (HUD) yapar; Game ve main.gd
-## sahne değiştirmez (çift geçiş olmasın). Headless/argümanlı açılışta main.gd çıkar (AC4).
-## Host lehine yetki S2'ye uyar: host'a özgü işlemler `_has_host_authority()` (host ya da çevrimdışı) ile
-## korunur, host→herkes durum RPC'leri "authority". Arayüz sahneleri preload edilmez, load() ile yüklenir.
+## Session: open while `Net.local_peer_id() != 0` (incl. connecting/handshake); `_sync_session()` catches the transition each frame and at every entry point.
+## When it ends (Net.leave(), connection_failed, host_disconnected) the level (with HUD) is removed and player/cash/event state reset. The level is not
+## `current_scene`; Game cleans it up. The UI (HUD) returns to the menu; Game and main.gd never change scenes (no double switch; headless/args launch: main.gd quits, AC4).
+## Host authority follows S2: host-only work is guarded by `_has_host_authority()` (host or offline); host→all state RPCs are "authority". UI scenes are load()ed, not preloaded.
 ##
-## Seviye ve oyuncu sırası (geç katılan için "node not found" tuzağı):
-## - Seviyeler her peer'da `/root/Game/World/Level` yoluna elle yüklenir; kökü `Level` olmalıdır (S4) ve seviye
-##   düğümlerine yalnız Level API'siyle erişilir (ad dizesiyle gezinti yok, KR-018). Kökün altına `PlayerSpawner`
-##   (MultiplayerSpawner, spawn_path = Level.players_root(), özel spawn_function: player_scene örneği,
-##   ad str(peer_id), yetki peer_id) kurulur.
-## - Bağlanan istemci, oturuma kabul edilmeden önce SceneMultiplayer el sıkışmasında (auth) host'tan geçerli
-##   seviye yolunu alır ve seviyeyi eşzamanlı yükler; ancak sonra kabul edilir. Kabulde host'un çoğaltıcısı
-##   mevcut oyuncuları gönderdiğinde seviye ve PlayerSpawner istemcide zaten vardır.
-## - Kabulde çoğaltıcı mevcut oyuncuları ilk spawn verisiyle (doğma noktası) gönderir; istemci yetkili
-##   oyuncuların eşitlemesi yol onayından (~2 RTT) sonra başlar. Arada geç katılan onları doğma noktasında ya da
-##   donmuş görmesin diye host, bildiği güncel konumları hemen (güvenilir) ve CATCHUP_SEC boyunca 20 Hz
-##   (güvenilmez) yollar; istemci bunları yalnız o düğümün eşitleyicisinden ilk veri gelene kadar uygular.
-##   Aynısı oturum içi seviye değişiminden sonra herkese yapılır.
-## - Oturum içinde seviye değişiminde host önce oyuncuları kaldırır (despawn), sonra `_rpc_load_level` RPC'sini,
-##   en son yeni oyuncuları gönderir; hepsi aynı güvenilir sıralı kanalda olduğundan istemci yolu hazırken alır.
-## - Uzak oyuncu varken değişimden önce host istemcilere "dondur" der: her istemci kendi yetkisindeki
-##   eşitleyicilerin yayınını kapatır (public_visibility = false) ve onay yollar. Bütün onaylar (ya da
-##   FREEZE_TIMEOUT_SEC) gelmeden despawn yapılmaz; böylece yolda kalmış eski eşitleme paketleri kaldırılmış
-##   düğüme çarpıp "Ignoring sync data ... missing node" hatası üretmez. Bu yüzden çevrimiçi `start_level`
-##   ~1 RTT sonra tamamlanabilir; sonucu `level_loaded` bildirir. El sıkışması süren peer varken de bekler.
-## Döküm (S6): `collect_dump()` taban anahtarları + `register_dump_provider` ile eklenen anahtarlar; değerler
-## JSON'a uygun biçime çevrilir (Vector2 -> [x, y], Color -> "#rrggbbaa", StringName -> String).
-## Uyarı kademesi (S3 eki, KR-021; US-008): host yetkili `alert_level` (0-5; anlamı mekâna bağlı, geçişleri mekânın
-## uyarı yöneticisi seçer — bakkalda NPCs/StoreAlert) ve polis sayacı `alert_timer_left` (yoksa −1). Host
-## `set_alert_level` / `set_alert_timer` çağırır, değer herkese güvenilir RPC ile gider (geç katılana kabulde);
-## sayaç her peer'da yerelde azalır. Seviye yüklenince ve oturum bitince 0 / −1'e döner. Dökümde "alert":
-## {"level", "timer_left", "history"} (history = bu seviyede görülen kademe dizisi; I4 denetimi).
+## Level and player order (late-join "node not found" trap):
+## - Levels load by hand at `/root/Game/World/Level` on every peer; the root must be `Level` (S4), level nodes are reached only via the Level API (KR-018).
+##   A `PlayerSpawner` (MultiplayerSpawner, spawn_path = Level.players_root(), custom spawn_function: player_scene instance, name str(peer_id), authority peer_id) is created under it.
+## - A joining client gets the level path from the host during the SceneMultiplayer auth handshake and loads it synchronously before being accepted,
+##   so the level and PlayerSpawner exist when the host's replicator sends existing players.
+## - Catch-up: players arrive with spawn data (spawn point) and client-side authority sync starts only after path confirmation (~2 RTT). So the host sends known positions
+##   at once (reliable) and at 20 Hz (unreliable) for CATCHUP_SEC; the client applies them until that node's synchronizer delivers its first data. Same after an in-session level change.
+## - In-session level change: the host despawns players, then sends `_rpc_load_level`, then spawns the new players (same reliable ordered channel, so clients have the path ready).
+## - With remote players the host first says "freeze": each client turns off publishing of its authority synchronizers (public_visibility = false) and acks.
+##   No despawn until all acks (or FREEZE_TIMEOUT_SEC), so stale sync packets don't hit removed nodes ("Ignoring sync data ... missing node").
+##   Hence online `start_level` completes ~1 RTT later and reports via `level_loaded`; it also waits while a peer is in handshake.
+## Dump (S6): `collect_dump()` base keys + keys added by `register_dump_provider`; values made JSON-safe (Vector2 -> [x, y], Color -> "#rrggbbaa", StringName -> String).
+## Alert ladder (S3 addendum, KR-021; US-008): host-authoritative `alert_level` (0-5; meaning is venue-specific, the venue's alert manager picks transitions — NPCs/StoreAlert in the shop)
+## and police timer `alert_timer_left` (−1 if none). The host calls `set_alert_level` / `set_alert_timer`; values go to all by reliable RPC (late joiners on accept); the timer counts down locally per peer.
+## Reset to 0 / −1 on level load and session end. Dump "alert": {"level", "timer_left", "history"} (history = ladder steps seen this level; I4 check).
 
 signal players_changed()
 signal local_player_changed(player: Node)
 signal team_cash_changed(value: int)
 signal level_loaded(level: Node)
-## Herkeste yayılır (ör. &"police_called").
+## Emitted on every peer (e.g. &"police_called").
 signal session_event(kind: StringName, data: Dictionary)
-## S3 eki: uyarı kademesi değişti (her peer'da).
+## S3 addendum: alert level changed (on every peer).
 signal alert_level_changed(level: int)
 
 const DEFAULT_LEVEL := "res://levels/store_a.tscn"
 const HUD_SCENE := "res://ui/hud.tscn"
 const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
-## El sıkışma protokolü sürümü; uyuşmayan peer reddedilir. Kablo (RPC/eşitleyici/handshake) düzeni değişince artar
-## (mimari.md S2). 2: US-011b hareket eşitleyicisine 8 bit bakış açısı + görüş kipi/maruziyet RPC'leri.
-## 4: US-010 tezgâh/raf ucu prop'ları (eşitleyiciler), sahibin OYALA bileşeni ve `net_shouted`.
-## 5: US-043 sahip/mahalleli YÖNLENDİR bileşenleri ve `net_misdirected`.
+## Handshake protocol version; mismatched peers are rejected. Bump when the wire layout (RPC/synchronizer/handshake) changes (mimari.md S2).
+## 2: US-011b 8-bit look angle in the movement synchronizer + vision mode/exposure RPCs. 4: US-010 counter/shelf-end prop synchronizers, owner's STALL component and `net_shouted`.
+## 5: US-043 owner/local-resident REDIRECT components and `net_misdirected`.
 const PROTOCOL_VERSION := 5
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
@@ -60,32 +44,32 @@ const MAX_EVENTS := 256
 const LEVEL_NODE_NAME := "Level"
 const SPAWNER_NODE_NAME := "PlayerSpawner"
 const HUD_LAYER := 10
-## Seviye değişiminde istemcilerin eşitlemeyi durdurma onayı için üst süre.
+## Max time to wait for clients' freeze acks on a level change.
 const FREEZE_TIMEOUT_SEC := 1.0
-## Geç katılana / seviye değişiminden sonra host'un bildiği konumların yollandığı süre ve aralık.
+## Duration and interval at which the host sends known positions to late joiners / after a level change.
 const CATCHUP_SEC := 2.0
 const CATCHUP_INTERVAL_SEC := 0.05
-## collect_dump() taban anahtarları; sağlayıcılar bunları ezemez.
+## collect_dump() base keys; providers cannot override them.
 const BASE_DUMP_KEYS: Array[String] = [
 	"peer_id", "is_host", "peers", "players", "team_cash", "level", "player_nodes", "events", "host_lost",
 	"ping_ms", "ping", "alert",
-	"vision",  # US-011b görüş eki (S3 eki; döküm aşağıda `_vision_dump`)
+	"vision",  # US-011b vision addendum (S3 addendum; dump built in `_vision_dump` below)
 ]
-## Uyarı geçmişinde tutulan en fazla kademe.
+## Max alert levels kept in history.
 const MAX_ALERT_HISTORY := 64
 const _SYNCED_META := &"_game_synced"
 
-## Varsayılanı res://entities/player/player.tscn (dosya yoksa null); testler değiştirebilir.
+## Default res://entities/player/player.tscn (null if the file is missing); tests may override.
 var player_scene: PackedScene
 
 var _world: Node
 var _level: Level = null
 var _level_path: String = ""
 var _spawner: MultiplayerSpawner = null
-## peer_id -> {"name": String, "slot": int}; slot = katılım yuvası (doğma noktası sırası; görsel taraf rengi
-## slot'tan seçer, Game renk bilmez — mimari.md §6). Host atar, ayrılanın yuvası yeniden kullanılır.
+## peer_id -> {"name": String, "slot": int}; slot = join slot (spawn point order; the visual side picks the team colour from it, Game knows no colours — mimari.md §6).
+## The host assigns; a leaver's slot is reused.
 var _players: Dictionary = {}
-## Oturumdaki uzak peer'lar (Net sinyallerinden).
+## Remote peers in the session (from Net signals).
 var _peer_ids: Array[int] = []
 var _local_name: String = ""
 var _team_cash: int = 0
@@ -94,18 +78,18 @@ var _dump_providers: Dictionary = {}
 var _host_lost: bool = false
 var _session_peer: MultiplayerPeer = null
 var _pending_level: String = ""
-## Host: seviye değişimi öncesi "donduruldu" onayı beklenen peer'lar ve son tarih (ms).
+## Host: peers whose "frozen" ack is awaited before a level change, and the deadline (ms).
 var _freeze_acks: Dictionary = {}
 var _freeze_deadline_ms: int = 0
-## Host: el sıkışması süren peer -> bildirdiği ad.
+## Host: peer in handshake -> reported name.
 var _auth_names: Dictionary = {}
-## Host: konum yetiştirmesi süren peer -> son tarih (ms).
+## Host: peer being caught up on positions -> deadline (ms).
 var _catchup: Dictionary = {}
 var _catchup_elapsed: float = 0.0
 var _players_broadcast_queued: bool = false
 var _warned_no_player_scene: bool = false
 var _alert_level: int = 0
-## Polis sayacından kalan (sn); −1 = sayaç yok.
+## Time left on the police timer (s); −1 = no timer.
 var _alert_timer: float = -1.0
 var _alert_history: Array[int] = [0]
 
@@ -138,7 +122,7 @@ func _process(delta: float) -> void:
 		_alert_timer = maxf(_alert_timer - delta, 0.0)
 
 
-## Bağlanınca host'a bildirilir.
+## Reported to the host on connect.
 func set_local_name(player_name: String) -> void:
 	_local_name = _sanitize_name(player_name)
 	_sync_session()
@@ -157,7 +141,7 @@ func players() -> Dictionary:
 	return _players.duplicate(true)
 
 
-## Yerel oyuncu düğümü ya da null.
+## Local player node or null.
 func local_player() -> Node:
 	var root: Node = _players_root()
 	if root == null or Net.local_peer_id() == 0:
@@ -165,8 +149,7 @@ func local_player() -> Node:
 	return root.get_node_or_null(NodePath(str(Net.local_peer_id())))
 
 
-## Yalnız host; herkese yükletir. Uzak oyuncu yokken hemen; varken istemciler eşitlemeyi durdurunca
-## (~1 RTT) yüklenir. Bitince `level_loaded` yayılır.
+## Host only; makes everyone load. Immediately with no remote players; otherwise once clients stopped syncing (~1 RTT). Emits `level_loaded` when done.
 func start_level(level_path: String) -> void:
 	if not _has_host_authority():
 		push_warning("Game.start_level: yalnız host çağırabilir")
@@ -189,7 +172,7 @@ func current_level() -> Node:
 	return _level
 
 
-## Yalnız host.
+## Host only.
 func add_team_cash(amount: int) -> void:
 	if not _has_host_authority():
 		push_warning("Game.add_team_cash: yalnız host çağırabilir")
@@ -203,7 +186,7 @@ func team_cash() -> int:
 	return _team_cash
 
 
-## Yalnız host; herkese yayınlar, dökümde "events" listesine girer.
+## Host only; broadcasts to everyone and records into the dump's "events" list.
 func raise_session_event(kind: StringName, data: Dictionary = {}) -> void:
 	if not _has_host_authority():
 		push_warning("Game.raise_session_event: yalnız host çağırabilir")
@@ -211,17 +194,17 @@ func raise_session_event(kind: StringName, data: Dictionary = {}) -> void:
 	_to_all(&"_rpc_session_event", [kind, data])
 
 
-## S3 eki: şimdiki uyarı kademesi (0-5).
+## S3 addendum: current alert level (0-5).
 func alert_level() -> int:
 	return _alert_level
 
 
-## S3 eki: polis sayacından kalan (sn); sayaç yoksa −1.
+## S3 addendum: time left on the police timer (s); −1 if no timer.
 func alert_timer_left() -> float:
 	return _alert_timer
 
 
-## Yalnız host: uyarı kademesini herkese yayınlar (sayaç korunur). Geçiş kuralı mekânın yöneticisindedir.
+## Host only: broadcasts the alert level to everyone (timer kept). The transition rule belongs to the venue's manager.
 func set_alert_level(level: int) -> void:
 	if not _has_host_authority():
 		push_warning("Game.set_alert_level: yalnız host çağırabilir")
@@ -231,7 +214,7 @@ func set_alert_level(level: int) -> void:
 	_to_all(&"_rpc_alert", [clampi(level, 0, 5), _alert_timer])
 
 
-## Yalnız host: polis sayacını kurar (sn; < 0 kaldırır), herkese yayınlar.
+## Host only: sets the police timer (s; < 0 removes it) and broadcasts.
 func set_alert_timer(seconds: float) -> void:
 	if not _has_host_authority():
 		push_warning("Game.set_alert_timer: yalnız host çağırabilir")
@@ -239,8 +222,8 @@ func set_alert_timer(seconds: float) -> void:
 	_to_all(&"_rpc_alert", [_alert_level, seconds if seconds >= 0.0 else -1.0])
 
 
-## `key` dökümde üst düzey anahtar olur; değer döküm anında `provider.call()` ile alınır.
-## Taban anahtarlar (BASE_DUMP_KEYS) ezilemez; aynı anahtar yeniden kaydedilirse son kayıt geçerlidir.
+## `key` becomes a top-level dump key; the value is fetched via `provider.call()` at dump time.
+## Base keys (BASE_DUMP_KEYS) cannot be overridden; re-registering a key keeps the last one.
 func register_dump_provider(key: String, provider: Callable) -> void:
 	if key.is_empty() or not provider.is_valid():
 		push_warning("Game.register_dump_provider: geçersiz anahtar ya da çağrılabilir")
@@ -282,7 +265,7 @@ func collect_dump() -> Dictionary:
 	return dump
 
 
-## Değeri JSON'a yazılabilir biçime çevirir (iç içe Dictionary/Array dahil).
+## Converts a value to a JSON-writable form (incl. nested Dictionary/Array).
 static func to_json_value(value: Variant) -> Variant:
 	match typeof(value):
 		TYPE_DICTIONARY:
@@ -312,9 +295,9 @@ static func to_json_value(value: Variant) -> Variant:
 	return str(value)
 
 
-# --- oturum ---
+# --- session ---
 
-## Oturum, Net'te bir taşıma (host, bağlanma, el sıkışması ya da kabul) olduğu sürece açıktır.
+## A session is open as long as Net has a transport (host, connecting, handshake or accepted).
 func _sync_session() -> void:
 	var current: MultiplayerPeer = multiplayer.multiplayer_peer if Net.local_peer_id() != 0 else null
 	if current == _session_peer:
@@ -351,13 +334,13 @@ func _end_session() -> void:
 	players_changed.emit()
 
 
-## Host ya da çevrimdışı (tek başına). Ağ olay anında `multiplayer.is_server()`'ın kapanmış taşımaya
-## sorup hata basmaması için Net bayraklarından okunur; anlamı S2'deki is_server() korumasıyla aynıdır.
+## Host or offline (standalone). Read from Net flags so a network event never queries `multiplayer.is_server()` on a closed transport (error);
+## same meaning as the S2 is_server() guard.
 func _has_host_authority() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0
 
 
-## Host→herkes durum çağrısı: çevrimiçiyse RPC (call_local), değilse yerel çağrı.
+## Host→all state call: RPC if online (call_local), local call otherwise.
 func _to_all(method: StringName, args: Array) -> void:
 	if Net.is_online():
 		callv(&"rpc", [method] + args)
@@ -370,14 +353,13 @@ func _authenticating_peers() -> PackedInt32Array:
 	return sm.get_authenticating_peers() if sm != null else PackedInt32Array()
 
 
-## Bekleyen seviye değişimini koşullar sağlandıysa uygular: el sıkışması süren peer yok ve bütün
-## "donduruldu" onayları geldi (ya da süre doldu).
+## Applies the pending level change once conditions hold: no peer in handshake and all "frozen" acks arrived (or timed out).
 func _try_start_pending_level() -> void:
 	if _pending_level.is_empty():
 		return
 	if Net.is_online():
 		if not _authenticating_peers().is_empty():
-			return  # el sıkışması süren peer eski yolu almış olabilir; bitince yüklenir
+			return  # a peer in handshake may have received the old path; loads when it finishes
 		if not _freeze_acks.is_empty() and Time.get_ticks_msec() < _freeze_deadline_ms:
 			return
 	var level_path: String = _pending_level
@@ -398,17 +380,16 @@ func _try_start_pending_level() -> void:
 			_start_catchup(peer_id)
 
 
-# --- Net olayları ---
-# Host'un ağ olaylarına tepkisi (yayın, spawn/despawn) kare sonuna ertelenir: aynı poll'da birden çok peer
-# koptuğunda, olayı henüz işlenmemiş kopuk peer'a gönderim "Unable to send packet ... max channels: 0"
-# hatası verir. Kare sonunda taşımanın bütün olayları işlenmiş olur.
+# --- Net events ---
+# The host's reaction to network events (broadcast, spawn/despawn) is deferred to end of frame: when several peers drop in the same poll, sending to a
+# dropped peer whose event is not yet processed gives "Unable to send packet ... max channels: 0". By end of frame the transport has processed all events.
 
 func _on_peer_connected(peer_id: int) -> void:
 	_sync_session()
 	if not _peer_ids.has(peer_id):
 		_peer_ids.append(peer_id)
 	if Net.is_host():
-		# Hedef yeni kabul edilmiş, canlı peer: konumlar aynı poll'da spawn paketlerinin hemen ardından gider.
+		# Target is a freshly accepted, live peer: positions go right after the spawn packets in the same poll.
 		var positions: Dictionary = _player_positions()
 		if not positions.is_empty():
 			_rpc_catchup_positions_reliable.rpc_id(peer_id, positions)
@@ -418,7 +399,7 @@ func _on_peer_connected(peer_id: int) -> void:
 
 func _host_admit_peer(peer_id: int) -> void:
 	if not Net.is_host() or not _peer_ids.has(peer_id) or _players.has(peer_id):
-		return  # bu arada ayrıldı ya da oturum bitti
+		return  # left meanwhile or the session ended
 	var player_name: String = str(_auth_names.get(peer_id, ""))
 	_auth_names.erase(peer_id)
 	_add_player(peer_id, player_name)
@@ -431,7 +412,7 @@ func _host_admit_peer(peer_id: int) -> void:
 
 func _on_peer_disconnected(peer_id: int) -> void:
 	_peer_ids.erase(peer_id)
-	# İstemcide oyuncu kaydı ve düğümü host'tan silinir (players RPC'si + despawn).
+	# On a client the player record and node are removed by the host (players RPC + despawn).
 	if Net.is_host():
 		_host_drop_peer.call_deferred(peer_id)
 
@@ -448,18 +429,17 @@ func _host_drop_peer(peer_id: int) -> void:
 
 
 func _on_connection_failed() -> void:
-	_sync_session()  # el sıkışmasında yüklenmiş seviye ve durum hemen kalksın
+	_sync_session()  # so a level/state loaded during the handshake is removed at once
 
 
 func _on_host_disconnected() -> void:
-	# Durum bir sonraki karede (_sync_session) temizlenir: dinleyiciler (döküm) önce son durumu görür.
+	# State is cleared next frame (_sync_session) so listeners (dump) see the final state first.
 	_host_lost = true
 
 
-# --- el sıkışması (SceneMultiplayer auth) ---
-# Host kabul öncesi seviye yolunu yollar; istemci yükler, adını ve yüklediği yolu yanıtlar ve el sıkışmasını
-# kendi tarafında bitirir. Host yol eşleşirse bitirir, eşleşmezse (sürüm/biçim bozuk ya da yol farklı)
-# bağlantıyı keser. Host el sıkışması süren peer varken seviye değiştirmez (bkz. _try_start_pending_level).
+# --- handshake (SceneMultiplayer auth) ---
+# The host sends the level path before acceptance; the client loads it, replies with its name and loaded path and finishes its side. The host finishes if the path matches,
+# else (bad version/format or different path) it disconnects. The host does not change level while a peer is in handshake (see _try_start_pending_level).
 
 func _on_peer_authenticating(peer_id: int) -> void:
 	if Net.is_host():
@@ -473,7 +453,7 @@ func _on_peer_authentication_failed(peer_id: int) -> void:
 
 func _on_auth_data(peer_id: int, data: PackedByteArray) -> void:
 	var sm: SceneMultiplayer = multiplayer as SceneMultiplayer
-	var msg: Variant = bytes_to_var(data)  # nesne çözülmez (güvenli)
+	var msg: Variant = bytes_to_var(data)  # objects are not decoded (safe)
 	if typeof(msg) != TYPE_DICTIONARY or typeof((msg as Dictionary).get("v")) != TYPE_INT \
 			or int((msg as Dictionary)["v"]) != PROTOCOL_VERSION:
 		push_warning("Game: peer %d el sıkışması reddedildi (sürüm/biçim uyuşmuyor)" % peer_id)
@@ -504,7 +484,7 @@ func _on_auth_data(peer_id: int, data: PackedByteArray) -> void:
 	sm.complete_auth(1)
 
 
-# --- RPC'ler (host→herkes: "authority"; istemci→host: "any_peer" + gönderen doğrulaması) ---
+# --- RPCs (host→all: "authority"; client→host: "any_peer" + sender validation) ---
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_players(data: Dictionary) -> void:
@@ -546,14 +526,14 @@ func _apply_alert(level: int, timer: float, reset_history: bool) -> void:
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_session_event(kind: StringName, data: Dictionary) -> void:
-	# call_local'da `data` çağıranın sözlüğüdür; sonradan değişirse kayıt değişmesin.
+	# with call_local `data` is the caller's dictionary; copy so later changes don't alter the record
 	_events.append({"kind": kind, "data": data.duplicate(true)})
 	if _events.size() > MAX_EVENTS:
 		_events.pop_front()
 	session_event.emit(kind, data)
 
 
-## Host'un bildiği oyuncu konumları (peer_id -> Vector2): kabulde bir kez güvenilir, sonra akış güvenilmez.
+## Positions known to the host (peer_id -> Vector2): once reliably on accept, then an unreliable stream.
 @rpc("authority", "call_remote", "reliable")
 func _rpc_catchup_positions_reliable(positions: Dictionary) -> void:
 	_apply_catchup(positions)
@@ -564,7 +544,7 @@ func _rpc_catchup_positions(positions: Dictionary) -> void:
 	_apply_catchup(positions)
 
 
-## Seviyeyi host zaten yükledi; yalnız istemcilere gider.
+## The host already loaded the level; goes to clients only.
 @rpc("authority", "call_remote", "reliable")
 func _rpc_load_level(level_path: String) -> void:
 	if not _is_level_path(level_path):
@@ -574,7 +554,7 @@ func _rpc_load_level(level_path: String) -> void:
 	_load_level_local(level_path)
 
 
-## Seviye değişimi öncesi: istemci kendi yetkisindeki eşitleyicilerin yayınını kapatır ve onaylar.
+## Before a level change: the client turns off publishing of its authority synchronizers and acks.
 @rpc("authority", "call_remote", "reliable")
 func _rpc_freeze_players() -> void:
 	var root: Node2D = _players_root()
@@ -607,9 +587,9 @@ func _rpc_set_name(player_name: String) -> void:
 	_queue_players_broadcast()
 
 
-# --- oyuncular ---
+# --- players ---
 
-## Boştaki en küçük yuvayı verir.
+## Returns the smallest free slot.
 func _add_player(peer_id: int, player_name: String) -> void:
 	var used: Array[int] = []
 	for entry: Dictionary in _players.values():
@@ -624,7 +604,7 @@ func _broadcast_players() -> void:
 	_to_all(&"_rpc_players", [_players.duplicate(true)])
 
 
-## Kare sonunda tek yayın (poll içinde gönderim yok; aynı karedeki ad değişiklikleri birleşir).
+## Single broadcast at end of frame (no sends inside the poll; name changes in the same frame merge).
 func _queue_players_broadcast() -> void:
 	if _players_broadcast_queued:
 		return
@@ -660,7 +640,7 @@ func _spawn_player(peer_id: int) -> void:
 	_spawner.spawn({"id": peer_id, "pos": _spawn_position(slot)})
 
 
-## PlayerSpawner.spawn_function: host'ta spawn() içinde, istemcilerde spawn paketi gelince çalışır.
+## PlayerSpawner.spawn_function: runs in spawn() on the host, on spawn packet arrival on clients.
 func _spawn_player_node(data: Variant) -> Node:
 	var d: Dictionary = data if typeof(data) == TYPE_DICTIONARY else {}
 	var peer_id: int = int(d["id"]) if typeof(d.get("id")) == TYPE_INT else 0
@@ -706,7 +686,7 @@ func _has_remote_players() -> bool:
 	return false
 
 
-## Yuvanın doğma noktası (Players koordinatında); seviyede doğma noktası yoksa yan yana dizer.
+## Spawn point of the slot (Players coordinates); lines players up side by side if the level has none.
 func _spawn_position(slot: int) -> Vector2:
 	if _level == null or _level.spawn_count() == 0:
 		return Vector2(32.0 * slot, 0.0)
@@ -732,7 +712,7 @@ func _on_player_node_added(node: Node) -> void:
 	if local_id != 0 and str(node.name) == str(local_id):
 		local_player_changed.emit(node)
 		return
-	# Uzak oyuncu: eşitleyicisinden ilk veri gelince konum yetiştirmesi bu düğüm için durur.
+	# Remote player: once its synchronizer's first data arrives, catch-up stops for this node.
 	for found: Node in node.find_children("*", "MultiplayerSynchronizer", true, false):
 		var sync: MultiplayerSynchronizer = found as MultiplayerSynchronizer
 		sync.synchronized.connect(_mark_synced.bind(node), CONNECT_ONE_SHOT)
@@ -753,7 +733,7 @@ func _start_catchup(peer_id: int) -> void:
 	_catchup[peer_id] = Time.get_ticks_msec() + int(CATCHUP_SEC * 1000.0)
 
 
-## Host: konum yetiştirmesi süren peer'lara CATCHUP_INTERVAL_SEC'te bir güncel konumları yollar.
+## Host: every CATCHUP_INTERVAL_SEC sends current positions to peers being caught up.
 func _send_catchup(delta: float) -> void:
 	if _catchup.is_empty():
 		return
@@ -774,7 +754,7 @@ func _send_catchup(delta: float) -> void:
 			_rpc_catchup_positions.rpc_id(peer_id, positions)
 
 
-## İstemci: host'un bildiği konumları, eşitleyicisinden henüz veri gelmemiş uzak oyunculara uygular.
+## Client: applies host-known positions to remote players whose synchronizer has not delivered data yet.
 func _apply_catchup(positions: Dictionary) -> void:
 	var root: Node = _players_root()
 	if root == null:
@@ -789,7 +769,7 @@ func _apply_catchup(positions: Dictionary) -> void:
 			node.position = pos
 
 
-# --- seviye ---
+# --- level ---
 
 func _load_level_local(level_path: String) -> bool:
 	var scene: PackedScene = load(level_path) as PackedScene
@@ -861,7 +841,7 @@ static func _is_level_path(path: String) -> bool:
 	return path.begins_with("res://") and not path.contains("..")
 
 
-# --- döküm yardımcıları ---
+# --- dump helpers ---
 
 func _dump_players() -> Dictionary:
 	var out: Dictionary = {}
@@ -887,7 +867,7 @@ func _player_node_ids() -> Array[int]:
 	return out
 
 
-## IS-026: ping ölçümünün kaynağı ve örnek sayısı ({"<peer_id>": Net.get_ping_info}).
+## IS-026: source and sample count of the ping measurement ({"<peer_id>": Net.get_ping_info}).
 func _dump_ping_info() -> Dictionary:
 	var out: Dictionary = {}
 	for peer_id: int in _peer_ids:
@@ -906,8 +886,8 @@ func _dump_pings() -> Dictionary:
 	return out
 
 
-## Görünmeyen karakterleri atar, MAX_NAME_LENGTH'e kırpar. Uzun girdide yalnız baştaki
-## MAX_NAME_LENGTH x 4 karakter işlenir (ağdan gelen dev ad host'u dondurmasın).
+## Drops invisible characters and trims to MAX_NAME_LENGTH. For long input only the first MAX_NAME_LENGTH x 4 characters are processed
+## (a huge name from the network must not freeze the host).
 static func _sanitize_name(value: Variant) -> String:
 	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
 		return ""
@@ -923,51 +903,36 @@ static func _sanitize_name(value: Variant) -> String:
 
 
 # =====================================================================================================================
-# US-012 — Soygun sonucu (S3 eki, KR-021: heist_finished, heist_result, request_restart, venue_tier).
-# Bu bölüm yukarıdaki koda dokunmaz: bağlantılar ve fizik adımı `_notification`'dan (ENTER_TREE, PHYSICS_PROCESS).
-# Kurallar ve sayaçlar düğümsüz `HeistRules` / `HeistRules.Tracker`'da (core/heist_rules.gd); burada yalnız
-# sahne bağlama: oyuncu görünümü (kaçış bölgesi `Level.zone(&"EscapeZone")`, yakalanma/tutulma oyuncu
-# API'sinden okunur, taşınan çanta değeri), kasa nakdinin kimin olduğu (bileşenin `completed` sinyali), sonuç
-# yayını; iş bitince ganimet etkileşimleri host'ta kilitlenir (yeni istek reddi, geç biten kasanın nakdi geri alınır).
-# - İş yalnız `EscapeZone` taşıyan seviyelerde izlenir; host karar verir (S2), sonuç herkese RPC ile gider ve
-#   geç katılana kabulde yollanır. Bitişte ekip nakdi = iş öncesi + ödeme (kasadan anında giren nakit ödemeyle
-#   değiştirilir). Seviye kalkınca (yeniden başlatma, oturum sonu) sonuç sıfırlanır.
-# - US-008 bağlanma noktaları (yoksa atlanır): Game sinyalleri `alert_level_changed(level)`, `police_arrived()`,
-#   `player_caught(peer_id[, by])`; `alert_level()` (her adımda okunur); oyuncu `is_caught()` / `is_held()`
-#   (HeistRules.CAUGHT_METHODS / HELD_METHODS). Aynı olaylar session_event olarak da kabul edilir:
+# US-012 — Heist result (S3 addendum, KR-021: heist_finished, heist_result, request_restart, venue_tier). This section leaves the code above untouched:
+# connections and the physics step come from `_notification` (ENTER_TREE, PHYSICS_PROCESS). Rules and counters live in nodeless `HeistRules` / `HeistRules.Tracker`
+# (core/heist_rules.gd); here only scene wiring: player view (escape zone `Level.zone(&"EscapeZone")`, caught/held from the player API, carried bag value), whose vault cash
+# it is (component's `completed` signal), result broadcast; when the job ends loot interactions lock on the host (new requests rejected, a late-finishing vault's cash is taken back).
+# - The job is tracked only in levels with an `EscapeZone`; the host decides (S2), the result goes to all by RPC and to late joiners on accept. At the end team cash = before + payout
+#   (cash that entered instantly from the vault is replaced by the payout). Reset when the level goes away (restart, session end).
+# - US-008 hook points (skipped if absent): Game signals `alert_level_changed(level)`, `police_arrived()`, `player_caught(peer_id[, by])`; `alert_level()` (read every step);
+#   player `is_caught()` / `is_held()` (HeistRules.CAUGHT_METHODS / HELD_METHODS). The same events are also accepted as session_event:
 #   &"alert_level" {"level"}, &"police_arrived", &"player_caught" {"peer", "by"?: &"chaser"}, &"shout".
-# - Test kancası (yalnız otomasyon + host, ağ senaryosu): `--bot` dosyasındaki {"t": SN, "heist": "<olay>",
-#   "data": {...}} adımları — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart" —
-#   yukarıdaki session_event'lerle (ve request_restart ile) uygulanır; US-008 gelene dek sahip olaylarının
-#   yerine geçer. Zaman, bot zaman çizelgesi gibi ilk yerel oyuncunun ilk fizik adımından sayılır.
-# - US-040 eli boş çekilme: kural ve sayaç `HeistRules.AbortClock` (Tracker içinde, host karar verir; süre
-#   data/heist_tuning.tres). `abort_left()` HUD geri sayımı: host'ta Tracker'ın sayacı, istemcide aynı sınıfla
-#   yerel kopyadan (escape_status + çoğaltılan çanta taşıyanı / kasa `emptied`) türetilir — RPC yok; sonuç yine
-#   heist_finished ile gelir.
-# - US-041 kefalet (KR-029): yakalanan başına `bail_by_tier[venue_tier()]` (data/heist_tuning.tres); ekip kasası
-#   = iş öncesi + ödeme − kefalet, eksiye düşebilir (borç). Sonuçta `bail`, `cash_before`, `cash_after`.
-#   "Bir daha" (request_restart) kasayı sıfırlamaz: borç/kasa sonraki işe taşınır (KR-029, US-042 paketi).
-# - US-042 örtü ve tanık sorgusu: kural `HeistRules` (cover_breaker, associates, witness_released) ve Tracker
-#   (cover_broken, released). Görünüme örtü alanları eklenir: personel tarafı (`StaffArea`/`Backroom` bölgesi),
-#   kasa/nakit tutma (nakit bileşeninin `busy_by`'ı), hareket kipi (`net_mode`), maske (henüz yok: false).
-#   Sahip bağırdı/tuttu (`owner_shout`/`owner_held` sinyali, `player_held` olayı) → arkadaş işaretlenir; ÇEK
-#   (`player_rescued {peer, by}`) ya da çanta devri (önceki taşıyan → alan) işaretli arkadaşla 48 px içinde ve bir
-#   gözlemcinin (seviyedeki `report_suspicion`'lı sahip ya da `suspicion()`/`perception()`'lı sivil; konisi + görüş
-#   hattı) gördüğü yerde olursa örtü bozulur ve gören her gözlemcinin o oyuncuya şüphesi +60 (sahipte müşteri-tanık
-#   yolu `report_suspicion`). Bozulan örtü herkese `session_event` &"cover_broken" {peer, reason} ile gider (HUD
-#   sessiz; yerel gösterge `cover_state()`); kablo düzeni değişmez. Polis gelince örtüsü sağlam, ganimetsiz,
-#   tutulmayan bölge dışı oyuncu serbest (`witness_released`, kefalet yok, tanındı +1, ekip ısısı +2).
-# - US-042 strateji etiketi: sonuçta `strategy` (Tracker.strategy) ve döküm `heist.strategy`; etkileşim sayısı
-#   seviyedeki her Interactable `completed`'inden (oyuncu) + ÇEK; arka kapı = `BackDoor` prop'unu oyuncu kullandı.
-# Döküm (S6 "heist", yalnız --dump): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s",
-#   "cover" {peer: bool}, "strategy"}.
+# - Test hook (automation + host only, net scenario): `--bot` steps {"t": SEC, "heist": "<event>", "data": {...}} — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart" —
+#   applied through the session_events above (and request_restart); stands in for owner events until US-008. Time counts from the first local player's first physics step, like the bot timeline.
+# - US-040 empty-handed abort: rule and clock in `HeistRules.AbortClock` (inside Tracker, host decides; duration data/heist_tuning.tres). `abort_left()` HUD countdown: on the host the Tracker's clock,
+#   on a client derived by the same class from the local copy (escape_status + replicated bag carrier / vault `emptied`) — no RPC; the result still arrives via heist_finished.
+# - US-041 bail (KR-029): per caught player `bail_by_tier[venue_tier()]` (data/heist_tuning.tres); team cash = before + payout − bail, may go negative (debt). The result has `bail`, `cash_before`, `cash_after`.
+#   "Again" (request_restart) does not reset cash: debt/cash carries to the next job (KR-029, US-042 package).
+# - US-042 cover and witness query: rule in `HeistRules` (cover_breaker, associates, witness_released) and Tracker (cover_broken, released). The view gains cover fields: staff side (`StaffArea`/`Backroom` zone),
+#   vault/cash holding (cash component's `busy_by`), movement mode (`net_mode`), mask (not yet: false). The owner shouting/holding (`owner_shout`/`owner_held` signal, `player_held` event) marks the friend;
+#   a RESCUE (`player_rescued {peer, by}`) or bag handover (previous carrier → receiver) with the marked friend within 48 px where an observer sees it (owner with `report_suspicion` in the level or civilian with
+#   `suspicion()`/`perception()`; cone + line of sight) breaks cover, and each observer that sees gives that player +60 suspicion (owner: customer-witness path `report_suspicion`).
+#   Broken cover goes to all as `session_event` &"cover_broken" {peer, reason} (HUD silent; local indicator `cover_state()`); wire layout unchanged. When police arrive a player with intact cover, no loot,
+#   not held and outside the zone is released (`witness_released`: no bail, recognised +1, team heat +2).
+# - US-042 strategy label: result `strategy` (Tracker.strategy) and dump `heist.strategy`; interaction count from every level Interactable's `completed` (player) + RESCUE; back door = a player used the `BackDoor` prop.
+# Dump (S6 "heist", --dump only): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s", "cover" {peer: bool}, "strategy"}.
 # =====================================================================================================================
 
 signal heist_finished(result: Dictionary)
 
 const HEIST_DUMP_KEY := "heist"
 const HEIST_ESCAPE_ZONE := &"EscapeZone"
-## Mekân kademesi (Faz 2'de tek mekân: bakkal T1).
+## Venue tier (a single venue in Phase 2: grocery T1).
 const HEIST_VENUE_TIER := 1
 const HEIST_SIG_ALERT := &"alert_level_changed"
 const HEIST_SIG_POLICE := &"police_arrived"
@@ -976,26 +941,25 @@ const HEIST_EVENT_ALERT := &"alert_level"
 const HEIST_EVENT_POLICE := &"police_arrived"
 const HEIST_EVENT_CAUGHT := &"player_caught"
 const HEIST_EVENT_SHOUT := &"shout"
-## US-042: örtü bozuldu {peer, reason} (host yayar; her peer yerel göstergesi için tutar; HUD'da sessiz).
+## US-042: cover broken {peer, reason} (the host emits; each peer keeps it for its local indicator; silent in the HUD).
 const HEIST_EVENT_COVER := &"cover_broken"
 const HEIST_EVENT_HELD := &"player_held"
 const HEIST_EVENT_RESCUED := &"player_rescued"
-## Sahibin bir oyuncuyu işaretlediği sinyaller (peer_id): bağırdı, tuttu.
+## Signals where the owner marks a player (peer_id): shouted, held.
 const HEIST_MARK_SIGNALS: Array[StringName] = [&"owner_shout", &"owner_held"]
-## US-010/US-043/US-044 (host): sahibin oyuncu aracı kancası (strateji "sosyal"), tanıma (vitrin sorgusu) ve tezgâh
-## alışverişi oturum olayı (bedel iş sonu kasasından düşer).
+## US-010/US-043/US-044 (host): owner's player-tool hook ("social" strategy), recognition (showcase query) and counter purchase as a session event
+## (cost deducted from end-of-job cash).
 const HEIST_SOCIAL_SIGNAL := &"social_action"
 const HEIST_RECOGNIZED_SIGNAL := &"recognized"
 const HEIST_EVENT_PURCHASE := &"purchase"
-## Örtüyü bozan personel tarafı bölgeleri (S4 eki).
+## Staff-side zones that break cover (S4 addendum).
 const HEIST_STAFF_ZONES: Array[StringName] = [&"StaffArea", &"Backroom"]
-## Arka kapı prop'u (strateji etiketi "arka_kapı").
+## Back door prop (back-door strategy label).
 const HEIST_BACK_DOOR := &"BackDoor"
 const HEIST_HOOK_KEY := "heist"
 const HEIST_HISTORY_MAX := 16
-## Etkileşim bileşenlerinin grubu: Interactable.GROUP ile aynı değer (= PhysicsLayers.INTERACTABLES_GROUP, IS-037;
-## birleştirmede ona bağlanır). Autoload entities/ sınıflarına derlemede bağlanmasın diye (§6) bileşenlere
-## yalnız ördek tiplemeyle (has_signal/has_method/"x" in) dokunulur.
+## Group of interaction components: same value as Interactable.GROUP (= PhysicsLayers.INTERACTABLES_GROUP, IS-037; bound to it on merge). So the autoload does not bind to entities/ classes at
+## compile time (§6), components are touched by duck typing only (has_signal/has_method/"x" in).
 const HEIST_INTERACTABLES_GROUP := PhysicsLayers.INTERACTABLES_GROUP
 
 var _heist: HeistRules.Tracker = null
@@ -1005,27 +969,27 @@ var _heist_hook_steps: Array[Dictionary] = []
 var _heist_hook_next: int = 0
 var _heist_hook_t: float = 0.0
 var _heist_hook_started: bool = false
-## Bağlanan isteğe bağlı sinyaller (US-008; adı -> true): her seviye yüklemesinde yeniden denenir.
+## Optional signals connected (US-008; name -> true): retried on every level load.
 var _heist_bound: Dictionary = {}
-## US-042: örtüsü bozulan oyuncular (peer -> neden), her peer'da `cover_broken` olayından; seviyeyle sıfırlanır.
+## US-042: players whose cover broke (peer -> reason), on every peer from the `cover_broken` event; reset with the level.
 var _heist_cover_lost: Dictionary = {}
-## Host: çanta düğümü (instance id) -> son adımdaki taşıyan (devirde önceki taşıyanı bulmak için).
+## Host: bag node (instance id) -> carrier in the last step (to find the previous carrier on a handover).
 var _heist_bag_carrier: Dictionary = {}
-## Host: nakit etkileşim bileşenleri (kasa; `busy_by` = tutan oyuncu).
+## Host: cash interaction components (vault; `busy_by` = holding player).
 var _heist_cash_items: Array[Node] = []
-## US-040: istemcinin yerel eli boş çekilme sayacı (yalnız HUD; karar host'ta Tracker.abort).
+## US-040: client's local empty-handed abort counter (HUD only; the decision is the host's Tracker.abort).
 var _heist_abort_view: HeistRules.AbortClock = null
-## Seviyedeki nakit prop'ları (kasa; `emptied` çoğaltılır): istemcinin yerel ganimet kestirimi için.
+## Cash props in the level (vault; `emptied` is replicated): for the client's local loot estimate.
 var _heist_cash_props: Array[Node] = []
 
 
-## Bitmiş işin sonucu (S3 eki; geç katılan da alır); iş sürüyorsa ya da yoksa boş.
+## Result of a finished job (S3 addendum; late joiners get it too); empty if the job is running or absent.
 func heist_result() -> Dictionary:
 	return _heist_result.duplicate(true)
 
 
-## Yalnız host: aynı seviyeyi yeniden yükler (Game seviye yolu); prop'lar seviyeyle sıfırlanır. Ekip kasası
-## (borç dahil) taşınır: sonraki işin ödemesi borcu kapatır (KR-029).
+## Host only: reloads the same level (Game level path); props reset with the level. Team cash (incl. debt) carries over:
+## the next job's payout settles the debt (KR-029).
 func request_restart() -> void:
 	if not _has_host_authority():
 		push_warning("Game.request_restart: yalnız host çağırabilir")
@@ -1036,13 +1000,13 @@ func request_restart() -> void:
 	start_level(_level_path)
 
 
-## Mekân kademesi (uyarı merdiveni metinleri `ALERT_T<k>_<level>`).
+## Venue tier (alert ladder texts `ALERT_T<k>_<level>`).
 func venue_tier() -> int:
 	return HEIST_VENUE_TIER
 
 
-## US-040 (S3 eki): eli boş çekilme geri sayımının kalan süresi (sn); sayaç yoksa ya da iş bittiyse −1. Host'ta
-## kararı veren sayaç; istemcide yerel kopyadan türetilen tahmin (yalnız gösterim).
+## US-040 (S3 addendum): time left on the empty-handed abort countdown (s); −1 if no counter or the job finished. On the host the deciding counter;
+## on a client an estimate derived from the local copy (display only).
 func abort_left() -> float:
 	if _heist == null or _heist.finished:
 		return -1.0
@@ -1051,16 +1015,15 @@ func abort_left() -> float:
 	return _heist_abort_view.left() if _heist_abort_view != null else -1.0
 
 
-## US-042 (S3 eki): yerel oyuncunun örtüsü — 1 sağlam ("müşteri gibisin"), 0 bozuldu, −1 iş yok/bitti ya da yerel
-## oyuncu yok. Her peer `cover_broken` olaylarından okur (host da aynı yoldan).
+## US-042 (S3 addendum): the local player's cover — 1 intact ("you look like a customer"), 0 broken, −1 no job/finished or no local player.
+## Every peer reads it from `cover_broken` events (the host too).
 func cover_state() -> int:
 	if _heist == null or _heist.finished or local_player() == null:
 		return -1
 	return 0 if _heist_cover_lost.has(local_player().get_multiplayer_authority()) else 1
 
 
-## Bölümün tek motor girişi: `_enter_tree`/`_physics_process` tanımlanmaz ki başka bölümler (US-008) kendi
-## sanal yöntemlerini çakışmadan ekleyebilsin.
+## The section's single engine entry: `_enter_tree`/`_physics_process` are not defined so other sections (US-008) can add their own virtuals without clashing.
 func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_ENTER_TREE:
@@ -1104,8 +1067,7 @@ func _heist_physics(delta: float) -> void:
 		_heist_finish(decision, views)
 
 
-## US-008 sinyalleri (yoksa atlanır; her seviye yüklemesinde yeniden denenir): uyarı (1 arg), polis (0),
-## yakalanma (1-2 arg: peer_id[, by]); fazla argüman atılır (HeistRules.adapt_callable).
+## US-008 signals (skipped if absent; retried on every level load): alert (1 arg), police (0), caught (1-2 args: peer_id[, by]); extra args are dropped (HeistRules.adapt_callable).
 func _heist_bind_optional() -> void:
 	_heist_bind(HEIST_SIG_ALERT, _heist_on_alert, 1, 1)
 	_heist_bind(HEIST_SIG_POLICE, _heist_on_police, 0, 0)
@@ -1147,7 +1109,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 		level.tree_exiting.connect(_heist_on_level_exiting, CONNECT_ONE_SHOT)
 	for node: Node in get_tree().get_nodes_in_group(HEIST_INTERACTABLES_GROUP):
 		var prop: Node = node.get_parent()
-		# US-042 strateji etiketi: prop etkileşimleri (oyuncunun üstündeki ÇEK `player_rescued` olayından sayılır).
+		# US-042 strategy label: prop interactions (a RESCUE on a player is counted from the `player_rescued` event).
 		if level.is_ancestor_of(node) and prop != null and node.has_signal(&"completed") 				and not prop.has_method(&"interaction_position"):
 			node.connect(&"completed", _heist_on_interaction.bind(prop))
 		if not level.is_ancestor_of(node) or prop == null or prop.is_in_group(HeistRules.BAG_GROUP) \
@@ -1160,13 +1122,13 @@ func _heist_on_level_loaded(level: Node) -> void:
 		_heist_cash_props.append(prop)
 		_heist_cash_items.append(node)
 		node.connect(&"completed", _heist_on_cash_taken.bind(cash))
-		# İş bitince host yeni ganimet etkileşimini reddeder (bileşenin kendi engeli yoksa; çanta kendi kilitlenir).
+		# After the job ends the host rejects new loot interactions (unless the component blocks itself; the bag locks itself).
 		if "start_blocker" in node and not (node.get(&"start_blocker") as Callable).is_valid():
 			node.set(&"start_blocker", _heist_loot_locked)
 	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
 		if level.is_ancestor_of(bag) and bag.has_signal(&"taken"):
 			bag.connect(&"taken", _heist_on_bag_taken.bind(bag))
-	# US-042: sahibin işaretlediği oyuncu (bağırdı/tuttu) ilişkilendirme penceresini açar.
+	# US-042: a player marked by the owner (shouted/held) opens the association window.
 	var npcs: Node = lvl.npcs_root()
 	if npcs != null:
 		for node: Node in npcs.find_children("*", "", true, false):
@@ -1179,8 +1141,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 				node.connect(HEIST_RECOGNIZED_SIGNAL, _heist_on_recognized)
 
 
-## Seviye kalkarken (yeniden başlatma, seviye değişimi, oturum sonu): iş ve sonucu sıfırlanır. Yeni seviyenin
-## HUD'u eski sonucu görmesin diye yükleme öncesinde.
+## When the level goes away (restart, level change, session end): job and result reset, before loading so the new level's HUD does not see the old result.
 func _heist_on_level_exiting() -> void:
 	_heist = null
 	_heist_result = {}
@@ -1188,19 +1149,18 @@ func _heist_on_level_exiting() -> void:
 	_heist_cash_props.clear()
 
 
-## İstemci (US-040 HUD): eli boş çekilme koşulunun yerel kestirimi — yakalanmamış herkes bölgede (escape_status,
-## host'un `_heist_views` kuralı) ve ganimet görünmüyor (taşınan çanta yok, nakit prop boşaltılmamış). Kasayı
-## sonradan yakalanan biri boşalttıysa host sayar, istemci saymaz: o durumda geri sayım yalnız host'ta görünür.
+## Client (US-040 HUD): local estimate of the empty-handed abort condition — everyone not caught is in the zone (escape_status, the host's `_heist_views` rule) and no loot is visible
+## (no carried bag, no un-emptied cash prop). If someone caught later emptied the vault the host counts it but the client does not: then the countdown shows only on the host.
 func _heist_client_abort(delta: float) -> void:
 	if _heist_abort_view == null:
 		return
 	var status: Dictionary = escape_status()
 	var free: int = int(status.get("free", 0))
 	var holding: bool = free > 0 and int(status.get("in_zone", 0)) >= free and not _heist_loot_seen()
-	_heist_abort_view.step(holding, delta, free)  # serbest sayısı değişti (yakalanma): baştan
+	_heist_abort_view.step(holding, delta, free)  # free count changed (a catch): restart
 
 
-## İstemcinin gördüğü ganimet: çoğaltılan çanta taşıyanı ya da boşaltılmış nakit prop'u.
+## Loot as the client sees it: a replicated bag carrier or an emptied cash prop.
 func _heist_loot_seen() -> bool:
 	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
 		if _level != null and _level.is_ancestor_of(bag) and int(bag.get(&"carrier")) != 0:
@@ -1211,8 +1171,7 @@ func _heist_loot_seen() -> bool:
 	return false
 
 
-## Kasa nakdi kimin (prop kendi işleyicisinde ekip nakdine ekledi). Sonuçtan sonra biten (iş bitmeden başlamış)
-## boşaltmanın nakdi geri alınır: ödeme kesinleşti.
+## Whose vault cash it is (the prop added it to team cash in its own handler). Cash from an emptying that started before the job ended but finished after the result is taken back: the payout is final.
 func _heist_on_cash_taken(peer_id: int, cash: int) -> void:
 	if _heist == null:
 		return
@@ -1233,12 +1192,12 @@ func _heist_on_bag_taken(peer_id: int, bag: Node) -> void:
 	_heist_bag_carrier[bag.get_instance_id()] = peer_id
 	_heist.note_bag(peer_id)
 	if previous != 0 and previous != peer_id and _has_host_authority():
-		_heist_associate(peer_id, previous)  # çanta devri: alan, verenle ilişkilendirilebilir
+		_heist_associate(peer_id, previous)  # bag handover: the receiver may be associated with the giver
 
 
-# --- US-042 örtü ---
+# --- US-042 cover ---
 
-## Seviyedeki bir etkileşim tamamlandı (host; oyuncu > 0): strateji etiketi sayacı ve arka kapı.
+## An interaction in the level completed (host; player > 0): strategy label counter and back door.
 func _heist_on_interaction(peer_id: int, prop: Node) -> void:
 	if _heist == null or _heist.finished or peer_id <= 0:
 		return
@@ -1247,25 +1206,25 @@ func _heist_on_interaction(peer_id: int, prop: Node) -> void:
 		_heist.back_door_used = true
 
 
-## Sahibin oyuncu aracı (host; US-010 SATIN AL/OYALA/GÖNDER/DİKKAT DAĞIT, US-043 YÖNLENDİR): strateji "sosyal".
+## Owner's player tool (host; US-010 BUY/STALL/SEND/DISTRACT, US-043 REDIRECT): "social" strategy.
 func _heist_on_social(peer_id: int, _kind: StringName) -> void:
 	if _heist != null and not _heist.finished and _has_host_authority():
 		_heist.note_social(peer_id)
 
 
-## Sahip oyuncuyu tanıdı (host; US-044 vitrin sorgusu): sonuçta `recognized` +1.
+## The owner recognised a player (host; US-044 showcase query): `recognized` +1 in the result.
 func _heist_on_recognized(peer_id: int) -> void:
 	if _heist != null and not _heist.finished and _has_host_authority():
 		_heist.note_recognized(peer_id)
 
 
-## Sahip bir oyuncuya bağırdı / onu tuttu (host): ilişkilendirme penceresi açılır.
+## The owner shouted at / held a player (host): opens the association window.
 func _heist_on_marked(peer_id: int) -> void:
 	if _heist != null and not _heist.finished and _has_host_authority():
 		_heist.mark_target(peer_id)
 
 
-## Host: yeni bozulan örtüler herkese olay olarak gider (yerel gösterge; HUD'da sessiz).
+## Host: newly broken covers go to everyone as an event (local indicator; silent in the HUD).
 func _heist_flush_cover() -> void:
 	var pending: Array[Dictionary] = _heist.cover_events.duplicate()
 	_heist.cover_events.clear()
@@ -1273,7 +1232,7 @@ func _heist_flush_cover() -> void:
 		raise_session_event(HEIST_EVENT_COVER, {"peer": int(e["peer"]), "reason": String(e["reason"])})
 
 
-## `actor`, işaretli olabilecek `other` ile etkileşti (ÇEK, çanta devri): oyuncu konumlarıyla dener.
+## `actor` interacted with `other`, who may be marked (RESCUE, bag handover): tried using player positions.
 func _heist_associate(actor: int, other: int) -> void:
 	var a: Node2D = _heist_player(actor)
 	var b: Node2D = _heist_player(other)
@@ -1282,8 +1241,7 @@ func _heist_associate(actor: int, other: int) -> void:
 	_heist_associate_at(actor, other, _heist_position(a), _heist_position(b))
 
 
-## İlişkilendirme (host): kural `Tracker.associate`; gören her gözlemcinin `actor`'a şüphesi +60 (ayar). Kaç
-## gözlemcinin şüphe verdiğini döner (testler doğrudan çağırır).
+## Association (host): rule `Tracker.associate`; each observer that sees gives `actor` +60 suspicion (tuning). Returns how many observers gave suspicion (tests call it directly).
 func _heist_associate_at(actor: int, other: int, actor_pos: Vector2, other_pos: Vector2) -> int:
 	if _heist == null or _heist.finished or not _has_host_authority():
 		return 0
@@ -1302,7 +1260,7 @@ func _heist_associate_at(actor: int, other: int, actor_pos: Vector2, other_pos: 
 	return seeing.size()
 
 
-## Konumu konisinde ve görüş hattında gören etkin gözlemciler (sahip, siviller; seviyenin NPCs altı).
+## Active observers (owner, civilians; under the level's NPCs) that see the position in their cone and line of sight.
 func _heist_observers_seeing(pos: Vector2) -> Array[Node]:
 	var out: Array[Node] = []
 	var npcs: Node = _level.npcs_root() if _level != null else null
@@ -1347,7 +1305,7 @@ func _heist_on_alert(level: int) -> void:
 		_heist.set_alert(level)
 
 
-## Polis geldi (US-008 sayacı): kaçış bölgesi dışındaki herkes yakalanır; karar bir sonraki adımda.
+## Police arrived (US-008 timer): everyone outside the escape zone is caught; decided on the next step.
 func _heist_on_police() -> void:
 	if _heist == null or _heist.finished or not _has_host_authority():
 		return
@@ -1387,8 +1345,8 @@ func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
 			_heist_associate(rescuer, int(data.get("peer", 0)))
 
 
-## Host: oyuncu görünümü (HeistRules.Tracker): peer -> {"in_zone", "caught", "held", "bag_value", "sprinting",
-## "staff_side", "holding_cash", "move_mode", "masked"} (son dördü US-042 örtüsü).
+## Host: player view (HeistRules.Tracker): peer -> {"in_zone", "caught", "held", "bag_value", "sprinting",
+## "staff_side", "holding_cash", "move_mode", "masked"} (the last four are the US-042 cover).
 func _heist_views() -> Dictionary:
 	var out: Dictionary = {}
 	var root: Node2D = _players_root()
@@ -1432,7 +1390,7 @@ func _heist_views() -> Dictionary:
 	return out
 
 
-## Nokta (global) bölgenin şekillerinden birinin içinde mi.
+## Whether a (global) point is inside one of the zone's shapes.
 static func _heist_in_zone(zone: Area2D, point: Vector2) -> bool:
 	if zone == null:
 		return false
@@ -1454,7 +1412,7 @@ static func _heist_in_zone(zone: Area2D, point: Vector2) -> bool:
 	return false
 
 
-## Yakalanan taşıyıcının çantası düşer (ekip arkadaşı alabilir).
+## A caught carrier's bag drops (a teammate can pick it up).
 func _heist_drop_caught_bags() -> void:
 	for bag: Node in get_tree().get_nodes_in_group(HeistRules.BAG_GROUP):
 		var carrier: int = int(bag.get(&"carrier"))
@@ -1468,11 +1426,11 @@ func _heist_finish(decision: StringName, views: Dictionary) -> void:
 		if bag.has_method(&"host_lock"):
 			bag.call(&"host_lock")
 	var bail_each: int = HeistRules.bail_for_tier(HeistTuning.load_default().bail_by_tier, venue_tier())
-	# İş öncesi kasa: kasadan anında giren ham nakit çıkar, iş içi alışveriş (anında düşmüştü) geri eklenir; sonuç
-	# formülü alışverişi ayrıca düşer (US-010: cash_after = önce + ödeme − kefalet − alışveriş).
+	# Pre-job vault: raw cash that entered instantly from the vault is removed and in-job purchases (deducted instantly) are added back; the result formula deducts purchases separately
+	# (US-010: cash_after = before + payout − bail − purchases).
 	var cash_before: int = _team_cash - _heist.cash_grabbed() + _heist.purchases_paid
 	var result: Dictionary = _heist.build_result(decision, views, _players, bail_each, cash_before)
-	# Ekip kasası = iş öncesi + ödeme − kefalet (KR-029: eksiye düşebilir); kasadan anında giren ham nakit değişir.
+	# Team cash = before + payout − bail (KR-029: may go negative); raw cash that entered instantly from the vault changes.
 	var cash_delta: int = int(result["cash_after"]) - _team_cash
 	if cash_delta != 0:
 		add_team_cash(cash_delta)
@@ -1490,7 +1448,7 @@ func _rpc_heist_finished(result: Dictionary) -> void:
 	heist_finished.emit(heist_result())
 
 
-## Geç katılan: iş bittiyse sonuç kabulden sonra (kare sonunda) yollanır.
+## Late joiner: if the job finished the result is sent after accept (at end of frame).
 func _heist_on_peer_connected(peer_id: int) -> void:
 	if Net.is_host() and not _heist_result.is_empty():
 		_heist_send_result.call_deferred(peer_id)
@@ -1516,7 +1474,7 @@ func _heist_dump() -> Dictionary:
 	}
 
 
-## Döküm (US-044): iş içinde tanınma (vitrin sorgusu) peer -> sayı (host; istemcide boş).
+## Dump (US-044): in-job recognitions (showcase query) peer -> count (host; empty on a client).
 func _heist_recognized_dump() -> Dictionary:
 	var out: Dictionary = {}
 	if _heist != null:
@@ -1525,8 +1483,7 @@ func _heist_recognized_dump() -> Dictionary:
 	return out
 
 
-## Döküm (IS-094): oturum olayları, US-042 örtü olayları (`cover_broken`) hariç — senaryolar sahip/yakalanma olay
-## sırasını örtü olaylarından bağımsız denetler.
+## Dump (IS-094): session events excluding US-042 cover events (`cover_broken`), so scenarios check owner/caught event order independently of cover events.
 func _heist_events_main() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for e: Dictionary in _events:
@@ -1535,7 +1492,7 @@ func _heist_events_main() -> Array[Dictionary]:
 	return out
 
 
-## Bu peer'ın bildiği örtüler: peer -> sağlam mı (oyuncu listesindekiler).
+## Covers this peer knows: peer -> intact (those in the player list).
 func _heist_cover_dump() -> Dictionary:
 	var out: Dictionary = {}
 	for peer_id: int in _players:
@@ -1543,14 +1500,14 @@ func _heist_cover_dump() -> Dictionary:
 	return out
 
 
-## Bu peer'da görülen en uzun eli boş çekilme sayacı (sn): host'ta karar sayacı, istemcide yerel kestirim.
+## Longest empty-handed abort counter seen on this peer (s): the deciding counter on the host, the local estimate on a client.
 func _heist_abort_peak() -> float:
 	if _has_host_authority():
 		return _heist.abort.peak_s if _heist != null else 0.0
 	return _heist_abort_view.peak_s if _heist_abort_view != null else 0.0
 
 
-# --- test kancası (yalnız otomasyon + host) ---
+# --- test hook (automation + host only) ---
 
 func _heist_load_hook() -> void:
 	_heist_hook_steps.clear()
@@ -1597,29 +1554,22 @@ func _heist_apply_hook(step: Dictionary) -> void:
 
 
 # =====================================================================================================================
-# US-011b — Görüş eki (mimari.md S3 eki "Görüş ekleri", KR-022/KR-023; GDD §6.5). Bu bölüm yukarıdaki koda
-# dokunmaz: girişleri `_notification` (ENTER_TREE, PHYSICS_PROCESS) ve sinyaller; kurallar düğümsüz
-# `VisionRules.Session`'da (core/vision_rules.gd).
-# - Görüş kipi (`vision_mode`, 0 çevresel 360° / 1 yönlü): host'un oyun kuralı. Varsayılan data/vision_tuning.tres
-#   `default_mode`; `--vision-mode=` (Args, US-011d) ezer; ana menü (US-011c) host açılınca `set_vision_mode` ile
-#   seçer. Yalnız host, seviye başlamadan; değer istemcilere güvenilir RPC ile gider (geç katılana kabulde, oyuncusu
-#   doğmadan önce), herkes aynı. İstemcide `set_vision_mode` etkisizdir (uyarı).
-# - Sis bağlama: yerel oyuncu doğunca (`local_player_changed`; seviye değişimi ve geç katılan dahil) seviyenin
-#   sisi kurulur; sıra: katman gözlemcisiz (`attach_fog(null)`) → oturum kipi + yerel oyuncunun gerçek `look_dir`'i
-#   → `follow(oyuncu)` (ilk hesap). Kip sonradan çoğaltılırsa da kip + bakış önce, hafıza silinip hemen yeniden
-#   hesap. Her fizik adımında sise yerel oyuncunun `look_dir`'i verilir. Peer ayrılınca maruziyet kaydı ve geçmişi
-#   silinir. Yerel oyuncu yoksa (menü, oyuncusuz test) sis kurulmaz. Görünürlük kararı istemcide (host da kendi
-#   yerel görüşüyle çizer); host hiçbir görünürlük kararı vermez.
-# - Maruziyet (`player_exposure`, 0 gizli / 1 görünür / 2 görüldü): yalnız host, 10 Hz, NPC'lerin algı/şüphe
-#   özetinden (duck typing: `last_observations()` + `value_of(peer)` taşıyan bileşenler — Suspicion): 1 = bir
-#   gözlemcinin konisinde ve görüş hattında (son gözlem: bant ≠ NONE ∧ görüş hattı açık), 2 = şüphesi ≥ 30.
-#   Değişince tam tablo herkese güvenilir RPC (call_local); `player_exposure_changed` her peer'da. Seviye
-#   değişiminde ve oturum sonunda (yerel oyuncu kalkınca) tablo boşalır; host bir sonraki turda yeniden yayar.
-# - Test kancası (yalnız otomasyon, `--vision-mode` verilmemişse): `--bot` dosyasındaki {"t": 0, "vision_mode":
-#   "directional"} adımı açılışta `--vision-mode` gibi uygulanır (net_smoke süreç argümanı veremiyor; host'unki
-#   geçerlidir, istemcilere çoğaltılır).
-# Döküm (S6 taban anahtar "vision"): {mode, fog, visible_tiles, peripheral_tiles, memory_tiles, visible_npcs:[ad],
-# look_deg, exposure:{peer: düzey}, exposure_history:{peer: [düzeyler]}, remote_look_deg:{peer: derece}}.
+# US-011b — Vision addendum (mimari.md S3 addendum "Vision addenda", KR-022/KR-023; GDD §6.5). This section leaves the code above untouched: entries are `_notification`
+# (ENTER_TREE, PHYSICS_PROCESS) and signals; rules live in nodeless `VisionRules.Session` (core/vision_rules.gd).
+# - Vision mode (`vision_mode`, 0 peripheral 360° / 1 directional): a host game rule. Default data/vision_tuning.tres `default_mode`; `--vision-mode=` (Args, US-011d) overrides;
+#   the main menu (US-011c) sets it via `set_vision_mode` when hosting. Host only, before the level starts; replicated by reliable RPC (late joiners on accept, before their player spawns),
+#   same for everyone. `set_vision_mode` on a client is a no-op (warning).
+# - Fog wiring: when the local player spawns (`local_player_changed`; incl. level change and late join) the level's fog is set up in this order: layer without observer (`attach_fog(null)`) →
+#   session mode + the local player's real `look_dir` → `follow(player)` (first compute). If the mode is replicated later, mode + look come first and memory is cleared and recomputed at once.
+#   Each physics step the fog gets the local player's `look_dir`. A leaving peer's exposure record and history are removed. No fog without a local player (menu, playerless test).
+#   Visibility is decided on the client (the host draws with its own local view); the host makes no visibility decision.
+# - Exposure (`player_exposure`, 0 hidden / 1 visible / 2 seen): host only, 10 Hz, from NPC perception/suspicion summaries (duck typing: components with `last_observations()` + `value_of(peer)` — Suspicion):
+#   1 = in an observer's cone and line of sight (last observation: band ≠ NONE ∧ line of sight clear), 2 = suspicion ≥ 30. On change the full table goes to all by reliable RPC (call_local);
+#   `player_exposure_changed` on every peer. The table empties on level change and session end (when the local player goes away); the host republishes next round.
+# - Test hook (automation only, when `--vision-mode` is not given): a `--bot` step {"t": 0, "vision_mode": "directional"} is applied at start like `--vision-mode`
+#   (net_smoke cannot pass process args; the host's applies and is replicated to clients).
+# Dump (S6 base key "vision"): {mode, fog, visible_tiles, peripheral_tiles, memory_tiles, visible_npcs:[name], look_deg, exposure:{peer: level},
+# exposure_history:{peer: [levels]}, remote_look_deg:{peer: degrees}}.
 # =====================================================================================================================
 
 signal player_exposure_changed(peer: int, level: int)
@@ -1630,12 +1580,12 @@ var _vision: VisionRules.Session = null
 var _vision_elapsed: float = 0.0
 
 
-## S3 eki: görüş kipi (0 çevresel 360°, 1 yönlü; VisionGrid.Mode).
+## S3 addendum: vision mode (0 peripheral 360°, 1 directional; VisionGrid.Mode).
 func vision_mode() -> int:
 	return _vision_session().mode()
 
 
-## S3 eki: yalnız host, seviye başlamadan; istemcilere çoğaltılır. İstemcide ya da seviye yüklüyken etkisiz.
+## S3 addendum: host only, before the level starts; replicated to clients. No-op on a client or while a level is loaded.
 func set_vision_mode(mode: int) -> void:
 	if not _has_host_authority():
 		push_warning("Game.set_vision_mode: yalnız host çağırabilir")
@@ -1647,12 +1597,12 @@ func set_vision_mode(mode: int) -> void:
 		_rpc_vision_mode.rpc(mode)
 
 
-## S3 eki: oyuncunun maruziyeti (0 gizli, 1 görünür, 2 görüldü); host yazar, herkes okur.
+## S3 addendum: player exposure (0 hidden, 1 visible, 2 seen); the host writes, everyone reads.
 func player_exposure(peer: int) -> int:
 	return _vision_session().exposure(peer)
 
 
-## S3 eki: oyuncunun dünya konumu (global); oyuncu düğümü yoksa INF.
+## S3 addendum: player's world position (global); INF if there is no player node.
 func player_world_position(peer: int) -> Vector2:
 	var root: Node2D = _players_root()
 	var node: Node2D = root.get_node_or_null(NodePath(str(peer))) as Node2D if root != null else null
@@ -1667,7 +1617,7 @@ func _vision_session() -> VisionRules.Session:
 	return _vision
 
 
-## Açılış kipi: --vision-mode > (otomasyonda) bot kancası > data/vision_tuning.tres.
+## Startup mode: --vision-mode > (in automation) bot hook > data/vision_tuning.tres.
 func _vision_default_mode() -> int:
 	if Args.vision_mode_given:
 		return VisionGrid.mode_from_name(StringName(Args.vision_mode))
@@ -1696,7 +1646,7 @@ func _vision_physics(delta: float) -> void:
 		if look is Vector2:
 			fog.call(&"set_look_dir", look)
 	if _level == null:
-		_vision_clear_exposures()  # oturum sonu / seviye yok: tablo boşalır
+		_vision_clear_exposures()  # session end / no level: the table empties
 		return
 	if not _has_host_authority():
 		return
@@ -1709,7 +1659,7 @@ func _vision_physics(delta: float) -> void:
 		_to_all(&"_rpc_exposure", [table])
 
 
-## Host: oyuncu başına maruziyet, NPC algı/şüphe bileşenlerinin özetinden (duck typing).
+## Host: per-player exposure from NPC perception/suspicion components' summaries (duck typing).
 func _vision_compute_exposure() -> Dictionary:
 	var out: Dictionary = {}
 	for peer_id: int in _players:
@@ -1747,7 +1697,7 @@ func _rpc_vision_mode(mode: int) -> void:
 		_vision_apply_fog_mode()
 
 
-## Host: yeni kabul edilen peer'a kip ve maruziyet tablosu (spawn'dan önce, aynı güvenilir kanalda).
+## To a newly accepted peer: mode and exposure table (before spawn, on the same reliable channel).
 func _vision_on_peer_connected(peer_id: int) -> void:
 	if not Net.is_host():
 		return
@@ -1755,8 +1705,8 @@ func _vision_on_peer_connected(peer_id: int) -> void:
 	_rpc_exposure.rpc_id(peer_id, _vision_session().exposures())
 
 
-## Peer ayrıldı (her peer'da): maruziyeti ve geçmişi silinir. Ertelenir: host'ta oyuncu kaydı da (`_host_drop_peer`)
-## aynı ertelenmiş boşaltmada düşer; arada fizik adımı olmadığından hesaplanan tablo ayrılanı yeniden açamaz.
+## Peer left (every peer): its exposure and history are removed. Deferred: on the host the player record (`_host_drop_peer`) drops in the same deferred flush;
+## no physics step in between, so the computed table cannot reopen the leaver.
 func _vision_on_peer_disconnected(peer_id: int) -> void:
 	_vision_forget_peer.call_deferred(peer_id)
 
@@ -1767,8 +1717,8 @@ func _vision_forget_peer(peer_id: int) -> void:
 		player_exposure_changed.emit(gone, int(changed[gone]))
 
 
-## Yerel oyuncu doğdu (seviye yüklemesi, seviye değişimi, geç katılım): sis ona bağlanır (kare sonunda; oyuncu
-## ağaca tam girmiş olsun). Oyuncu kalktı (seviye değişimi, oturum sonu): maruziyet tablosu boşalır.
+## Local player spawned (level load, level change, late join): fog attaches to it (end of frame, so the player is fully in the tree).
+## Player gone (level change, session end): the exposure table empties.
 func _vision_on_local_player(player: Node) -> void:
 	if player != null:
 		_vision_attach_fog.call_deferred()
@@ -1784,9 +1734,8 @@ func _vision_clear_exposures() -> void:
 		player_exposure_changed.emit(peer_id, int(changed[peer_id]))
 
 
-## Sıra (t2): katman gözlemcisiz kurulur (hesap yok) → oturum kipi ve yerel oyuncunun gerçek bakışı verilir →
-## izleme başlar (ilk hesap). Aksi halde ilk güncelleme varsayılan kip/bakışla koşar; yönlü kipte oyuncunun arkası
-## hafızaya yazılır, arkadaki NPC bir an görünüp hayalet kalır. Katman zaten varsa hafızası korunur.
+## Order (t2): layer built without observer (no compute) → session mode and the local player's real look given → tracking starts (first compute). Otherwise the first update runs with default
+## mode/look; in directional mode the player's back is written to memory and the NPC behind appears briefly and ghosts. If the layer already exists its memory is kept.
 func _vision_attach_fog() -> void:
 	var me: Node2D = local_player() as Node2D
 	if _level == null or me == null or not me.is_inside_tree() or not _level.is_inside_tree():
@@ -1796,8 +1745,7 @@ func _vision_attach_fog() -> void:
 	fog.call(&"follow", me)
 
 
-## Kip değişti (istemciye çoğaltılan kip): aynı sıra — kip ve bakış önce; sis bir gözlemciyi izliyorsa eski kipin
-## hafızası silinip hemen yeniden hesaplanır.
+## Mode changed (replicated to the client): same order — mode and look first; if the fog follows an observer the old mode's memory is cleared and recomputed at once.
 func _vision_apply_fog_mode() -> void:
 	var fog: Object = _vision_fog()
 	if fog == null:
@@ -1809,7 +1757,7 @@ func _vision_apply_fog_mode() -> void:
 		fog.call(&"update_now")
 
 
-## Sise oturum kipini ve (varsa) yerel oyuncunun bakışını verir; hesaplamaz.
+## Gives the fog the session mode and (if any) the local player's look; does not compute.
 func _vision_prime_fog(fog: Object, me: Node) -> void:
 	fog.call(&"set_mode", _vision_session().mode())
 	var look: Variant = me.get(&"look_dir") if me != null else null
@@ -1856,12 +1804,11 @@ func _vision_dump() -> Dictionary:
 
 
 # =====================================================================================================================
-# US-038 — Kaçış okunurluğu: salt okunur yardımcılar (S3 eki adayı; HUD kaçış satırları ve kenar oku). Durum
-# değiştirmez, RPC yoktur: her peer kendi yerel kopyasından (çoğaltılan oyuncu konumları ve Status durumu) hesaplar;
-# kural host'taki `_heist_views` ile aynıdır (bölge şekli `_heist_in_zone`, konum `interaction_position`).
+# US-038 — Escape legibility: read-only helpers (S3 addendum candidate; HUD escape rows and edge arrow). They change no state and have no RPC: each peer computes from its local copy
+# (replicated player positions and Status state); the rule is the same as the host's `_heist_views` (zone shape `_heist_in_zone`, position `interaction_position`).
 # =====================================================================================================================
 
-## Kaçış noktasının dünya konumu (EscapeZone'un ilk şeklinin merkezi, global); seviyede bölge yoksa Vector2.INF.
+## World position of the escape point (centre of EscapeZone's first shape, global); Vector2.INF if the level has no zone.
 func escape_point() -> Vector2:
 	var zone: Area2D = _level.zone(HEIST_ESCAPE_ZONE) if _level != null else null
 	if zone == null or not zone.is_inside_tree():
@@ -1873,8 +1820,8 @@ func escape_point() -> Vector2:
 	return zone.global_position
 
 
-## Kaçış durumu: {"in_zone": int, "free": int} — yakalanmamış (tutulan dahil) oyuncu sayısı ve bunlardan şu an
-## kaçış bölgesinde olanlar. Kazanma: in_zone == free (ve ganimet > 0; HeistRules.decide). Bölge yoksa in_zone 0.
+## Escape status: {"in_zone": int, "free": int} — number of not-caught (incl. held) players and how many of them are in the escape zone now.
+## Win: in_zone == free (and loot > 0; HeistRules.decide). in_zone 0 if there is no zone.
 func escape_status() -> Dictionary:
 	var free: int = 0
 	var in_zone: int = 0

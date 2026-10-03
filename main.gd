@@ -1,43 +1,39 @@
 extends Node
-## Açılış sahnesi (mimari.md §2, S3, S6).
-## - Argümansız: `res://ui/main_menu.tscn` varsa ona geçer; yoksa uyarı basar (headless'ta kod 0 ile çıkar,
-##   pencereli açılışta boş sahnede bekler). Oturum sonrası menüye dönüşü arayüz (HUD) yapar; main.gd ve
-##   Game sahne değiştirmez (çift geçiş olmasın).
-## - `--host`: oturum açar, `--level` (yoksa Game.DEFAULT_LEVEL) yükler; hazır olunca stdout'a tek satır
-##   READY_MARKER basar (tools/net_smoke.py bunu bekler).
-## - `--join=ADDR`: bağlanır; kabul edilince READY_MARKER basar.
-## - Argümanla açılan oturumda (headless ya da pencereli) menüye dönülmez, çıkılır: host kaybı kod 0,
-##   katılma başarısızlığı / host, seviye ya da oyuncu sahnesi açılamaması kod 1 (döküm varsa yazılır).
-## - Otomasyon (`--dump` ya da `--quit-after`; Args.is_automated()):
-##   · `--quit-after=SN`: SN saniyede döküm yazılır, QUIT_LINGER_SEC daha oturumda kalınır (diğer süreçlerin
-##     dökümü tam oturumu görsün), sonra Net.leave() ve kod 0 ile çıkış.
-##   · Host kaybında döküm ("host_lost": true) hemen yazılır (bekleme payı yok).
-##   · Dökümde ek anahtarlar: "exit_reason" (quit_after | host_lost | connection_failed | error) ve
-##     "samples": duvar saatine hizalı SAMPLE_INTERVAL_SEC dilimlerinde oyuncu konumları
-##     [{"slot": int, "players": {"<peer_id>": [x, y]}}]; aynı makinedeki süreçler aynı dilimi karşılaştırır.
-##   · Kare hızı MAX_FPS_AUTOMATED ile sınırlanır (headless döngü işlemciyi tüketmesin).
-## - Ekran görüntüsü (IS-022; `--screenshot-at=SN[,SN…]` + `--screenshot-dir=YOL`): her an için (açılıştan
-##   saniye, --quit-after ile aynı saat) o karenin çizimi bittikten sonra (RenderingServer.frame_post_draw) kök
-##   viewport görüntüsü `YOL/shot_<NN>.png` olarak yazılır (NN = anın artan sıradaki indeksi; bkz.
-##   screenshot_file_name); akış sürer. --quit-after'dan sonraki anlar uyarıyla atlanır. Headless'ta renderer
-##   görüntü üretmez: tek uyarı, dosya yok. O anda seviye henüz yüklenmemişse (istemci bağlanıyor) an atlanır.
-##   Her an için stdout'a `INSIDERS_SCREENSHOT ok|skipped|failed at=SN ...` satırı basılır.
-##   `--window-size=GxY` pencereli açılışta pencere boyutunu ayarlar.
-##   Dökümde "screenshots": [{"at": SN, "file": yol, "ok": bool, "size": [g, y], "skipped": neden}].
-## - Açılışta viewport temizleme rengi etkin tonun BG'sine ayarlanır (IS-027).
-## - Çizim ölçümü (IS-067; `--perf`, `--perf-seconds=N`): PerfProbe (perf_probe.gd), dökümde "render" bölümü.
+## Startup scene (mimari.md §2, S3, S6).
+## - No args: switches to `res://ui/main_menu.tscn` if present, else warns (headless exits 0, windowed waits on an empty scene).
+##   The UI (HUD) returns to the menu after a session; main.gd and Game never change scenes (avoids a double switch).
+## - `--host`: opens a session and loads `--level` (default Game.DEFAULT_LEVEL); prints one READY_MARKER line to stdout when ready
+##   (tools/net_smoke.py waits for it).
+## - `--join=ADDR`: connects; prints READY_MARKER once accepted.
+## - A session started by args never returns to the menu, it exits: host lost = code 0; join failure or host/level/player scene
+##   failing to load = code 1 (the dump is written if requested).
+## - Automation (`--dump` or `--quit-after`; Args.is_automated()):
+##   · `--quit-after=SEC`: writes the dump at SEC, stays QUIT_LINGER_SEC longer (so other processes' dumps see the full session),
+##     then Net.leave() and exit 0.
+##   · On host loss the dump ("host_lost": true) is written immediately (no linger).
+##   · Extra dump keys: "exit_reason" (quit_after | host_lost | connection_failed | error) and "samples": player positions in
+##     wall-clock-aligned SAMPLE_INTERVAL_SEC slots [{"slot": int, "players": {"<peer_id>": [x, y]}}] so same-machine processes compare the same slot.
+##   · Frame rate is capped at MAX_FPS_AUTOMATED (headless loop must not eat the CPU).
+## - Screenshots (IS-022; `--screenshot-at=SEC[,SEC…]` + `--screenshot-dir=PATH`): at each time (same clock as --quit-after), after that frame
+##   is drawn (RenderingServer.frame_post_draw) the root viewport is written to `PATH/shot_<NN>.png` (NN = moment index; see screenshot_file_name).
+##   Times after --quit-after are skipped with a warning; headless has no renderer image (one warning, no file); a moment before the level loads
+##   (client still connecting) is skipped. Each moment prints `INSIDERS_SCREENSHOT ok|skipped|failed at=SEC ...` to stdout.
+##   `--window-size=WxH` sets the window size on windowed launch.
+##   Dump: "screenshots": [{"at": SEC, "file": path, "ok": bool, "size": [w, h], "skipped": reason}].
+## - At startup the viewport clear colour is set to the active tone's BG (IS-027).
+## - Render measurement (IS-067; `--perf`, `--perf-seconds=N`): PerfProbe (perf_probe.gd), "render" section in the dump.
 
 const MAIN_MENU := "res://ui/main_menu.tscn"
 const READY_MARKER := "INSIDERS_READY"
 const SCREENSHOT_MARKER := "INSIDERS_SCREENSHOT"
 const QUIT_LINGER_SEC := 1.0
-## --quit-after yedek kapanışı: normal çıkıştan bu kadar sonra (main serbest kalmışsa).
+## Fallback quit for --quit-after: this long after the normal exit (if main was freed).
 const BACKSTOP_SEC := 2.0
 const SAMPLE_INTERVAL_SEC := 0.2
 const MAX_SAMPLES := 3000
 const MAX_FPS_AUTOMATED := 60
 
-## Testler değiştirebilir.
+## Tests may override.
 var menu_scene: String = MAIN_MENU
 
 var _finishing: bool = false
@@ -53,12 +49,12 @@ func _ready() -> void:
 	_start.call_deferred()
 
 
-## Viewport temizleme rengi = etkin tonun BG'si (IS-027, KR-005): harita dışı gri (#4d4d4d) değil koyu görünür.
+## Viewport clear colour = active tone's BG (IS-027, KR-005): dark outside the map instead of default grey (#4d4d4d).
 static func apply_clear_color() -> void:
 	RenderingServer.set_default_clear_color(ThemeTokens.tone().bg_color)
 
 
-## Açılış kipi: &"host", &"join", &"menu" (menü sahnesi var) ya da &"none".
+## Startup mode: &"host", &"join", &"menu" (menu scene exists) or &"none".
 func start_mode(want_host: bool, join_address: String) -> StringName:
 	if want_host:
 		return &"host"
@@ -79,11 +75,11 @@ func _start() -> void:
 			Game.register_dump_provider("samples", func() -> Array[Dictionary]: return _samples)
 		if Args.quit_after > 0.0:
 			get_tree().create_timer(Args.quit_after).timeout.connect(_finish.bind(0, "quit_after"))
-			# Yedek: main bu arada serbest kalırsa (sahne değişti) süreç yine kapanır.
+			# Fallback: if main is freed meanwhile (scene changed) the process still quits.
 			var backstop: SceneTreeTimer = get_tree().create_timer(Args.quit_after + QUIT_LINGER_SEC + BACKSTOP_SEC)
 			backstop.timeout.connect(Net.leave)
 			backstop.timeout.connect(get_tree().quit.bind(0))
-	_start_perf()  # IS-067 (dosya sonundaki blok; --perf yoksa hiçbir şey yapmaz)
+	_start_perf()  # IS-067 (block at end of file; no-op without --perf)
 	if Args.window_size != Vector2i.ZERO and capture_supported():
 		get_window().size = Args.window_size
 	if Args.wants_screenshots():
@@ -134,7 +130,7 @@ func _start_join() -> void:
 	Net.connected_to_host.connect(_on_connected_to_host)
 	Net.connection_failed.connect(_on_connection_failed)
 	Net.host_disconnected.connect(_on_host_disconnected)
-	Net.join(Args.join_address, Args.port)  # hata olursa connection_failed da yayılır
+	Net.join(Args.join_address, Args.port)  # on error connection_failed is emitted too
 
 
 func _on_connected_to_host() -> void:
@@ -148,7 +144,7 @@ func _on_connection_failed() -> void:
 
 func _on_host_disconnected() -> void:
 	if _finishing:
-		return  # çıkış sırasında (bekleme payında) host'un ayrılması beklenen durum
+		return  # host leaving during exit (linger) is expected
 	push_warning("main: host bağlantısı koptu")
 	_finish(0, "host_lost")
 
@@ -166,8 +162,8 @@ func _finish(code: int, reason: String) -> void:
 	_write_dump()
 	var tree: SceneTree = get_tree()
 	if reason == "quit_after" and Net.is_online():
-		# Bekleme payında main serbest kalabilir (pencerelide host ayrılınca HUD menüye geçer); bu yüzden
-		# await yok: zamanlayıcı doğrudan Net.leave ve tree.quit'e bağlı (main'e bağlı değil).
+		# main may be freed during the linger (windowed: HUD goes to the menu when the host leaves), so
+		# no await: the timer is bound directly to Net.leave and tree.quit (not to main).
 		var timer: SceneTreeTimer = tree.create_timer(QUIT_LINGER_SEC)
 		timer.timeout.connect(Net.leave)
 		timer.timeout.connect(tree.quit.bind(code))
@@ -176,12 +172,12 @@ func _finish(code: int, reason: String) -> void:
 	tree.quit(code)
 
 
-## Pencereli (gerçek renderer'lı) açılış mı; headless'ta viewport görüntüsü yoktur.
+## Whether this is a windowed (real renderer) launch; headless has no viewport image.
 static func capture_supported() -> bool:
 	return DisplayServer.get_name() != "headless"
 
 
-## Alınacak anlar: quit_after > 0 ise ondan sonraki anlar düşer (süreç o ana kadar yaşamaz).
+## Moments to capture: if quit_after > 0 later moments are dropped (the process won't live that long).
 static func screenshot_plan(moments: PackedFloat64Array, quit_after: float) -> PackedFloat64Array:
 	var out: PackedFloat64Array = []
 	for t: float in moments:
@@ -191,7 +187,7 @@ static func screenshot_plan(moments: PackedFloat64Array, quit_after: float) -> P
 	return out
 
 
-## `index`. anın dosya adı (tools/screenshot.py aynı adlandırmayı bekler).
+## File name of moment `index` (tools/screenshot.py expects the same naming).
 static func screenshot_file_name(index: int) -> String:
 	return "shot_%02d.png" % index
 
@@ -215,8 +211,8 @@ func _schedule_screenshots() -> void:
 		get_tree().create_timer(plan[i]).timeout.connect(take_screenshot.bind(plan[i], path))
 
 
-## Görüntünün alınmama nedeni ("" = alınır): pencere yoksa "headless", seviye henüz yüklenmediyse (istemci
-## bağlanıyor ya da seviyeyi yüklüyor; ekran boş) "level_not_loaded".
+## Reason no image is taken ("" = taken): "headless" without a window, "level_not_loaded" if the level isn't loaded yet
+## (client connecting/loading; blank screen).
 static func screenshot_skip_reason(can_capture: bool, level_loaded: bool) -> String:
 	if not can_capture:
 		return "headless"
@@ -225,9 +221,9 @@ static func screenshot_skip_reason(can_capture: bool, level_loaded: bool) -> Str
 	return ""
 
 
-## Bu karenin çizimi bitince kök viewport'u `path`'e PNG olarak yazar; sonuç dökümün "screenshots" listesine girer
-## ve stdout'a tek satır basılır: `SCREENSHOT_MARKER ok|skipped|failed at=SN ...` (tools/screenshot.py okur).
-## Seviye yüklenmeden önceki an atlanır (boş kare yazılmaz).
+## When this frame is drawn, writes the root viewport to `path` as PNG; the result goes to the dump's "screenshots" list
+## and one line is printed to stdout: `SCREENSHOT_MARKER ok|skipped|failed at=SEC ...` (read by tools/screenshot.py).
+## A moment before the level loads is skipped (no blank frame written).
 func take_screenshot(at: float, path: String) -> void:
 	var entry: Dictionary = {"at": at, "file": path, "ok": false}
 	_screenshots.append(entry)
@@ -253,7 +249,7 @@ func take_screenshot(at: float, path: String) -> void:
 	print("%s ok at=%s file=%s" % [SCREENSHOT_MARKER, at, path])
 
 
-## Testler için: alınan/denenen görüntü kayıtları.
+## For tests: recorded taken/attempted screenshots.
 func screenshot_records() -> Array[Dictionary]:
 	return _screenshots
 
@@ -290,9 +286,9 @@ func _process(_delta: float) -> void:
 	_samples.append({"slot": slot, "players": positions})
 
 
-# --- IS-067: çizim/performans ölçümü (`--perf`; ölçüm perf_probe.gd, şema core/perf_report.gd) ---------------
+# --- IS-067: render/perf measurement (`--perf`; measured by perf_probe.gd, schema core/perf_report.gd) ---------------
 
-## `--perf` verildiyse PerfProbe çocuğunu kurar ve döküme "render" sağlayıcısını ekler; yoksa hiçbir şey yapmaz.
+## With `--perf` builds the PerfProbe child and adds the "render" provider to the dump; otherwise a no-op.
 func _start_perf() -> void:
 	if not Args.perf:
 		return
