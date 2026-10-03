@@ -8,3 +8,7 @@ abort_hold_s = 3.0
 bail_by_tier = Dictionary[int, int]({
 1: 100
 })
+cover_mark_window_s = 10.0
+association_radius_px = 48.0
+association_suspicion = 60.0
+witness_heat = 2

@@ -58,6 +58,8 @@ const LINES := {
 		"func escape_status() -> Dictionary",
 		# S3 eki (US-040, eli boş çekilme): HUD geri sayımı; salt okunur, RPC yok.
 		"func abort_left() -> float",
+		# S3 eki (US-042, örtü): yerel oyuncunun örtüsü (1 sağlam, 0 bozuk, -1 iş yok); salt okunur.
+		"func cover_state() -> int",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",

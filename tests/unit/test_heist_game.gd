@@ -89,11 +89,11 @@ func test_clean_win_pays_ninety_percent_of_register() -> void:
 	eq(Game.team_cash(), 135, "ekip nakdi = ödeme (ham kasa nakdi ödemeyle değişti)")
 	await _frames()
 	eq(_results.size(), 1, "iş bitti: yeniden karar yok")
-	# Bir daha (host): aynı seviye, nakit 0, sonuç sıfır, kasa yeniden dolu.
+	# Bir daha (host): aynı seviye, kasa taşınır (KR-029, US-042 paketi), sonuç sıfır, kasa prop'u yeniden dolu.
 	var old_level: Level = _level()
 	Game.request_restart()
 	is_true(_level() != old_level and _level() != null, "seviye yeniden yüklendi")
-	eq(Game.team_cash(), 0)
+	eq(Game.team_cash(), 135, "ekip kasası yeniden başlatmada sıfırlanmaz")
 	eq(Game.heist_result(), {}, "yeni iş: sonuç sıfır")
 	is_false((_level().props_root().get_node("Register") as Register).emptied, "prop'lar sıfırlandı")
 	await _stop()
@@ -286,6 +286,8 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
+	me.position = STAFF  # personel tarafı: örtü bozulur (US-042), polis yakalar
+	await _frames()
 	Game.raise_session_event(&"police_arrived")
 	await _frames()
 	if eq(_results.size(), 1):
@@ -310,6 +312,84 @@ func test_bail_debt_closed_by_next_payout() -> void:
 		eq(r["bail"], 0)
 		eq([r["cash_before"], r["cash_after"]], [-100, 35], "iş öncesi + ödeme − kefalet")
 	eq(Game.team_cash(), 35, "ödeme borcu kapattı")
+	await _stop()
+
+
+## US-042 AC1/AC3: yerel örtü göstergesi kaynağı; personel tarafına geçince bozulur, olay herkese gider, geri gelmez.
+func test_cover_state_breaks_on_staff_side() -> void:
+	eq(Game.cover_state(), -1, "iş yok")
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	await _frames()
+	eq(Game.cover_state(), 1, "doğma noktası (dışarı): müşteri gibi")
+	me.position = STAFF
+	await _frames()
+	eq(Game.cover_state(), 0, "personel tarafı: örtü bozuldu")
+	var events: Array = Game.collect_dump()["events"]
+	has(events, {"kind": "cover_broken", "data": {"peer": 1, "reason": "staff"}}, "olay herkese gider")
+	me.position = IN_ZONE + Vector2(-300, 0)
+	await _frames()
+	eq(Game.cover_state(), 0, "geri gelmez")
+	await _stop()
+
+
+## US-042 AC2: polis geldiğinde örtüsü sağlam (dışarıda bekleyen) oyuncu tanık sorgusuyla serbest.
+func test_police_releases_witness() -> void:
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	await _frames()
+	Game.raise_session_event(&"police_arrived")
+	await _frames()
+	if eq(_results.size(), 1):
+		var r: Dictionary = _results[0]
+		eq(r["outcome"], &"police", "kimse kaçmadı")
+		var p: Dictionary = r["players"]["1"]
+		eq([p["caught"], p["escaped"], p["witness_released"], p["recognized"], p["bail"]], [false, false, true, 1, 0])
+		eq(r["heat"], HeistRules.HEAT_POLICE + 2, "tanık: ekip ısısı +2 (data/heist_tuning.tres)")
+		eq(r["strategy"]["cover_intact"], {"1": true})
+		eq(r["strategy"]["class"], &"zaman")
+	eq(Game.team_cash(), 0, "kefalet yok")
+	await _stop()
+
+
+## US-042 AC1: işaretli arkadaşla (sahip tuttu) sahibin konisinde ve görüş hattında yakın etkileşim → örtü bozulur,
+## sahibin o oyuncuya şüphesi +60 (report_suspicion: müşteri-tanık yolu). Görülmeyen / işaretsiz etkileşim bozmaz.
+func test_association_seen_by_owner() -> void:
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	await _frames()
+	var owner: Node2D = _level().npcs_root().get_node("Owner") as Node2D
+	var eye: Perception = owner.get_node("Perception") as Perception
+	var meter: Suspicion = owner.get_node("Suspicion") as Suspicion
+	# Konisinde ve görüş hattında bir nokta (tezgâh bazı ışınları keser): adaylardan ilki.
+	var seen_at: Vector2 = Vector2.INF
+	for d: Vector2 in [Vector2(-60, 60), Vector2(-60, -60), Vector2(-100, 60), Vector2(-40, 30)]:
+		var at: Vector2 = eye.global_position + d
+		if PerceptionRules.band(eye.params(), eye.global_position, eye.facing, at) != PerceptionRules.Band.NONE 				and eye.has_line_of_sight(eye.global_position, at):
+			seen_at = at
+			break
+	if not is_true(seen_at.is_finite(), "sahibin gördüğü nokta"):
+		await _stop()
+		return
+	var behind: Vector2 = eye.global_position - eye.facing.normalized() * 40.0
+	var other: int = 77
+	eq(Game._heist_associate_at(1, other, seen_at, seen_at + Vector2(20, 0)), 0, "arkadaş işaretsiz")
+	Game.raise_session_event(&"player_held", {"peer": other})
+	await _frames(1)
+	eq(Game._heist_associate_at(1, other, behind, behind + Vector2(20, 0)), 0, "sahibin arkasında: görülmedi")
+	eq(Game._heist_associate_at(1, other, seen_at, seen_at + Vector2(60, 0)), 0, "48 px dışında")
+	eq(Game.cover_state(), 1, "bozulmadı")
+	var before: float = meter.value_of(1)
+	eq(Game._heist_associate_at(1, other, seen_at, seen_at + Vector2(20, 0)), 1, "sahip gördü")
+	near(meter.value_of(1) - before, 60.0, 0.5, "sahibin şüphesi +60")
+	await _frames()
+	eq(Game.cover_state(), 0, "ilişkilendirme örtüyü bozdu")
 	await _stop()
 
 
