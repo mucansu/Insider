@@ -26,3 +26,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | koordinatör | docs/notes/mimari.md | S3 eki tek uzun satır → her birleşmede çakışıyor; maddelere bölünmeli |
 | 2026-10-03 | Explore | autoload/game.gd:53 | PROTOCOL_VERSION üstündeki yorum '2: US-011b' diyor, değer 3 (US-016) |
 | 2026-10-03 | US-043 (oynanis) | entities/npc/chaser | Mahalleli sonradan oluşunca örtüyü sahibin duyusundan okur; sahipsiz seviyede herkesi kovalar. Geç katılan istemcide `cover` etiketi eksik olabilir (yalnız istem; host doğrular) |
+| 2026-10-03 | IS-093 (arayuz) | levels/store_a.tscn | build_levels.gd yeniden üretince Props altındaki 4 düğümde (Counter, ShelfProp1-3) `unique_id=` farkı çıkıyor; commit'li .tscn üretici çıktısından sapmış |
+| 2026-10-03 | IS-093 (altyapi) | tools/perf_dump.bat | `rem` yorumları Türkçe kaldı (ASCII, CRLF; export.sh build'e kopyalar) |
+| 2026-10-03 | IS-093 (altyapi) | tools/net_smoke.py | 3 docstring'de yorum içi kod örneği girintisi sadeleşti (ör. `expand_bot_loop`) |
