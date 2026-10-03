@@ -24,6 +24,7 @@ Large files: grep for the section and read only that range.
 | `metin-ve-tema` | player-visible text (i18n) and colour tokens |
 | `kalem-kapat` | finishing, CI, commit format, merging, PROTOCOL_VERSION |
 | `oyunu-ac` | opening the game to test, packages for friends, Tailscale |
+| `devir` | coordinator handoff: close a wave, rewrite durum.md, update the status board, new chat |
 
 ## Red lines (surec.md §9)
 - A client is authoritative only over its own movement; every other outcome is decided on the host (S2).
