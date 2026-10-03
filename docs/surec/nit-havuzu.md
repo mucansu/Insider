@@ -37,3 +37,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-015a (oynanis) | entities/npc/chaser | Takım koşusunda iş bittikten sonra kaçış bölgesindeki oyunculara chaser `player_caught` olayları düşüyor (sonuç yine escaped) — IS-081 AC3 (5 player_caught) ile birlikte bakılmalı |
 | 2026-10-04 | IS-096 (oynanis) | entities/npc/owner/task_glyph.gd | Glif rozeti 8 px yarıçap (`BADGE_RADIUS`); oyun testinde büyütmek gerekebilir |
 | 2026-10-04 | IS-096 (oynanis) | entities/npc/components/npc_visual.gd | Koni duvara göre kırpılmıyor, sisin üstüne taşıyor; "konide" kararı yalnız geometri (karanlık bölge kuralı yok) |
+| 2026-10-04 | IS-015b (cekirdek) | tools/heist_stats.py | `--brain-loop` / `brain.runs[]` (IS-058b) satırlara açılmıyor; şema gelince küçük ek |
+| 2026-10-04 | IS-015b (cekirdek) | tests/net/brain_disconnect.json | Her gecikmede ~153 sn → tam ci_local'a ~5 dk ekler |
