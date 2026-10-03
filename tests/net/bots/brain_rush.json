@@ -1,0 +1,6 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, rush stratejisi (steps boş: zaman çizelgesi yükleyicisi sessiz kalır). Biçim: entities/player/bot_brain.gd.",
+  "brain": "rush",
+  "seed": 1,
+  "steps": []
+}

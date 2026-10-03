@@ -1,0 +1,6 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, team stratejisi (rol katılım sırasından: 0 oyalayıcı, 1 kasacı, 2 çantacı). Biçim: entities/player/bot_brain.gd.",
+  "brain": "team",
+  "seed": 3,
+  "steps": []
+}

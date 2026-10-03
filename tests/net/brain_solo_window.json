@@ -1,0 +1,19 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, host tek başına gerçek bakkalda (levels/store_a.tscn) `window` stratejisi (bot dosyası brain_window.json, tohum 2): ön kaldırımda bekler, sahip kasadan uzaklaşınca (raf/arka oda/telefon görevi ya da sırtı dönük) kasaya gider, boşaltır, kaçar; bekleme 60-90 sn'de zaman aşımına düşer (yine gider). Sonucu kazanmak zorunda değil; iş biter, beyin `done`, faz günlüğü stage -> wait ile başlar, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 0,
+  "duration": 100,
+  "bots": {
+    "host": "res://tests/net/bots/brain_window.json"
+  },
+  "expect": [
+    {"eq": ["host.brain.strategy", "window"]},
+    {"eq": ["host.brain.phase", "done"]},
+    {"eq": ["host.brain.phase_log.0.1", "stage"]},
+    {"eq": ["host.brain.phase_log.1.1", "wait"]},
+    {"between": ["host.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"eq": ["host.heist.active", false]}
+  ]
+}

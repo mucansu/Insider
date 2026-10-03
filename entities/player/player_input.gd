@@ -10,8 +10,11 @@ extends Node
 ## movement, keyboard-only). On a device the last-used look device wins: mouse motion -> mouse (world direction from player to cursor),
 ## right stick (`look_*`, S5) outside the dead zone -> stick direction; releasing the stick means no explicit look. Bot: the timeline's
 ## `"look"` step (S6 addendum).
+## Brain (IS-015a): `--brain=STRATEGY` or a bot file that selects a brain ({"brain": ..., "seed": ...}) -> `BotBrain` (closed loop; reads
+## only replicated state) produces movement, look and actions each physics step. Process-wide like the timeline (a respawned local
+## player keeps the same brain and its phase log).
 
-enum Source { NONE, DEVICE, BOT }
+enum Source { NONE, DEVICE, BOT, BRAIN }
 
 const MOVE_LEFT := &"move_left"
 const MOVE_RIGHT := &"move_right"
@@ -28,9 +31,12 @@ enum LookDevice { NONE, MOUSE, STICK }
 
 ## Process-wide timeline of the `--bot` file (loaded on the first local player).
 static var _process_bot: BotTimeline = null
+## Process-wide brain (`--brain` or a brain bot file; created on the first local player).
+static var _process_brain: BotBrain = null
 
 var _source: Source = Source.NONE
 var _bot: BotTimeline = null
+var _brain: BotBrain = null
 var _move: Vector2 = Vector2.ZERO
 var _held: Dictionary = {}
 var _just_pressed: Dictionary = {}
@@ -41,6 +47,10 @@ var _look_device: LookDevice = LookDevice.NONE
 func _ready() -> void:
 	if not is_multiplayer_authority():
 		use_none()
+	elif BotBrain.requested():
+		if _process_brain == null:
+			_process_brain = BotBrain.from_args()
+		use_brain(_process_brain)
 	elif not Args.bot_path.is_empty():
 		if _process_bot == null:
 			_process_bot = BotTimeline.from_file(Args.bot_path)
@@ -63,6 +73,17 @@ func use_bot(timeline: BotTimeline) -> void:
 	_set_source(Source.BOT if timeline != null else Source.NONE, timeline)
 
 
+## Closed-loop brain (IS-015a); tests may supply their own.
+func use_brain(value: BotBrain) -> void:
+	_set_source(Source.BRAIN if value != null else Source.NONE, null)
+	_brain = value
+
+
+## Brain in use (null unless Source.BRAIN).
+func brain() -> BotBrain:
+	return _brain
+
+
 ## No input (remote copy).
 func use_none() -> void:
 	_set_source(Source.NONE, null)
@@ -82,6 +103,13 @@ func poll(delta: float) -> void:
 			for action: StringName in ACTIONS:
 				_held[action] = _bot.is_held(action)
 				_just_pressed[action] = _bot.is_just_pressed(action)
+		Source.BRAIN:
+			_brain.tick(get_parent() as Player, Engine.get_physics_frames(), delta)
+			_move = _brain.move_vector()
+			_look = _brain.look_vector()
+			for action: StringName in ACTIONS:
+				_held[action] = _brain.is_held(action)
+				_just_pressed[action] = _brain.is_just_pressed(action)
 		Source.DEVICE:
 			if UiInput.is_gameplay_input_blocked():
 				return
@@ -131,6 +159,7 @@ func _input(event: InputEvent) -> void:
 func _set_source(value: Source, timeline: BotTimeline) -> void:
 	_source = value
 	_bot = timeline
+	_brain = null
 	_move = Vector2.ZERO
 	_look = Vector2.ZERO
 	_look_device = LookDevice.NONE
