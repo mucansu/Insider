@@ -178,3 +178,4 @@ OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
 OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
 OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
 EVENT_MISDIRECT,{name} mahalleliyi yanlış yöne yolladı.,{name} sent the neighbours the wrong way.
+EVENT_NPC_PUSHED,{name} birine omuz attı.,{name} shoved someone.

@@ -28,14 +28,15 @@ static func speed_for(tuning: PlayerTuning, mode: int) -> float:
 	return tuning.walk_speed
 
 
-## Velocity at the end of a physics step. Target = direction (length <= 1: partial speed on an analog stick) x mode speed;
-## approaches with `acceleration` when speeding up, `deceleration` when slowing down and with no input.
+## Velocity at the end of a physics step. Target = direction (length <= 1: partial speed on an analog stick) x mode speed x
+## `speed_scale` (US-037 NPC contact slowdown; 1 = none); approaches with `acceleration` when speeding up, `deceleration` when slowing
+## down and with no input.
 static func step_velocity(current: Vector2, direction: Vector2, mode: int, tuning: PlayerTuning,
-		delta: float) -> Vector2:
+		delta: float, speed_scale: float = 1.0) -> Vector2:
 	var dir: Vector2 = direction.limit_length(1.0)
 	if dir.length() < MOVE_EPSILON:
 		return current.move_toward(Vector2.ZERO, tuning.deceleration * delta)
-	var target: Vector2 = dir * speed_for(tuning, mode)
+	var target: Vector2 = dir * speed_for(tuning, mode) * maxf(speed_scale, 0.0)
 	var rate: float = tuning.acceleration if target.length() >= current.length() else tuning.deceleration
 	return current.move_toward(target, rate * delta)
 

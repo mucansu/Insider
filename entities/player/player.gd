@@ -33,6 +33,10 @@ extends CharacterBody2D
 ## PULL rescue Interactable. The local copy freezes while not FREE (input unread, movement/interaction cut, zero velocity). Host API
 ## (`host_hold/host_catch/host_release`) is called by NPC brains; `status_changed` fires on every peer, `rescued` on the host only.
 ## Dump: "player_states" + "status".
+## NPC contact (US-037, KR-027; S2): the host decides shoves (NpcContact); the local copy only predicts its own slowdown each physics step
+## (ContactRules.Predictor): circle overlap with an NPC in calm -> speed x0.5; a predicted shove (sprinting, NPC in the +-60 deg front cone,
+## not on cooldown, not a chaser's back) -> x0.7 for 0.2 s. Host `npc_pushed` session events put that NPC on cooldown locally. Dump
+## `player_states.<peer>.contact` = {predicted, slow_frames}.
 
 signal identity_changed()
 ## Nearby interactable target changed (empty string = none); local player only (S7).
@@ -96,6 +100,10 @@ var _look_ready: bool = false
 var _max_turn: float = 0.0
 ## US-043: whether this player's cover is broken (from the cover_broken session event).
 var _cover_broken: bool = false
+## US-037: contact slowdown prediction (local copy) and frames slowed by it (dump).
+var _contact_params: ContactRules.Params = null
+var _contact := ContactRules.Predictor.new()
+var _contact_slow_frames: int = 0
 
 @onready var _input: PlayerInput = $PlayerInput
 @onready var _sync: MultiplayerSynchronizer = $MultiplayerSynchronizer
@@ -144,7 +152,7 @@ func _physics_process(delta: float) -> void:
 		var direction: Vector2 = _input.move_vector() if free else Vector2.ZERO
 		if free:
 			move_mode = PlayerMotion.mode_for(_input.is_held(&"sneak"), _input.is_held(&"sprint"))
-			velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta)
+			velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta, _contact_scale(delta))
 		else:
 			move_mode = PlayerMotion.Mode.WALK
 			velocity = Vector2.ZERO  # held/caught: freezes
@@ -283,10 +291,51 @@ func interaction_tags() -> Dictionary:
 	return tags
 
 
-## US-042 cover event (every peer): this player's cover broke (resets with the level: new node).
+## US-042 cover event (every peer): this player's cover broke (resets with the level: new node). US-037: a host-confirmed shove puts
+## that NPC on cooldown in the local prediction.
 func _on_session_event(kind: StringName, data: Dictionary) -> void:
 	if kind == COVER_EVENT and typeof(data.get("peer")) == TYPE_INT and int(data["peer"]) == peer_id():
 		_cover_broken = true
+	elif kind == NpcContact.PUSH_EVENT and _local:
+		var npc: NpcContact = _contact_npc(str(data.get("npc", "")))
+		if npc != null:
+			_contact.note_cooldown(npc.get_instance_id(), npc.shove_cooldown())
+
+
+## US-037 (local copy): speed scale from NPC contact this step (ContactRules.Predictor). Calm overlap slows; a predicted shove slows the
+## pusher briefly. Outcomes (NPC slide, suspicion) are the host's (NpcContact).
+func _contact_scale(delta: float) -> float:
+	if _contact_params == null:
+		_contact_params = ContactTuning.load_default().rules_params()
+	var p: ContactRules.Params = _contact_params
+	var heading: Vector2 = ContactRules.push_heading(p, move_mode == PlayerMotion.Mode.SPRINT, velocity.length(), velocity)
+	var overlap: bool = false
+	for node: Node in get_tree().get_nodes_in_group(NpcContact.GROUP):
+		var npc: NpcContact = node as NpcContact
+		if npc == null:
+			continue
+		var at: Vector2 = npc.body_position()
+		if not ContactRules.overlaps(p, global_position, at):
+			continue
+		overlap = true
+		var key: int = npc.get_instance_id()
+		var back: bool = npc.is_chaser and ContactRules.from_behind(p, at, npc.facing(), global_position)
+		if _contact.can_push(key) and not back and ContactRules.in_front(p, global_position, heading, at):
+			_contact.note_push(p, key, npc.shove_cooldown())
+	var scale: float = _contact.speed_factor(p, overlap and ContactRules.is_calm(p, Game.alert_level()))
+	_contact.step(delta)
+	if scale < 1.0:
+		_contact_slow_frames += 1
+	return scale
+
+
+## NPC contact component by its NPC's node name (null if not found).
+func _contact_npc(npc_name: String) -> NpcContact:
+	for node: Node in get_tree().get_nodes_in_group(NpcContact.GROUP):
+		var npc: NpcContact = node as NpcContact
+		if npc != null and npc.get_parent() != null and String(npc.get_parent().name) == npc_name:
+			return npc
+	return null
 
 
 ## Whether carrying a bag (US-012; state is in the bag, host-authoritative and replicated).
@@ -317,6 +366,7 @@ func motion_state() -> Dictionary:
 		"wall_frames": _wall_frames,
 		"underruns": _buffer.underrun_count() if _buffer != null else 0,
 		"status": _status.state if _status != null else PlayerStatus.State.FREE,
+		"contact": {"predicted": _contact.predicted, "slow_frames": _contact_slow_frames},
 	}
 
 

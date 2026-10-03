@@ -17,6 +17,10 @@ extends CharacterBody2D
 ## before shouting); event channel extended (`owner_serve`, `owner_talk`, `owner_sent`, `owner_listen`, `owner_again`, `owner_phone_found`,
 ## `owner_loiter`; balloons in NpcVisual). Dump additions: on every peer `talk_peer`, `facing`, `shouted`, `talk_gaze`; on the host `loiter_s`
 ## (peer -> s), `player_serves`, `sent_windows`, `distractions`, `phones_found`.
+## US-037 (KR-027): `Contact` component (NpcContact; created in `_ready` when active). The owner is an observer of shoves (range + line of
+## sight -> `report_suspicion`); a calm shove adds suspicion and turns it to LOOK (`OwnerBrain.on_pushed`); while it staggers the brain is
+## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
+## Interactable completes: free, `rescued`, owner STAGGER - the existing rescue path).
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
@@ -72,6 +76,8 @@ const HEARING_CLASS := &"Hearing"
 const LISTEN_TASK := &"listen"
 ## Maximum events kept in the dump.
 const MAX_EVENTS := 128
+## US-037: held player's PULL component (PlayerStatus child; the shoulder rescue completes it).
+const RESCUE_PATH := ^"Status/Rescue"
 
 @export var owner_tuning: OwnerTuning
 @export var civilian_tuning: CivilianTuning
@@ -109,6 +115,7 @@ var _rules: CivilianRules.Params = null
 var _events: Array[StringName] = []
 var _event_peers: Array[int] = []
 var _bubbles: Array[int] = []
+var _contact: NpcContact = null
 
 @onready var _perception: Perception = $Perception
 @onready var _suspicion: Suspicion = $Suspicion
@@ -134,6 +141,7 @@ func _ready() -> void:
 	if civilian_tuning == null:
 		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
+	_contact = NpcContact.attach(self, false, _perception, report_suspicion, _on_pushed)
 	net_position = position
 	facing = _perception.facing
 	net_facing = facing
@@ -162,8 +170,11 @@ func _physics_process(delta: float) -> void:
 func step(delta: float) -> void:
 	if not active:
 		return
+	var slide: Vector2 = _contact.step(delta)
 	if _is_host():
-		velocity = _brain.step(delta)
+		velocity = Vector2.ZERO if _contact.is_staggering() else _brain.step(delta)  # US-037: stagger stops the brain
+		if not slide.is_zero_approx():
+			velocity = slide
 		move_and_slide()
 		_publish()
 	else:
@@ -335,6 +346,36 @@ static func _escape_point(level: Node) -> Vector2:
 	for node: Node in zone.find_children("*", "CollisionShape2D", false, false):
 		return (node as CollisionShape2D).global_position
 	return zone.global_position
+
+
+## Contact component (US-037; tests).
+func contact() -> NpcContact:
+	return _contact
+
+
+## US-037 shove hook (host; NpcContact calls it after the calm cost). A teammate's shove while the owner holds someone completes the held
+## player's PULL (existing rescue path) and returns true (no stagger: the brain goes to its own STAGGER); otherwise the brain reacts.
+func _on_pushed(peer_id: int, calm: bool) -> bool:
+	if not _is_host() or not active:
+		return false
+	if _shoulder_rescue(peer_id):
+		return true
+	_brain.on_pushed(peer_id, calm)
+	return false
+
+
+func _shoulder_rescue(peer_id: int) -> bool:
+	var held: int = _brain.held_peer()
+	if _brain.state() != OwnerBrain.State.HOLD or held == 0 or held == peer_id:
+		return false
+	var player: Node = _senses.player(held)
+	var rescue: Interactable = player.get_node_or_null(RESCUE_PATH) as Interactable if player != null else null
+	if rescue == null or not rescue.enabled:
+		return false
+	if rescue.busy_by != 0:
+		rescue.host_abort()
+	rescue.completed.emit(peer_id)  # same signal a finished PULL emits on the host (PlayerStatus frees and emits `rescued`)
+	return true
 
 
 ## STALL component (tests, visual).

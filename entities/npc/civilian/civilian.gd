@@ -9,6 +9,8 @@ extends CharacterBody2D
 ## change; role and serial number in spawn data. Result events (`customer_enter`, `customer_tell`, `customer_flee`, `passerby_tell`,
 ## `passerby_flee`; AC5, SFX names) become the `event_raised` signal in the same order on every peer via reliable RPC (Population collects
 ## the dump). The client follows the position with smoothing.
+## US-037 (KR-027): `Contact` component (NpcContact): a shove slides it (physics, out of walls) and stops the brain while it staggers; a
+## calm shove adds suspicion to the pusher, and it observes others' shoves (range + line of sight).
 
 ## On every peer: result event (kind, related player; 0 if none).
 signal event_raised(civilian: Civilian, kind: StringName, peer_id: int)
@@ -50,6 +52,7 @@ var last_event_age: float = INF
 var _rules: CivilianRules.Params = null
 var _events: Array[StringName] = []
 var _bubbles: Array[int] = []
+var _contact: NpcContact = null
 
 @onready var _perception: Perception = $Perception
 @onready var _suspicion: Suspicion = $Suspicion
@@ -68,6 +71,7 @@ func _ready() -> void:
 		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
 	_visual.role = NpcVisual.Role.PASSERBY if role == PopulationRules.Role.PASSERBY else NpcVisual.Role.CUSTOMER
+	_contact = NpcContact.attach(self, false, _perception, _add_suspicion, Callable())
 	net_position = position
 	if _host_side():
 		_perception.set_cone(cone_half_angle(), cone_range())
@@ -83,8 +87,11 @@ func _physics_process(delta: float) -> void:
 
 
 func step(delta: float) -> void:
+	var slide: Vector2 = _contact.step(delta)
 	if _host_side():
-		velocity = _brain.step(delta)
+		velocity = Vector2.ZERO if _contact.is_staggering() else _brain.step(delta)  # US-037: stagger stops the brain
+		if not slide.is_zero_approx():
+			velocity = slide
 		move_and_slide()
 		net_position = position
 		facing = _perception.facing
@@ -126,6 +133,17 @@ func suspicion() -> Suspicion:
 
 func senses() -> CivilianSenses:
 	return _senses
+
+
+## Contact component (US-037; tests).
+func contact() -> NpcContact:
+	return _contact
+
+
+## US-037 suspicion sink (host): a shove's calm cost; the shove spot becomes the last seen position.
+func _add_suspicion(peer_id: int, amount: float, where: Vector2) -> void:
+	_suspicion.apply_delta(peer_id, amount)
+	_suspicion.hint_position(peer_id, where)
 
 
 func role_name() -> StringName:

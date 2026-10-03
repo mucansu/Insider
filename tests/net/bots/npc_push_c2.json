@@ -1,0 +1,40 @@
+{
+ "_doc": "npc_push.json c2 botu (US-037): owner_detect_c1 rotası 9 sn geç - c1'in sakin itmesinden sonra personel tarafına geçip sahibin konisinde durur: sorgu -> bağırış (uyarı 2; yoldan geçen mahalleliye döner, 8 sn sonra komşu gelir).",
+ "steps": [
+  {
+   "t": 9.2,
+   "move": [
+    -1,
+    0
+   ]
+  },
+  {
+   "t": 10.6,
+   "move": [
+    1,
+    0
+   ]
+  },
+  {
+   "t": 13.0,
+   "move": [
+    0,
+    -1
+   ]
+  },
+  {
+   "t": 13.9,
+   "move": [
+    1,
+    0
+   ]
+  },
+  {
+   "t": 15.25,
+   "move": [
+    0,
+    0
+   ]
+  }
+ ]
+}
