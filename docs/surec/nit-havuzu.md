@@ -16,3 +16,7 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | US-016 (oynanis) | core/civilian_rules.gd, S4 | Tezgâh görüş engeli → kuyruktaki müşteri kasayı göremez; 'ikisi satış katında ise sahibi görür' gevşetmesi var. Tezgâh siviller için alçak sayılsın mı — Fable |
 | 2026-10-03 | US-016 (oynanis) | entities/npc/civilian | AC dışı eklenen davranışlar: uyarı ≥ 2'de müşteriler kaçar; yoldan geçen koniyle hep görür (yalnız bakış penceresinde değil) — oyun testinde gözle |
 | 2026-10-03 | IS-085 (oynanis) | entities/props/bag_carry.gd | Dikey yürüyüşte sarkaç tetiklenmiyor; önde (z+1) çanta üst üste binen başka oyuncunun da üstünde; etkileşimde ayrı taşıma pozu yok; devir alanı/döküm CARRY_OFFSET'te (çizimden ~15 px) |
+| 2026-10-03 | US-040/041 (oynanis) | ui/theme, ui/hud.gd | Eksi kasa AlertLabel ile 24 → 18 px küçülüyor; temada DebtLabel (başlık boyu + uyarı rengi) |
+| 2026-10-03 | US-040/041 (oynanis) | ui/escape_panel.gd | Kasayı boşaltan sonradan yakalanırsa istemci geri sayımı göstermez (host kararı doğru); 150 ms'de istemci sayacı ~0,2 sn "0"da bekler |
+| 2026-10-03 | US-040/041 (oynanis) | ui/heist_end.gd | aborted sonucu başarı jingle'ını çalıyor |
+| 2026-10-03 | IS-086 (seviye) | entities/npc/owner | DİNLE sırasında sahip balonu yok (GDD "?") — IS-087'de |
