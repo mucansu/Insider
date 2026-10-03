@@ -1,51 +1,47 @@
 class_name Bag
 extends Node2D
-## Nakit çantası (US-012; GDD §9.3; mimari.md S7, S8, S10): `data/props/bag.tres`. Arka oda nakdi (BackroomCash).
-## İki Interactable bileşeni (S7):
-## - `Take`: yerdeki çantayı basılı tutarak al (tanımdaki süre, 2 sn); yalnız eli boş oyuncu (etiket `free_hands`).
-## - `Handoff`: taşıyanın yanındaki eli boş ekip arkadaşı 0,3 sn tutarak devralır (taşıyan kendi çantasını
-##   göremez: eli dolu). Bileşen çantayla birlikte taşıyanın üstünde durur.
-## Host kuralları (HeistRules): taşıyan koşarken (`is_sprinting()`) her tam saniyede %25 düşürür; düşen çanta
-## taşıyanın son bilinen konumunda yere iner ve 160 px gürültü yayar (S8, `NoiseBus.emit_noise`). Taşıyan
-## ayrılırsa ya da Game yakalandığını bildirirse (`host_drop`) de düşer; düşen çanta 0,3 sn yeniden alınamaz
-## (KR-026). İş bitince Game `host_lock` çağırır: host yeni alma/devir isteklerini reddeder (`blocked`). Değer (`value`) tanımdan; kaçışta
-## taşıyanın ganimeti sayılır (Game okur).
-## Çoğaltılan durum (host yazar, MultiplayerSynchronizer, değişince): `carrier` (0 = yerde), `floor_position`
-## (Props koordinatında), `drops`. Konum her peer'da durumdan türetilir: taşınırken taşıyan düğümün üstünde.
-## Görsel (`Visual`) yalnız durumu okur (KR-003). Döküm (S6 "props"): `dump_state()`.
+## Cash bag (US-012; GDD §9.3; S7, S8, S10): `data/props/bag.tres`. Backroom cash (BackroomCash). Two Interactable components (S7):
+## - `Take`: hold to pick up a floor bag (definition time, 2 s); empty-handed players only (tag `free_hands`).
+## - `Handoff`: an empty-handed teammate next to the carrier takes it over by holding 0.3 s; the bag moves with the carrier.
+## Host rules (HeistRules): while the carrier sprints, each full second rolls a 25% drop; a dropped bag lands at the carrier's last
+## known position and emits 160 px noise (S8). It also drops if the carrier leaves or Game reports a catch (`host_drop`); a dropped bag
+## cannot be re-taken for 0.3 s (KR-026). At heist end Game calls `host_lock`: host rejects new take/handoff (`blocked`).
+## `value` comes from the definition and counts as the carrier's loot on escape (Game reads it).
+## Replicated state (host writes, MultiplayerSynchronizer, on change): `carrier` (0 = on floor), `floor_position` (Props space), `drops`.
+## Position is derived from state on every peer. Visual (`Visual`) only reads state (KR-003). Dump (S6 "props"): `dump_state()`.
 
-## Yalnız host'ta: çanta alındı ya da devralındı (not: "Hamal").
+## Host only: bag picked up or taken over (note: "Hamal").
 signal taken(peer_id: int)
-## Yalnız host'ta: çanta düştü (koşu, yakalanma, ayrılma).
+## Host only: bag dropped (sprint, catch, leave).
 signal dropped(peer_id: int)
 
 const DEF_PATH := "res://data/props/bag.tres"
-## Taşınırken taşıyan merkezine göre düğüm konumu (devir bileşeni, sis hafızası, döküm). Çizilen tutuş ayrı:
-## BagVisual, taşıyanın kukla elinden BagCarry ile türetir (IS-085).
+## Node position relative to the carrier's center while carried (handoff component, fog memory, dump). Drawn grip is separate:
+## BagVisual derives it from the carrier's puppet hand via BagCarry (IS-085).
 const CARRY_OFFSET := Vector2(10.0, 6.0)
 
 @export var def: PropDef
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var carrier: int = 0:
 	set = _set_carrier
 var floor_position: Vector2 = Vector2.ZERO
 var drops: int = 0
-## Ganimet değeri (tanımdan; GDD 300-600 tohumu gelene dek sabit).
+## Loot value (from definition; fixed until the GDD 300-600 seed lands).
 var value: int = 0
 
-## Host: düşürme zarı `func() -> float` (0..1); geçersizse kendi RandomNumberGenerator'ı. Testler değiştirir.
+## Host: drop roll `func() -> float` (0..1); own RandomNumberGenerator if invalid. Tests override.
 var roll_source: Callable = Callable()
-## Host: gürültü çıkışı, S8 imzası `func(pos: Vector2, radius: float, kind: StringName, source_peer: int)`;
-## geçersizse NoiseBus. Testler değiştirir.
+## Host: noise output, S8 signature `func(pos: Vector2, radius: float, kind: StringName, source_peer: int)`;
+## NoiseBus if invalid. Tests override.
 var noise_sink: Callable = Callable()
 
 var _run_s: float = 0.0
 var _takes: int = 0
-## Host: iş bitti (yeni alma/devir reddedilir) ve düşmeden sonra kalan yeniden alma kilidi (sn).
+## Host: heist over (new take/handoff rejected) and the re-take lock remaining after a drop (s).
 var _locked: bool = false
 var _retake_left: float = 0.0
-## Bu peer'da görülen taşıyanlar (çoğaltılan `carrier`'dan; yalnız döküm/teşhis).
+## Carriers seen on this peer (from replicated `carrier`; dump/diagnostics only).
 var _seen_carriers: Array[int] = []
 var _rng := RandomNumberGenerator.new()
 
@@ -78,7 +74,7 @@ func _ready() -> void:
 	PropDump.register()
 
 
-## `peer_id`'nin taşıdığı çanta (her peer'da, çoğaltılan durumdan); yoksa null.
+## Bag carried by `peer_id` (on every peer, from replicated state); null if none.
 static func carried_by(tree: SceneTree, peer_id: int) -> Bag:
 	if tree == null or peer_id <= 0:
 		return null
@@ -93,7 +89,7 @@ func is_carried() -> bool:
 	return carrier != 0
 
 
-## 0..1 alma/devir ilerlemesi (görsel).
+## 0..1 take/handoff progress (visual).
 func progress_ratio() -> float:
 	return maxf(_take.progress_ratio(), _handoff.progress_ratio())
 
@@ -102,8 +98,8 @@ func _physics_process(delta: float) -> void:
 	step(delta)
 
 
-## Bir zaman adımı (fizik adımı çağırır; testler de aynı yolu kullanır): konum durumdan izlenir; host'ta taşıyan
-## koştuysa geçilen her tam saniyede düşürme zarı atılır, taşıyan yoksa (ayrıldı) çanta düşer.
+## One time step (called by the physics step; tests use the same path): position follows state; on the host, each full second the
+## carrier sprinted rolls the drop; if the carrier is gone (left) the bag drops.
 func step(delta: float) -> void:
 	_follow()
 	_retake_left = maxf(_retake_left - delta, 0.0)
@@ -126,7 +122,7 @@ func _process(_delta: float) -> void:
 	_follow()
 
 
-## Yalnız host'ta (değilse yok sayılır): çanta taşıyanın son bilinen konumunda yere düşer ve gürültü yayar.
+## Host only (ignored otherwise): bag drops at the carrier's last known position and emits noise.
 func host_drop() -> void:
 	if carrier == 0 or not multiplayer.is_server():
 		return
@@ -145,7 +141,7 @@ func host_drop() -> void:
 	dropped.emit(peer)
 
 
-## Yalnız host'ta: iş bitti; yeni alma/devir istekleri reddedilir.
+## Host only: heist over; new take/handoff requests are rejected.
 func host_lock() -> void:
 	if multiplayer.is_server():
 		_locked = true
@@ -186,7 +182,7 @@ func _handoff_blocked() -> bool:
 
 func _give(peer_id: int) -> void:
 	if _locked or peer_id <= 0 or carried_by(get_tree(), peer_id) != null:
-		return  # eli dolu (başka çanta)
+		return  # hands full (another bag)
 	_run_s = 0.0
 	_takes += 1
 	carrier = peer_id
@@ -206,14 +202,14 @@ func _emit_noise(at: Vector2, peer: int) -> void:
 		NoiseBus.emit_noise(at, HeistRules.BAG_DROP_NOISE_RADIUS, HeistRules.BAG_DROP_NOISE_KIND, peer)
 
 
-## Taşıyan oyuncu düğümü (her peer'da çoğaltılan `carrier`'dan); yoksa null. Görsel okur.
+## Carrier player node (from replicated `carrier` on every peer); null if none. Visual reads it.
 func carrier_node() -> Node2D:
 	return _carrier_node()
 
 
-# --- durum ---
+# --- state ---
 
-## Taşıyan oyuncu düğümü (S7 aktörü: yetkisi taşıyanda); yoksa null.
+## Carrier player node (S7 actor: authority is on the carrier); null if none.
 func _carrier_node() -> Node2D:
 	if carrier == 0 or not is_inside_tree():
 		return null
@@ -223,7 +219,7 @@ func _carrier_node() -> Node2D:
 	return null
 
 
-## Konum durumdan: taşınırken taşıyanın üstünde, yerdeyse floor_position.
+## Position from state: on the carrier while carried, floor_position when on the floor.
 func _follow() -> void:
 	var actor: Node2D = _carrier_node()
 	if actor != null:

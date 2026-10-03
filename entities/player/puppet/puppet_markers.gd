@@ -1,22 +1,20 @@
 class_name PuppetMarkers
 extends Node2D
-## Kuklanın oyun bilgisi işaretleri (US-014; GDD §14.1 kural 2): tepki balonu ("?" şüphe, "!" fark edildi) ve
-## etkileşim rozeti (IS-014: oyuncu etkileşimdeyken her peer'da aynı). Kuklanın üstünde, animasyondan bağımsız
-## sabit bağlantı noktasında (`PuppetTuning.marker_anchor_height`) ve 1280×720'de ≥ 22 px çizilir; sekme,
-## eğilme ve sıçrama bunları oynatmaz (balonun kendi pop/titremesi hariç). Glifler şekil olarak çizilir (metin
-## değil). Renkler etkin tondan ve ThemeTokens.GAMEPLAY_ALERT'ten (S9); rozet halkası oyuncu rengi.
-## Yalnız Puppet'ın verdiği durumu çizer.
+## Puppet's game-info markers (US-014; GDD §14.1 rule 2): reaction balloon ("?" suspicion, "!" noticed) and interaction badge (IS-014: same on
+## every peer while a player interacts). Drawn above the puppet at a fixed anchor (`PuppetTuning.marker_anchor_height`) independent of
+## animation, >= 22 px at 1280x720; bob, lean and hop do not move them (except the balloon's own pop/tremble). Glyphs are shapes, not text.
+## Colours from the active tone and ThemeTokens.GAMEPLAY_ALERT (S9); badge ring is the player colour. Only draws the state Puppet gives it.
 
-## Balon ve rozetin bağlantı noktasına göre konumu (px): başın iki yanında, ad etiketinin altında.
+## Balloon and badge position relative to the anchor (px): on both sides of the head, below the name label.
 const BUBBLE_OFFSET := Vector2(26.0, 12.0)
 const BADGE_OFFSET := Vector2(-26.0, 12.0)
-## Balon kutusu (px): kenar 28, köşe yarıçapı 8, kuyruk başa doğru.
+## Balloon box (px): side 28, corner radius 8, tail toward the head.
 const BUBBLE_SIZE := 28.0
 const BUBBLE_CORNER := 8.0
 const BUBBLE_TAIL := [Vector2(-8.0, 12.0), Vector2(-15.0, 21.0), Vector2(0.0, 13.0)]
 const GLYPH_WIDTH := 4.0
 const GLYPH_DOT := 2.4
-## Rozet: yarıçap 12 (24 px), halka kalınlığı, iç noktalar.
+## Badge: radius 12 (24 px), ring thickness, inner dots.
 const BADGE_RADIUS := 12.0
 const BADGE_RING := 2.0
 const BADGE_DOT := 1.8
@@ -45,12 +43,12 @@ func shows_interaction() -> bool:
 	return _interacting
 
 
-## Rozet dolgusunun rengi (etkin tonun zemin rengi; halka oyuncu renginde).
+## Badge fill colour (active tone's ground colour; ring in player colour).
 func interaction_marker_color() -> Color:
 	return ThemeTokens.tone().bg_color
 
 
-## Balonun merkezi (yerel px; titreme hariç) — sabit bağlantıdan.
+## Balloon center (local px; tremble excluded) - from the fixed anchor.
 func bubble_center() -> Vector2:
 	return _anchor + BUBBLE_OFFSET
 

@@ -1,98 +1,83 @@
 class_name Player
 extends CharacterBody2D
-## Oyuncu karakteri (US-004; mimari.md S2, S3, S5, S6). Game'in PlayerSpawner'ı üretir: düğüm adı str(peer_id),
-## yetki o peer'da, ilk konum spawn verisinden (S3). Hareket ve ağ mantığı burada, PlayerMotion'da (kurallar,
-## düğümsüz) ve SnapshotBuffer'da (ara değerleme); görsel `Visual` alt düğümündedir ve yalnız şu durumu okur
-## (KR-003, KR-017: Faz 2'de prosedürel kukla görseliyle değişir, buraya dokunulmaz):
-##   velocity (hız), facing (birim bakış yönü), move_mode (PlayerMotion.Mode), is_interacting(),
-##   peer_id(), slot(), display_name() ve identity_changed sinyali.
-##
-## Yerel (yetkili) kopya: her fizik adımında PlayerInput'u okur, hızı PlayerMotion ile hesaplar, move_and_slide
-## eder (çarpışma: yalnız world; oyuncular birbirinin ve NPC'lerin içinden geçer — GDD §9.2/KR-021: NPC-oyuncu
-## çarpışması yok, US-008) ve ağ alanlarını (net_*) yazar.
-## Tahmin ya da sunucu onayı yok: istemci kendi hareketinde yetkilidir (S2), hareket anında görünür.
-## MultiplayerSynchronizer net_* alanlarını 0,05 sn'de bir (20 Hz, güvenilmez) yayar.
-## Uzak kopya: eşitleyici net_* alanlarını yazınca (`synchronized`) anlık görüntü SnapshotBuffer'a girer; konum,
-## hız, yön ve kip her karede tampondan, `PlayerTuning.interpolation_delay` (~100 ms) geriden üretilir.
-## Tampon boşken konuma dokunulmaz: Game'in geç katılana konum yetiştirmesi (S3) o arada konumu yazar.
-##
-## Otomasyon dökümü (S6, yalnız `--dump`): yerel oyuncu "player_states" anahtarını kaydeder:
-## {"<peer_id>": {"mode": int, "facing": [x, y], "wall_frames": int, "underruns": int}} — süreçteki her oyuncu
-## kopyası için; wall_frames kopyanın (yerel ya da ara değerlenmiş) duvar içinde olduğu fizik karesi sayısı,
-## underruns uzak kopyada tamponun tükendiği kare sayısı (SnapshotBuffer).
-##
-## Etkileşim (US-005, S7 oyuncu tarafı): her kopya `Interactable.ACTOR_GROUP`'a girer ve host'un isteği
-## doğruladığı konumu `interaction_position()` ile sunar. Yalnız yerel kopyada `PlayerInteraction` alt düğümü
-## her fizik adımında (hareketten sonra) hedef bulur ve istek/iptal yollar; aşağıdaki üç sinyal (HUD sözleşmesi)
-## yalnız yerel oyuncuda yayılır. Dökümde (yalnız `--dump`) yerel oyuncu "interaction" anahtarını kaydeder:
-## PlayerInteraction.stats(). US-004 hareket/senkron davranışı bundan etkilenmez.
-## "Etkileşimde" durumu (IS-014; görsel göstergesi her peer'da aynı): yerel kopyada PlayerInteraction'dan (basışta
-## hemen, karar gelince biter; GDD §12); uzak kopyada host'un çoğalttığı `Interactable.busy_by`'dan (bu oyuncunun
-## tuttuğu bileşen varsa) her karede türetilir — ek ağ alanı yok. Kapı gibi anlık eylemler uzakta görünmez.
-##
-## Gürültü (US-009, S8): yalnız yerel kopya, hareketten sonra adım sesi yayar: kipin yarıçapı (NoiseProfile: koşu
-## 120, yürüme/sızma 0) > 0 ve gerçek hız (`get_real_velocity`; duvara itmek sayılmaz) ≥ `step_min_speed` iken
-## en fazla `step_interval`'da bir (NoiseRules.Cadence) `NoiseBus.emit_noise`; istemcide host doğrular (S2).
-## Uzak kopya ses üretmez.
-##
-## Çanta (US-012): taşıma durumu çantadadır (Bag, host yetkili); oyuncu yalnız okur (`is_carrying`,
-## `interaction_tags` → eli boşsa `free_hands`) ve koşuyu bildirir (`is_sprinting`); düşürme kuralı çantada (host).
-##
-## Bakış (US-011b AC3; GDD §6.5, S2): `look_dir` istemci yetkili. Yerel kopya her fizik adımında PlayerInput'un
-## bakış girdisiyle (fare/sağ çubuk/bot `"look"`; yoksa hareket yönüne k = 9 yumuşak dönüş) LookRules ile döner,
-## tavan `VisionTuning.max_turn_deg_per_sec` (240°/sn); `net_look` 8 bit açı (LookRules.quantize, 1,4° adım)
-## hareket eşitleyicisinde 20 Hz gider. Uzak kopya açıyı SnapshotBuffer'da (100 ms) ara değerler ve aynı tavanla
-## izler. Tutulan/yakalanan oyuncunun bakışı donar. Host bakışı hiçbir oyun kararında kullanmaz (NPC algısı da).
-##
-## Tutulma/yakalanma (US-008, S3 eki): `Status` alt düğümü (PlayerStatus, host yetkili alt ağaç) FREE/HELD/CAUGHT
-## durumunu taşır ve ÇEK kurtarma Interactable'ını barındırır. Yerel kopya FREE değilken donar: girdi okunmaz
-## (hareket ve etkileşim kesilir, hız sıfır). Host API'si (`host_hold/host_catch/host_release`) NPC beyinlerinden
-## çağrılır; `status_changed` her peer'da, `rescued` yalnız host'ta yayılır. Dökümde "player_states" + "status".
+## Player character (US-004; S2, S3, S5, S6). Spawned by Game's PlayerSpawner: node name str(peer_id), authority on that peer, initial
+## position from spawn data (S3). Movement/network logic lives here, in PlayerMotion (node-free rules) and SnapshotBuffer (interpolation);
+## the visual is the `Visual` child and only reads: velocity, facing, move_mode (PlayerMotion.Mode), is_interacting(), peer_id(), slot(),
+## display_name() and identity_changed (KR-003, KR-017: replaced by the procedural puppet in Phase 2 without touching this).
+## Local (authoritative) copy: each physics step reads PlayerInput, computes velocity with PlayerMotion, move_and_slide (collision:
+## world only; players pass through each other and NPCs, GDD §9.2/KR-021, US-008) and writes net_* fields. No prediction or server
+## confirmation: the client is authoritative over its own movement (S2). MultiplayerSynchronizer sends net_* every 0.05 s (20 Hz, unreliable).
+## Remote copy: when the synchronizer writes net_* (`synchronized`) the snapshot goes into SnapshotBuffer; position, velocity, facing and
+## mode are produced each frame from the buffer, `PlayerTuning.interpolation_delay` (~100 ms) behind. With an empty buffer position is
+## untouched (Game's late-join position catch-up, S3, writes it meanwhile).
+## Automation dump (S6, `--dump` only): the local player registers "player_states": {"<peer_id>": {"mode": int, "facing": [x, y],
+## "wall_frames": int, "underruns": int}} for every player copy in the process; wall_frames = physics frames the copy (local or
+## interpolated) was inside a wall, underruns = frames the remote buffer ran dry (SnapshotBuffer).
+## Interaction (US-005, S7 player side): every copy joins `Interactable.ACTOR_GROUP` and exposes the host-validated position via
+## `interaction_position()`. Only the local copy's `PlayerInteraction` child finds targets and sends request/cancel each physics step
+## (after movement); the three signals below (HUD contract) fire on the local player only. Dump registers "interaction":
+## PlayerInteraction.stats(). "Interacting" state (IS-014; same indicator on every peer): local from PlayerInteraction (starts at press,
+## ends on decision; GDD §12); remote derived each frame from the host-replicated `Interactable.busy_by` (component held by this
+## player), no extra network field. Instant actions like doors are not visible remotely.
+## Noise (US-009, S8): local copy only, after movement, emits step sound: mode radius (NoiseProfile: sprint 120, walk/sneak 0) > 0 and
+## real speed (`get_real_velocity`; pushing a wall does not count) >= `step_min_speed`, at most once per `step_interval`
+## (NoiseRules.Cadence) via `NoiseBus.emit_noise`; on a client the host validates (S2). Remote copies make no sound.
+## Bag (US-012): carry state lives in the bag (Bag, host-authoritative); the player only reads it (`is_carrying`, `interaction_tags` ->
+## `free_hands` if empty-handed) and reports sprinting (`is_sprinting`); the drop rule is in the bag (host).
+## Look (US-011b AC3; GDD §6.5, S2): `look_dir` is client-authoritative. The local copy turns each physics step via LookRules from
+## PlayerInput's look input (mouse/right stick/bot `"look"`; otherwise smooth k = 9 turn toward movement), capped at
+## `VisionTuning.max_turn_deg_per_sec` (240 deg/s); `net_look` is an 8-bit angle (LookRules.quantize, 1.4 deg step) sent at 20 Hz in the
+## movement synchronizer. Remote copies interpolate the angle in SnapshotBuffer (100 ms) with the same cap. A held/caught player's look
+## freezes. The host uses look in no game decision (NPC perception included).
+## Held/caught (US-008, S3 addendum): the `Status` child (PlayerStatus, host-authoritative subtree) carries FREE/HELD/CAUGHT and hosts the
+## PULL rescue Interactable. The local copy freezes while not FREE (input unread, movement/interaction cut, zero velocity). Host API
+## (`host_hold/host_catch/host_release`) is called by NPC brains; `status_changed` fires on every peer, `rescued` on the host only.
+## Dump: "player_states" + "status".
 
 signal identity_changed()
-## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
+## Nearby interactable target changed (empty string = none); local player only (S7).
 signal interaction_target_changed(action_key: String)
-## Q (`intimidate`) istem satırının hedefi değişti (boş = yok); yalnız yerel oyuncuda (S7 eki, US-010).
+## Target of the Q (`intimidate`) prompt line changed (empty = none); local player only (S7 addendum, US-010).
 signal interaction_alt_target_changed(action_key: String)
 signal interaction_started(action_key: String, duration: float)
 signal interaction_finished(success: bool)
-## Her peer'da: tutulma/yakalanma durumu değişti (PlayerStatus.State).
+## On every peer: held/caught state changed (PlayerStatus.State).
 signal status_changed(state: int)
-## Yalnız host'ta: tutulan oyuncu ekip arkadaşınca kurtarıldı.
+## Host only: held player was rescued by a teammate.
 signal rescued(rescuer: int)
 
 const DUMP_KEY := "player_states"
 const INTERACTION_DUMP_KEY := "interaction"
 const INTERACT_ACTION := &"interact"
-## US-043: örtüsü sağlam oyuncunun etkileşim etiketi ve US-042 örtü bozulma oturum olayı.
+## US-043: interaction tag of a player with intact cover, and the US-042 cover-broken session event.
 const COVER_TAG := &"cover"
 const COVER_EVENT := &"cover_broken"
 const ALT_INTERACT_ACTION := &"intimidate"
 const TUNING_PATH := "res://data/player_tuning.tres"
-## Gövde şekli yoksa varsayılan yarıçap (S4: karakter çapı ~24 px).
+## Default radius if there is no body shape (S4: character diameter ~24 px).
 const BODY_RADIUS := 12.0
-## Duvar denetiminde gövde yarıçapından düşülen pay (px): kayarken temas "içinde" sayılmaz.
+## Margin subtracted from the body radius in the wall check (px): sliding contact does not count as "inside".
 const WALL_CHECK_MARGIN := 2.0
-## Fizik katmanı world (mimari.md §4).
+## Physics layer world (architecture §4).
 const WORLD_MASK := PhysicsLayers.WORLD
-## Koşu sayılması için en düşük hız (px/sn; US-012): koşu tuşu basılı ama duran oyuncu koşmuyor.
+## Minimum speed (px/s) to count as sprinting (US-012): sprint key held while standing still is not sprinting.
 const SPRINT_MOVING_SPEED := 20.0
 
 @export var tuning: PlayerTuning
 
-## Ağ alanları: yalnız yetkili kopya yazar, eşitleyici yayar (S2: konum, yön, kip + gönderen anı).
+## Network fields: only the authoritative copy writes, the synchronizer sends (S2: position, facing, mode + sender time).
 var net_position: Vector2 = Vector2.ZERO
 var net_facing: Vector2 = Vector2.DOWN
 var net_mode: int = PlayerMotion.Mode.WALK
-## Bakış açısı, 8 bit (LookRules.quantize; US-011b).
+## Look angle, 8-bit (LookRules.quantize; US-011b).
 var net_look: int = LookRules.quantize(PI * 0.5)
-## Yetkili kopyanın kendi saatinde net_position'ın yazıldığı an (sn); ara değerleme bu saate göre çizer.
+## Moment net_position was written on the authority's own clock (s); interpolation draws against this clock.
 var net_time: float = 0.0
 
-## Görselin okuduğu durum (her kopyada; uzak kopyada tampondan).
+## State the visual reads (on every copy; from the buffer on a remote copy).
 var facing: Vector2 = Vector2.DOWN
 var move_mode: int = PlayerMotion.Mode.WALK
-## Bakış yönü (birim; görsel, sis ve döküm okur). Yerelde girdiden, uzakta ara değerlenmiş ve tavanlı.
+## Look direction (unit; visual, fog and dump read it). Local: from input; remote: interpolated and capped.
 var look_dir: Vector2 = Vector2.DOWN
 
 var _local: bool = false
@@ -101,7 +86,7 @@ var _buffer: SnapshotBuffer = null
 var _slot: int = 0
 var _display_name: String = ""
 var _wall_query: PhysicsShapeQueryParameters2D = null
-## Otomasyonda (S6) her fizik karesinde duvar denetimi yapılır ve sayılır.
+## In automation (S6) the wall check runs and is counted every physics frame.
 var _track_walls: bool = false
 var _wall_frames: int = 0
 var _noise_profile: NoiseProfile = null
@@ -109,7 +94,7 @@ var _step_noise: NoiseRules.Cadence = null
 var _look_angle: float = PI * 0.5
 var _look_ready: bool = false
 var _max_turn: float = 0.0
-## US-043: bu oyuncunun örtüsü bozuldu mu (cover_broken oturum olayından).
+## US-043: whether this player's cover is broken (from the cover_broken session event).
 var _cover_broken: bool = false
 
 @onready var _input: PlayerInput = $PlayerInput
@@ -162,7 +147,7 @@ func _physics_process(delta: float) -> void:
 			velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta)
 		else:
 			move_mode = PlayerMotion.Mode.WALK
-			velocity = Vector2.ZERO  # tutuldu/yakalandı: donar
+			velocity = Vector2.ZERO  # held/caught: freezes
 		move_and_slide()
 		facing = PlayerMotion.facing_for(facing, direction)
 		if free:
@@ -191,12 +176,12 @@ func _process(delta: float) -> void:
 	if _look_ready:
 		_look_angle = LookRules.turn(_look_angle, frame.look, delta, _max_turn)
 	else:
-		_look_angle = frame.look  # ilk veri: dönüş animasyonu olmadan otur
+		_look_angle = frame.look  # first data: sit without a turn animation
 		_look_ready = true
 	look_dir = Vector2.from_angle(_look_angle)
 
 
-## Bu kopyanın sahibi olan peer (S3: yetki = peer_id).
+## Peer that owns this copy (S3: authority = peer_id).
 func peer_id() -> int:
 	return get_multiplayer_authority()
 
@@ -205,17 +190,17 @@ func is_local() -> bool:
 	return _local
 
 
-## Oturumun görüş kipi yönlü mü (host kuralı, Game.vision_mode(); görsel ekip bakış yayı için okur).
+## Whether the session vision mode is directional (host rule, Game.vision_mode(); the visual reads it for the team look arc).
 func is_directional_view() -> bool:
 	return Game.vision_mode() == VisionGrid.Mode.DIRECTIONAL
 
 
-## Çizilen bakış açısı (rad; `look_dir`'in açısı).
+## Drawn look angle (rad; angle of `look_dir`).
 func look_angle() -> float:
 	return _look_angle
 
 
-## Oyuncunun katılım yuvası (Game.players(); renk görselde ThemeTokens.PLAYER_COLORS[slot]).
+## Player's join slot (Game.players(); colour in the visual from ThemeTokens.PLAYER_COLORS[slot]).
 func slot() -> int:
 	return _slot
 
@@ -224,7 +209,7 @@ func display_name() -> String:
 	return _display_name
 
 
-## Etkileşim sürüyor mu (görsel okur): yerelde PlayerInteraction'dan, uzakta çoğaltılan busy_by'dan (her karede).
+## Whether an interaction is running (visual reads): local from PlayerInteraction, remote from replicated busy_by (every frame).
 func is_interacting() -> bool:
 	return _interacting
 
@@ -233,7 +218,7 @@ func set_interacting(value: bool) -> void:
 	_interacting = value
 
 
-## Tutulma/yakalanma durumu (PlayerStatus.State; her peer'da çoğaltılan).
+## Held/caught state (PlayerStatus.State; replicated on every peer).
 func status() -> int:
 	return _status.state
 
@@ -250,12 +235,12 @@ func is_caught() -> bool:
 	return _status.is_caught()
 
 
-## Tutma penceresinden kalan (sn; tutulmuyorsa 0).
+## Time left in the hold window (s); 0 if not held.
 func hold_left() -> float:
 	return _status.hold_left()
 
 
-## Yakalayan (host; S3 eki `player_caught {peer, by}`).
+## Catcher (host; S3 addendum `player_caught {peer, by}`).
 func caught_by() -> StringName:
 	return _status.caught_by()
 
@@ -264,24 +249,24 @@ func times_held() -> int:
 	return _status.times_held()
 
 
-## Yalnız host: tutar (`window` sn sonra yakalanır; ÇEK ile kurtarılabilir).
+## Host only: holds (caught after `window` s; can be rescued with PULL).
 func host_hold(window: float) -> bool:
 	return _status.host_hold(window)
 
 
-## Yalnız host: kalıcı yakalama; `by` yakalayan (&"chaser", &"owner"; S3 eki `player_caught {peer, by}`).
+## Host only: permanent catch; `by` is the catcher (&"chaser", &"owner"; S3 addendum `player_caught {peer, by}`).
 func host_catch(by: StringName = &"") -> bool:
 	return _status.host_catch(by)
 
 
-## Yalnız host: tutmayı bırakır.
+## Host only: releases the hold.
 func host_release() -> bool:
 	return _status.host_release()
 
 
-## Host'un etkileşim isteğini doğruladığı konum (S7, global): yerel kopyada şu anki konum; uzak kopyada
-## eşitleyiciden gelen en güncel konum (ara değerlemeyle çizilen, ~100 ms geriden gelen konum değil; S2
-## toleransı yalnız ağ gecikmesini karşılar). Henüz veri gelmediyse çizilen konum.
+## Position at which the host validates interaction requests (S7, global): current position on the local copy; on a remote copy the latest
+## position from the synchronizer (not the ~100 ms delayed interpolated drawn position; the S2 tolerance covers network latency only).
+## Drawn position if no data has arrived yet.
 func interaction_position() -> Vector2:
 	if _local or net_time <= 0.0:
 		return global_position
@@ -289,33 +274,33 @@ func interaction_position() -> Vector2:
 	return parent.to_global(net_position) if parent != null else net_position
 
 
-## Etkileşim etiketleri (S7 `InteractionRequirement.required_tag`; host da aynı yöntemi okur). US-012: eli boşsa
-## `free_hands` (çanta yalnız eli boşken alınır/devralınır).
+## Interaction tags (S7 `InteractionRequirement.required_tag`; the host reads the same method). US-012: `free_hands` if empty-handed
+## (a bag can only be taken/received empty-handed).
 func interaction_tags() -> Dictionary:
 	var tags: Dictionary = {} if is_carrying() else {HeistRules.FREE_HANDS_TAG: 1}
 	if not _cover_broken:
-		tags[COVER_TAG] = 1  # US-043: örtüsü bozulmadı ("müşteri gibi"; YÖNLENDİR bunu ister; host ayrıca denetler)
+		tags[COVER_TAG] = 1  # US-043: cover intact ("like a customer"; REDIRECT requires this; the host also checks)
 	return tags
 
 
-## US-042 örtü olayı (her peer'da): bu oyuncunun örtüsü bozuldu (seviyeyle birlikte sıfırlanır: yeni düğüm).
+## US-042 cover event (every peer): this player's cover broke (resets with the level: new node).
 func _on_session_event(kind: StringName, data: Dictionary) -> void:
 	if kind == COVER_EVENT and typeof(data.get("peer")) == TYPE_INT and int(data["peer"]) == peer_id():
 		_cover_broken = true
 
 
-## Çanta taşıyor mu (US-012; durum çantada, host yetkili ve çoğaltılır).
+## Whether carrying a bag (US-012; state is in the bag, host-authoritative and replicated).
 func is_carrying() -> bool:
 	return is_inside_tree() and Bag.carried_by(get_tree(), peer_id()) != null
 
 
-## Koşuyor mu (US-012 çanta düşürme ve "Maratoncu" notu): koşu kipi ve gerçekten hareket ediyor. Uzak kopyada
-## ara değerlenen kip ve hızdan.
+## Whether sprinting (US-012 bag drop and the "Maratoncu" note): sprint mode and actually moving. On a remote copy from
+## the interpolated mode and speed.
 func is_sprinting() -> bool:
 	return move_mode == PlayerMotion.Mode.SPRINT and velocity.length() > SPRINT_MOVING_SPEED
 
 
-## Gövde (kenar payı WALL_CHECK_MARGIN düşülmüş) world katmanıyla örtüşüyor mu.
+## Whether the body (edge margin WALL_CHECK_MARGIN subtracted) overlaps the world layer.
 func overlaps_world() -> bool:
 	if _wall_query == null:
 		_wall_query = _make_wall_query()
@@ -323,7 +308,7 @@ func overlaps_world() -> bool:
 	return not get_world_2d().direct_space_state.intersect_shape(_wall_query, 1).is_empty()
 
 
-## Döküm/teşhis durumu.
+## Dump/diagnostic state.
 func motion_state() -> Dictionary:
 	return {
 		"mode": move_mode,
@@ -335,14 +320,14 @@ func motion_state() -> Dictionary:
 	}
 
 
-## Yerel kameranın yakınlaştırması (IS-027): `--camera-zoom` verildiyse o, yoksa `tuning.camera_zoom`.
+## Local camera zoom (IS-027): `--camera-zoom` if given, else `tuning.camera_zoom`.
 func camera_zoom() -> float:
 	return Args.camera_zoom if Args.camera_zoom > 0.0 else tuning.camera_zoom
 
 
-## Kamera sınırı (IS-027, global): harita dikdörtgeni `map`, kameranın gördüğü alan `view_size`'tan (viewport /
-## zoom) dar olan eksende harita ortada kalacak biçimde görüş boyuna genişletilir (Camera2D dar sınırda sağ/alt
-## kenara yaslanır; böylece kamera o eksende sabit, harita ortalı durur). Düğümsüz; birim testte doğrudan.
+## Camera limit (IS-027, global): map rect `map`, widened to the view size `view_size` (viewport / zoom) on any axis where the map is
+## narrower, so the map stays centred (Camera2D would otherwise hug the right/bottom edge on a narrow limit). Node-free; unit-tested
+## directly.
 static func camera_limits(map: Rect2, view_size: Vector2) -> Rect2i:
 	var out: Rect2 = map
 	for axis: int in [Vector2.AXIS_X, Vector2.AXIS_Y]:
@@ -362,7 +347,7 @@ func _setup_camera() -> void:
 	_camera.reset_smoothing()
 
 
-## Seviyenin harita dikdörtgenine (S4 `map_rect()`; ata düğümde ördek tipleme) kenetler; seviye yoksa sınırsız.
+## Clamps to the level's map rect (S4 `map_rect()`; duck typed on an ancestor); unbounded if no level.
 func _apply_camera_limits() -> void:
 	var map: Rect2 = _level_map_rect()
 	if not map.has_area():
@@ -393,7 +378,7 @@ func _publish() -> void:
 	net_time = _now()
 
 
-## Yerel kopya: koşu adımı sesi (S8). Tür ve yarıçap kipten; tempo ve hız eşiği NoiseProfile'dan.
+## Local copy: sprint step sound (S8). Kind and radius from the mode; cadence and speed threshold from NoiseProfile.
 func _emit_step_noise(delta: float) -> void:
 	var kind: StringName = NoiseProfile.KIND_WALK
 	match move_mode:
@@ -446,7 +431,7 @@ func _make_wall_query() -> PhysicsShapeQueryParameters2D:
 	return query
 
 
-## Süreçteki bütün oyuncu kopyalarının durumu (S6 dökümü).
+## State of all player copies in the process (S6 dump).
 func _dump_states() -> Dictionary:
 	var out: Dictionary = {}
 	var root: Node = get_parent()

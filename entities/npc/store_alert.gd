@@ -1,24 +1,21 @@
 class_name StoreAlert
 extends Node
-## Bakkalın uyarı yöneticisi (US-008 AC5/AC6/AC9; GDD §6.2, §9.1 T1 uyarı eşlemesi; mimari.md S3 eki).
-## Seviyede `NPCs` altında durağan düğüm; kardeşleri `Owner` (StoreOwner) ve `ChaserSpawner`
-## (MultiplayerSpawner, spawn_path = NPCs). Yalnız host karar verir; sonuç Game'in çoğaltılan uyarı API'sine yazılır.
-##
-## - Merdiven (I4, bakkal kümesi): {0→1, 1→2, 2→3, 3→5, 2→1, 1→0} (`Fsm`; atlamalar ara kademeden yürünür).
-##   Sahibin istediği kademe (`OwnerBrain.alarm_want`: 1 şüphe/sorgu, 2 bağırdı) yukarı hemen; 2 → 1 sahip
-##   sakinleşince (30 sn görüş yok), 1 → 0 `alert_calm_sec` sakin kaldıktan sonra. İlk mahalleli ön/arka kapıya
-##   ya da içeri girince 3 (dönmez) + polis sayacı (`police_timer_sec`, Game.alert_timer_left); sayaç bitince 5
-##   ve `police_arrived` (session_event; US-012 sonucu).
-## - Mahalleli: her bağırışta (ilk ve yeniden bağırış) `neighbour_delay_sec` sonra `NeighbourSpawn`'da bir komşu
-##   (en fazla `max_neighbours`); koşu hedefi bağırış anındaki sahip konumu. `chaser_spawn` her peer'da yayılır.
-## - US-016 ekleri: NPC tavanı (`room_query`, nüfus üreticisi bağlar; boşsa sınırsız) doluyken vadesi gelen komşu
-##   yer açılana kadar bekler; yoldan geçen → mahalleli dönüşümü `spawn_chaser_at` (nüfus üreticisi bağırışta
-##   çağırır; komşu sayısına girmez). Mahalleli adları tek sayaçla (`Chaser<n>`).
-## Döküm "chasers": {spawned, states, catches (host)}.
+## Shop alert manager (US-008 AC5/AC6/AC9; GDD §6.2, §9.1 T1 alert mapping; S3 addendum). Static node under `NPCs` in the level; siblings
+## `Owner` (StoreOwner) and `ChaserSpawner` (MultiplayerSpawner, spawn_path = NPCs). Only the host decides; the result is written to Game's
+## replicated alert API.
+## - Ladder (I4, shop cluster): {0->1, 1->2, 2->3, 3->5, 2->1, 1->0} (`Fsm`; jumps walk through the intermediate tier). The owner's requested tier
+##   (`OwnerBrain.alarm_want`: 1 suspicion/question, 2 shouted) goes up at once; 2 -> 1 when the owner calms down (30 s without sight), 1 -> 0
+##   after `alert_calm_sec` of calm. When the first neighbour reaches the front/back door or enters: 3 (no return) + police timer
+##   (`police_timer_sec`, Game.alert_timer_left); when it ends 5 and `police_arrived` (session_event; US-012 result).
+## - Neighbour: on every shout (first and repeat) `neighbour_delay_sec` later one neighbour at `NeighbourSpawn` (at most `max_neighbours`);
+##   run target is the owner's position at the shout. `chaser_spawn` is emitted on every peer.
+## - US-016 additions: NPC cap (`room_query`, population spawner connects it; unlimited if empty): a due neighbour waits for room when full;
+##   passerby -> neighbour conversion `spawn_chaser_at` (population spawner calls it on a shout; not counted in neighbours). Neighbour names use
+##   a single counter (`Chaser<n>`). Dump "chasers": {spawned, states, catches (host)}.
 
-## Her peer'da: mahalleli üretildi (AC10).
+## On every peer: neighbour spawned (AC10).
 signal chaser_spawn(chaser: Node)
-## Her peer'da: polis geldi (uyarı 5; AC10).
+## On every peer: police arrived (alert 5; AC10).
 signal police_arrived()
 
 const CHASER_SCENE := "res://entities/npc/chaser/chaser.tscn"
@@ -33,9 +30,9 @@ const POLICE_EVENT := &"police_arrived"
 @export var spawner_path: NodePath = ^"../ChaserSpawner"
 @export var tuning: OwnerTuning
 @export var auto_step: bool = true
-## false: uyarı yöneticisi işlemez (NPC'siz fikstür).
+## False: the alert manager does not run (fixture without NPCs).
 @export var active: bool = true
-## NPC tavanında yer var mı (US-016; func() -> bool). Boşsa sınırsız.
+## Whether there is room under the NPC cap (US-016; func() -> bool). Unlimited if empty.
 var room_query: Callable = Callable()
 
 var ladder := Fsm.new(0, EDGES)
@@ -73,7 +70,7 @@ func _physics_process(delta: float) -> void:
 		step(delta)
 
 
-## Bir adım (yalnız host): komşu sayaçları, istenen kademe, polis sayacı.
+## One step (host only): neighbour counters, requested tier, police timer.
 func step(delta: float) -> void:
 	if not active or not _host_side() or _owner == null or not _owner.active:
 		return
@@ -119,8 +116,8 @@ func dump_state() -> Dictionary:
 		var misled: int = 0
 		for c: Chaser in chasers():
 			misled += c.brain().misled_count
-		out["misled"] = misled  # US-043: YÖNLENDİR ile yanlış yöne koşan mahalleli sayısı
-		out["ladder"] = ladder.history_rows()  # [kademe, giriş anı]; I4 kanıtı (istemcide Game "alert.history")
+		out["misled"] = misled  # US-043: neighbours running the wrong way via REDIRECT
+		out["ladder"] = ladder.history_rows()  # [tier, entry time]; I4 evidence (on a client Game "alert.history")
 	return out
 
 
@@ -144,9 +141,9 @@ func _enter(next: int) -> void:
 		Game.set_alert_timer(tuning.police_timer_sec)
 	elif next == POLICE_LEVEL:
 		if Net.is_online():
-			Game.raise_session_event(POLICE_EVENT, {})  # her peer'da session_event → police_arrived
+			Game.raise_session_event(POLICE_EVENT, {})  # session_event on every peer -> police_arrived
 		else:
-			police_arrived.emit()  # çevrimdışı: oturum olayı yok
+			police_arrived.emit()  # offline: no session event
 
 
 func _on_shouted(_recheck: bool) -> void:
@@ -166,7 +163,7 @@ func _spawn_neighbour() -> void:
 	_spawn(at, _shout_at)
 
 
-## Host (US-016 dönüşüm): `at`'ta (global) koşu hedefi `goal` olan mahalleli üretir; komşu sayısına girmez.
+## Host (US-016 conversion): spawns a neighbour at `at` (global) with run target `goal`; not counted in neighbours.
 func spawn_chaser_at(at: Vector2, goal: Vector2) -> Node:
 	if not active or not _host_side() or _spawner == null or not at.is_finite():
 		return null
@@ -192,7 +189,7 @@ func _has_room() -> bool:
 	return not room_query.is_valid() or bool(room_query.call())
 
 
-## Spawner'ın spawn_function'ı (host'ta spawn() içinde, istemcide paket gelince).
+## Spawner's spawn_function (in spawn() on the host, when the packet arrives on a client).
 func _spawn_chaser(data: Variant) -> Node:
 	var d: Dictionary = data if data is Dictionary else {}
 	var chaser: Chaser = _chaser_scene.instantiate() as Chaser
@@ -214,7 +211,7 @@ func _on_session_event(kind: StringName, _data: Dictionary) -> void:
 		police_arrived.emit()
 
 
-## Bir mahalleli ön/arka kapıya vardı ya da içeride (uyarı 3).
+## A neighbour reached the front/back door or is inside (alert 3).
 func _any_chaser_inside() -> bool:
 	var senses: CivilianSenses = _owner.senses()
 	for c: Chaser in chasers():
@@ -228,7 +225,7 @@ func _any_chaser_inside() -> bool:
 	return false
 
 
-## Host ya da çevrimdışı (S2). Net bayraklarından okunur: kopuş anında (döküm, son kareler) kapanmış taşımaya
-## `multiplayer.is_server()` sorup hata basmasın (Game ile aynı kalıp).
+## Host or offline (S2). Read from Net flags: at disconnect (dump, last frames) asking `multiplayer.is_server()` on a closed transport
+## must not print an error (same pattern as Game).
 static func _host_side() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0

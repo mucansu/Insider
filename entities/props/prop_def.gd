@@ -1,21 +1,21 @@
 class_name PropDef
 extends Resource
-## Etkileşimli nesne tanımı (US-005; mimari.md S10): `data/props/<id>.tres`, id = dosya adı. Prop sahnesi
-## kendi tanımını bağlar ve `_ready`'de değerleri Interactable bileşenine aktarır (S7); sayıların tek kaynağı
-## bu dosyalardır, betik varsayılanları nötrdür. Ağda yalnız durum gider, tanım gitmez.
+## Interactive object definition (US-005; S10): `data/props/<id>.tres`, id = file name. The prop scene binds its definition and in `_ready`
+## passes the values to the Interactable component (S7); these files are the single source of numbers, script defaults are neutral.
+## Only state goes over the network, never the definition.
 
-## Etkileşim eyleminin i18n anahtarı (HUD istemi "[E] <eylem>", S9).
+## i18n key of the interaction action (HUD prompt "[E] <action>", S9).
 @export var action_key: String = ""
-## İkinci durumun eylem anahtarı (ör. kapı açıkken "kapat"); boşsa action_key.
+## Action key of the second state (e.g. "close" while a door is open); action_key if empty.
 @export var alt_action_key: String = ""
-## Basılı tutma süresi (sn); 0 = anlık.
+## Hold time (s); 0 = instant.
 @export_range(0.0, 60.0, 0.05, "suffix:s") var hold_time: float = 0.0
 @export_range(0.0, 256.0, 1.0, "suffix:px") var interact_range: float = 0.0
-## Tamamlanınca ekip nakdine eklenen tutar (kasa).
+## Amount added to team cash on completion (register).
 @export_range(0, 1000000) var cash_value: int = 0
 @export var requirement: InteractionRequirement
 
 
-## id = dosya adı (S10); kaydedilmemiş tanımda boş.
+## id = file name (S10); empty on an unsaved definition.
 func id() -> StringName:
 	return StringName(resource_path.get_file().get_basename())

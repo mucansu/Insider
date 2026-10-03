@@ -1,46 +1,43 @@
 class_name Suspicion
 extends Node
-## Şüphe bileşeni (US-006 AC2; mimari.md S2, S11, GDD §6.1, KR-019): NPC'nin alt düğümü; aynı NPC'deki
-## `Perception`'ın gözlemiyle oyuncu başına 0-100 ölçer (`SuspicionMeter`, core/) işletir. Yalnız host'ta işler
-## (S2): her fizik adımında `perception.observe()` → ölçerler → yukarı geçilen eşikler için
-## `threshold_reached(peer_id, level)` (1 "?", 2 inceleme, 3 tespit; yalnız host'ta yayılır).
-##
-## Çoğaltılan özet (host yetkili MultiplayerSynchronizer, değişince): `max_level` (en yüksek ölçerin düzeyi) ve
-## `focus_direction` (gözlemciden o hedefin son görüldüğü konuma birim yön; düzey 0 iken ZERO; görülmeyen
-## hedefin şimdiki konumu sızmaz). İstemci görseli yalnız bunları okur
-## ("?"/"!" göstergesi, baş çevirme). Ayarlar perception.tuning'den (data/npc/perception_tuning.tres).
-##
-## Sivil eki (US-008, yalnız ekleme; varsayılanlar muhafız davranışını değiştirmez):
-## - `innocent_decay_per_sec` ≥ 0 ise görüş hattında olup masum davranan (dolum 0) hedefin ölçeri bu hızla boşalır
-##   (GDD §6.1: 10/sn; görünmeyince tuning'deki 20/sn).
-## - `apply_delta(peer_id, delta)` host API'si: ölçeri doğrudan değiştirir (US-010 OYALA −40, ÇEK kurtarana +100);
-##   yukarı geçilen eşikler `threshold_reached` yayar.
-## - `latch_level`: beyin tespit sonrası özet düzeyi kilitler (çoğaltılan `max_level` kısa saklanmada titremez).
-## - `last_observations()`: son adımın gözlemleri (beyin hedef seçimi ve döküm için).
+## Suspicion component (US-006 AC2; S2, S11, GDD §6.1, KR-019): child of an NPC; runs a per-player 0-100 meter (`SuspicionMeter`, core/)
+## from the sibling `Perception`'s observation. Runs on the host only (S2): each physics step `perception.observe()` -> meters ->
+## `threshold_reached(peer_id, level)` for upward crossings (1 "?", 2 investigate, 3 detect; emitted on the host only).
+## Replicated summary (host-authoritative MultiplayerSynchronizer, on change): `max_level` (level of the highest meter) and
+## `focus_direction` (unit direction from the observer to that target's last seen position; ZERO at level 0; an unseen target's current
+## position does not leak). The client visual reads only these ("?"/"!" indicator, head turn). Settings from perception.tuning
+## (data/npc/perception_tuning.tres).
+## Civilian addition (US-008, additive; defaults leave guard behaviour unchanged):
+## - If `innocent_decay_per_sec` >= 0, the meter of a target in line of sight acting innocently (fill 0) drains at this rate
+##   (GDD §6.1: 10/s; 20/s from tuning when unseen).
+## - `apply_delta(peer_id, delta)` host API: changes a meter directly (US-010 STALL -40, PULL +100 to the rescuer); upward crossings emit
+##   `threshold_reached`.
+## - `latch_level`: the brain locks the summary level after detection (replicated `max_level` does not flicker during brief hiding).
+## - `last_observations()`: last step's observations (for brain target choice and dump).
 
-## Yalnız host'ta: `peer_id` için `level` eşiği aşağıdan geçildi.
+## Host only: the `level` threshold of `peer_id` was crossed upward.
 signal threshold_reached(peer_id: int, level: int)
 
 enum Level { CALM, NOTICE, INVESTIGATE, DETECT }
 
 const SYNC_NAME := "SuspicionSync"
 const SYNC_INTERVAL := 0.1
-## Çoğaltılan `focus_direction` bileşenlerinin adımı (S11 eki: ON_CHANGE sürekli değerler 1/16'ya yuvarlanır).
+## Step of the replicated `focus_direction` components (S11 addendum: ON_CHANGE continuous values are rounded to 1/16).
 const FOCUS_STEP := 1.0 / 16.0
 
 @export var perception: Perception
 
-## Çoğaltılan özet durum (host yazar).
+## Replicated summary state (host writes).
 var max_level: int = Level.CALM
 var focus_direction: Vector2 = Vector2.ZERO
-## Görünüp masumken boşalma (birim/sn); < 0 = yok (görünmeyen gibi boşalır).
+## Drain rate while seen and innocent (units/s); < 0 = none (drains as when unseen).
 var innocent_decay_per_sec: float = -1.0
-## Özet düzeyin alt sınırı (beyin yazar; 0 = kilit yok).
+## Lower bound of the summary level (brain writes; 0 = no lock).
 var latch_level: int = Level.CALM
 
 ## peer_id -> SuspicionMeter
 var _meters: Dictionary = {}
-## peer_id -> son görüldüğü konum (global; dolum > 0 olan son gözlem)
+## peer_id -> last seen position (global; last observation with fill > 0)
 var _last_seen: Dictionary = {}
 var _params: SuspicionMeter.Params = null
 var _innocent: SuspicionMeter.Params = null
@@ -59,7 +56,7 @@ func _physics_process(delta: float) -> void:
 	tick(delta)
 
 
-## Tuning'den core ölçer ayarları.
+## Core meter settings from tuning.
 static func params_for(source: PerceptionTuning) -> SuspicionMeter.Params:
 	var p := SuspicionMeter.Params.new()
 	p.decay_per_sec = source.decay_per_sec
@@ -70,8 +67,8 @@ static func params_for(source: PerceptionTuning) -> SuspicionMeter.Params:
 	return p
 
 
-## Bir adım (host): gözlem → ölçerler → eşik sinyalleri → özet. Gözlemde olmayan (ayrılan) hedeflerin ölçeri
-## boşalır, sıfırlanınca silinir.
+## One step (host): observation -> meters -> threshold signals -> summary. Meters of targets not in the observation (left) drain
+## and are removed at zero.
 func tick(delta: float) -> void:
 	if _params == null:
 		if perception.tuning == null:
@@ -92,7 +89,7 @@ func tick(delta: float) -> void:
 		var innocent_seen: bool = obs.rate <= 0.0 and innocent_decay_per_sec >= 0.0 and obs.line_clear \
 				and obs.band != PerceptionRules.Band.NONE and not obs.in_dark
 		if obs.rate > 0.0 or innocent_seen:
-			_last_seen[peer_id] = obs.position  # sivil: masum ama görülen hedefin yeri de bilinir (sorgu)
+			_last_seen[peer_id] = obs.position  # civilian: innocent but the seen target's spot is still known (query)
 		var p: SuspicionMeter.Params = _params
 		if innocent_seen:
 			p = _innocent
@@ -121,8 +118,8 @@ func level_of(peer_id: int) -> int:
 	return meter.level if meter != null else Level.CALM
 
 
-## Host API (US-008 AC4): ölçeri `delta` kadar değiştirir (0..MAX). Yukarı geçilen eşikler sinyal yayar;
-## son görülen konum değişmez (görülmeden verilen şüphe konum sızdırmaz).
+## Host API (US-008 AC4): changes a meter by `delta` (0..MAX). Upward crossings emit signals;
+## the last seen position does not change (suspicion given unseen leaks no position).
 func apply_delta(peer_id: int, delta: float) -> void:
 	if perception == null or not multiplayer.is_server():
 		return
@@ -145,21 +142,21 @@ func apply_delta(peer_id: int, delta: float) -> void:
 		threshold_reached.emit(peer_id, l)
 
 
-## Host API (US-016, yalnız ekleme): ölçeri olan hedefin son görülen konumunu dışarıdan bildirir (tanığın
-## söylediği yer). Ölçer yoksa yok sayılır (konum sızmaz).
+## Host API (US-016, additive): reports from outside the last seen position of a target that has a meter (where a witness said).
+## Ignored if there is no meter (position does not leak).
 func hint_position(peer_id: int, pos: Vector2) -> void:
 	if _meters.has(peer_id) and pos.is_finite():
 		_last_seen[peer_id] = pos
 
 
-## Hedefin ölçerini siler (ör. yakalanan oyuncu artık hedef değil).
+## Removes the target's meter (e.g. a caught player is no longer a target).
 func forget(peer_id: int) -> void:
 	_meters.erase(peer_id)
 	_last_seen.erase(peer_id)
 	_update_summary()
 
 
-## Ölçeri olan hedefler.
+## Targets that have a meter.
 func peers() -> Array[int]:
 	var out: Array[int] = []
 	for peer_id: int in _meters:
@@ -167,17 +164,17 @@ func peers() -> Array[int]:
 	return out
 
 
-## Son adımın gözlemleri: peer_id -> Perception.Observation.
+## Last step's observations: peer_id -> Perception.Observation.
 func last_observations() -> Dictionary:
 	return _observations
 
 
-## Hedefin son görüldüğü konum (global); hiç görülmediyse INF.
+## Target's last seen position (global); INF if never seen.
 func last_seen_position(peer_id: int) -> Vector2:
 	return _last_seen.get(peer_id, Vector2.INF)
 
 
-## Bütün ölçerleri sıfırlar (ör. tespit sonrası beyin yeni duruma geçerken).
+## Resets all meters (e.g. when the brain switches state after detection).
 func clear() -> void:
 	_meters.clear()
 	_last_seen.clear()
@@ -197,8 +194,8 @@ func _update_summary() -> void:
 	max_level = maxi(top.level if top != null else Level.CALM, latch_level)
 	focus_direction = Vector2.ZERO
 	if max_level > Level.CALM and _last_seen.has(best_peer):
-		# S11 eki (US-008): sürekli değer ON_CHANGE çoğaltılmadan önce 1/16 adıma yuvarlanır (her karede güvenilir
-		# delta üretmesin).
+		# S11 addendum (US-008): a continuous value is rounded to 1/16 steps before ON_CHANGE replication (so it does not produce a reliable
+		# delta every frame).
 		var dir: Vector2 = ((_last_seen[best_peer] as Vector2) - perception.global_position).normalized()
 		focus_direction = dir.snapped(Vector2.ONE * FOCUS_STEP)
 

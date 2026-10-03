@@ -1,21 +1,19 @@
 class_name Register
 extends Node2D
-## Yazar kasa (US-005 AC2; mimari.md S7, S10): `data/props/register.tres`. Basılı tut (3 sn) → host ekip
-## nakdine `cash_value` ekler, kasa boş durumuna geçer ve bir daha etkileşilmez. Yalnız tezgâh arkasından
-## (personel tarafı; tanımdaki InteractionRequirement taraf kısıtı) boşaltılır. Yarıda bırakılırsa ilerleme
-## sıfırlanır (Interactable). Durum (`emptied`, host'un duvar saatiyle `emptied_at`) host yetkili
-## MultiplayerSynchronizer ile değişince yayılır; görsel (`Visual`) yalnız durumu okur (KR-003).
-## Döküm (S6 "props"): {"emptied", "visible_delay_ms" (host kararından bu süreçte görünene; boşalmadıysa -1),
-## "interact": Interactable.stats()}.
-## Gürültü (US-009, S8): host boşaltma sürerken `register_interval` sn'de bir (ilki de o kadar sonra; bitişe
-## yarım aralıktan az kala bastırılır: NoiseRules.work_tick_allowed) ve tamamlanınca kasa konumunda
-## `NoiseProfile.KIND_REGISTER` sesi yayar (3 sn tam boşaltma: 1. ve 2. sn + bitiş = 3 ses).
+## Cash register (US-005 AC2; S7, S10): `data/props/register.tres`. Hold (3 s) -> host adds `cash_value` to team cash, the register
+## becomes empty and is not interactable again. Can only be emptied from behind the counter (staff side; the definition's
+## InteractionRequirement side constraint). Releasing early resets progress (Interactable). State (`emptied`, `emptied_at` host wall clock)
+## replicates via host-authoritative MultiplayerSynchronizer on change; the visual (`Visual`) only reads state (KR-003).
+## Dump (S6 "props"): {"emptied", "visible_delay_ms" (host decision to visible in this process; -1 if not emptied), "interact": Interactable.stats()}.
+## Noise (US-009, S8): while emptying, the host emits `NoiseProfile.KIND_REGISTER` every `register_interval` s (first one also after that long;
+## suppressed when under half an interval remains before the end: NoiseRules.work_tick_allowed) and on completion at the register
+## position (full 3 s emptying: sec 1 and 2 + finish = 3 sounds).
 
 const DEF_PATH := "res://data/props/register.tres"
 
 @export var def: PropDef
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var emptied: bool = false:
 	set = _set_emptied
 var emptied_at: float = 0.0
@@ -38,14 +36,14 @@ func _ready() -> void:
 	_interactable.completed.connect(_on_completed)
 	_noise_profile = NoiseProfile.load_default()
 	_work_noise = NoiseRules.Cadence.new(_noise_profile.register_interval, _noise_profile.register_interval)
-	SfxEmitter.of(self).repeat_while(&"register_tick", func() -> bool:  # IS-024: boşaltılırken tik
+	SfxEmitter.of(self).repeat_while(&"register_tick", func() -> bool:  # IS-024: tick while emptying
 		return not emptied and progress_ratio() > 0.0)
 	_apply()
 	add_to_group(PropDump.GROUP)
 	PropDump.register()
 
 
-## Host: boşaltma sürerken düşük tempoda ses (S8).
+## Host: low-tempo sound while emptying (S8).
 func _physics_process(delta: float) -> void:
 	var working: bool = multiplayer.is_server() and not emptied and _interactable.busy_by != 0
 	if _work_noise.tick(delta, working) and NoiseRules.work_tick_allowed(_interactable.progress,
@@ -53,7 +51,7 @@ func _physics_process(delta: float) -> void:
 		_emit_noise(_interactable.busy_by)
 
 
-## 0..1 boşaltma ilerlemesi (görsel).
+## 0..1 emptying progress (visual).
 func progress_ratio() -> float:
 	return _interactable.progress_ratio()
 
@@ -67,7 +65,7 @@ func dump_state() -> Dictionary:
 	}
 
 
-## Yalnız host'ta (Interactable.completed).
+## Host only (Interactable.completed).
 func _on_completed(peer_id: int) -> void:
 	if emptied:
 		return
@@ -88,7 +86,7 @@ func _set_emptied(value: bool) -> void:
 	emptied = value
 	if value:
 		_seen_at = PropDump.wall_time()
-		SfxEmitter.play_on_change(self, &"register_done")  # IS-024: "çın", yerel ses
+		SfxEmitter.play_on_change(self, &"register_done")  # IS-024: "ding", local sound
 	_apply()
 
 

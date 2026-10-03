@@ -1,26 +1,25 @@
 class_name OwnerReaction
 extends RefCounted
-## Sahibin tepki alt katmanı (US-008 AC4/AC5/AC7; GDD §9.3; HFSM-lite: üst katman OwnerBrain ajanda ↔ tepki
-## seçer, bu sınıf tepki durumlarını işletir). Durumlar (OwnerBrain.State): LOOK ("?" 30: durur, bakar ≥ look_min)
-## → QUESTION (60: 110 px/sn yürür, 64 px'te durur, `owner_question`, bekler; < 30 ya da bekleme sonunda < 60 →
-## `owner_shrug`, ajanda) → SHOUT (beyin bağırır) → CHASE (120 px/sn; 28 px + 0,5 sn temas, oyuncu konumu ON-03
-## ile ileri alınır → HOLD) → HOLD (pencere 6 sn, ikinci kez 3 sn; dolunca yakalanır → CHASE) → kurtarılınca
-## STAGGER (2 sn, kurtarana şüphe 100) → CHASE / SEARCH (son görülen konum; 30 sn kimse görünmezse ajanda, ilk
-## görev arka oda kontrolü; US-039). Beynin yalnız genel API'sini kullanır (§6 kapsülleme).
+## Owner's reaction sublayer (US-008 AC4/AC5/AC7; GDD §9.3; HFSM-lite: the top layer OwnerBrain chooses agenda <-> reaction, this class runs
+## the reaction states). States (OwnerBrain.State): LOOK ("?" 30: stands, looks >= look_min) -> QUESTION (60: walks 110 px/s, stops at 64 px,
+## `owner_question`, waits; < 30 or < 60 at wait end -> `owner_shrug`, agenda) -> SHOUT (brain shouts) -> CHASE (120 px/s; 28 px + 0.5 s
+## contact, player position advanced with ON-03 -> HOLD) -> HOLD (window 6 s, second time 3 s; on expiry caught -> CHASE) -> when rescued
+## STAGGER (2 s, suspicion 100 to the rescuer) -> CHASE / SEARCH (last seen position; if nobody is seen for 30 s the agenda, first task
+## backroom check; US-039). Uses only the brain's public API (§6 encapsulation).
 
-## Bağırış süresi (sn): durur, bağırır, sonra kovalar.
+## Shout duration (s): stands, shouts, then chases.
 const SHOUT_SEC := 0.5
-## Arama noktasına varış payı (px).
+## Search point arrival margin (px).
 const STAND_PX := 6.0
 
-## Tutulan oyuncu (0 = yok).
+## Held player (0 = none).
 var held_peer: int = 0
 
 var _b: OwnerBrain = null
 var _contact: float = 0.0
 var _asked: bool = false
 var _since_seen: float = 0.0
-## BAK sırasında inceleme eşiği (60) geçildi mi (görülmeden verilen +60 da sayılır: US-016 tanık, US-010).
+## Whether the inquiry threshold (60) was passed during LOOK (the +60 given unseen counts too: US-016 witness, US-010).
 var _investigate: bool = false
 var _rescue_cb: Callable = Callable()
 
@@ -29,7 +28,7 @@ func _init(brain: OwnerBrain) -> void:
 	_b = brain
 
 
-## Tepki katmanına girişte (LOOK ya da SHOUT) iç sayaçlar sıfırlanır.
+## On entering the reaction layer (LOOK or SHOUT) internal counters reset.
 func reset() -> void:
 	_contact = 0.0
 	_asked = false
@@ -37,7 +36,7 @@ func reset() -> void:
 	_since_seen = 0.0
 
 
-## Bir adım: durumun istenen hızı (global px/sn). `level` en şüpheli serbest oyuncunun düzeyi.
+## One step: the state's desired velocity (global px/s). `level` is the level of the most suspicious free player.
 func step(delta: float, level: int) -> Vector2:
 	var fsm: Fsm = _b.fsm
 	match fsm.state:
@@ -176,19 +175,19 @@ func _search(delta: float) -> Vector2:
 		_b.fsm.go(OwnerBrain.State.CHASE)
 		return Vector2.ZERO
 	if _since_seen >= t.calm_after_sec:
-		_b.back_to_agenda(true)  # US-039 AC6: ilk görev arka oda (nakit alınmışsa varışta keşif)
+		_b.back_to_agenda(true)  # US-039 AC6: first task is the backroom (discovery on arrival if cash was taken)
 		return Vector2.ZERO
 	var spot: Vector2 = _b.seen_at(_b.target)
 	if not spot.is_finite():
 		return Vector2.ZERO
 	_b.mover.move_to(spot, t.hold_speed, STAND_PX)
 	if _b.mover.arrived() or _b.mover.failed():
-		_b.turn(_b.perception.facing.rotated(PI * 0.5), delta)  # bakınır
+		_b.turn(_b.perception.facing.rotated(PI * 0.5), delta)  # looks around
 		return Vector2.ZERO
 	return _b.walk(delta, spot)
 
 
-## Kovalanacak serbest oyuncu: tespit düzeyinde (100) ve şu an görülen, en yakını; süren hedef önceliklidir.
+## Free player to chase: at detection level (100) and currently seen, the nearest; an ongoing target takes priority.
 func pick_chase_target() -> int:
 	var best: int = 0
 	var best_dist: float = INF

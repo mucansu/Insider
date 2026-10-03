@@ -1,45 +1,44 @@
 class_name Hearing
 extends Node2D
-## Duyma bileşeni (US-009; mimari.md S8, S11, KR-018): NPC'nin alt düğümü, konumu kulak konumudur.
-## `noise_listener` grubundadır; NoiseBus host'ta her ses için `hear_noise(pos, radius, kind)` çağırır.
-## Yalnız host'ta işler: ses yarıçapın dışındaysa ışın atılmaz; içindeyse kulaktan sese fizik ışını (görüş hattı,
-## `SightLine`: world (1) + vision_block (6) keser, `see_through` grubundaki gövdeler geçirir; S11 Faz 2 eki) atılır,
-## görüş hattı yoksa yarıçap `NoiseProfile.wall_factor` ile küçülür. Kurallar NoiseRules'ta (düğümsüz).
-## Duyunca `heard(pos, radius, kind)` yayılır; `radius` zayıflamadan sonraki etkin yarıçaptır. Şüpheye bağlama
-## gözlemci kaleminde (US-008); bu bileşen yalnız sinyal yayar.
-## Alçak engel (US-010, KR-026): tezgâh (`Counter*` çarpışma şekilleri, S4) görüşü keser ama sesi kesmez — ses
-## üstünden geçer; ışın tezgâhın içinden sürdürülür (tezgâhtaki sahip satış alanındaki raf devirmeyi duyar).
-## Köşe kırınımı (US-010; isteğe bağlı, `corner_spread_px` > 0): orta ışın kesilirse kulaktan ±`corner_spread_px`
-## kaydırılmış iki paralel ışın denenir; biri açıksa görüş hattı var sayılır (ses duvar köşesini sıyırarak geçer; kalın
-## duvar yine keser). Varsayılan 0 (kapalı); sahip ayarından açar.
-## Kendi sesi (IS-087 AC1): NPC'nin kendi eylemiyle (ör. kendi açtığı/kapattığı kapı) çıkan ses `ignore_own(pos,
-## kind, action)` ile sarılır; eylem sürerken o noktadaki o türden ses bu bileşende yok sayılır (host'ta yayım
-## eşzamanlıdır: NoiseBus dinleyicileri aynı çağrıda dolaşır). Başka NPC'lerin ve oyuncuların sesi aynen işler.
+## Hearing component (US-009; S8, S11, KR-018): NPC child node, its position is the ear position. In the `noise_listener` group;
+## NoiseBus calls `hear_noise(pos, radius, kind)` on the host for every sound. Runs on the host only: a sound outside the radius casts no
+## ray; inside, a physics ray from ear to sound (line of sight, `SightLine`: blocked by world (1) + vision_block (6), `see_through` bodies
+## pass; S11 Phase 2 addendum) is cast, and without line of sight the radius shrinks by `NoiseProfile.wall_factor`. Rules live in
+## NoiseRules (node-free). On hearing it emits `heard(pos, radius, kind)` with the effective radius after attenuation. Linking to suspicion
+## is the observer item's job (US-008); this component only emits the signal.
+## Low obstacle (US-010, KR-026): the counter (`Counter*` collision shapes, S4) blocks sight but not sound - sound passes over it; the ray
+## continues through the counter (the owner at the counter hears a shelf toppled on the shop floor).
+## Corner diffraction (US-010; optional, `corner_spread_px` > 0): if the center ray is blocked, two parallel rays offset +/-`corner_spread_px`
+## from the ear are tried; if either is clear there is line of sight (sound grazes a wall corner; a thick wall still blocks). Default 0
+## (off); the owner's tuning enables it.
+## Own sound (IS-087 AC1): a sound from the NPC's own action (e.g. a door it opened/closed) is wrapped with `ignore_own(pos, kind, action)`;
+## while the action runs, that kind of sound at that point is ignored here (host emission is synchronous: NoiseBus listeners are visited in
+## the same call). Other NPCs' and players' sounds work as usual.
 
-## Yalnız host'ta.
+## Host only.
 signal heard(pos: Vector2, radius: float, kind: StringName)
 
 const GROUP := PhysicsLayers.NOISE_LISTENER_GROUP
-## Sesi kesen fizik katmanları: world (1) + vision_block (6) (mimari.md §4; SightLine).
+## Physics layers that block sound: world (1) + vision_block (6) (architecture §4; SightLine).
 const BLOCK_MASK := SightLine.MASK
-## Bu gruptaki gövdeler (camlar, S4 eki) sesi kesmez (SightLine).
+## Bodies in this group (windows, S4 addendum) do not block sound (SightLine).
 const SEE_THROUGH_GROUP := SightLine.SEE_THROUGH_GROUP
-## Kendi sesi eşleşmesinde konum payı (px; ses kaynağın kendi konumunda yayılır).
+## Position margin in the own-sound match (px; the sound is emitted at the source's own position).
 const OWN_NOISE_PX := 1.0
-## Sesi kesmeyen alçak engellerin şekil adı önekleri (S4 çarpışma şekil adları) ve ışını sürdürme adımı (px).
+## Shape-name prefixes of low obstacles that do not block sound (S4 collision shape names) and the ray continuation step (px).
 const LOW_SHAPE_PREFIXES: Array[String] = ["Counter"]
 const LOW_STEP_PX := 1.0
-## Bir ışında en fazla kaç alçak engel geçilir (sonsuz döngü bekçisi).
+## Maximum low obstacles passed on one ray (infinite-loop guard).
 const MAX_LOW_HITS := 4
 
 @export var profile: NoiseProfile
 @export var enabled: bool = true
-## Köşe kırınımı: paralel ışınların kaydırması (px; 0 = kapalı).
+## Corner diffraction: offset of the parallel rays (px; 0 = off).
 @export_range(0.0, 32.0, 0.5, "suffix:px") var corner_spread_px: float = 0.0
 
 var _heard_count: int = 0
 var _ignored_own: int = 0
-## Süren kendi eylemleri: [konum, tür] (ignore_own içinde).
+## Ongoing own actions: [position, kind] (inside ignore_own).
 var _own: Array[Array] = []
 
 
@@ -49,7 +48,7 @@ func _ready() -> void:
 	add_to_group(GROUP)
 
 
-## NoiseBus (host) çağırır.
+## Called by NoiseBus (host).
 func hear_noise(pos: Vector2, radius: float, kind: StringName) -> void:
 	if not enabled or not multiplayer.is_server() or not is_inside_tree():
 		return
@@ -66,8 +65,8 @@ func hear_noise(pos: Vector2, radius: float, kind: StringName) -> void:
 	heard.emit(pos, effective, kind)
 
 
-## Kulaktan `to` noktasına görüş hattı var mı (SightLine: görüş kuralıyla aynı ışın; kaynağa SOURCE_MARGIN'den
-## yakın ilk isabet kaynağın kendi gövdesidir, kesmez).
+## Whether there is line of sight from the ear to `to` (SightLine: same ray as vision; the first hit within SOURCE_MARGIN of the source
+## is the source's own body and does not block).
 func has_line_of_sight(to: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var from: Vector2 = global_position
@@ -79,7 +78,7 @@ func has_line_of_sight(to: Vector2) -> bool:
 	return _ray_clear(space, from + side, to + side) or _ray_clear(space, from - side, to - side)
 
 
-## Tek ışın: alçak engeller (tezgâh) geçilir, kaynağın kendi gövdesi kesmez.
+## One ray: low obstacles (counter) are passed, the source's own body does not block.
 static func _ray_clear(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> bool:
 	var dir: Vector2 = (to - from).normalized()
 	for _i: int in MAX_LOW_HITS + 1:
@@ -88,11 +87,11 @@ static func _ray_clear(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vect
 			return true
 		if not is_low_obstacle(hit):
 			return false
-		from = (hit["position"] as Vector2) + dir * LOW_STEP_PX  # alçak engelin içinden sür (içeriden isabet yok)
+		from = (hit["position"] as Vector2) + dir * LOW_STEP_PX  # continue through the low obstacle (no inside hit)
 	return false
 
 
-## Işın isabeti alçak engel mi (tezgâh: şekil adı LOW_SHAPE_PREFIXES ile başlar).
+## Whether the ray hit a low obstacle (counter: shape name starts with LOW_SHAPE_PREFIXES).
 static func is_low_obstacle(hit: Dictionary) -> bool:
 	var body: CollisionObject2D = hit.get("collider") as CollisionObject2D
 	if body == null or not hit.has("shape"):
@@ -107,17 +106,17 @@ static func is_low_obstacle(hit: Dictionary) -> bool:
 	return false
 
 
-## Bu bileşenin duyduğu ses sayısı (teşhis).
+## Number of sounds this component heard (diagnostics).
 func heard_count() -> int:
 	return _heard_count
 
 
-## Kendi sesi olduğu için yok sayılan ses sayısı (teşhis, IS-087).
+## Number of sounds ignored as own sound (diagnostics, IS-087).
 func ignored_own_count() -> int:
 	return _ignored_own
 
 
-## `action` çalışırken `pos`ta çıkan `kind` sesi kendi sesidir, duyulmaz (IS-087 AC1). `action`ın dönüşünü verir.
+## While `action` runs, a `kind` sound at `pos` is own sound and not heard (IS-087 AC1). Returns `action`'s result.
 func ignore_own(pos: Vector2, kind: StringName, action: Callable) -> Variant:
 	_own.append([pos, kind])
 	var result: Variant = action.call()
@@ -125,7 +124,7 @@ func ignore_own(pos: Vector2, kind: StringName, action: Callable) -> Variant:
 	return result
 
 
-## Bu ses süren bir kendi eyleminin sesi mi.
+## Whether this sound belongs to an ongoing own action.
 func is_own(pos: Vector2, kind: StringName) -> bool:
 	for own: Array in _own:
 		if StringName(own[1]) == kind and (own[0] as Vector2).distance_to(pos) <= OWN_NOISE_PX:

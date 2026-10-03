@@ -1,10 +1,8 @@
 class_name PuppetBody
 extends RefCounted
-## Kukla geometrisi ve poz kuralları (US-014; GDD §14.1, docs/tasarim/kukla-denemesi.html): parça ölçüleri (kukla
-## birimi; × PuppetTuning.puppet_scale = px), ellerin/ayakların adım fazından hesabı, kip → siluet ölçeği ve
-## eğilme hedefleri, tepki balonu zamanlaması. Düğümsüz, durumsuz;
-## PuppetRig çağırır, Puppet ölçüleri çizimde kullanır. Oran chibi'ye yakın: baş çapı ≈ gövde yüksekliği,
-## toplam ~44 birim.
+## Puppet geometry and pose rules (US-014; GDD §14.1, docs/tasarim/kukla-denemesi.html): part sizes (puppet units; x PuppetTuning.puppet_scale
+## = px), hand/foot positions from step phase, mode -> silhouette scale and lean targets, reaction balloon timing. Node-free, stateless;
+## PuppetRig calls it, Puppet uses the sizes for drawing. Near-chibi proportions: head diameter ~ body height, total ~44 units.
 
 const NECK_HEIGHT := 22.0
 const TORSO_CENTER := Vector2(0.0, -12.0)
@@ -14,36 +12,36 @@ const HEAD_RADIUS := 12.5
 const HAND_RADIUS := 3.1
 const SHADOW_RADIUS := Vector2(12.0, 4.2)
 const FOOT_RADIUS := Vector2(3.2, 2.2)
-## Ayaklar: yan açıklık, derinlik, kaldırma; adım salınımının derinlikte kısalması; yerden yükseklik.
+## Feet: side spread, depth, lift; step swing shortens in depth; height above ground.
 const FOOT_SIDE := 3.6
 const FOOT_DEPTH := 1.6
 const FOOT_LIFT := 2.2
 const FOOT_DEPTH_SWING := 0.55
 const FOOT_GROUND := 1.2
-## Eller: yürüyüş (yan, yükseklik, derinlik, karşıt salınım).
+## Hands: walk (side, height, depth, opposed swing).
 const HAND_SIDE := 10.5
 const HAND_Y := -9.0
 const HAND_DEPTH := 1.2
 const HAND_SWING := 3.2
-## Sızmada eller öne uzanır.
+## Hands reach forward when sneaking.
 const SNEAK_HAND_SIDE := 7.0
 const SNEAK_HAND_FORWARD := 6.0
 const SNEAK_HAND_Y := -11.0
 const SNEAK_HAND_DEPTH := 3.0
-## Etkileşimde eller önde birleşir ve titrer.
+## While interacting the hands meet in front and tremble.
 const WORK_HAND_SIDE := 4.0
 const WORK_HAND_FORWARD := 9.0
 const WORK_HAND_Y := -10.0
 const WORK_HAND_DEPTH := 4.0
 const WORK_JITTER := 1.3
 const WORK_JITTER_RATE := 18.0
-## "!" titremesinin açısal hızı (rad/sn) ve easeOutBack aşma katsayısı (deneme sahnesi).
+## Angular speed of the "!" tremble (rad/s) and easeOutBack overshoot coefficient (test scene).
 const SHAKE_RATE := 60.0
 const BACK_OVERSHOOT := 1.9
 
 
-## İki ayağın merkezi (birim; yer dönüşümünde): sol, sağ. `face` birim bakış yönü, `swing` kipin salınım genliği
-## (birim), `moving` 0..1, `hop` sıçrama yüksekliği (birim).
+## Center of the two feet (units; in ground transform): left, right. `face` unit facing, `swing` mode swing amplitude
+## (units), `moving` 0..1, `hop` hop height (units).
 static func feet(face: Vector2, phase: float, moving: float, swing: float, width: float,
 		hop: float) -> PackedVector2Array:
 	var side_dir := Vector2(-face.y, face.x)
@@ -57,8 +55,8 @@ static func feet(face: Vector2, phase: float, moving: float, swing: float, width
 	return out
 
 
-## İki elin merkezi (birim; gövde dönüşümünde): yürüyüşte karşıt salınım, sızmada öne uzanır, etkileşimde
-## önde birleşip titrer (`clock` sn).
+## Center of the two hands (units; in body transform): opposed swing when walking, forward when sneaking, meeting in front and
+## trembling when interacting (`clock` s).
 static func hands(face: Vector2, phase: float, moving: float, width: float, sneaking: bool, working: bool,
 		clock: float) -> PackedVector2Array:
 	var side_dir := Vector2(-face.y, face.x)
@@ -78,7 +76,7 @@ static func hands(face: Vector2, phase: float, moving: float, width: float, snea
 	return out
 
 
-## Kip başına tuning değeri (Vector3: x sız, y yürü, z koş).
+## Per-mode tuning value (Vector3: x sneak, y walk, z sprint).
 static func per_gait(values: Vector3, which: PuppetRig.Gait) -> float:
 	match which:
 		PuppetRig.Gait.SNEAK:
@@ -88,7 +86,7 @@ static func per_gait(values: Vector3, which: PuppetRig.Gait) -> float:
 	return values.y
 
 
-## Ezilme-esneme hedefi (siluet ölçeği): kipe göre, hareket oranıyla karışır; etkileşimde sabit.
+## Squash-stretch target (silhouette scale): by mode, blended by movement ratio; constant while interacting.
 static func target_squash(values: PuppetTuning, which: PuppetRig.Gait, moving: float, working: bool,
 		exaggeration: float) -> float:
 	if working:
@@ -96,7 +94,7 @@ static func target_squash(values: PuppetTuning, which: PuppetRig.Gait, moving: f
 	return 1.0 + (per_gait(values.body_scale, which) - 1.0) * clampf(moving, 0.0, 1.0) * exaggeration
 
 
-## Eğilme hedefi (rad): yatay hızla gidilen yöne, ivmeye karşı (duruşta öne taşma); koşuda daha çok.
+## Lean target (rad): toward travel direction by horizontal speed, against acceleration (overshoot at stop); more when sprinting.
 static func target_lean(values: PuppetTuning, which: PuppetRig.Gait, vel: Vector2, acc: Vector2, exaggeration: float,
 		reduced: bool) -> float:
 	if reduced:
@@ -108,7 +106,7 @@ static func target_lean(values: PuppetTuning, which: PuppetRig.Gait, vel: Vector
 	return clampf(t, -values.lean_max, values.lean_max)
 
 
-## Tepki balonu pop ölçeği (easeOutBack; NONE'da 0).
+## Reaction balloon pop scale (easeOutBack; 0 for NONE).
 static func bubble_scale(values: PuppetTuning, kind: PuppetRig.Reaction, age: float) -> float:
 	if kind == PuppetRig.Reaction.NONE:
 		return 0.0
@@ -116,7 +114,7 @@ static func bubble_scale(values: PuppetTuning, kind: PuppetRig.Reaction, age: fl
 	return ease_out_back(t)
 
 
-## "!" balonunun yatay titremesi (px); süre boyunca söner.
+## Horizontal tremble of the "!" balloon (px); decays over its duration.
 static func bubble_shake(values: PuppetTuning, kind: PuppetRig.Reaction, age: float) -> float:
 	if kind != PuppetRig.Reaction.ALERT or values.alert_shake_time <= 0.0:
 		return 0.0

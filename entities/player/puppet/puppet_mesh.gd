@@ -1,34 +1,32 @@
 class_name PuppetMesh
 extends RefCounted
-## Kukla çizim tamponu (US-014): parçalar (elips, dolgu, çizgi, şerit) renkli bir üçgen dizisinde toplanır ve
-## tek komutla gönderilir (RenderingServer.canvas_item_add_triangle_array). Kenarlar ~1 px'te saydamlaşan bir
-## "tüy" halkasıyla yumuşatılır (AA); ayrı kenar çizgisi yok. Ressam sırası korunur: sonra eklenen üstte.
-##
-## Hız (mekân nüfusu: 9+ kukla): elips noktaları önbellekteki birim daire şablonunun dönüşümüyle (C++ dizi
-## işlemi) üretilir; indeksler parça dizisinin "topolojisine" (parça başına nokta sayısı) göre paylaşılan
-## önbellekte tutulur — poz değişse de topoloji çoğu karede aynıdır, indeks dizisi yeniden kurulmaz.
-## Doku yuvası olan parça için Puppet tamponu `flush` eder, dokuyu çizer ve devam eder (sıra bozulmaz).
-## Düğüm bilmez; yalnız `flush` bir tuval öğesi (RID) alır.
+## Puppet draw buffer (US-014): parts (ellipse, fill, line, ribbon) collect in one coloured triangle array and go out as a single command
+## (RenderingServer.canvas_item_add_triangle_array). Edges are smoothed by a "feather" ring that fades out at ~1 px (AA); no separate
+## outline. Painter order is kept: later additions are on top.
+## Speed (population: 9+ puppets): ellipse points come from transforming a cached unit-circle template (C++ array ops); indices are kept in
+## a shared cache keyed by the part array's "topology" (point count per part) - topology is mostly the same frame to frame even as the pose
+## changes, so the index array is not rebuilt. For a part with a texture slot, Puppet `flush`es the buffer, draws the texture and continues
+## (order kept). Knows no nodes; `flush` only takes a canvas item (RID).
 
-## Kenar yumuşatma halkası (ekran px; `pixel_ratio` ile yerel px'e çevrilir).
+## Edge smoothing ring (screen px; converted to local px via `pixel_ratio`).
 const FEATHER := 0.9
-## Elips kenar nokta sayısı: ekran px yarıçap başına, tam elipste en az / en çok.
+## Ellipse edge point count: per screen px of radius, minimum / maximum for a full ellipse.
 const SEGMENTS_PER_PIXEL := 1.2
 const MIN_SEGMENTS := 8
 const MAX_SEGMENTS := 28
-## Topoloji kodu: şerit = RIBBON_CODE + nokta sayısı; yelpaze = ±kenar nokta sayısı (+ kapalı, - açık yay).
+## Topology code: ribbon = RIBBON_CODE + point count; fan = +/- edge point count (+ closed, - open arc).
 const RIBBON_CODE := 1000
-## Paylaşılan önbelleklerin üst sınırı (aşınca temizlenir).
+## Upper limit of the shared caches (cleared when exceeded).
 const CACHE_LIMIT := 256
-## Çok kısa çizgi parçası (px): yönü belirsiz.
+## Very short line segment (px): direction undefined.
 const MIN_SEGMENT := 0.001
 
 static var _unit_cache: Dictionary = {}
 static var _index_cache: Dictionary = {}
 
-## Eklenen noktaların dönüşümü (birim → düğüm yereli px).
+## Transform of added points (unit -> node local px).
 var transform: Transform2D = Transform2D.IDENTITY
-## Ekran px / düğüm yereli px (kamera yakınlaştırması dahil): tüy her ölçekte ~1 ekran px, yuvarlaklık ölçekle.
+## Screen px / node-local px (camera zoom included): the feather is ~1 screen px at any scale, roundness scales with it.
 var pixel_ratio: float = 1.0
 
 var _points: PackedVector2Array = []
@@ -39,7 +37,7 @@ var _submissions: int = 0
 var _triangles: int = 0
 
 
-## Kare başı: tampon ve sayaçlar sıfırlanır.
+## Per frame: buffer and counters reset.
 func begin() -> void:
 	_points.clear()
 	_colors.clear()
@@ -49,7 +47,7 @@ func begin() -> void:
 	transform = Transform2D.IDENTITY
 
 
-## Bu karede gönderilen tampon komutu sayısı.
+## Number of buffer commands sent this frame.
 func submissions() -> int:
 	return _submissions
 
@@ -58,7 +56,7 @@ func triangles() -> int:
 	return _triangles
 
 
-## Biriken üçgenleri tek komutla tuval öğesine ekler.
+## Adds the accumulated triangles to the canvas item in one command.
 func flush(canvas_item: RID) -> void:
 	if _topology.is_empty():
 		return
@@ -77,7 +75,7 @@ func flush(canvas_item: RID) -> void:
 	_topology.clear()
 
 
-## Dolu elips ya da `from`..`to` dilimi (kirişle kapanır). `segments` 0 ise yarıçaptan.
+## Filled ellipse or a `from`..`to` slice (closed by the chord). `segments` 0 derives it from the radius.
 func ellipse(center: Vector2, radius: Vector2, color: Color, from: float = 0.0, to: float = TAU,
 		segments: int = 0) -> void:
 	if radius.x <= 0.0 or radius.y <= 0.0 or color.a <= 0.0:
@@ -105,7 +103,7 @@ func rect(r: Rect2, color: Color) -> void:
 		color)
 
 
-## Dışbükey dolgu (birim noktalar, az noktalı şekiller): merkezden yelpaze + dışa tüy.
+## Convex fill (unit points, low-point shapes): fan from the center + feather outward.
 func fill(local: PackedVector2Array, color: Color) -> void:
 	var n: int = local.size()
 	if n < 3 or color.a <= 0.0:
@@ -121,7 +119,7 @@ func fill(local: PackedVector2Array, color: Color) -> void:
 	_push_fan(c, px, outer, color, true)
 
 
-## Çizgi (birim noktalar, birim kalınlık; uçlar düz).
+## Line (unit points, unit thickness; flat ends).
 func stroke(local: PackedVector2Array, color: Color, width: float) -> void:
 	var widths: PackedFloat32Array = []
 	widths.resize(local.size())
@@ -129,7 +127,7 @@ func stroke(local: PackedVector2Array, color: Color, width: float) -> void:
 	ribbon(transform * local, widths, color)
 
 
-## Değişken kalınlıklı şerit (px noktalar, px kalınlıklar; dönüşüm uygulanmaz): atkı.
+## Variable-thickness ribbon (px points, px thicknesses; no transform applied): scarf.
 func ribbon(px: PackedVector2Array, widths: PackedFloat32Array, color: Color) -> void:
 	var n: int = px.size()
 	if n < 2 or color.a <= 0.0:
@@ -146,7 +144,7 @@ func ribbon(px: PackedVector2Array, widths: PackedFloat32Array, color: Color) ->
 	_topology.append(RIBBON_CODE + n)
 
 
-## Birim elips yayı (önbellekli): tam elipste `n`, yayda `n + 1` nokta.
+## Unit ellipse arc (cached): `n` points for a full ellipse, `n + 1` for an arc.
 static func unit_arc(from: float, to: float, n: int) -> PackedVector2Array:
 	var key := Vector3(from, to, n)
 	var cached: PackedVector2Array = _unit_cache.get(key, PackedVector2Array())
@@ -165,12 +163,12 @@ static func unit_arc(from: float, to: float, n: int) -> PackedVector2Array:
 	return pts
 
 
-## Elips yayı noktaları (birim; çizgiler için).
+## Ellipse arc points (units; for lines).
 static func arc_points(center: Vector2, radius: Vector2, from: float, to: float, n: int = 8) -> PackedVector2Array:
 	return Transform2D(Vector2(radius.x, 0.0), Vector2(0.0, radius.y), center) * unit_arc(from, to, n)
 
 
-## İkinci dereceden Bezier eğrisi noktaları (birim).
+## Quadratic Bezier curve points (units).
 static func bezier(p0: Vector2, p1: Vector2, p2: Vector2, count: int = 9) -> PackedVector2Array:
 	var pts: PackedVector2Array = []
 	for i: int in count:
@@ -179,7 +177,7 @@ static func bezier(p0: Vector2, p1: Vector2, p2: Vector2, count: int = 9) -> Pac
 	return pts
 
 
-## Topolojiden indeks dizisi (önbellek kaçağında; noktalar `_push_fan`/`ribbon` düzenindedir).
+## Index array from a topology (on cache miss; points are in `_push_fan`/`ribbon` layout).
 static func build_indices(topology: PackedInt32Array) -> PackedInt32Array:
 	var out: PackedInt32Array = []
 	var base: int = 0
@@ -204,7 +202,7 @@ static func build_indices(topology: PackedInt32Array) -> PackedInt32Array:
 	return out
 
 
-## Yelpaze düzeni: merkez, kenar noktaları (renkli), dış halka (saydam).
+## Fan layout: center, edge points (coloured), outer ring (transparent).
 func _push_fan(center: Vector2, rim: PackedVector2Array, outer: PackedVector2Array, color: Color, closed: bool) -> void:
 	var count: int = rim.size()
 	_points.append(center)
@@ -219,11 +217,11 @@ func _push_fan(center: Vector2, rim: PackedVector2Array, outer: PackedVector2Arr
 	_topology.append(count if closed else -count)
 
 
-## Tüy genişliği (düğüm yereli px).
+## Feather width (node-local px).
 func _feather() -> float:
 	return FEATHER / maxf(0.0001, pixel_ratio)
 
 
-## Dönüşümün ortalama ölçeği (px / birim).
+## Mean scale of the transform (px / unit).
 func _scale() -> float:
 	return maxf(0.0001, sqrt(absf(transform.determinant())))

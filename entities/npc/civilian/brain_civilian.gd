@@ -1,23 +1,21 @@
 class_name CivilianBrain
 extends Node
-## Sivil beyni: müşteri ve yoldan geçen (US-016 AC2/AC4/AC5; GDD §9.2; mimari.md S2, S11). Yalnız host'ta; Civilian
-## kökü her adımda `step(delta)` çağırır, dönen hızı uygular. Rota `Agenda` lineer kipinde (oyun-yz #12), nokta
-## rezervasyonu nüfus üreticisinin `SpotRegistry`'sinde. Durumlar:
-## - ROUTE: müşteri ön kapı → 1-2 raf noktası (süre, rafa döner) → (bitince) QUEUE; yoldan geçen `StreetRoute1..N`
-##   boyunca, planında olan cam önlerinde `look_sec` içeri bakar (koni camdan geçer), rota sonunda GONE.
-## - QUEUE: boş kuyruk noktasını tutar, varınca sahipten servis ister (`serve_customer(serial)`); servis bitince
-##   (DONE) çıkar; servis başlamadan `queue_wait_sec` beklerse bırakıp çıkar.
-## - WATCH: şüphe ≥ 30 ("?"): durur, şüphelinin son görüldüğü yere bakar; eşik altında `watch_release_sec` sonra
-##   işine döner.
-## - Tanık (100): bağırmaz. Sahibi görüyorsa (görüş hattı + menzil) TELL: sahibe yürür, `tell_min_sec`'ten sonra
-##   yanına varınca ya da en geç `tell_max_sec`'te sahibin o oyuncuya şüphesine `tell_suspicion` ekler (sorgu
-##   başlar), çıkar; görmüyorsa FLEE: ön kapıdan (yoldan geçen: en yakın sokak ucundan) koşarak çıkar.
-## - Müşteri, uyarı `pause_alert_level` ve üstündeyse (sahip bağırdı) kaçar.
-## - Ön kapı geçişi (içeri/dışarı) sahibe zil (`door_bell`): sahip 1 sn kapıya bakar; içeri girerken
-##   `customer_enter`.
-## - LEAVE/FLEE rotası bitince GONE: `gone` → nüfus üreticisi siler.
+## Civilian brain: customer and passerby (US-016 AC2/AC4/AC5; GDD §9.2; S2, S11). Host only; the Civilian root calls `step(delta)` each
+## step and applies the returned velocity. The route uses `Agenda` linear mode (oyun-yz #12); spot reservation lives in the population
+## spawner's `SpotRegistry`. States:
+## - ROUTE: customer front door -> 1-2 shelf spots (time, faces the shelf) -> (when done) QUEUE; passerby along `StreetRoute1..N`, looks in
+##   for `look_sec` at planned windows (cone passes through glass), GONE at route end.
+## - QUEUE: holds a free queue spot, requests service from the owner on arrival (`serve_customer(serial)`); leaves when service ends
+##   (DONE); gives up and leaves if service does not start within `queue_wait_sec`.
+## - WATCH: suspicion >= 30 ("?"): stands, looks at the suspect's last seen spot; resumes its work `watch_release_sec` after dropping below.
+## - Witness (100): does not shout. If it sees the owner (line of sight + range) TELL: walks to the owner, after `tell_min_sec` on arrival
+##   (at most `tell_max_sec`) adds `tell_suspicion` to the owner's suspicion of that player (inquiry starts), leaves; if not, FLEE: runs out via
+##   the front door (passerby: nearest street end).
+## - Customer flees when alert is at or above `pause_alert_level` (owner shouted).
+## - Front-door crossing (in/out) rings the bell for the owner (`door_bell`): the owner looks at the door for 1 s; on entering
+##   `customer_enter`. LEAVE/FLEE route end -> GONE: `gone` -> population spawner deletes it.
 
-## Yalnız host: rota bitti, sivil silinebilir.
+## Host only: route finished, the civilian may be deleted.
 signal gone()
 
 enum State { ROUTE, QUEUE, WATCH, TELL, FLEE, LEAVE, GONE }
@@ -32,21 +30,21 @@ const EDGES := {
 	State.LEAVE: [State.GONE],
 	State.GONE: [],
 }
-## Noktaya varış payı (px), kapı geçişi (zil) yarıçapı (px), kuyrukta servis isteğini yineleme (sn).
+## Spot arrival margin (px), door crossing (bell) radius (px), queue service request retry (s).
 const STAND_PX := 6.0
 const DOOR_PX := 48.0
 const QUEUE_RETRY_SEC := 0.5
-## Rafa dönüş: raf (görüşü kesen engel) aranan uzaklıklar (px).
+## Turning to the shelf: distances searched for the shelf (a sight-blocking obstacle) (px).
 const SHELF_PROBE_PX: Array[float] = [16.0, 24.0, 32.0, 40.0, 48.0]
 
 var tuning: PopulationTuning
 var civilian_tuning: CivilianTuning
 var fsm := Fsm.new(State.ROUTE, EDGES)
-## Kayıtlar (döküm/testler): servis edildi mi, söylediği (peer, t), cam bakışı sayısı.
+## Records (dump/tests): whether served, what it told (peer, t), window glance count.
 var served: bool = false
 var tells: Array[Dictionary] = []
 var looks: int = 0
-## Tanık olduğu oyuncu (0 = yok) ve sonucu ("tell" | "flee" | "").
+## Player witnessed (0 = none) and outcome ("tell" | "flee" | "").
 var witness_peer: int = 0
 var witness_outcome: StringName = &""
 
@@ -67,10 +65,10 @@ var _tell_peer: int = 0
 var _tell_where: Vector2 = Vector2.INF
 var _tell_t: float = 0.0
 var _was_inside: bool = false
-## Tespit (100) eşiğini ilk geçen oyuncu (Suspicion `threshold_reached`; 0 = yok).
+## First player to cross the detection (100) threshold (Suspicion `threshold_reached`; 0 = none).
 var _detected: int = 0
 var _look_counted: int = -1
-## Rota görevi indisi -> bakış görevi mi (yoldan geçen).
+## Route task index -> whether a look task (passerby).
 var _look_tasks: Dictionary = {}
 
 
@@ -108,7 +106,7 @@ func queue_spot() -> StringName:
 	return _queue_spot
 
 
-## Bir adım (host): duyular → şüphe → tepki → durumun istenen hızı (global px/sn).
+## One step (host): senses -> suspicion -> reaction -> the state's desired velocity (global px/s).
 func step(delta: float) -> Vector2:
 	fsm.step(delta)
 	if fsm.state == State.GONE:
@@ -130,7 +128,7 @@ func step(delta: float) -> Vector2:
 	return Vector2.ZERO
 
 
-## --- tepki ---
+## --- reaction ---
 
 func _react() -> void:
 	if fsm.state in [State.TELL, State.FLEE, State.LEAVE, State.GONE]:
@@ -177,8 +175,8 @@ func _watch(delta: float) -> Vector2:
 	return Vector2.ZERO
 
 
-## Sahibi görüyor mu: etkin sahip menzil içinde ve ya görüş hattı açık (camlar geçirir) ya da ikisi de satış
-## katında (müşteri bölgesi / personel tarafı: tezgâh alçaktır, üstünden görülür; arka odadaki sahip görülmez).
+## Whether it sees the owner: the active owner is in range and either line of sight is clear (windows pass) or both are on the sales
+## floor (customer zone / staff side: the counter is low and can be seen over; an owner in the backroom is not seen).
 func _sees_owner() -> bool:
 	var o: Node2D = body.store_owner as Node2D
 	if o == null or not is_instance_valid(o) or not bool(o.get(&"active")):
@@ -234,7 +232,7 @@ func _flee(peer: int) -> void:
 	_leave(State.FLEE, tuning.flee_speed)
 
 
-## Çıkış rotası: içerideyse ön kapıdan, sonra müşteri çıkış noktasına / yoldan geçen en yakın sokak ucuna.
+## Exit route: via the front door if inside, then to the customer exit point / the passerby's nearest street end.
 func _leave(next_state: int, speed: float) -> void:
 	_release_spots()
 	_speed = speed
@@ -263,7 +261,7 @@ func _top_peer() -> int:
 	return best
 
 
-## --- rota ---
+## --- route ---
 
 func _route(delta: float) -> Vector2:
 	var goal: Vector2 = agenda.goal_position()
@@ -314,7 +312,7 @@ func _go_gone() -> void:
 		gone.emit()
 
 
-## --- kuyruk ---
+## --- queue ---
 
 func _queue(delta: float) -> Vector2:
 	if _queue_spot.is_empty():
@@ -348,7 +346,7 @@ func _queue(delta: float) -> Vector2:
 	return _walk(delta)
 
 
-## --- ön kapı (zil) ---
+## --- front door (bell) ---
 
 func _bell() -> void:
 	var here: Vector2 = body.global_position
@@ -366,7 +364,7 @@ func _bell() -> void:
 		body.host_event(&"customer_enter", 0)
 
 
-## --- rota kurulumu ---
+## --- route setup ---
 
 func _customer_route() -> Array[AgendaTask]:
 	var tasks: Array[AgendaTask] = [_task(&"door", tuning.front_door_marker, 0.0, Vector2.ZERO)]
@@ -412,7 +410,7 @@ func _task(task_name: StringName, marker: StringName, sec: float, look: Vector2)
 	return t
 
 
-## Raf noktasında rafa dönüş: en yakın görüşü kesen engelin yönü (yukarı, aşağı, sol, sağ sırasıyla).
+## Turning to the shelf at a shelf spot: direction of the nearest sight-blocking obstacle (order: up, down, left, right).
 func _shelf_facing(at: Vector2) -> Vector2:
 	if not at.is_finite():
 		return Vector2.ZERO

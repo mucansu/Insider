@@ -1,74 +1,69 @@
 class_name Perception
 extends Node2D
-## Algı bileşeni (US-006 AC2; mimari.md S2, S11, §4, KR-019): NPC'nin (muhafız, kamera, ileride sivil) alt
-## düğümü. Görüş konisi + görüş hattı → hedef başına görünürlük ve şüphe dolumu. Kurallar core/'da
-## (`PerceptionRules`); burada yalnız fizik sorgusu ve hedeflerin durumunu okuma var.
-##
-## - Konum: bu düğümün global konumu; bakış yönü `facing` (global, birim). Beyin yönü doğrudan yazar ya da
-##   `turn_toward()` ile dönüş tavanına (tuning) uyarak döndürür.
-## - Hedefler: `Interactable.ACTOR_GROUP` (`interaction_actors`) grubundaki oyuncular. Kimlik = düğümün yetkili
-##   peer'ı; konum = `interaction_position()` (host'un bildiği en güncel konum, S7); hareket kipi = `net_mode`
-##   (eşitleyicinin en güncel değeri; uzak kopyanın ~100 ms geriden ara değerlenen `move_mode`'u değil), yoksa
-##   `move_mode`, o da yoksa yürüme (PlayerMotion.Mode).
-## - Görüş hattı: world (1) + vision_block (6) katmanlarına ışın; `see_through` grubundaki **gövdeler**
-##   (US-007: her `Window*` ayrı gövde, S4 eki) geçilir, raflar ve duvarlar keser (K1). Grup yalnız gövde
-##   düzeyinde geçerlidir: ortak bir gövdenin gruptaki şekli görüşü keser. Oyuncu ve NPC gövdeleri maskede değil.
-## - Karanlık: `dark_query` (Callable(pos: Vector2) -> bool) verilmişse sorulur; yoksa her yer aydınlık
-##   (karanlık bölge seviyede henüz yok).
-## - Sivil eki (US-008, yalnız ekleme; varsayılanlar muhafız davranışını değiştirmez): `factor_query`
-##   (Callable(target: Node) -> float) verilmişse kip çarpanının yerine sivil davranış çarpanı kullanılır
-##   (CivilianRules; karanlık yine ezer); `set_cone()` gözlemci konisini geçersiz kılar (sivil 50°/224 px,
-##   telefonda daralır); `set_hysteresis()` görülmekte olan hedef için koniyi genişletir (50°/224 → 53°/238 px;
-##   koni kenarında titreme yok).
-## - Yalnız host'ta anlamlıdır (S2): `Suspicion` bileşeni `observe()`'u yalnız host'ta çağırır; bu düğüm kendi
-##   başına işlem yapmaz.
+## Perception component (US-006 AC2; S2, S11, §4, KR-019): child node of an NPC (guard, camera, civilian later). Vision cone + line of
+## sight -> per-target visibility and suspicion fill. Rules live in core/ (`PerceptionRules`); here only the physics query and reading
+## target state.
+## - Position: this node's global position; look direction `facing` (global, unit). The brain writes it directly or turns it with
+##   `turn_toward()` within the turn cap (tuning).
+## - Targets: players in the `Interactable.ACTOR_GROUP` (`interaction_actors`) group. Identity = the node's authoritative peer; position =
+##   `interaction_position()` (latest host-known, S7); movement mode = `net_mode` (synchronizer's latest, not the remote copy's ~100 ms
+##   delayed interpolated `move_mode`), else `move_mode`, else walk (PlayerMotion.Mode).
+## - Line of sight: ray on world (1) + vision_block (6); **bodies** in the `see_through` group (US-007: each `Window*` is a separate body,
+##   S4 addendum) are passed, shelves and walls block (K1). The group works at body level only: a grouped shape on a shared body still
+##   blocks. Player and NPC bodies are not in the mask.
+## - Dark: `dark_query` (Callable(pos: Vector2) -> bool) is asked if given; otherwise everywhere is lit (no dark zone in levels yet).
+## - Civilian addition (US-008, additive; defaults leave guard behaviour unchanged): if `factor_query` (Callable(target: Node) -> float)
+##   is given, the civilian behaviour factor replaces the mode factor (CivilianRules; darkness still overrides); `set_cone()` overrides the
+##   observer cone (civilian 50 deg / 224 px, narrows on the phone); `set_hysteresis()` widens the cone for a target already seen (50 deg /
+##   224 -> 53 deg / 238 px; no flicker at the cone edge).
+## - Meaningful on the host only (S2): the `Suspicion` component calls `observe()` on the host only; this node does nothing on its own.
 
-## Gözlemci türü: koni ayarını seçer.
+## Observer kind: selects the cone settings.
 enum Observer { GUARD, CAMERA }
 
 const TUNING_PATH := "res://data/npc/perception_tuning.tres"
-## Görüşü geçiren gövde grubu (S4/S11 eki; US-007 camları bu gruba koyar).
+## Body group that lets sight through (S4/S11 addendum; US-007 puts windows in this group).
 const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
-## Görüşü kesen fizik katmanları: world (1) ve vision_block (6) (mimari.md §4).
+## Physics layers that block sight: world (1) and vision_block (6) (architecture §4).
 const SIGHT_MASK := PhysicsLayers.SIGHT_MASK
-## Bir ışında en fazla kaç görüşü geçiren engel atlanır (sonsuz döngü bekçisi).
+## Maximum see-through obstacles skipped on one ray (infinite-loop guard).
 const MAX_SEE_THROUGH := 8
 
 
-## Bir hedefin bu karedeki gözlemi.
+## One target's observation this frame.
 class Observation:
 	extends RefCounted
 	var peer_id: int = 0
 	var position: Vector2 = Vector2.ZERO
 	var band: PerceptionRules.Band = PerceptionRules.Band.NONE
-	## Görüş hattı açık mı (koni dışındaysa sorgulanmaz, false).
+	## Whether line of sight is clear (not queried outside the cone: false).
 	var line_clear: bool = false
 	var stance: PerceptionRules.Stance = PerceptionRules.Stance.WALK
 	var in_dark: bool = false
-	## Şüphe dolumu (birim/sn); 0 = görülmüyor.
+	## Suspicion fill (units/s); 0 = not seen.
 	var rate: float = 0.0
-	## Kullanılan durum çarpanı (kip ya da `factor_query`; karanlıkta dark_factor).
+	## State factor used (mode or `factor_query`; dark_factor in the dark).
 	var factor: float = 0.0
 
 
 @export var tuning: PerceptionTuning
 @export var observer: Observer = Observer.GUARD
-## Global bakış yönü (birim).
+## Global look direction (unit).
 @export var facing: Vector2 = Vector2.RIGHT
-## Karanlık bölge sorgusu: func(pos: Vector2) -> bool. Boşsa aydınlık.
+## Dark-zone query: func(pos: Vector2) -> bool. Lit if empty.
 var dark_query: Callable = Callable()
-## Sivil davranış çarpanı (US-008): func(target: Node) -> float; boşsa kip çarpanı (muhafız).
+## Civilian behaviour factor (US-008): func(target: Node) -> float; mode factor (guard) if empty.
 var factor_query: Callable = Callable()
 
 var _params: PerceptionRules.Params = null
-## Görülmekte olan hedeflerin genişletilmiş konisi (histerezis yoksa null).
+## Widened cone for targets being seen (null if no hysteresis).
 var _wide: PerceptionRules.Params = null
-## Koni geçersiz kılma (0 = tuning) ve histerezis payları.
+## Cone override (0 = tuning) and hysteresis margins.
 var _cone_half_angle: float = 0.0
 var _cone_range: float = 0.0
 var _hyst_angle: float = 0.0
 var _hyst_range: float = 0.0
-## peer_id -> son gözlemde koni içinde ve görüş hattı açık mıydı (histerezis).
+## peer_id -> whether in cone with clear line of sight at the last observation (hysteresis).
 var _inside: Dictionary = {}
 
 
@@ -76,7 +71,7 @@ func _ready() -> void:
 	refresh()
 
 
-## Tuning'den core algı ayarları (gözlemci türüne göre koni).
+## Core perception settings from tuning (cone by observer kind).
 static func params_for(source: PerceptionTuning, kind: Observer) -> PerceptionRules.Params:
 	var p := PerceptionRules.Params.new()
 	match kind:
@@ -97,7 +92,7 @@ static func params_for(source: PerceptionTuning, kind: Observer) -> PerceptionRu
 	return p
 
 
-## Geçerli core ayarları (tuning ya da gözlemci değişince `refresh()`).
+## Current core settings (`refresh()` when tuning or observer kind changes).
 func params() -> PerceptionRules.Params:
 	if _params == null:
 		refresh()
@@ -120,7 +115,7 @@ func refresh() -> void:
 		_wide.view_range = _params.view_range + _hyst_range
 
 
-## Gözlemci konisini geçersiz kılar (yarım açı derece, menzil px; 0 = tuning'deki koni).
+## Overrides the observer cone (half angle degrees, range px; 0 = the tuning cone).
 func set_cone(half_angle_deg: float, view_range: float) -> void:
 	if is_equal_approx(half_angle_deg, _cone_half_angle) and is_equal_approx(view_range, _cone_range) \
 			and _params != null:
@@ -130,26 +125,26 @@ func set_cone(half_angle_deg: float, view_range: float) -> void:
 	refresh()
 
 
-## Koni kenarı histerezisi: görülmekte olan hedef için koni `angle_deg` / `range_px` genişler (0 = yok).
+## Cone edge hysteresis: the cone widens by `angle_deg` / `range_px` for a target being seen (0 = none).
 func set_hysteresis(angle_deg: float, range_px: float) -> void:
 	_hyst_angle = maxf(angle_deg, 0.0)
 	_hyst_range = maxf(range_px, 0.0)
 	refresh()
 
 
-## Hedef son gözlemde görülüyor muydu (koni + görüş hattı; histerezis girdisi).
+## Whether the target was seen at the last observation (cone + line of sight; hysteresis input).
 func was_seen(peer_id: int) -> bool:
 	return bool(_inside.get(peer_id, false))
 
 
-## Bakışı `direction`'a dönüş tavanıyla (tuning, derece/sn) döndürür.
+## Turns the look toward `direction` within the turn cap (tuning, degrees/s).
 func turn_toward(direction: Vector2, delta: float) -> void:
 	if tuning == null:
 		refresh()
 	facing = PerceptionRules.turn_toward(facing, direction, tuning.max_turn_deg_per_sec, delta)
 
 
-## Bütün hedeflerin gözlemi: peer_id -> Observation. Fizik sorgusu yapar (host'ta, fizik adımında çağrılır).
+## Observation of all targets: peer_id -> Observation. Does physics queries (on the host, called in the physics step).
 func observe() -> Dictionary:
 	var out: Dictionary = {}
 	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
@@ -161,7 +156,7 @@ func observe() -> Dictionary:
 	return out
 
 
-## Tek hedefin gözlemi (konumu okunamazsa null).
+## Observation of one target (null if its position cannot be read).
 func observe_target(target: Node) -> Observation:
 	var pos: Variant = target.call(&"interaction_position")
 	if not pos is Vector2 or not (pos as Vector2).is_finite():
@@ -174,7 +169,7 @@ func observe_target(target: Node) -> Observation:
 	var cone: PerceptionRules.Params = _wide if _wide != null and was_seen(obs.peer_id) else p
 	obs.band = PerceptionRules.band(cone, global_position, facing, obs.position)
 	if obs.band != PerceptionRules.Band.NONE and cone != p:
-		# Histerezis yalnız koninin dış sınırına: yakın/uzak bant sınırı değişmez.
+		# Hysteresis only on the cone's outer limit: the near/far band limit is unchanged.
 		var near_limit: float = p.view_range * p.near_ratio + PerceptionRules.EPSILON
 		var near: bool = global_position.distance_to(obs.position) <= near_limit
 		obs.band = PerceptionRules.Band.NEAR if near else PerceptionRules.Band.FAR
@@ -192,7 +187,7 @@ func observe_target(target: Node) -> Observation:
 	return obs
 
 
-## Hedefin algı durumu: oyuncu kipi (`net_mode`, yoksa `move_mode`; PlayerMotion.Mode) → Stance; yoksa yürüme.
+## Target's perception state: player mode (`net_mode`, else `move_mode`; PlayerMotion.Mode) -> Stance; walk if none.
 static func stance_of(target: Node) -> PerceptionRules.Stance:
 	var mode: Variant = target.get(&"net_mode")
 	if typeof(mode) != TYPE_INT:
@@ -213,8 +208,8 @@ func is_dark(pos: Vector2) -> bool:
 	return bool(dark_query.call(pos))
 
 
-## `from` → `to` görüş hattı açık mı (world + vision_block keser; `see_through` gövdeleri dışlanıp ışın
-## baştan yeniden atılır — devam noktası hesaplanmadığı için bitişik duvar atlanamaz).
+## Whether line of sight is clear from `from` to `to` (world + vision_block block; `see_through` bodies are excluded and the ray
+## re-cast from the start - no continuation point is computed, so a wall adjacent to a window cannot be skipped).
 func has_line_of_sight(from: Vector2, to: Vector2) -> bool:
 	var space: PhysicsDirectSpaceState2D = get_world_2d().direct_space_state
 	var exclude: Array[RID] = []

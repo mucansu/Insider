@@ -1,7 +1,6 @@
 extends Node2D
-## Raf ucu yer tutucu görseli (US-010): rafın ucunda üst üste ürünler; devrilince yere saçılmış; telefon bırakıldıysa
-## küçük telefon, çalarken yanında iki yay. Yalnız ebeveyn ShelfProp'un çoğaltılan durumunu okur (KR-003).
-## Renkler ThemeTokens'tan (S9).
+## Shelf end placeholder visual (US-010): stacked goods on the shelf end; scattered on the floor when toppled; small phone if left,
+## with two arcs beside it while ringing. Only reads the parent ShelfProp's replicated state (KR-003). Colours from ThemeTokens (S9).
 
 const ITEM := Vector2(7.0, 6.0)
 const PHONE := Vector2(5.0, 8.0)

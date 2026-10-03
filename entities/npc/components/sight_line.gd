@@ -1,20 +1,20 @@
 class_name SightLine
 extends RefCounted
-## Görüş hattı fizik sorgusu (mimari.md S11 Faz 2 eki, §4; US-009): world (1) + vision_block (6) katmanlarına ışın;
-## `see_through` grubundaki **gövdeler** (US-007 camları, her `Window*` ayrı gövde) geçilir: gövde RID'i dışlanıp
-## ışın baştan yeniden atılır — devam noktası hesaplanmadığından cama bitişik duvar köşede atlanamaz. Grup yalnız
-## gövde düzeyinde geçerlidir (ortak gövdedeki gruplu şekil keser). Oyuncu ve NPC gövdeleri maskede değil.
-## Yöntem `Perception.has_line_of_sight` (US-006) ile aynıdır; NPC bileşenleri (Hearing; ileride Perception) bunu
-## paylaşır. Yalnız fizik; kural (ör. gürültüde kaynağın kendi gövdesi) çağıranda ve core/'da.
+## Line-of-sight physics query (S11 Phase 2 addendum, §4; US-009): ray on world (1) + vision_block (6); **bodies** in the `see_through`
+## group (US-007 windows, each `Window*` a separate body) are passed: the body RID is excluded and the ray re-cast from the start - no
+## continuation point is computed, so a wall adjacent to a window cannot be skipped at a corner. The group works at body level only
+## (a grouped shape on a shared body blocks). Player and NPC bodies are not in the mask. Same method as `Perception.has_line_of_sight`
+## (US-006); NPC components (Hearing; Perception later) share it. Physics only; rules (e.g. the source's own body for noise) are the
+## caller's and core/'s.
 
 const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
 const MASK := PhysicsLayers.SIGHT_MASK
-## Bir ışında en fazla kaç geçiren gövde atlanır (sonsuz döngü bekçisi).
+## Maximum passed bodies skipped on one ray (infinite-loop guard).
 const MAX_SEE_THROUGH := 8
 
 
-## `from` → `to` arasındaki ilk kesen isabet (intersect_ray sözlüğü: position, collider, rid …); açıksa boş.
-## Geçiren gövde sınırı aşılırsa son isabet kesen sayılır.
+## First blocking hit between `from` and `to` (intersect_ray dictionary: position, collider, rid ...); empty if clear.
+## If the pass-through body limit is exceeded the last hit counts as blocking.
 static func first_blocker(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2,
 		mask: int = MASK) -> Dictionary:
 	var exclude: Array[RID] = []

@@ -1,17 +1,16 @@
 class_name ShelfProp
 extends Node2D
-## Raf ucu (US-010 AC5 DİKKAT DAĞIT; GDD §9.3, KR-026; mimari.md S2, S7, S8). store_a `ShelfProp1..3` işaretlerinde
-## (`Props/ShelfProp<n>`). İki Interactable:
-## - `Topple` (E, `interact`, anında, tek kullanımlık): ürünleri devirir → host `NoiseBus` gürültüsü
-##   `StoreToolsTuning.KIND_TOPPLE` (`topple_radius` 320 px). Sahip tezgâhtayken (ClerkSpot) duyar → DİNLE (sese yürür,
-##   yönü bu prop); arka odadan ve telefon başından duyulmaz (duvar ×0,5 / mesafe).
-## - `Phone` (Q, `intimidate`, 0,5 sn tut): oyuncu telefonunu rafa bırakır (iş başına 1 telefon, bütün raf uçları
-##   için; her peer kardeş prop'ların çoğaltılan durumundan türetir) → `phone_delay_sec` sonra çalar
-##   (`KIND_CELLPHONE`, `phone_radius` 240 px; `phone_ring_interval_sec` aralıkla en çok `phone_ring_max` kez) →
-##   sahip sese gider; DİNLE noktasına varınca telefonu bulur (`host_take_phone`), çalma biter.
-## Durum (host yazar, çoğaltılır): `toppled`, `phone_state` (CivilianRules.Phone). Saat `CivilianRules.PhoneClock`'ta
-## (düğümsüz). Sorumlu peer'lar yalnız host'ta (`distraction_peer(kind)`; sahibin "yine mi?" bedeli).
-## Döküm (S6 "props"): {"toppled", "phone", "rings", "topple", "phone_drop"}.
+## Shelf end (US-010 AC5 DISTRACT; GDD §9.3, KR-026; S2, S7, S8). At store_a `ShelfProp1..3` markers (`Props/ShelfProp<n>`). Two Interactables:
+## - `Topple` (E, `interact`, instant, single use): knocks goods over -> host `NoiseBus` noise `StoreToolsTuning.KIND_TOPPLE`
+##   (`topple_radius` 320 px). The owner hears it while at the counter (ClerkSpot) -> LISTEN (walks to the sound, direction = this prop);
+##   not heard from the backroom or phone spot (wall x0.5 / distance).
+## - `Phone` (Q, `intimidate`, hold 0.5 s): player leaves their phone on the shelf (1 phone per heist across all shelf ends; every peer
+##   derives it from sibling props' replicated state) -> rings after `phone_delay_sec` (`KIND_CELLPHONE`, `phone_radius` 240 px; at
+##   `phone_ring_interval_sec` intervals, at most `phone_ring_max` times) -> owner walks to the sound; on reaching the LISTEN point
+##   they find the phone (`host_take_phone`) and ringing stops.
+## State (host writes, replicated): `toppled`, `phone_state` (CivilianRules.Phone). Clock in `CivilianRules.PhoneClock` (node-free).
+## Responsible peers only on the host (`distraction_peer(kind)`; the owner's "again?" cost). Dump (S6 "props"):
+## {"toppled", "phone", "rings", "topple", "phone_drop"}.
 
 const TOPPLE_DEF_PATH := "res://data/props/shelf_topple.tres"
 const PHONE_DEF_PATH := "res://data/props/shelf_phone.tres"
@@ -21,7 +20,7 @@ const GROUP := &"shelf_props"
 @export var phone_def: PropDef
 @export var tuning: StoreToolsTuning
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var toppled: bool = false
 var phone_state: int = CivilianRules.Phone.NONE
 
@@ -55,7 +54,7 @@ func _physics_process(delta: float) -> void:
 	step(delta)
 
 
-## Bir adım: host'ta telefon saati; her peer'da istem satırları.
+## One step: phone clock on the host; prompt lines on every peer.
 func step(delta: float) -> void:
 	if multiplayer.is_server() and _clock.state != CivilianRules.Phone.NONE:
 		if _clock.step(delta):
@@ -64,17 +63,17 @@ func step(delta: float) -> void:
 	_refresh()
 
 
-## Bu raf ucunda telefon bırakıldı mı (her peer; çoğaltılan durum).
+## Whether a phone was left on this shelf end (every peer; replicated state).
 func has_phone() -> bool:
 	return phone_state != CivilianRules.Phone.NONE
 
 
-## Telefon çalıyor mu (her peer).
+## Whether the phone is ringing (every peer).
 func is_ringing() -> bool:
 	return phone_state == CivilianRules.Phone.RINGING
 
 
-## Yalnız host: dikkat dağıtmanın sorumlusu (tür: KIND_TOPPLE / KIND_CELLPHONE); yoksa 0.
+## Host only: who is responsible for the distraction (kind: KIND_TOPPLE / KIND_CELLPHONE); 0 if none.
 func distraction_peer(kind: StringName) -> int:
 	if kind == StoreToolsTuning.KIND_TOPPLE:
 		return _topple_peer
@@ -83,7 +82,7 @@ func distraction_peer(kind: StringName) -> int:
 	return 0
 
 
-## Yalnız host: sahip telefonu buldu (çalıyorsa ya da çalmayı bitirdiyse). Alındıysa true.
+## Host only: owner found the phone (while ringing or after it finished ringing). True if taken.
 func host_take_phone() -> bool:
 	if not multiplayer.is_server() or not _clock.take():
 		return false
@@ -101,7 +100,7 @@ func dump_state() -> Dictionary:
 	}
 
 
-## İstem satırları (her peer): devirme tek kullanımlık; telefon iş başına bir (hiçbir raf ucunda yokken).
+## Prompt lines (every peer): topple is single use; phone is one per heist (while no shelf end has one).
 func _refresh() -> void:
 	_topple.enabled = not toppled
 	_phone.enabled = not _any_phone()
@@ -114,7 +113,7 @@ func _any_phone() -> bool:
 	return false
 
 
-## Yalnız host (Interactable.completed).
+## Host only (Interactable.completed).
 func _on_topple(peer_id: int) -> void:
 	if toppled:
 		return
@@ -124,7 +123,7 @@ func _on_topple(peer_id: int) -> void:
 	NoiseBus.emit_noise(global_position, tuning.topple_radius, StoreToolsTuning.KIND_TOPPLE, peer_id)
 
 
-## Yalnız host (Interactable.completed).
+## Host only (Interactable.completed).
 func _on_phone(peer_id: int) -> void:
 	if _any_phone() or not _clock.plant(peer_id):
 		return

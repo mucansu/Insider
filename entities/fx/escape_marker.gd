@@ -1,24 +1,19 @@
 class_name EscapeMarker
 extends Node2D
-## Kaçış noktasının dünya işareti (US-038 AC1; GDD §9.3): seviye kökünde ayrı görsel düğüm, seviye düzenine
-## dokunmaz (S4 bölgesi `Zones/<zone_name>` üreticide kalır; bu düğüm "elle eklenmiş diğer düğüm" olarak korunur).
-## Konum ve boyut bölgenin dikdörtgen şeklinden okunur (Level API, ördek tipleme: `zone(ad)`; entities → levels
-## derleme bağımlılığı yok, §6).
-## - Zemin katmanı (bu düğüm, z 0): yarı saydam dolgu + çapraz tarama + kenar çizgisi; dolgu hafif nabız atar
-##   (hareket azaltmada sabit: `reduce_motion` ya da Puppet.is_reduced_motion()). Sis kurallarına uyar: bilinmeyen
-##   karoda sisin altında kalır, hafızada soluk görünür.
-## - Kroki katmanı (`Kroki` çocuğu, z = VisionRules.ABOVE_FOG_Z − 1): ince kenar çizgisi + kaçış aracı silueti,
-##   nabızsız. Sisin üstünde, oyuncuların altında: kaçış noktası (ekibin bildiği plan bilgisi) haritanın sisli
-##   yerinde de bulunur (sisin duvar krokisi gibi).
-## Renk ThemeTokens.GAMEPLAY_ESCAPE (her tonda aynı).
+## World marker for the escape zone (US-038 AC1; GDD §9.3): a separate visual node at the level root; level layout
+## is untouched (S4 `Zones/<zone_name>` stays generator-owned; this node is a preserved hand-added node).
+## Position and size come from the zone rect (Level API, duck-typed `zone(name)`; no entities -> levels build dependency, §6).
+## Ground layer (z 0): translucent fill + hatching + edge, fill pulses (static under reduce_motion); obeys fog rules.
+## Sketch layer (`Kroki` child, z = VisionRules.ABOVE_FOG_Z - 1): thin edge + van silhouette, no pulse, above fog so the team-known
+## escape point stays visible in fogged areas. Colour: ThemeTokens.GAMEPLAY_ESCAPE (same in every tone).
 
-## İşaretlenen bölge (Level.zone adı).
+## Marked zone (Level.zone name).
 @export var zone_name: StringName = &"EscapeZone"
-## Hareket azaltma (GDD §14.1 kural 5): nabız yok, dolgu sabit.
+## Reduced motion (GDD §14.1 rule 5): no pulse, fill stays static.
 var reduce_motion: bool = false
 
 const KROKI_Z := VisionRules.ABOVE_FOG_Z - 1
-## Nabız: dolgu alfası taban ± genlik, periyot (sn).
+## Pulse: fill alpha base +/- amplitude, period (s).
 const FILL_ALPHA := 0.22
 const PULSE_AMPLITUDE := 0.12
 const PULSE_PERIOD := 1.6
@@ -27,12 +22,12 @@ const KROKI_EDGE_WIDTH := 2.0
 const HATCH_ALPHA := 0.35
 const HATCH_STEP := 16.0
 const HATCH_WIDTH := 2.0
-## Kaçış aracı silueti: bölge yüksekliğine göre oran (gövde en/boy ~2,2).
+## Escape vehicle silhouette: ratio to zone height (body aspect ~2.2).
 const VAN_HEIGHT_RATIO := 0.5
 const VAN_ASPECT := 2.2
 const SILHOUETTE_ALPHA := 0.85
 
-## Bölgenin bu düğüme göre dikdörtgeni (yerel); bölge yoksa alanı sıfır.
+## Zone rect in this node's local space; zero area if the zone is missing.
 var rect: Rect2 = Rect2()
 var _t: float = 0.0
 var _kroki: Node2D = null
@@ -61,14 +56,14 @@ func is_motion_reduced() -> bool:
 	return reduce_motion or Puppet.is_reduced_motion()
 
 
-## Dolgu alfası `t` saniyede (hareket azaltmada sabit taban).
+## Fill alpha at `t` seconds (static base under reduced motion).
 static func fill_alpha(t: float, reduced: bool) -> float:
 	if reduced:
 		return FILL_ALPHA
 	return FILL_ALPHA + PULSE_AMPLITUDE * sin(TAU * t / PULSE_PERIOD)
 
 
-## O anki dolgu alfası.
+## Current fill alpha.
 func current_fill_alpha() -> float:
 	return fill_alpha(_t, is_motion_reduced())
 
@@ -77,7 +72,7 @@ func kroki() -> Node2D:
 	return _kroki
 
 
-## Bölgenin (ilk dikdörtgen şekli) bu düğüme göre dikdörtgeni; bölge ya da şekil yoksa Rect2().
+## Zone's first rect shape in this node's space; Rect2() if zone or shape is missing.
 func read_zone_rect() -> Rect2:
 	var level: Node = get_parent()
 	if level == null or not level.has_method(&"zone"):
@@ -101,7 +96,7 @@ func _draw() -> void:
 		return
 	var color: Color = ThemeTokens.GAMEPLAY_ESCAPE
 	draw_rect(rect, Color(color, current_fill_alpha()))
-	# Çapraz tarama (45°), dikdörtgene kırpılmış.
+	# Hatching (45 deg), clipped to the rect.
 	var hatch := Color(color, HATCH_ALPHA)
 	var span: float = rect.size.x + rect.size.y
 	var x: float = 0.0
@@ -120,7 +115,7 @@ func _draw_kroki() -> void:
 		return
 	var color: Color = ThemeTokens.GAMEPLAY_ESCAPE
 	_kroki.draw_rect(rect.grow(-EDGE_WIDTH), color, false, KROKI_EDGE_WIDTH)
-	# Kaçış aracı silueti (yer tutucu): gövde, kabin camı, iki teker.
+	# Escape vehicle silhouette (placeholder): body, cabin window, two wheels.
 	var h: float = rect.size.y * VAN_HEIGHT_RATIO
 	var body := Rect2(rect.get_center() - Vector2(h * VAN_ASPECT, h) / 2.0, Vector2(h * VAN_ASPECT, h))
 	var ink := Color(color, SILHOUETTE_ALPHA)
@@ -134,7 +129,7 @@ func _draw_kroki() -> void:
 		_kroki.draw_circle(c, wheel_r, ink)
 
 
-## `a`-`b` doğru parçasının `r` içindeki kısmı (Liang–Barsky); dışarıdaysa boş.
+## Part of segment `a`-`b` inside `r` (Liang-Barsky); empty if outside.
 static func _clip_segment(a: Vector2, b: Vector2, r: Rect2) -> PackedVector2Array:
 	var d: Vector2 = b - a
 	var t0: float = 0.0

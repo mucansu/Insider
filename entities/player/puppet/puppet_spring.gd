@@ -1,12 +1,11 @@
 class_name PuppetSpring
 extends RefCounted
-## Kukla yayı (US-014): sönümlü yay, yarı örtük Euler; PuppetRig'in sabit adımıyla ilerler. Gövde ezilmesi,
-## eğilme ve gözler bununla yumuşar (lineer hareket yok; GDD §14.1).
-## Kararlılık: yarı örtük Euler ω·h ve 2ζ·ω·h büyüyünce patlar (ör. 10 Hz × sönüm 2 ya da 20 Hz); adım, bu iki
-## değer alt adım başına STABLE_LIMIT'i aşmayacak kadar alt adıma bölünür (en çok MAX_SUBSTEPS). Bu da
-## yetmezse frekans ve sönüm o sınıra kenetlenir; sonlu olmayan durum hedefe sıfırlanır.
+## Puppet spring (US-014): damped spring, semi-implicit Euler; advances with PuppetRig's fixed step. Body squash, lean and eyes smooth with it
+## (no linear motion; GDD §14.1). Stability: semi-implicit Euler blows up when w*h and 2*zeta*w*h grow (e.g. 10 Hz x damping 2, or 20 Hz);
+## the step is split into substeps (at most MAX_SUBSTEPS) so both stay under STABLE_LIMIT per substep. If that is not enough, frequency
+## and damping clamp to the limit; non-finite state resets to the target.
 
-## Alt adım başına ω·h ve 2ζ·ω·h üst sınırı.
+## Upper limit of w*h and 2*zeta*w*h per substep.
 const STABLE_LIMIT := 0.5
 const MAX_SUBSTEPS := 16
 
@@ -34,7 +33,7 @@ func step(target: float, frequency: float, damping: float, h: float) -> void:
 		settle(target)
 
 
-## Hedefe hızsız oturur (sessiz yeniden kurulum).
+## Settles on the target with no velocity (silent rebuild).
 func settle(value: float) -> void:
 	x = value
 	v = 0.0
