@@ -7,8 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://bfw33dvrop0k4" path="res://entities/props/bag.tscn" id="4_bag"]
 [ext_resource type="PackedScene" path="res://entities/npc/owner/owner.tscn" id="5_owner"]
 [ext_resource type="Script" uid="uid://bw4s7uaqkfgyj" path="res://entities/npc/store_alert.gd" id="6_alert"]
-[ext_resource type="Script" path="res://entities/fx/escape_marker.gd" id="7_escape"]
-[ext_resource type="Script" path="res://entities/npc/population.gd" id="7_pop"]
+[ext_resource type="Script" uid="uid://csgutiajmqys0" path="res://entities/fx/escape_marker.gd" id="7_escape"]
+[ext_resource type="Script" uid="uid://cjp3w5ymt8ytd" path="res://entities/npc/population.gd" id="7_pop"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -280,6 +280,9 @@ is_open = true
 [node name="BackDoor" parent="Props" unique_id=1880345537 instance=ExtResource("3_door")]
 position = Vector2(656, 112)
 
+[node name="BackroomDoor" parent="Props" unique_id=1418820867 instance=ExtResource("3_door")]
+position = Vector2(624, 272)
+
 [node name="Bag" parent="Props" unique_id=692715059 instance=ExtResource("4_bag")]
 position = Vector2(496, 240)
 
@@ -465,5 +468,5 @@ position = Vector2(624, 272)
 start_position = Vector2(0, -32)
 end_position = Vector2(0, 32)
 
-[node name="EscapeMarker" type="Node2D" parent="."]
+[node name="EscapeMarker" type="Node2D" parent="." unique_id=635662549]
 script = ExtResource("7_escape")

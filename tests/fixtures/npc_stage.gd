@@ -16,6 +16,11 @@ var level: Level = null
 var map: RID = RID()
 ## Nüfus üreticisi `run` içinde adımlansın mı (US-016).
 var with_population: bool = false
+## IS-086: store_a'nın iç kapısı (Props/BackroomDoor) sahnede kapalı başlar. `run` fizik/boşta karesi beklemeden
+## adımladığı için NPC'nin açtığı kapının gövdesi (ertelenmiş) ve gezinme bağı (harita yinelemesi) adım içinde
+## güncellenmez; kapıyla ilgisi olmayan sahip/ajanda testleri kapısız eski düzende sürsün diye varsayılan açık
+## başlatılır (sahnedeki başlangıç değeri; değişim sayılmaz). Kapalı kapıyı sınayan test false verir.
+var backroom_door_open: bool = true
 
 
 func _init(owner_test: TestCase) -> void:
@@ -33,6 +38,9 @@ func enter(path: String = STORE, before_enter: Callable = Callable()) -> Level:
 	for child: Node in level.npcs_root().get_children():
 		if &"auto_step" in child:
 			child.set(&"auto_step", false)
+	var backroom_door: Node = level.props_root().get_node_or_null(^"BackroomDoor")
+	if backroom_door != null and &"is_open" in backroom_door:
+		backroom_door.set(&"is_open", backroom_door_open)
 	if before_enter.is_valid():
 		before_enter.call(level)
 	var region: NavigationRegion2D = level.navigation_region()
