@@ -11,6 +11,20 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-029 — Kefalet şimdi, basit (2026-10-03, kullanıcı)
+Yakalanma cezası görünür ve ekibe pahalı olsun: yakalanan oyuncu için iş sonunda ekip kasasından kefalet düşer (T1 bakkal 100; kademe tablosu `data/` ayarında, ileride artar). Kasa yetmezse ekip kasası eksiye düşer (borç) ve sonraki işin ödemesinden doğal olarak kapanır; kimse oyundan dışlanmaz. İş sonu ekranı yakalananı, kefaleti ve kasa değişimini açıkça gösterir. GDD §9.3 "bakkalda kefalet yok" satırı bu kararla değişir; sığınak/ekonomi (Faz 3) kefaleti devralır. Kalem US-041.
+
+### KR-028 — Hafif kontrol kipi (2026-10-03, kullanıcı; Fable danışması + koordinatör; GEÇİCİ — cila döneminde yeniden sıkılaştırılır)
+Neden: üretim yavaşladı (kalemlerin ~%40'ı t2'ye gitti, commit'lerin ~%60'ı pano, kalem başına 2× tam CI ~36 dk), denetimin yakaladığı gerçek hatalar neredeyse yalnız ağ/yetki kodunda; kullanıcının oyun testi daha çok gerçek hata buluyor; token tüketimi düşmeli. Kurallar (surec.md §4'ün önüne geçer):
+- **Bağımsız denetci** yalnız host yetkisi / RPC / kablo düzeni (S2, PROTOCOL_VERSION) değiştiren kalemde; o da hafif: AC'ler + ilgili `tests/net` senaryosu (0/150 ms), tam CI tekrarı yok. Diğer kalemler: ajan testleri + koordinatörün tek geçiş diff okuması → Bitti.
+- **Çürütmeli inceleme** kapalı (yalnız ağ modeli/yetki mimarisi değişirse koordinatör açar).
+- **Düzeltme turu (t2)** yalnız blocker'da: çökme, çalışmayan AC, yetki açığı, oyuncunun hemen göreceği bozukluk. Küçük düzeltmeyi koordinatör kendisi yapar. Nit'ler `docs/surec/nit-havuzu.md`'ye, IS açılmaz.
+- **CI:** ajan kalemde import + unit + dokunduğu net senaryosu. Birleştirmeden sonra import + unit zorunlu. Push öncesi `tools/ci_local.sh import unit tools` + değişen alanın net senaryoları; tam `ci_local.sh` günde bir kez ve her test-N checkpoint'inden önce.
+- **Pano commit'leri** kalem commit'iyle ya da oturum sonunda toplu.
+- **Dondurulanlar:** yeni süreç/kapı kalemleri (IS-084, IS-054 fikir havuzuna) ve yeni teknik araştırma turları — gerçek bir hata tetiklemedikçe.
+- **Kalanlar:** surec.md §9 kırmızı çizgiler, kurulu otomatik kapılar (sözleşme, i18n, sızıntı, yetim düğüm, uyarı), oyun testi (GB) her checkpoint'te.
+- **Geri açma:** cila döneminde (Faz 5 öncesi ya da kullanıcı isteğiyle) eski düzen (denetci her kalemde, çürütme M'de) yeniden değerlendirilir.
+
 ### KR-027 — NPC teması ve itme; ajanda süreleri; chaser hızı (2026-10-02, kullanıcı fikri → Fable → koordinatör)
 - Sakin temas (uyarı ≤ 1): çarpışma yok, daireler çakışırken (< 24 px) oyuncu hızı ×0,5, NPC yer değiştirmez, kukla 8 px eğilir.
 - İT = koşu kipinde hız yönünün ±60° önündeki NPC'ye temas (ayrı tuş yok; kullanıcı isterse yalnız girdi katmanı değişir). NPC 24 px / 0,25 sn kayar, 0,8 sn sendeler; iten 0,2 sn ×0,7; aynı NPC'ye 1 sn yeniden itme yok.
@@ -173,3 +187,9 @@ Kullanıcı 2026-10-02'de geri alınabilir tasarım kararlarında koordinatörü
 - 2026-10-01: Araştırma/ölçüm kalemleri (repoya dosya eklemeyen) denetci yerine koordinatör okumasıyla kapanır (surec.md §4 notu).
 - 2026-10-01 (IS-003): Gürültü autoload'ı `NoiseBus` (yerleşik `Noise` sınıfıyla ad çakışması; dosya autoload/noise.gd). `.translation` dosyaları gitignore'da (Godot VCS önerisi), import iki geçiş. `.gitattributes` (LF) IS-003'e eklendi. Test yardımcıları is_true/is_false.
 - 2026-10-01: GitHub entegrasyonu repo oluşturamadı (403); repo kullanıcı tarafından açılacak, iş yerelde sürüyor.
+- 2026-10-02 (IS-078): ana menüde görüş seçimi host portuyla aynı satırda (Grid 4 kolon), dikey odak zincirinin dışında, gamepad satırı port ↔ görüş ↔ Gelişmiş; 720p taşması tema değiştirmeden çözüldü (arayuz önerisi a).
+- 2026-10-02 (IS-080): `alert_level` oturum olayı HUD bildirimi göstermez (Hud.SILENT_EVENTS; bilgi uyarı merdiveninde); olay metinleri oyuncu adını `{name}` ile Game.players()'tan alır.
+- 2026-10-02 (US-011b): maruziyet 1 "görünür" = bir gözlemcinin son gözleminde koni içi ∧ görüş hattı (şüphe > 0 değil: şüphe görüş kesilince sürer). FogLayer sözleşme adı koddaki `line_clear` (mimari.md düzeltildi). Bot `vision_mode` adımı geçici otomasyon kancası; net_smoke senaryo `args` alanı IS-082.
+- 2026-10-03: Godot MCP (editör eklentisi) çekirdek araç olarak alınmadı — paralel worktree + headless/CI test düzenine uymaz, ajan denetim kapılarının dışında çalışır; canlı durum ihtiyacı döküm/olay günlüğüyle (IS-081). Arayüz/seviye görsel yinelemesinde tek seferlik deneme ileride açık. Ücretli AI üretim işlerinde (KR-024 açılırsa) istem başına kredi tavanı + önce maliyet gösterimi kuralı.
+- 2026-10-03 (koordinatör, US-016/US-039 raporu): US-039 AC3 boşta 45 sn **toplam** süre (tezgâh görevi 25-40 sn, kesintisiz hiç dolmaz); mevcut store_a ağ senaryoları nüfussuz fikstüre (`store_a_nopop`) taşındı, nüfuslu kapsama 4 yeni senaryoda; D kapısı eksikliği → IS-086; tezgâh görüşü ve tanık sönümü nit havuzunda (Fable, oyun testinden sonra).
+- 2026-10-03 (kullanıcı + Fable + koordinatör): örtü durumu ve polis gelişinde örtüsü sağlam içeridekinin serbest çıkması kabul (US-042; GDD §9.1 T1 "içeride kalan yakalandı" satırı daralır). Test-2 öncesi sıra (kullanıcı): US-010 bakkal etkileşimleri (+ telefon sesi dikkat dağıtma: rafa bırakılan telefon 3 sn sonra çalar, gürültü 240 px, sahip sese gider; ikinci kullanımda +30 şüphe), strateji etiketi dökümü, IS-087, YÖNLENDİR (US-043). Eli boş çekilmede o ana kadar yakalanan yakalı sayılır ve kefaleti düşer. KR-029: "Bir daha" kasayı sıfırlamaz (borç taşınır). İki kat: bakkalda yok; kullanıcının amacı (tek kişi kolay geçmesin) çift anahtar anları + test-2 strateji ölçümüyle; iki kat ilk T3-T4'te değerlendirilir (fikir havuzu).

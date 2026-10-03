@@ -8,6 +8,7 @@ Steam'de arkadaş davetiyle oynanan, 3 kişilik (2-4) online co-op, 2D üstten s
 |---|---|
 | tasarim/oyun-tasarimi.md | Oynanış, keşif, plan, gizlilik, ekonomi, kademeler, MVP kapsamı; tasarım sorusu olan her kalemde ilgili bölüm |
 | notes/mimari.md | Teknik mimari, dizin yapısı, sözleşmeler S1-S9, test katmanları; her kod kaleminde |
+| ../AGENTS.md, ../.claude/skills/ | Araçtan bağımsız giriş ve "nasıl yapılır" reçeteleri (test, ağ senaryosu, NPC, seviye, metin/tema, kalem kapatma, oyunu açma) |
 | notes/ajanlar.md | Ajan sahiplikleri, ortak kurallar, kalite katmanları, karar yetkisi, rapor formatı; ajan çalıştırmadan önce |
 | arastirma/ | Geliştirme dışı araştırmalar (Steam yayın, pazarlama/satış, yöntem, tuzaklar); faz planı ve Faz 5 hazırlığında |
 | tasarim/arastirma/ | Fable'ın tasarım ve yol haritası araştırmaları (benzer oyunlar, mekanikler, Faz 3-5 yönü); faz planı hazırlarken |

@@ -32,3 +32,4 @@ Ortak kurallar (docs/notes/ajanlar.md "Ortak ajan kuralları"):
 5. Godot: GODOT ortam değişkeni, yoksa tools/get_godot.sh ile .tools/godot. Yazdığın her modül için test ekle (birim: tests/unit/test_*.gd; ağ davranışı: tests/net/*.json) ve raporda çalıştır. Yeni dosyadan sonra `$GODOT --headless --path . --import` çalıştır; uyarı-hata bırakma. Sözleşmeler docs/notes/mimari.md S1-S9; değiştirmen gerekiyorsa "Karar gereken".
 6. Rapor (en fazla ~20 satır; ilk satır `Kalem: US-nnn`): **Yapılan** / **Test** (AC numaralı komut + sonuç) / **Açık kalan** (kalem adayı | nit) / **Karar gereken** (seçenek + öneri) / **Sınır dışı**.
 7. Pano dosyalarına (docs/notes/durum.md, docs/surec/{backlog,kararlar,gecmis}.md) dokunma.
+8. Nasıl yapılır reçeteleri `.claude/skills/` altında (ortak giriş `AGENTS.md`); bu alanda ilgili olanlar: seviye-duzeni, ag-senaryosu, test-yaz, kalem-kapat. Reçete ile bu dosya çelişirse bu dosya ve görev paketi geçerlidir.

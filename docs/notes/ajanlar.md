@@ -19,6 +19,9 @@ Düşünme seviyesi (2026-10-02, kullanıcı onayı): denetci, cekirdek ve tasar
 
 Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda değil. Sözleşme değişikliği koordinatör kararıdır, önce dokümana yazılır.
 
+## Skill'ler ve AGENTS.md (2026-10-03, kullanıcı isteği)
+"Nasıl yapılır" bilgisi ajan tanımlarından ayrı, araçtan bağımsız reçeteler olarak `.claude/skills/` altında: `test-yaz`, `ag-senaryosu`, `npc-ekle`, `seviye-duzeni`, `metin-ve-tema`, `kalem-kapat`, `oyunu-ac`. Başka bir geliştirici kendi ajanlarıyla çalışırsa giriş `AGENTS.md` + bu skill'ler; bu dosyadaki ajanlar yalnız rol/sahiplik/sınır tanımıdır. Skill güncellemesi koordinatörde (hook `.claude/` yazımını ajanlara kapatır); ajan, reçete eksik/yanlışsa raporunda "Karar gereken" altında önerir.
+
 ## Ortak ajan kuralları (her ajan dosyasında tekrarlanır)
 1. Proje kökü = repo kökü (ana oturumun çalışma dizini; ya da koordinatörün verdiği worktree yolu). İşe `docs/project-index.md` ile başla; yalnız kalemin `docs/surec/backlog.md` bölümünü ve "Oku" listesini aç. Bu projede Takip'in kuralları geçmez.
 2. Yalnız kalemin **Dokunulacak** listesinde çalış; **Dokunulmayacak**'a ya da başka ajanın alanına giren iş görürsen dokunma, raporda "Sınır dışı" yaz. Ortak dosyalara ekleme serbest, mevcut davranışı değiştirmek "Karar gereken".
@@ -30,6 +33,8 @@ Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda 
 8. Ajan dosyalarında `description` değeri çift tırnak içinde yazılır.
 
 ## Kalite katmanları
+> **Geçerli kip: KR-028 hafif kontrol (2026-10-03):** katman 2 yalnız ağ/yetki/kablo düzeni kaleminde, katman 3'te çürütme kapalı, katman 4 tam CI günde bir. Ayrıntı kararlar.md KR-028.
+
 1. **Ajan içi:** sahip ajan kendi testlerini yazar, AC'leri komut çıktısıyla gösterir.
 2. **Bağımsız denetim (denetci):** raporu okumadan AC'leri sıfırdan tekrarlar, testleri ve yerel CI'ı koşar, diff'i Dokunulacak listesine ve sözleşmelere karşı denetler, bulgularını önce kendisi çürütmeye çalışır. Ekran/his gerektiren kabul (pencere görüntüsü, oynanış hissi, gerçek internet) için headless eşdeğerini koşar ve kullanıcı adımlarını listeler (doğrulama kalemi).
 3. **Koordinatör diff okuması:** her kalemde tek geçiş (doğruluk, sözleşme sadakati, sadelik); M kalemde ve ağ/yetki kodunda ayrıca çürütmeli inceleme (ayrı ajan, salt okunur).
