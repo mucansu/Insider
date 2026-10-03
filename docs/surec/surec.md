@@ -37,6 +37,8 @@ Bir olgu tek dosyada yaşar; başka yerde bağlantı verilir.
 ID + başlık · hikâye (US) ya da tek cümle (IS) · AC1..n · Sahip · Büyüklük · Öncelik · **Dokunulacak** · **Dokunulmayacak** · Oku (1-3 doküman bölümü) · Bağımlılık · Sözleşme (S-numarası) · Test beklentisi · Karar gereken (ön).
 
 ## 4. Definition of Done — kalem
+> **Geçerli kip: KR-028 hafif kontrol (2026-10-03).** Madde 3 yalnız ağ/yetki/kablo düzeni kaleminde (hafif); madde 4 çürütme kapalı, t2 yalnız blocker; madde 6 tam CI günde bir + checkpoint öncesi, push öncesi `ci_local.sh import unit tools` + ilgili net senaryoları. Aşağıdaki tam düzen cila döneminde yeniden açılır.
+
 1. Ajan raporu formatta; AC'ler komut çıktısıyla.
 2. "Karar gereken" boş (günlüğe yazıldı / KR açıldı).
 3. denetci PASS (AC'ler sıfırdan, `git diff --name-only` sınır kontrolü, yerel CI).

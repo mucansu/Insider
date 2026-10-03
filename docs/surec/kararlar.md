@@ -11,6 +11,17 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-028 — Hafif kontrol kipi (2026-10-03, kullanıcı; Fable danışması + koordinatör; GEÇİCİ — cila döneminde yeniden sıkılaştırılır)
+Neden: üretim yavaşladı (kalemlerin ~%40'ı t2'ye gitti, commit'lerin ~%60'ı pano, kalem başına 2× tam CI ~36 dk), denetimin yakaladığı gerçek hatalar neredeyse yalnız ağ/yetki kodunda; kullanıcının oyun testi daha çok gerçek hata buluyor; token tüketimi düşmeli. Kurallar (surec.md §4'ün önüne geçer):
+- **Bağımsız denetci** yalnız host yetkisi / RPC / kablo düzeni (S2, PROTOCOL_VERSION) değiştiren kalemde; o da hafif: AC'ler + ilgili `tests/net` senaryosu (0/150 ms), tam CI tekrarı yok. Diğer kalemler: ajan testleri + koordinatörün tek geçiş diff okuması → Bitti.
+- **Çürütmeli inceleme** kapalı (yalnız ağ modeli/yetki mimarisi değişirse koordinatör açar).
+- **Düzeltme turu (t2)** yalnız blocker'da: çökme, çalışmayan AC, yetki açığı, oyuncunun hemen göreceği bozukluk. Küçük düzeltmeyi koordinatör kendisi yapar. Nit'ler `docs/surec/nit-havuzu.md`'ye, IS açılmaz.
+- **CI:** ajan kalemde import + unit + dokunduğu net senaryosu. Birleştirmeden sonra import + unit zorunlu. Push öncesi `tools/ci_local.sh import unit tools` + değişen alanın net senaryoları; tam `ci_local.sh` günde bir kez ve her test-N checkpoint'inden önce.
+- **Pano commit'leri** kalem commit'iyle ya da oturum sonunda toplu.
+- **Dondurulanlar:** yeni süreç/kapı kalemleri (IS-084, IS-054 fikir havuzuna) ve yeni teknik araştırma turları — gerçek bir hata tetiklemedikçe.
+- **Kalanlar:** surec.md §9 kırmızı çizgiler, kurulu otomatik kapılar (sözleşme, i18n, sızıntı, yetim düğüm, uyarı), oyun testi (GB) her checkpoint'te.
+- **Geri açma:** cila döneminde (Faz 5 öncesi ya da kullanıcı isteğiyle) eski düzen (denetci her kalemde, çürütme M'de) yeniden değerlendirilir.
+
 ### KR-027 — NPC teması ve itme; ajanda süreleri; chaser hızı (2026-10-02, kullanıcı fikri → Fable → koordinatör)
 - Sakin temas (uyarı ≤ 1): çarpışma yok, daireler çakışırken (< 24 px) oyuncu hızı ×0,5, NPC yer değiştirmez, kukla 8 px eğilir.
 - İT = koşu kipinde hız yönünün ±60° önündeki NPC'ye temas (ayrı tuş yok; kullanıcı isterse yalnız girdi katmanı değişir). NPC 24 px / 0,25 sn kayar, 0,8 sn sendeler; iten 0,2 sn ×0,7; aynı NPC'ye 1 sn yeniden itme yok.

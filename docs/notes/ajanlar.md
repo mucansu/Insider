@@ -30,6 +30,8 @@ Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda 
 8. Ajan dosyalarında `description` değeri çift tırnak içinde yazılır.
 
 ## Kalite katmanları
+> **Geçerli kip: KR-028 hafif kontrol (2026-10-03):** katman 2 yalnız ağ/yetki/kablo düzeni kaleminde, katman 3'te çürütme kapalı, katman 4 tam CI günde bir. Ayrıntı kararlar.md KR-028.
+
 1. **Ajan içi:** sahip ajan kendi testlerini yazar, AC'leri komut çıktısıyla gösterir.
 2. **Bağımsız denetim (denetci):** raporu okumadan AC'leri sıfırdan tekrarlar, testleri ve yerel CI'ı koşar, diff'i Dokunulacak listesine ve sözleşmelere karşı denetler, bulgularını önce kendisi çürütmeye çalışır. Ekran/his gerektiren kabul (pencere görüntüsü, oynanış hissi, gerçek internet) için headless eşdeğerini koşar ve kullanıcı adımlarını listeler (doğrulama kalemi).
 3. **Koordinatör diff okuması:** her kalemde tek geçiş (doğruluk, sözleşme sadakati, sadelik); M kalemde ve ağ/yetki kodunda ayrıca çürütmeli inceleme (ayrı ajan, salt okunur).

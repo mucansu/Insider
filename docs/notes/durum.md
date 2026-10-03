@@ -1,4 +1,6 @@
-# Durum (2026-10-03, yerel oturum — kullanıcı "müsait yerde dur" dedi; devir noktası)
+# Durum (2026-10-03, yerel oturum)
+
+**Kontrol kipi: KR-028 hafif (2026-10-03, kullanıcı)** — denetci yalnız ağ/yetki/kablo kaleminde, çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir; araştırma turları ve yeni süreç kalemleri donduruldu.
 
 ## Aktif faz
 Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-int` dalında sürüyor (KR-020: faz sonu beklemesi askıda). Yerel geliştirme: `C:\Users\Turkuaz\OneDrive\Desktop\Insider` (Windows 11, Git Bash, Godot 4.7.2 win64, renderer Compatibility). Oturum izin modu Auto. Kullanım sınırı nedeniyle ajan sayısı normal (≤ 3 yapım + denetimler); effort: high denetci/cekirdek/oynanis/tasarim, medium seviye/arayuz/altyapi/arastirmaci.
@@ -20,8 +22,8 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
    - should-fix: `game.gd` `_vision_attach_fog` sisi `default_mode` (çevresel) + varsayılan look RIGHT ile ilk `update_now()` yapıyor, oturum kipi sonra veriliyor → yönlü kipte doğuşta arka 288 px hafızaya yazılır, arkadaki NPC 0,1 sn görünür + 1,5 sn hayalet. Düzeltme: attach sonrası `set_mode` + `set_look_dir(me.look_dir)` + `reset_memory()` + `update_now()` (ya da attach_fog parametresi) + ağ testi iddiası "yönlü kipte doğuşta arkadaki karo MEMORY değil".
    - nit: `core/vision_rules.gd` Session `_history` ayrılan peer'ı silmiyor.
    - nit/kural: eşitleyici paket düzeni değişti, `PROTOCOL_VERSION` (game.gd:53) artırılmadı → bu kalemde 2'ye çıkar; mimari.md'ye "kablo düzeni değişince sürüm artar" kuralı.
-   Sonra denetci t2 → worktree'de `US-011b:` commit → faz2-int'e `--no-ff` (faz2-int artık 22e9392: IS-078 dev birleşimi + IS-080; game.gd döküm anahtarları ve texts.csv çakışabilir, iki taraf korunur) → import + unit → push.
-2. Sıradaki Faz 2: US-037 NPC teması (KR-027) → US-010 bakkal etkileşimleri (KR-026) → US-016 mekân nüfusu → IS-082 (net_smoke `args`) → IS-028 → US-038 kaçış okunurluğu (GB-04, test-2 öncesi P1) → IS-081 sahip tepkisi araştırması → IS-015 botlar → test-2 (IS-017).
+   KR-028 ile denetci t2 yok (PROTOCOL_VERSION değiştiği için hafif denetim: look_sync 0/150 ms koordinatörce) → worktree'de `US-011b:` commit → faz2-int'e `--no-ff` (faz2-int artık 22e9392: IS-078 dev birleşimi + IS-080; game.gd döküm anahtarları ve texts.csv çakışabilir, iki taraf korunur) → import + unit → push.
+2. Sıradaki Faz 2 (2026-10-03 düzeltildi: US-037 US-016'ya bağlı; kullanıcı müşterileri sordu): US-016 mekân nüfusu (müşteriler) → US-039 eksik ganimet keşfi (kullanıcı kararı; Fable danışması sürüyor) → IS-085 çanta taşıma görseli → US-037 NPC teması (KR-027) → US-010 bakkal etkileşimleri (KR-026) → IS-082 (net_smoke `args`) → IS-028 → US-038 kaçış okunurluğu (GB-04, test-2 öncesi P1) → IS-081 sahip tepkisi araştırması → IS-015 botlar → test-2 (IS-017).
 3. Yeni (2026-10-03, dış blog incelemesi): IS-084 push öncesi sızıntı taraması (P1, XS, altyapi — US-011b t2 ile paralel başlatılabilir); US-030'a klavye düzeni etiketi AC'si. Açık nit/kalem adayları backlog'da: IS-057..IS-077, IS-079 (IS-078/080 nit), IS-083 (US-011b nit), IS-064/IS-058, IS-020, IS-077.
 4. Temizlik: 14 eski ajan worktree'si (birleşmiş, temiz) silinemedi (oto mod izni); kullanıcı ya da izinle `git worktree remove`.
 
