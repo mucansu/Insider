@@ -19,6 +19,8 @@ marker = &"RestockSpot"
 min_sec = 6.0
 max_sec = 10.0
 facing = Vector2(0, -1)
+noise_kind = &"shelf"
+noise_interval_sec = 2.0
 
 [sub_resource type="Resource" id="Resource_backroom"]
 script = ExtResource("2_task")
@@ -37,6 +39,8 @@ max_sec = 15.0
 facing = Vector2(1, 0)
 half_angle_deg = 25.0
 bell_interrupts = false
+noise_kind = &"phone"
+noise_interval_sec = 3.0
 
 [resource]
 script = ExtResource("1_otune")

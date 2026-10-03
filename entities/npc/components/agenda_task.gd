@@ -18,3 +18,7 @@ extends Resource
 @export var home: bool = false
 ## Kapı zili bu görevi keser mi (telefon kesmez).
 @export var bell_interrupts: bool = true
+## Görev noktasındayken çıkan ajanda sesi (US-011b; NoiseProfile türü, ör. &"phone", &"shelf"; boş = sessiz) ve
+## aralığı (sn; ilk ses de varıştan bu kadar sonra). Yarıçap NoiseProfile'dan.
+@export var noise_kind: StringName = &""
+@export_range(0.0, 60.0, 0.1, "suffix:s") var noise_interval_sec: float = 0.0

@@ -8,6 +8,10 @@ extends Node
 ## okunmaz, basılı eylemler bırakılmış sayılır; bot girdisi bundan etkilenmez.
 ## `--bot` zaman çizelgesi süreç genelidir: seviye değişiminde yeniden doğan yerel oyuncu kaldığı yerden sürdürür
 ## ("oyun başlangıcı" = süreçteki ilk yerel oyuncunun ilk fizik adımı).
+## Bakış (US-011b AC3; GDD §6.5): `look_vector(origin)` dünya yönü ya da ZERO (açık bakış yok → oyuncu hareket
+## yönüne yumuşak döner, klavye-yalnız). Cihazda son kullanılan bakış aygıtı geçerlidir: fare hareketi → fare
+## (oyuncudan imlece dünya yönü), sağ çubuk (`look_*`, S5) ölü bölge dışında → çubuk yönü; çubuk bırakılınca açık
+## bakış yok. Bot: zaman çizelgesinin `"look"` adımı (S6 eki).
 
 enum Source { NONE, DEVICE, BOT }
 
@@ -17,6 +21,12 @@ const MOVE_UP := &"move_up"
 const MOVE_DOWN := &"move_down"
 ## Basılı / yeni basıldı durumu izlenen eylemler (S5).
 const ACTIONS: Array[StringName] = [&"sprint", &"sneak", &"interact", &"intimidate"]
+const LOOK_LEFT := &"look_left"
+const LOOK_RIGHT := &"look_right"
+const LOOK_UP := &"look_up"
+const LOOK_DOWN := &"look_down"
+## Cihazda son kullanılan bakış aygıtı.
+enum LookDevice { NONE, MOUSE, STICK }
 
 ## `--bot` dosyasının süreç geneli zaman çizelgesi (ilk yerel oyuncuda yüklenir).
 static var _process_bot: BotTimeline = null
@@ -26,6 +36,8 @@ var _bot: BotTimeline = null
 var _move: Vector2 = Vector2.ZERO
 var _held: Dictionary = {}
 var _just_pressed: Dictionary = {}
+var _look: Vector2 = Vector2.ZERO
+var _look_device: LookDevice = LookDevice.NONE
 
 
 func _ready() -> void:
@@ -61,12 +73,14 @@ func use_none() -> void:
 ## Bu adımın girdisini okur; Player her fizik adımının başında bir kez çağırır.
 func poll(delta: float) -> void:
 	_move = Vector2.ZERO
+	_look = Vector2.ZERO
 	_held.clear()
 	_just_pressed.clear()
 	match _source:
 		Source.BOT:
 			_bot.tick(Engine.get_physics_frames(), delta)
 			_move = _bot.move_vector()
+			_look = _bot.look_vector()
 			for action: StringName in ACTIONS:
 				_held[action] = _bot.is_held(action)
 				_just_pressed[action] = _bot.is_just_pressed(action)
@@ -74,6 +88,10 @@ func poll(delta: float) -> void:
 			if UiInput.is_gameplay_input_blocked():
 				return
 			_move = Input.get_vector(MOVE_LEFT, MOVE_RIGHT, MOVE_UP, MOVE_DOWN)
+			var stick: Vector2 = Input.get_vector(LOOK_LEFT, LOOK_RIGHT, LOOK_UP, LOOK_DOWN)
+			if stick.length() >= LookRules.INPUT_EPSILON:
+				_look_device = LookDevice.STICK
+				_look = stick.normalized()
 			for action: StringName in ACTIONS:
 				_held[action] = Input.is_action_pressed(action)
 				_just_pressed[action] = Input.is_action_just_pressed(action)
@@ -84,6 +102,22 @@ func move_vector() -> Vector2:
 	return _move
 
 
+## Bu adımın açık bakış yönü (dünya, birim) ya da ZERO. `origin`: oyuncunun dünya konumu (fare bakışı imlece
+## oradan yönelir).
+func look_vector(origin: Vector2) -> Vector2:
+	var mouse: bool = _source == Source.DEVICE and _look_device == LookDevice.MOUSE and is_inside_tree()
+	if mouse and not UiInput.is_gameplay_input_blocked():
+		var viewport: Viewport = get_viewport()
+		var world: Vector2 = viewport.get_canvas_transform().affine_inverse() * viewport.get_mouse_position()
+		var toward: Vector2 = world - origin
+		return toward.normalized() if toward.length() >= 1.0 else Vector2.ZERO
+	return _look
+
+
+func look_device() -> LookDevice:
+	return _look_device
+
+
 func is_held(action: StringName) -> bool:
 	return bool(_held.get(action, false))
 
@@ -92,9 +126,16 @@ func is_just_pressed(action: StringName) -> bool:
 	return bool(_just_pressed.get(action, false))
 
 
+func _input(event: InputEvent) -> void:
+	if _source == Source.DEVICE and event is InputEventMouseMotion:
+		_look_device = LookDevice.MOUSE
+
+
 func _set_source(value: Source, timeline: BotTimeline) -> void:
 	_source = value
 	_bot = timeline
 	_move = Vector2.ZERO
+	_look = Vector2.ZERO
+	_look_device = LookDevice.NONE
 	_held.clear()
 	_just_pressed.clear()

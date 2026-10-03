@@ -1,0 +1,13 @@
+{
+  "_doc": "look_sync.json c1 botu (US-011b): owner_detect_c1 yolu (ön kapıdan gir, tezgâh ucunun önünden personel tarafına geç, sahibin konisinde dur) + bakış adımları: t=0,5 doğu (0°), t=2,5 güney (90°), t=4,0 kuzey (−90°; son hedef, tutulmadan çok önce yakınsar). Bakış hareketi ve NPC algısını etkilemez (yalnız görüş ve kukla).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 0.5, "look": [1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 2.5, "look": [0, 1]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.0, "look": [0, -1]},
+    {"t": 4.9, "move": [1, 0]},
+    {"t": 6.25, "move": [0, 0]}
+  ]
+}

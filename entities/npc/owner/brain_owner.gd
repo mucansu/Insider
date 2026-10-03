@@ -34,6 +34,9 @@ const CALM_STATES: Array[int] = [State.AGENDA, State.LOOK, State.QUESTION]
 const STAND_PX := 6.0
 const SHOUT_KIND := &"shout"
 const MAX_DETECTIONS := 64
+## Sahibin kendi çıkardığı sesler: işitmesi bunlara tepki vermez (bağırış; US-011b ajanda sesleri).
+const OWN_NOISE_KINDS: Array[StringName] = [SHOUT_KIND, NoiseProfile.KIND_PHONE, NoiseProfile.KIND_SHELF,
+	NoiseProfile.KIND_BELL]
 
 var owner_tuning: OwnerTuning
 var civilian_tuning: CivilianTuning
@@ -49,6 +52,8 @@ var rescues: Array[Dictionary] = []
 var peaks: Dictionary = {}
 ## Yayılan bağırış gürültüsü sayısı (ilk + her 5 sn yineleme; döküm/test).
 var shout_noises: int = 0
+## Yayılan ajanda sesleri (US-011b; tür -> sayı): telefon, raf düzeltme, kapı zili.
+var agenda_noises: Dictionary = {}
 
 ## Bileşenler (setup bağlar; okunur).
 var body: CharacterBody2D = null
@@ -148,9 +153,10 @@ func ring_bell(door_pos: Vector2) -> bool:
 	return _interrupt(Agenda.Interrupt.BELL, owner_tuning.bell_sec, Vector2.INF, door_pos, false)
 
 
-## Ses duyuldu (Hearing `heard`, S8/S11): sese doğru yürür (64 px kala durur) ve bakar. Kendi bağırışı hariç.
+## Ses duyuldu (Hearing `heard`, S8/S11): sese doğru yürür (64 px kala durur) ve bakar. Kendi sesleri
+## (bağırış, ajanda sesleri, zil) hariç.
 func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
-	if kind == SHOUT_KIND or not pos.is_finite():
+	if OWN_NOISE_KINDS.has(kind) or not pos.is_finite():
 		return false
 	var here: Vector2 = body.global_position
 	var spot: Vector2 = Vector2.INF
@@ -166,6 +172,7 @@ func _interrupt(kind: Agenda.Interrupt, duration: float, spot: Vector2, look: Ve
 
 
 func _on_door_crossed(_peer_id: int, door_pos: Vector2) -> void:
+	_agenda_noise(NoiseProfile.KIND_BELL, door_pos)  # zil kapıda çalar (US-011b; sahip nerede olursa olsun)
 	ring_bell(door_pos)
 
 
@@ -189,6 +196,9 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 	else:
 		mover.stop()
 	agenda.step(delta, mover.arrived() or mover.failed())
+	var sound: StringName = agenda.take_noise(delta)
+	if not sound.is_empty():
+		_agenda_noise(sound, body.global_position)
 	var narrowed: float = agenda.half_angle_deg()
 	perception.set_cone(narrowed if narrowed > 0.0 else civilian_tuning.half_angle_deg, civilian_tuning.view_range)
 	var velocity: Vector2 = mover.desired_velocity(delta)
@@ -308,6 +318,12 @@ func _tick_shouts(delta: float) -> void:
 func _noise() -> void:
 	shout_noises += 1
 	NoiseBus.emit_noise(body.global_position, owner_tuning.shout_radius, SHOUT_KIND)
+
+
+## Ajanda sesi (US-011b, S8): yarıçap NoiseProfile'dan; NoiseBus host'ta dinleyicilere ve halka olayına yayar.
+func _agenda_noise(kind: StringName, at: Vector2) -> void:
+	agenda_noises[kind] = int(agenda_noises.get(kind, 0)) + 1
+	NoiseBus.emit_noise(at, NoiseProfile.load_default().radius_for(kind), kind)
 
 
 func _record_peaks() -> void:

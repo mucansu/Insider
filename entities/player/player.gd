@@ -38,6 +38,12 @@ extends CharacterBody2D
 ## Çanta (US-012): taşıma durumu çantadadır (Bag, host yetkili); oyuncu yalnız okur (`is_carrying`,
 ## `interaction_tags` → eli boşsa `free_hands`) ve koşuyu bildirir (`is_sprinting`); düşürme kuralı çantada (host).
 ##
+## Bakış (US-011b AC3; GDD §6.5, S2): `look_dir` istemci yetkili. Yerel kopya her fizik adımında PlayerInput'un
+## bakış girdisiyle (fare/sağ çubuk/bot `"look"`; yoksa hareket yönüne k = 9 yumuşak dönüş) LookRules ile döner,
+## tavan `VisionTuning.max_turn_deg_per_sec` (240°/sn); `net_look` 8 bit açı (LookRules.quantize, 1,4° adım)
+## hareket eşitleyicisinde 20 Hz gider. Uzak kopya açıyı SnapshotBuffer'da (100 ms) ara değerler ve aynı tavanla
+## izler. Tutulan/yakalanan oyuncunun bakışı donar. Host bakışı hiçbir oyun kararında kullanmaz (NPC algısı da).
+##
 ## Tutulma/yakalanma (US-008, S3 eki): `Status` alt düğümü (PlayerStatus, host yetkili alt ağaç) FREE/HELD/CAUGHT
 ## durumunu taşır ve ÇEK kurtarma Interactable'ını barındırır. Yerel kopya FREE değilken donar: girdi okunmaz
 ## (hareket ve etkileşim kesilir, hız sıfır). Host API'si (`host_hold/host_catch/host_release`) NPC beyinlerinden
@@ -72,12 +78,16 @@ const SPRINT_MOVING_SPEED := 20.0
 var net_position: Vector2 = Vector2.ZERO
 var net_facing: Vector2 = Vector2.DOWN
 var net_mode: int = PlayerMotion.Mode.WALK
+## Bakış açısı, 8 bit (LookRules.quantize; US-011b).
+var net_look: int = LookRules.quantize(PI * 0.5)
 ## Yetkili kopyanın kendi saatinde net_position'ın yazıldığı an (sn); ara değerleme bu saate göre çizer.
 var net_time: float = 0.0
 
 ## Görselin okuduğu durum (her kopyada; uzak kopyada tampondan).
 var facing: Vector2 = Vector2.DOWN
 var move_mode: int = PlayerMotion.Mode.WALK
+## Bakış yönü (birim; görsel, sis ve döküm okur). Yerelde girdiden, uzakta ara değerlenmiş ve tavanlı.
+var look_dir: Vector2 = Vector2.DOWN
 
 var _local: bool = false
 var _interacting: bool = false
@@ -90,6 +100,9 @@ var _track_walls: bool = false
 var _wall_frames: int = 0
 var _noise_profile: NoiseProfile = null
 var _step_noise: NoiseRules.Cadence = null
+var _look_angle: float = PI * 0.5
+var _look_ready: bool = false
+var _max_turn: float = 0.0
 
 @onready var _input: PlayerInput = $PlayerInput
 @onready var _sync: MultiplayerSynchronizer = $MultiplayerSynchronizer
@@ -107,6 +120,8 @@ func _ready() -> void:
 	_buffer = SnapshotBuffer.new(tuning.interpolation_delay)
 	_noise_profile = NoiseProfile.load_default()
 	_step_noise = NoiseRules.Cadence.new(_noise_profile.step_interval)
+	var vision: VisionTuning = load(VisionTuning.PATH) as VisionTuning
+	_max_turn = deg_to_rad(vision.max_turn_deg_per_sec) if vision != null else 0.0
 	add_to_group(Interactable.ACTOR_GROUP)
 	_camera.enabled = _local
 	if _local:
@@ -140,6 +155,10 @@ func _physics_process(delta: float) -> void:
 			velocity = Vector2.ZERO  # tutuldu/yakalandı: donar
 		move_and_slide()
 		facing = PlayerMotion.facing_for(facing, direction)
+		if free:
+			_look_angle = LookRules.step_look(_look_angle, _input.look_vector(global_position), facing, delta,
+				_max_turn)
+		look_dir = Vector2.from_angle(_look_angle)
 		_publish()
 		_emit_step_noise(delta)
 		_interaction.tick(delta, free and _input.is_held(INTERACT_ACTION), global_position, peer_id(),
@@ -148,7 +167,7 @@ func _physics_process(delta: float) -> void:
 		_wall_frames += 1
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if _local:
 		return
 	_interacting = Interactable.held_by(get_tree(), peer_id()) != null
@@ -159,6 +178,12 @@ func _process(_delta: float) -> void:
 	velocity = frame.velocity
 	facing = frame.facing
 	move_mode = frame.mode
+	if _look_ready:
+		_look_angle = LookRules.turn(_look_angle, frame.look, delta, _max_turn)
+	else:
+		_look_angle = frame.look  # ilk veri: dönüş animasyonu olmadan otur
+		_look_ready = true
+	look_dir = Vector2.from_angle(_look_angle)
 
 
 ## Bu kopyanın sahibi olan peer (S3: yetki = peer_id).
@@ -168,6 +193,16 @@ func peer_id() -> int:
 
 func is_local() -> bool:
 	return _local
+
+
+## Oturumun görüş kipi yönlü mü (host kuralı, Game.vision_mode(); görsel ekip bakış yayı için okur).
+func is_directional_view() -> bool:
+	return Game.vision_mode() == VisionGrid.Mode.DIRECTIONAL
+
+
+## Çizilen bakış açısı (rad; `look_dir`'in açısı).
+func look_angle() -> float:
+	return _look_angle
 
 
 ## Oyuncunun katılım yuvası (Game.players(); renk görselde ThemeTokens.PLAYER_COLORS[slot]).
@@ -274,6 +309,7 @@ func motion_state() -> Dictionary:
 	return {
 		"mode": move_mode,
 		"facing": facing,
+		"look_deg": snappedf(rad_to_deg(_look_angle), 0.1),
 		"wall_frames": _wall_frames,
 		"underruns": _buffer.underrun_count() if _buffer != null else 0,
 		"status": _status.state if _status != null else PlayerStatus.State.FREE,
@@ -334,6 +370,7 @@ func _publish() -> void:
 	net_position = position
 	net_facing = facing
 	net_mode = move_mode
+	net_look = LookRules.quantize(_look_angle)
 	net_time = _now()
 
 
@@ -362,7 +399,7 @@ func _on_interaction_finished(success: bool) -> void:
 
 
 func _on_synchronized() -> void:
-	_buffer.push(net_time, _now(), net_position, net_facing, net_mode)
+	_buffer.push(net_time, _now(), net_position, net_facing, net_mode, LookRules.dequantize(net_look))
 
 
 func _refresh_identity() -> void:

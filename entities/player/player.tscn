@@ -25,6 +25,9 @@ properties/2/replication_mode = 1
 properties/3/path = NodePath(".:net_time")
 properties/3/spawn = false
 properties/3/replication_mode = 1
+properties/4/path = NodePath(".:net_look")
+properties/4/spawn = false
+properties/4/replication_mode = 1
 
 [node name="Player" type="CharacterBody2D" unique_id=394301989]
 collision_layer = 2

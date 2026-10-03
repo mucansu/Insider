@@ -38,6 +38,9 @@ var _int_spot: Vector2 = Vector2.INF
 var _int_look: Vector2 = Vector2.INF
 var _int_on_arrival: bool = false
 var _int_arrived: bool = false
+## Ajanda sesi (US-011b): o anki görevin temposu (görev değişince yeniden kurulur).
+var _noise_task: AgendaTask = null
+var _noise_cadence: NoiseRules.Cadence = null
 
 
 ## Listeyi ve tohumu kurar, ev görevinden başlar. `resolver`: func(marker) -> Array[Vector2].
@@ -70,6 +73,21 @@ func step(delta: float, at_goal: bool) -> void:
 		_time_left -= dt
 		if _time_left <= 0.0:
 			_begin(_next())
+
+
+## Bu adımda çıkan ajanda sesi (US-011b; görev noktasına varılmış, kesme yok, görevde `noise_kind` varsa
+## `noise_interval_sec` aralıkla; ilk ses varıştan bir aralık sonra). Ses yoksa boş. `step`ten sonra çağrılır.
+func take_noise(delta: float) -> StringName:
+	var task: AgendaTask = _task if _interrupt == Interrupt.NONE and _arrived else null
+	var active: bool = task != null and not task.noise_kind.is_empty() and task.noise_interval_sec > 0.0
+	if active and task != _noise_task:
+		_noise_task = task
+		_noise_cadence = NoiseRules.Cadence.new(task.noise_interval_sec, task.noise_interval_sec)
+	if _noise_cadence == null:
+		return &""
+	if not _noise_cadence.tick(maxf(delta, 0.0), active):
+		return &""
+	return _noise_task.noise_kind
 
 
 ## Şu an gidilecek konum (global); INF = olduğu yerde dur.

@@ -153,7 +153,8 @@ func test_scene_structure() -> void:
 		eq(sync.replication_config.property_get_replication_mode(path), SceneReplicationConfig.REPLICATION_MODE_ALWAYS,
 			"%s her aralıkta (güvenilmez) yayılır" % path)
 	props.sort()
-	eq(props, [".:net_facing", ".:net_mode", ".:net_position", ".:net_time"], "konum/yön/kip + gönderen anı")
+	eq(props, [".:net_facing", ".:net_look", ".:net_mode", ".:net_position", ".:net_time"],
+		"konum/yön/kip + bakış (US-011b) + gönderen anı")
 
 
 func test_camera_and_input_only_on_local_player() -> void:
