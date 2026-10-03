@@ -11,6 +11,9 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-029 — Kefalet şimdi, basit (2026-10-03, kullanıcı)
+Yakalanma cezası görünür ve ekibe pahalı olsun: yakalanan oyuncu için iş sonunda ekip kasasından kefalet düşer (T1 bakkal 100; kademe tablosu `data/` ayarında, ileride artar). Kasa yetmezse ekip kasası eksiye düşer (borç) ve sonraki işin ödemesinden doğal olarak kapanır; kimse oyundan dışlanmaz. İş sonu ekranı yakalananı, kefaleti ve kasa değişimini açıkça gösterir. GDD §9.3 "bakkalda kefalet yok" satırı bu kararla değişir; sığınak/ekonomi (Faz 3) kefaleti devralır. Kalem US-041.
+
 ### KR-028 — Hafif kontrol kipi (2026-10-03, kullanıcı; Fable danışması + koordinatör; GEÇİCİ — cila döneminde yeniden sıkılaştırılır)
 Neden: üretim yavaşladı (kalemlerin ~%40'ı t2'ye gitti, commit'lerin ~%60'ı pano, kalem başına 2× tam CI ~36 dk), denetimin yakaladığı gerçek hatalar neredeyse yalnız ağ/yetki kodunda; kullanıcının oyun testi daha çok gerçek hata buluyor; token tüketimi düşmeli. Kurallar (surec.md §4'ün önüne geçer):
 - **Bağımsız denetci** yalnız host yetkisi / RPC / kablo düzeni (S2, PROTOCOL_VERSION) değiştiren kalemde; o da hafif: AC'ler + ilgili `tests/net` senaryosu (0/150 ms), tam CI tekrarı yok. Diğer kalemler: ajan testleri + koordinatörün tek geçiş diff okuması → Bitti.
