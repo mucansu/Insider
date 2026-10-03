@@ -148,6 +148,14 @@ func test_store_navigation_paths() -> void:
 	var alley: Vector2 = level.marker(&"StreetRoute6").position  # arka kapının önündeki ara sokak
 	var escape: Vector2 = level.zone(&"EscapeZone").position
 
+	# IS-086: iç kapı (Props/BackroomDoor) sahnede kapalı başlar ve bağını kapatır; kapalıyken tezgâh arkasından
+	# arka odaya yol yok (ön/arka kapı açık olsa da arka kapıdan dolaşır), açılınca yol iç kapıdan geçer.
+	var backroom_link: NavigationLink2D = level.door_link(&"BackroomDoor")
+	is_false(backroom_link.enabled, "iç kapı kapalı başlar: bağı kapalı")
+	is_false(_passes(_path(map, clerk, cash), backroom_door), "iç kapı kapalı: tezgâh → nakit iç kapıdan geçmez")
+	backroom_link.enabled = true
+	await _sync(map)
+
 	var to_register: PackedVector2Array = _path(map, spawn, customer)
 	is_true(_arrives(to_register, customer), "spawn → kasanın önü yolu var")
 	is_true(_passes(to_register, front), "spawn → kasa ön kapıdan geçer")
@@ -178,6 +186,9 @@ func test_store_navigation_paths() -> void:
 	await _sync(map)
 	is_false(_arrives(_path(map, spawn, customer), customer), "iki dış kapı kapalı: dışarıdan kasaya yol olmamalı")
 	is_true(_arrives(_path(map, clerk, cash), cash), "içeride tezgâh → arka oda (iç kapı açık)")
+	backroom_link.enabled = false
+	await _sync(map)
+	is_false(_arrives(_path(map, clerk, cash), cash), "üç kapı kapalı: tezgâh → arka oda yolu yok (IS-086)")
 	_leave(level, map)
 
 

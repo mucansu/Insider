@@ -4,6 +4,9 @@
 ; Satış alanı rafları yatay koridorlar; tezgâh (C) ve kasa (R) ön kapıya bakar; tezgâhtar (K) arkada.
 ; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D; nakit (M) raf arkasındaki köşede,
 ; iç kapıdan görünmez. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
+; Kapı nesneleri (Props, elle; üretici korur): FrontDoor (açık başlar), BackDoor ve BackroomDoor (D, IS-086; kilitsiz,
+; kapalı başlar, kapalıyken görüşü keser). D ClerkSpot'un ~101 px kuzeydoğusunda, sahibin arkasında: açılış sesi
+; (160 px) tezgâhta duyulur (DİNLE), arka odaya girişin tek izidir.
 ; Sokak rotası (IS-023, eski PolicePatrol; yoldan geçen + mahalleli yaklaşma yolu): a→f sırası ön camlar → ön kapı
 ; → köşe → yan camlar → yan sokak → arka kapı; ara sokak batıda kapalı (ön cepheye yalnız yan sokaktan dönülür).
 ; Kaçış bölgesi (X, E dahil) caddenin güneydoğu köşesinde: ön kapıdan kaldırım boyunca, arka kapıdan yan sokaktan.

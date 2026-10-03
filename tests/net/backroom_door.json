@@ -1,0 +1,28 @@
+{
+  "_doc": "IS-086 AC2/AC3 (US-039 AC9 zinciri, GDD §9.3): store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_door.tscn: tezgâh ~31 sn, iç kapı D sahnedeki gibi kapalı). c1 ara sokaktan arka kapıyı açıp arka odaya girer (arka kapı sesi tezgâha ulaşmaz) ve iç kapıyı arka oda tarafından, boşluğun batısında durarak açar. Kapı sesi (KIND_DOOR, 160 px) tezgâhtaki sahibe ~101 px'ten duvarsız ulaşır: Hearing → DİNLE (`listen` kesmesi; sese doğru yürür, 64 px kala durur ve bakar). c1 kapı boşluğunun görüş hattında değildir: şüphe artmaz, uyarı kımıldamaz, keşif yok. Kapı durumu (açık, 1 değişim) her peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_backroom_door.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 26,
+  "bots": {
+    "c1": "res://tests/net/bots/backroom_door_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_backroom_door.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.props.BackDoor.open", true]},
+    {"eq": ["*.props.BackroomDoor.open", true]},
+    {"eq": ["*.props.BackroomDoor.flips", 1]},
+    {"eq": ["*.props.BackroomDoor.consistent", true]},
+    {"all_equal": "props.BackroomDoor.open"},
+    {"eq": ["host.props.BackroomDoor.interact.completed", 1]},
+    {"eq": ["host.props.BackroomDoor.interact.npc_uses", 0]},
+    {"eq": ["host.owner.agenda", ["counter", "listen", "counter"]]},
+    {"eq": ["host.owner.peak.$c1", 0]},
+    {"eq": ["host.owner.detections", []]},
+    {"len": ["host.owner.discoveries", 0]},
+    {"eq": ["*.alert.level", 0]},
+    {"all_equal": "alert.level"},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}
