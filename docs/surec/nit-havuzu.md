@@ -35,3 +35,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-015a (oynanis) | core/bot_rules.gd | Tezgâh/kasa durma noktaları store_a geometrisine göre; katı karakter listesi LevelLayout lejantının kopyası |
 | 2026-10-04 | IS-015a (oynanis) | autoload/game.gd | `--quit-on-heist-end` döküm yazımı main.gd'deki ~6 satırın kopyası; main.gd'ye taşınabilir |
 | 2026-10-04 | IS-015a (oynanis) | entities/npc/chaser | Takım koşusunda iş bittikten sonra kaçış bölgesindeki oyunculara chaser `player_caught` olayları düşüyor (sonuç yine escaped) — IS-081 AC3 (5 player_caught) ile birlikte bakılmalı |
+| 2026-10-04 | IS-096 (oynanis) | entities/npc/owner/task_glyph.gd | Glif rozeti 8 px yarıçap (`BADGE_RADIUS`); oyun testinde büyütmek gerekebilir |
+| 2026-10-04 | IS-096 (oynanis) | entities/npc/components/npc_visual.gd | Koni duvara göre kırpılmıyor, sisin üstüne taşıyor; "konide" kararı yalnız geometri (karanlık bölge kuralı yok) |
