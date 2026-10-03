@@ -1,7 +1,6 @@
-// Görüş sisi krokisi (US-011a; GDD §6.5): duvar kenarı ve kapı eşiği çizgileri bir kez çizilir; her parçanın
-// görünürlüğü, bulunduğu karonun sis verisinden gelir (FogLayer veri dokuları, geçiş fog_layer.gdshader ile aynı:
-// mix(prev, next, blend_t); R bilinmeyen, G hafıza ağırlığı). Görünen ve çevresel karoda kroki gizlidir (seviyenin
-// kendi çizgisi zaten görünür). Renk çizim komutundan (ThemeTokens tonundan); burada sabit renk yok.
+// Vision fog sketch (US-011a; GDD §6.5): wall-edge and door-threshold lines drawn once; each piece's visibility comes from the fog data of its tile
+// (FogLayer data textures, same transition as fog_layer.gdshader: mix(prev, next, blend_t); R unknown, G memory weight).
+// The sketch is hidden on visible and ambient tiles (the level's own line is already visible). Colour comes from the draw command (ThemeTokens tone); none hard-coded here.
 shader_type canvas_item;
 render_mode unshaded;
 

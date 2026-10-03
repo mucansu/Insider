@@ -1,8 +1,8 @@
-// Görüş sisi (US-011a; GDD §6.5, §14): karo başına bir texel veri dokusu ekranın üstüne tonlanır.
-// Veri: R bilinmeyen, G hafıza, B çevresel ağırlığı, A karanlık tarama. Geçiş burada: d = mix(prev, next, blend_t)
-// (FogLayer blend_t'yi 0 → 1 ilerletir; CPU karede karo gezmez).
-// Renkler ve doygunluk çarpanları uniform'dur, FogLayer ThemeTokens.GAMEPLAY_FOG_*'dan verir (sabit renk yok).
-// "Bulanık" = alfa + doygunluk düşürme; blur yok (Compatibility uyumlu tek geçiş).
+// Vision fog (US-011a; GDD §6.5, §14): a one-texel-per-tile data texture, tinted over the screen.
+// Data: R unknown, G memory, B ambient weight, A dark scan. Transition happens here: d = mix(prev, next, blend_t)
+// (FogLayer advances blend_t 0 -> 1; no per-tile CPU work per frame).
+// Colours and saturation multipliers are uniforms supplied by FogLayer from ThemeTokens.GAMEPLAY_FOG_* (no hard-coded colour).
+// "Blurry" = alpha + saturation drop; no blur (single pass, Compatibility-friendly).
 shader_type canvas_item;
 render_mode unshaded;
 
@@ -29,13 +29,13 @@ uniform float hatch_width_px = 1.5;
 void fragment() {
 	vec2 grid_pos = UV * grid_size;
 	vec2 world = grid_pos * tile_px;
-	// Karo kenarı yumuşatma: iki texel merkezi arasındaki doğrusal geçiş karo sınırının ±edge_px/2'sine sıkışır.
+	// Tile-edge smoothing: the linear blend between two texel centres is squeezed into +/- edge_px/2 of the tile border.
 	vec2 t = grid_pos - 0.5;
 	vec2 cell = floor(t);
 	vec2 f = clamp((fract(t) - 0.5) * (tile_px / max(edge_px, 0.001)) + 0.5, 0.0, 1.0);
 	vec2 uv = (cell + f + 0.5) / grid_size;
 	vec4 d = mix(texture(prev_data, uv), texture(next_data, uv), blend_t);
-	// Görüş kenarı soluklaşması: yarıçapın son soft_edge_px'i görünen karoları hafıza tonuna kaydırır.
+	// Vision-edge fade: the last soft_edge_px of the radius shifts visible tiles toward the memory tone.
 	float seen = clamp(1.0 - d.r - d.g - d.b, 0.0, 1.0);
 	float fade = 0.0;
 	if (soft_edge_px > 0.0) {

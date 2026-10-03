@@ -1,40 +1,39 @@
 class_name ConnectInfo
 extends RefCounted
-## Bağlantı kolaylığı (US-026, rahatlik-ux.md UX-1 ve §2): davet adresi seçimi, "adres[:port]" ayrıştırma
-## ve son bağlantı bilgisinin (oyuncu adı, son katılınan adres) kalıcılığı. Düğümsüz, saf yardımcılar;
-## ekranlar (ana menü, davet paneli) bunları kullanır. Net'e dokunmaz (S1 imzaları değişmez).
+## Connection helpers (US-026, rahatlik-ux.md UX-1 and §2): invite address choice, "address[:port]" parsing, and persistence of last connection info (player name, last joined address).
+## Node-free pure helpers used by the screens (main menu, invite panel). Does not touch Net (S1 signatures unchanged).
 
 const DEFAULT_PORT := 7777
 const MIN_PORT := 1024
 const MAX_PORT := 65535
-## Hiç uygun arabirim yoksa davet adresi (yalnız aynı makinede çalışır).
+## Invite address when no suitable interface exists (works on the same machine only).
 const LOOPBACK := "127.0.0.1"
 const SETTINGS_PATH := "user://connect.cfg"
 const SECTION := "connect"
 const KEY_NAME := "name"
 const KEY_ADDRESS := "address"
-## Kalıcı ad bu uzunlukta kesilir (MainMenu.MAX_NAME_LENGTH ile aynı).
+## Persisted name is cut to this length (same as MainMenu.MAX_NAME_LENGTH).
 const MAX_NAME_LENGTH := 16
-## Kalıcı adres bu uzunlukta kesilir (adres alanının max_length'i).
+## Persisted address is cut to this length (the address field's max_length).
 const MAX_ADDRESS_LENGTH := 253
 
-## Ayar dosyasının yolu; testler geçici bir yola çevirir.
+## Settings file path; tests point it at a temp path.
 static var settings_path: String = SETTINGS_PATH
-## Bu oturumda menüden host olunan port (0 = menüden host olunmadı; duraklat menüsü Args.port'a düşer).
+## Port hosted from the menu this session (0 = not hosted from the menu; the pause menu falls back to Args.port).
 static var hosted_port: int = 0
 
 static var _ipv4_in_text: RegEx = RegEx.create_from_string(
 		"(?<![0-9.])([0-9]{1,3}(?:\\.[0-9]{1,3}){3})(?::([0-9]{1,5}))?(?![0-9]|\\.[0-9]|:[0-9])")
-## Metin içindeki Tailscale MagicDNS adı: "makine.tailXXXX.ts.net[:port]".
+## Tailscale MagicDNS name inside text: "machine.tailXXXX.ts.net[:port]".
 static var _ts_name_in_text: RegEx = RegEx.create_from_string(
 		"(?<![A-Za-z0-9.-])((?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+ts\\.net)(?::([0-9]{1,5}))?(?![A-Za-z0-9-]|\\.[A-Za-z0-9]|:[0-9])")
 static var _hostname: RegEx = RegEx.create_from_string(
 		"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$")
 
 
-# --- davet adresi ---
+# --- invite address ---
 
-## Geçerli IPv4 ise dört sekizli, değilse boş dizi.
+## Four octets if valid IPv4, else an empty array.
 static func ipv4_octets(text: String) -> PackedInt32Array:
 	var parts: PackedStringArray = text.split(".")
 	if parts.size() != 4:
@@ -50,13 +49,13 @@ static func ipv4_octets(text: String) -> PackedInt32Array:
 	return out
 
 
-## Tailscale (CGNAT) aralığı 100.64.0.0/10.
+## Tailscale (CGNAT) range 100.64.0.0/10.
 static func is_tailscale(ip: String) -> bool:
 	var o: PackedInt32Array = ipv4_octets(ip)
 	return o.size() == 4 and o[0] == 100 and o[1] >= 64 and o[1] <= 127
 
 
-## Özel ev/ofis ağı: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.
+## Private home/office network: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16.
 static func is_private_lan(ip: String) -> bool:
 	var o: PackedInt32Array = ipv4_octets(ip)
 	if o.size() != 4:
@@ -64,16 +63,15 @@ static func is_private_lan(ip: String) -> bool:
 	return o[0] == 10 or (o[0] == 172 and o[1] >= 16 and o[1] <= 31) or (o[0] == 192 and o[1] == 168)
 
 
-## Sanal makine/konteyner ağı (VirtualBox host-only 192.168.56.0/24, Docker köprüsü 172.17.0.0/16):
-## arkadaşın ulaşamayacağı, çoğu makinede bulunan adresler; LAN listesinin sonuna konur.
+## VM/container networks (VirtualBox host-only 192.168.56.0/24, Docker bridge 172.17.0.0/16): present on most machines but unreachable by a friend;
+## placed at the end of the LAN list.
 static func is_virtual_lan(ip: String) -> bool:
 	var o: PackedInt32Array = ipv4_octets(ip)
 	return o.size() == 4 and ((o[0] == 192 and o[1] == 168 and o[2] == 56) or (o[0] == 172 and o[1] == 17))
 
 
-## Davet adresi adayları, önerilen ilk sırada: önce Tailscale, sonra özel LAN, en sonda sanal ağlar
-## (is_virtual_lan); her grupta giriş sırası, tekrarsız. IPv6, 169.254 (link-local), loopback ve genel
-## adresler atlanır. Aday yoksa [LOOPBACK].
+## Invite address candidates, recommended first: Tailscale, then private LAN, virtual networks last (is_virtual_lan); input order within groups, no duplicates.
+## IPv6, 169.254 (link-local), loopback and public addresses are skipped. [LOOPBACK] if none.
 static func invite_candidates(addresses: PackedStringArray) -> PackedStringArray:
 	var tailscale: PackedStringArray = []
 	var lan: PackedStringArray = []
@@ -95,24 +93,24 @@ static func invite_candidates(addresses: PackedStringArray) -> PackedStringArray
 	return out
 
 
-## Bu makinenin arabirimlerinden davet adresi adayları.
+## Invite address candidates from this machine's interfaces.
 static func local_invite_candidates() -> PackedStringArray:
 	return invite_candidates(IP.get_local_addresses())
 
 
-## Davette gönderilen biçim: her zaman "adres:port".
+## Format sent in an invite: always "address:port".
 static func invite_text(address: String, port: int) -> String:
 	return "%s:%d" % [address, port]
 
 
-## Menüden host olunduysa o port, yoksa `fallback_port` (çağıran komut satırı portunu verir: Args.port).
+## The hosted port if hosted from the menu, else `fallback_port` (caller passes the command-line port: Args.port).
 static func session_port(fallback_port: int) -> int:
 	return hosted_port if hosted_port > 0 else fallback_port
 
 
-# --- ayrıştırma ---
+# --- parsing ---
 
-## Geçerli port (MIN_PORT..MAX_PORT) ya da -1.
+## Valid port (MIN_PORT..MAX_PORT) or -1.
 static func parse_port(text: String) -> int:
 	var t: String = text.strip_edges()
 	if t.is_empty() or t.length() > 5 or not _all_digits(t):
@@ -121,24 +119,24 @@ static func parse_port(text: String) -> int:
 	return port if port >= MIN_PORT and port <= MAX_PORT else -1
 
 
-## Geçerli IPv4 ya da makine adı (Tailscale MagicDNS adı dahil). Boşluk, IPv6 ve boş ad geçersiz.
+## Valid IPv4 or host name (including a Tailscale MagicDNS name). Whitespace, IPv6 and empty names are invalid.
 static func is_valid_host(address: String) -> bool:
 	if address.is_empty() or address.length() > MAX_ADDRESS_LENGTH:
 		return false
 	if _all_digits(address.replace(".", "")):
-		return ipv4_octets(address).size() == 4  # yalnız rakam ve nokta: IPv4 olmalı
+		return ipv4_octets(address).size() == 4  # digits and dots only: must be IPv4
 	return _hostname.search(address) != null
 
 
-## "adres" ya da "adres:port" (baş/son boşluklar atılır; port yoksa `default_port`).
-## Dönüş {"ok": bool, "address": String, "port": int}; geçersizse ok=false (adres/port yine dolu olabilir).
+## "address" or "address:port" (leading/trailing whitespace dropped; `default_port` if no port).
+## Returns {"ok": bool, "address": String, "port": int}; ok=false if invalid (address/port may still be filled).
 static func parse_host_port(text: String, default_port: int = DEFAULT_PORT) -> Dictionary:
 	var t: String = text.strip_edges()
 	var address: String = t
 	var port: int = default_port
 	var colons: int = t.count(":")
 	if colons > 1:
-		return {"ok": false, "address": t, "port": -1}  # IPv6 desteklenmez
+		return {"ok": false, "address": t, "port": -1}  # IPv6 is not supported
 	if colons == 1:
 		address = t.get_slice(":", 0).strip_edges()
 		port = parse_port(t.get_slice(":", 1))
@@ -146,10 +144,9 @@ static func parse_host_port(text: String, default_port: int = DEFAULT_PORT) -> D
 	return {"ok": ok, "address": address, "port": port}
 
 
-## Panodaki metinden davet adresi. Metnin tamamı "adres[:port]" ise o (tek sözcük, noktasız ve rakamsız
-## metin makine adı sayılmaz: "merhaba"). Değilse metindeki "IPv4[:port]" ve "ad.ts.net[:port]" adayları
-## arasından: önce portu yazılmış olan, sonra Tailscale (100.64/10 ya da ts.net), sonra özel ağ, sonra
-## diğerleri; eşitlikte metindeki sıra. Bulunamazsa ok=false.
+## Invite address from clipboard text. If the whole text is "address[:port]" use it (a single word without dots or digits is not a host name). Otherwise pick among
+## "IPv4[:port]" and "name.ts.net[:port]" candidates in the text: explicit port first, then Tailscale (100.64/10 or ts.net), then private, then others; ties by text order.
+## ok=false if none found.
 static func find_invite(text: String, default_port: int = DEFAULT_PORT) -> Dictionary:
 	var whole: Dictionary = parse_host_port(text, default_port)
 	if whole["ok"] and _looks_like_address(whole["address"]):
@@ -176,26 +173,26 @@ static func find_invite(text: String, default_port: int = DEFAULT_PORT) -> Dicti
 	return best
 
 
-## Adres alanına yazılacak biçim: port varsayılansa yalnız adres, değilse "adres:port".
+## Format for the address field: address only if the port is the default, else "address:port".
 static func format_address(address: String, port: int, default_port: int = DEFAULT_PORT) -> String:
 	return address if port == default_port else invite_text(address, port)
 
 
-# --- kalıcılık ---
+# --- persistence ---
 
-## Varsayılan ayarlar (dosya yok ya da bozuk).
+## Default settings (file missing or corrupt).
 static func default_settings() -> Dictionary:
 	return {KEY_NAME: "", KEY_ADDRESS: ""}
 
 
-## Ayarları okur. Dosya yoksa, bozuksa ya da değerler beklenen tipte değilse varsayılanlar döner; hata basılmaz.
+## Reads the settings. Defaults on a missing/corrupt file or wrong value types; no error printed.
 static func load_settings(path: String = "") -> Dictionary:
 	var out: Dictionary = default_settings()
 	var cfg := ConfigFile.new()
 	var file_path: String = path if not path.is_empty() else settings_path
 	if not FileAccess.file_exists(file_path):
 		return out
-	# Bozuk dosyada ConfigFile ayrıştırma hatası basar; oyuncu için önemsiz (varsayılana düşülür).
+	# A corrupt file makes ConfigFile print a parse error; harmless for the player (falls back to defaults).
 	var previous: bool = Engine.print_error_messages
 	Engine.print_error_messages = false
 	var err: Error = cfg.load(file_path)
@@ -211,7 +208,7 @@ static func load_settings(path: String = "") -> Dictionary:
 	return out
 
 
-## Ayarları yazar; `values`ta olmayan anahtarlar dosyadaki değerini korur.
+## Writes the settings; keys not in `values` keep their value in the file.
 static func save_settings(values: Dictionary, path: String = "") -> Error:
 	var file_path: String = path if not path.is_empty() else settings_path
 	var merged: Dictionary = load_settings(file_path)
@@ -224,7 +221,7 @@ static func save_settings(values: Dictionary, path: String = "") -> Error:
 	return cfg.save(file_path)
 
 
-## Yapıştırılan tek parça metin adres sayılır mı: nokta ya da rakam içermeli (MagicDNS kısa adı elle yazılır).
+## Whether a pasted single token counts as an address: must contain a dot or digit (a short MagicDNS name is typed by hand).
 static func _looks_like_address(address: String) -> bool:
 	if address.contains("."):
 		return true
@@ -235,7 +232,7 @@ static func _looks_like_address(address: String) -> bool:
 	return false
 
 
-## Kontrol karakterleri (C0, DEL, C1) atılır.
+## Control characters (C0, DEL, C1) are dropped.
 static func strip_control(text: String) -> String:
 	var out: String = ""
 	for i: int in text.length():

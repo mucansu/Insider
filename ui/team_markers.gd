@@ -1,39 +1,36 @@
 class_name TeamMarkers
 extends Control
-## Ekip arkadaşı işaretleri (US-011c; GDD §6.5): ekip arkadaşı her zaman tam çizilir (kuklası entities'de);
-## bu katman yalnız iki işaret ekler — ekrandaki arkadaşın başının üstünde "görüldü" gözü (maruziyeti 2 iken)
-## ve ekran dışındaki arkadaş için ekran kenarında atkı renginde (PLAYER_COLORS[slot]) ok; görüldüyse okun
-## yanında göz. Kimin gördüğü gösterilmez (§2.9). Dünya → ekran dönüşümü görünümün tuval dönüşümüyle.
-## Game'den yalnız S3 ve S3 eki (mimari.md, US-011b/c) üyeleri okunur: players()/players_changed, player_world_position(peer),
-## player_exposure(peer)/player_exposure_changed; yerel peer Net.local_peer_id(). Game konum vermiyorsa katman
-## gizli kalır (uyarı yok); maruziyet API'si yoksa yalnız oklar çizilir. HUD `bind()` ve her karede `advance()`.
+## Teammate markers (US-011c; GDD §6.5): the teammate is always drawn fully (puppet lives in entities); this layer adds two markers only: a "seen" eye above an on-screen teammate (exposure 2),
+## and for an off-screen teammate an edge arrow in their scarf colour (PLAYER_COLORS[slot]) with the eye beside it when seen. Who saw is never shown (§2.9). World -> screen uses the viewport canvas transform.
+## Reads only S3 and the S3 addendum from Game (players()/players_changed, player_world_position(peer), player_exposure(peer)/player_exposure_changed); local peer is Net.local_peer_id().
+## Hidden (no warning) if Game gives no position; only arrows if no exposure API. HUD calls `bind()` and `advance()` per frame.
 
-## Ok merkezinin ekran kenarına uzaklığı (px).
+## Distance of the arrow centre from the screen edge (px).
 const EDGE_MARGIN := 28.0
-## Ok boyu ve "görüldü" gözü (ekran px): GDD §14.1 oyun bilgisi işareti 1280×720'de ≥ 22 px
-## (göz 16 dünya px × kamera 1,5 = 24).
+## Arrow length and "seen" eye size (screen px): GDD §14.1 gameplay marker >= 22 px at 1280x720
+## (eye 16 world px x camera 1.5 = 24).
 const ARROW_SIZE := 26.0
 const SEEN_ICON_SIZE := 24.0
-## "Görüldü" gözünün dünyadaki sabit bağlantı noktası: oyuncu merkezinin üstü (kukla başının üstü,
-## animasyondan bağımsız — §14.1 kural 2).
+## Fixed world anchor of the "seen" eye: above the player centre (above the puppet's head,
+## animation-independent, §14.1 rule 2).
 const SEEN_ANCHOR := Vector2(0.0, -40.0)
-## Okun yanındaki gözün ok merkezine uzaklığı (ekranın içine doğru).
+## Distance of the eye beside the arrow from the arrow centre (inward).
 const ARROW_EYE_GAP := 30.0
 const OUTLINE_WIDTH := 3.0
-## Okun HUD bloğuna en yakın mesafesi (px).
+## Closest distance of the arrow to an HUD block (px).
 const ARROW_CLEARANCE := 6.0
 
-## Testler için dünya → ekran dönüşümü (Vector2 -> Vector2); geçersizse görünümün tuval dönüşümü.
+## World -> screen transform for tests (Vector2 -> Vector2); falls back to the viewport canvas transform if invalid.
 var world_to_screen: Callable
-## Okun örtmemesi gereken HUD blokları (HUD atar: nakit, ekip listesi, merdiven, rozet, istem); görünür olan
-## bloğun üstüne düşen ok kenar boyunca bloğun içe bakan yanına itilir.
+## HUD blocks the arrow must not cover (HUD sets: cash, team list, ladder, badge, prompt); an arrow landing on a visible
+## block is pushed along the edge to the block's inward side.
 var avoid: Array[Control] = []
 
 var game: Object = null
 var net: Object = null
-## peer -> maruziyet (0..2), sinyalden.
+## peer -> exposure (0..2), from the signal.
 var _exposure: Dictionary = {}
-## Son hesaplanan işaretler; bkz. `markers()`.
+## Last computed markers; see `markers()`.
 var _markers: Array[Dictionary] = []
 
 
@@ -42,7 +39,7 @@ func _ready() -> void:
 	hide()
 
 
-## Game konum API'si (S3 eki; mimari.md, US-011b/c) var mı.
+## Whether Game has the position API (S3 addendum).
 static func supports(source: Object) -> bool:
 	return source != null and source.has_method(&"player_world_position") and source.has_method(&"players")
 
@@ -60,20 +57,20 @@ func bind(source_game: Object, source_net: Object) -> void:
 	refresh()
 
 
-## Her karede (HUD çağırır); Game/Net kapanışta HUD'dan önce serbest kalırsa işlem yapılmaz.
+## Called every frame by the HUD; does nothing if Game/Net was freed before the HUD on shutdown.
 func advance(_delta: float) -> void:
 	if visible and is_instance_valid(game) and is_instance_valid(net):
 		refresh()
 
 
-## Son hesaplanan işaretler: {"peer", "kind" (&"seen" | &"arrow"), "pos" (ekran), "angle" (ok yönü, rad),
-## "color" (atkı rengi), "seen" (bool)}. Ekrandaki ve görülmeyen arkadaş için işaret yoktur.
+## Last computed markers: {"peer", "kind" (&"seen" | &"arrow"), "pos" (screen), "angle" (arrow direction, rad),
+## "color" (scarf colour), "seen" (bool)}. No marker for an on-screen, unseen teammate.
 func markers() -> Array[Dictionary]:
 	return _markers
 
 
-## Hedef ekran noktası `rect` dışındaysa `rect` merkezinden hedefe giden ışının `rect` kenarını kestiği nokta;
-## içindeyse hedefin kendisi.
+## If the target screen point is outside `rect`, the point where the ray from the `rect` centre to the target crosses the `rect` edge;
+## if inside, the target itself.
 static func edge_point(target: Vector2, rect: Rect2) -> Vector2:
 	var center: Vector2 = rect.get_center()
 	var d: Vector2 = target - center
@@ -85,8 +82,8 @@ static func edge_point(target: Vector2, rect: Rect2) -> Vector2:
 	return center + d * t
 
 
-## `inner` kenarındaki `pos`, `blocks` dikdörtgenlerinden birine (ok yarı boyu + pay kadar büyütülmüş) düşüyorsa
-## kenara dik yönde, ekranın içine doğru bloğun dışına itilir (üst kenarda bloğun altına, solda sağına …).
+## If `pos` on the `inner` edge falls on one of the `blocks` rects (grown by half arrow length + margin), it is pushed
+## perpendicular to the edge, inward past the block (below it on the top edge, to its right on the left, ...).
 static func push_clear(pos: Vector2, inner: Rect2, blocks: Array[Rect2], half: float) -> Vector2:
 	var out: Vector2 = pos
 	for block: Rect2 in blocks:
@@ -122,7 +119,7 @@ func refresh() -> void:
 			continue
 		var world: Vector2 = game.call(&"player_world_position", peer)
 		if not world.is_finite():
-			continue  # oyuncu henüz yok
+			continue  # player does not exist yet
 		var seen: bool = int(_exposure.get(peer, EyeIcon.HIDDEN)) >= EyeIcon.SEEN
 		var at: Vector2 = _to_screen(world)
 		if screen.has_point(at):
@@ -154,7 +151,7 @@ func _draw_arrow(center: Vector2, dir: Vector2, color: Color) -> void:
 	draw_arrow(self, center, dir, color, ARROW_SIZE)
 
 
-## Kenar oku (ok ucu `dir` yönünde, zemin renginde dış çizgili); kaçış oku da kullanır (US-038).
+## Edge arrow (tip toward `dir`, outlined in the ground colour); the escape arrow uses it too (US-038).
 static func draw_arrow(canvas: CanvasItem, center: Vector2, dir: Vector2, color: Color, arrow_size: float) -> void:
 	var side: Vector2 = dir.orthogonal() * arrow_size * 0.45
 	var tip: Vector2 = center + dir * arrow_size * 0.5
@@ -172,7 +169,7 @@ func _to_screen(world: Vector2) -> Vector2:
 	return get_viewport().get_canvas_transform() * world
 
 
-## S3: Game renk değil katılım yuvası yayınlar; renk slot'tan (slot yoksa sıra).
+## S3: Game publishes a join slot, not a colour; colour comes from the slot (index if no slot).
 static func _slot_color(info: Variant, index: int) -> Color:
 	var slot: int = index
 	if info is Dictionary and typeof((info as Dictionary).get("slot")) == TYPE_INT:

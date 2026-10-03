@@ -1,9 +1,7 @@
-; test_arena — boş 20×15 karo oda (US-002 AC4). Lejant: levels/level_layout.gd.
-; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa, NPC rotası, kaçış) burada yalıtık denenir.
-; IS-023: bakkal nüfus işaretlerinin asgari karşılıkları (sıralı adlardan birer tane) ve üç bölge (örtüşmez;
-; doğma noktaları bölge dışında, "dışarısı").
-; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
-; Boyamasız bölge: = <Bölge adı> <sütun> <satır> <genişlik> <yükseklik> (karo; aynı ad yinelenirse çok parçalı).
+; test_arena — empty 20x15 tile room (US-002 AC4). Legend: levels/level_layout.gd. Markers on open floor: level-bound systems (player, door, register, NPC route, escape) are tried here in isolation.
+; IS-023: minimal counterparts of the shop's population markers (one of each sequential name) and three zones (non-overlapping; spawn points outside zones, "outside").
+; Zone line: = <letter> <Zone name> <floor char>; the letter's cells (with markers inside) form a filled rectangle.
+; Unpainted zone: = <Zone name> <col> <row> <width> <height> (tiles; a repeated name makes a multi-part zone).
 @ F FrontDoor .
 @ B BackDoor .
 @ R Register .

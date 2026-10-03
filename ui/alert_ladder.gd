@@ -1,39 +1,34 @@
 class_name AlertLadder
 extends PanelContainer
-## Uyarı merdiveni (US-013; S3 eki, KR-021; okunabilirlik-2d §5): HUD üst ortası, dar ve yarı saydam
-## (haritayı az örter). Kademe kutuları 0-5; mevcut kademe ve altındaki (mekânda olan) kutular dolu
-## (GAMEPLAY_ALERT), mekânda olmayan kademe silik. Kademe yalnız renkle verilmez: kutuların yanında
-## "sayı · ad" yazılı (ALERT_T<k>_<seviye>). Polis sayacı
-## yalnız TIMER_LEVEL'da (alert_timer_left ≥ 0 iken). Kademe değişiminde kısa pop (hareket azaltmada yok).
-## Game'den yalnız S3 eki okunur: alert_level_changed, alert_level(), alert_timer_left(), venue_tier(). Game bu API'yi
-## taşımıyorsa merdiven gizli kalır. HUD `bind(game)` ile bağlar, `advance()` ile sayacı yeniler.
+## Alert ladder (US-013; S3 addendum, KR-021): narrow translucent HUD strip, boxes 0-5; current tier and below (present at the venue) are filled (GAMEPLAY_ALERT), absent tiers dim.
+## Tier is never colour-only: each box has a "number · name" label (ALERT_T<k>_<level>). Police timer only at TIMER_LEVEL (alert_timer_left >= 0); short pop on change (none under reduced motion).
+## Reads only the S3 addendum from Game (alert_level_changed, alert_level(), alert_timer_left(), venue_tier()); hidden if Game lacks it. HUD calls `bind(game)` and `advance()`.
 
 const LEVEL_MAX := 5
-## Game venue_tier() vermiyorsa (Faz 2'de tek mekân: bakkal T1).
+## Used when Game has no venue_tier() (single venue in Phase 2: shop T1).
 const DEFAULT_TIER := 1
-## Polis sayacının göründüğü kademe (bakkal: mahalle geldi).
+## Tier at which the police timer shows.
 const TIMER_LEVEL := 3
-## Mekân kademesi (T) -> o mekânda var olan uyarı kademeleri (GDD §6.1, S3 eki; bakkalda 4 yok).
-## Listede olmayan mekânda 0..LEVEL_MAX hepsi vardır.
+## Venue tier (T) -> alert tiers present there (GDD §6.1, S3 addendum); venues not listed have all 0..LEVEL_MAX.
 const VENUE_LEVELS := {1: [0, 1, 2, 3, 5]}
 const ALERT_KEY_FORMAT := "ALERT_T%d_%d"
-## Kutu boyutu (GDD §14.1: oyun bilgisi işaretleri 1280×720'de ≥ 22 px).
+## Box size (GDD §14.1: gameplay markers >= 22 px at 1280x720).
 const STEP_SIZE := Vector2(22, 22)
-## Mekânda olmayan kademenin kutusu silik.
+## Boxes of tiers absent at the venue are dimmed.
 const LOCKED_ALPHA := 0.3
 const POP_SEC := 0.3
 const POP_SCALE := 1.3
-## Ses kataloğu olayları (data/sfx_catalog.tres; IS-024).
+## Sound catalogue events (data/sfx_catalog.tres; IS-024).
 const SFX_STEP := &"alert_step"
 const SFX_HIGH := &"alert_high"
 
-## Mekân kademesi; `bind` Game.venue_tier()'den okur (S3 eki), Game vermiyorsa DEFAULT_TIER.
+## Venue tier; `bind` reads Game.venue_tier() (S3 addendum), else DEFAULT_TIER.
 var tier: int = DEFAULT_TIER
-## Hareket azaltma (GDD §14.1 kural 5): kademe değişiminde pop çalmaz, durum anında görünür.
+## Reduced motion (GDD §14.1 rule 5): no pop on tier change, state shows instantly.
 var reduce_motion: bool = false
-## false: polis sayacı merdivende gösterilmez (US-038: HUD'da kaçış paneli sayacı büyük gösterir).
+## false: the ladder hides the police timer (US-038: the HUD escape panel shows it large).
 var show_timer: bool = true
-## Eksik metin anahtarı bildirimi (HUD bağlar; testler yakalar). Geçersizse push_warning.
+## Missing-text-key notification (HUD binds; tests catch it); push_warning if unhandled.
 var warn: Callable
 
 var game: Object = null
@@ -59,7 +54,7 @@ func _ready() -> void:
 	_render()
 
 
-## Game'e (S3 eki) bağlanır; API yoksa merdiven gizli kalır.
+## Binds to Game (S3 addendum); hidden if the API is missing.
 func bind(source: Object) -> void:
 	game = source
 	var supported: bool = game != null and game.has_signal(&"alert_level_changed") and game.has_method(&"alert_level")
@@ -71,7 +66,7 @@ func bind(source: Object) -> void:
 	set_level(int(game.call(&"alert_level")), false)
 
 
-## Sayacı yeniler (HUD her karede çağırır).
+## Refreshes the timer (HUD calls it every frame).
 func advance(_delta: float) -> void:
 	if visible and _level == TIMER_LEVEL:
 		refresh_timer()
@@ -81,12 +76,12 @@ func level() -> int:
 	return _level
 
 
-## Mekânda var olan kademeler.
+## Tiers present at the venue.
 func venue_levels() -> Array:
 	return VENUE_LEVELS.get(tier, range(LEVEL_MAX + 1))
 
 
-## Kademenin mekâna göre adı; anahtar yoksa genel metin + geliştirici uyarısı.
+## Tier name per venue; falls back to generic text + a developer warning if the key is missing.
 func level_name(value: int) -> String:
 	var key: String = ALERT_KEY_FORMAT % [tier, value]
 	var text: String = tr(key)
@@ -102,17 +97,17 @@ func set_level(value: int, animate: bool = true) -> void:
 	_level = clamped
 	_render()
 	if animate and changed:
-		UiSfx.of(self).play_event(step_event(_level))  # IS-024: ses hareket azaltmadan bağımsız
+		UiSfx.of(self).play_event(step_event(_level))  # IS-024: sound plays regardless of reduced motion
 	if animate and changed and not reduce_motion:
 		_play_pop(_steps[_level])
 
 
-## Kademe değişiminin sesi (ses-ve-sfx §2 #12): 1-2 yumuşak tık, TIMER_LEVEL ve üstü kısa gerilim vuruşu.
+## Sound for a tier change (ses-ve-sfx §2 #12): soft tick for 1-2, short tension hit from TIMER_LEVEL up.
 static func step_event(value: int) -> StringName:
 	return SFX_HIGH if value >= TIMER_LEVEL else SFX_STEP
 
 
-## Pop animasyonu sürüyor mu (test ve hareket azaltma denetimi için).
+## Whether the pop animation is running (for tests and the reduced-motion check).
 func is_popping() -> bool:
 	return _pop != null and _pop.is_valid() and _pop.is_running()
 
