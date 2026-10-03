@@ -1,43 +1,28 @@
-# Durum (2026-10-03, yerel oturum)
+# Durum (2026-10-03 akşam, devir noktası — yeni sohbete hazır)
 
-**Kontrol kipi: KR-028 hafif (2026-10-03, kullanıcı)** — denetci yalnız ağ/yetki/kablo kaleminde, çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir; araştırma turları ve yeni süreç kalemleri donduruldu.
+**Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-int` dalında sürüyor (KR-020: faz sonu beklemesi askıda). Yerel geliştirme: `C:\Users\Turkuaz\OneDrive\Desktop\Insider` (Windows 11, Git Bash, Godot 4.7.2 win64, renderer Compatibility). Oturum izin modu Auto. Kullanım sınırı nedeniyle ajan sayısı normal (≤ 3 yapım + denetimler); effort: high denetci/cekirdek/oynanis/tasarim, medium seviye/arayuz/altyapi/arastirmaci.
+Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **2c8773d** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
 
-## Faz 1 (dev = main)
-- Bitti: US-001..US-005, US-026 · IS-005, IS-007..IS-014, IS-019, IS-022, IS-026, IS-027, IS-029, IS-041, IS-042, IS-046, IS-052, IS-053 (ajan hook'ları canlı), IS-076.
-- test-1: main = cc9c9e1, etiketler `faz-1`, `test-1` (CI Release ön sürümü, debug build). Kullanıcı arkadaşlarla test edecek; gözlem listesi + anket `docs/tasarim/degerlendirmeler/faz-1.md`.
+Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
-## Faz 2 (`faz2-int`, GitHub'a yedekli; plan backlog §2b)
-- Bitti (faz2-int): US-006, US-007, IS-023, US-009, US-013, US-014, US-011a, US-011c, US-011d, US-012, US-033, US-008 · IS-024, IS-037, IS-038, IS-039, IS-047, IS-067. Son tam CI yeşil (500 birim, 34 ağ koşusu).
-- IS-078 Bitti (faz2-int eac9088, dev birleşik; tam CI yeşil 578 birim + 46 ağ koşusu).
-- US-011b Bitti (faz2-int 94fe3c0, 2026-10-03).
-- US-016 + US-039 Bitti (faz2-int 5805ce1; PROTOCOL_VERSION 3). Kullanıcı yeni sürümü deniyor (host + katılan, 2026-10-03 15:5x). Sıradaki: IS-085 çanta görseli, IS-086 D kapısı, IS-081 (GB-05 sonrası kalan), US-037, US-010; tam ci_local bugün henüz koşulmadı (KR-028 günde bir).
-- US-038 Bitti (faz2-int ae2913e).
-- IS-080 Bitti (faz2-int 22e9392).
-- Kullanıcı faz2-int'i yerelde denedi → GB-04 → IS-080 (HUD olay metinleri), IS-081 (sahip tepkisi), US-038 (kaçış okunurluğu), IS-079 (nit).
-- Önceki: US-008 Bitti (faz2-int 5ff9c28; faz1_full/heist_full/late_join_real sahipsiz `store_a_quiet` fikstüründe — sahipli uçtan uca IS-015'te). faz2-int GitHub'da güncel, 544 birim yeşil.
+## Sürüyor / yarım kalan
+Yok — çalışan ajan yok, tüm işler birleşik. Yerelde kullanıcı için oyun penceresi açık (host + katılan, faz2-int).
 
-## Yeni sohbette ilk adımlar (sırayla; 2026-10-03 durma noktası)
-1. US-011b Denetimde (worktree `.claude/worktrees/agent-ad9e586829b322a27`, dal `worktree-agent-ad9e586829b322a27`, taban faz2-int 5ff9c28, commit yok). denetci t1 PASS (tam CI 1062 sn: 576 birim, 46/46 ağ; blocker/should-fix 0) — ama çürütmeli inceleme should-fix'i açık, DoD 4 gereği kapanmadı. Çürütmeli inceleme bulguları — düzeltme turu (t2, oynanis; ajan bağlamı kayboldu → yeni paket):
-   - should-fix: `game.gd` `_vision_attach_fog` sisi `default_mode` (çevresel) + varsayılan look RIGHT ile ilk `update_now()` yapıyor, oturum kipi sonra veriliyor → yönlü kipte doğuşta arka 288 px hafızaya yazılır, arkadaki NPC 0,1 sn görünür + 1,5 sn hayalet. Düzeltme: attach sonrası `set_mode` + `set_look_dir(me.look_dir)` + `reset_memory()` + `update_now()` (ya da attach_fog parametresi) + ağ testi iddiası "yönlü kipte doğuşta arkadaki karo MEMORY değil".
-   - nit: `core/vision_rules.gd` Session `_history` ayrılan peer'ı silmiyor.
-   - nit/kural: eşitleyici paket düzeni değişti, `PROTOCOL_VERSION` (game.gd:53) artırılmadı → bu kalemde 2'ye çıkar; mimari.md'ye "kablo düzeni değişince sürüm artar" kuralı.
-   KR-028 ile denetci t2 yok (PROTOCOL_VERSION değiştiği için hafif denetim: look_sync 0/150 ms koordinatörce) → worktree'de `US-011b:` commit → faz2-int'e `--no-ff` (faz2-int artık 22e9392: IS-078 dev birleşimi + IS-080; game.gd döküm anahtarları ve texts.csv çakışabilir, iki taraf korunur) → import + unit → push.
-2. Sıradaki Faz 2 (2026-10-03 düzeltildi: US-037 US-016'ya bağlı; kullanıcı müşterileri sordu): US-016 mekân nüfusu (müşteriler) → US-039 eksik ganimet keşfi (kullanıcı kararı; Fable danışması sürüyor) → IS-085 çanta taşıma görseli → US-037 NPC teması (KR-027) → US-010 bakkal etkileşimleri (KR-026) → IS-082 (net_smoke `args`) → IS-028 → US-038 kaçış okunurluğu (GB-04, test-2 öncesi P1) → IS-081 sahip tepkisi araştırması → IS-015 botlar → test-2 (IS-017).
-3. Yeni (2026-10-03, dış blog incelemesi): IS-084 push öncesi sızıntı taraması (P1, XS, altyapi — US-011b t2 ile paralel başlatılabilir); US-030'a klavye düzeni etiketi AC'si. Açık nit/kalem adayları backlog'da: IS-057..IS-077, IS-079 (IS-078/080 nit), IS-083 (US-011b nit), IS-064/IS-058, IS-020, IS-077.
-4. Temizlik: 14 eski ajan worktree'si (birleşmiş, temiz) silinemedi (oto mod izni); kullanıcı ya da izinle `git worktree remove`.
-
-## Araştırma
-- Teknik: `docs/arastirma/teknik/` (ag-kodu, operasyon-guvenilirlik, mimari-test, cizim-performans, ses, oyun-yz, ajan-sureci — her biri 2 tur). Yeni tur kullanım sınırı rahatlayınca.
-- Tasarım: `docs/tasarim/arastirma/` (Fable); KR-026 bakkal etkileşimleri, KR-027 NPC teması/itme + ajanda süreleri + chaser 190.
+## Yeni sohbette ilk adımlar
+1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
+2. **IS-093 kod yorumları İngilizce + özet** (kullanıcı kararı): 5 paralel ajan (dizine göre: autoload+main; core+data; entities; ui+levels; tests+tools), `model: sonnet`; kural: yalnız yorum/docstring, kod/oyuncu metni/hata mesajı aynı, karar kimlikleri korunur; her ajan sonunda `python tools/check_comment_only.py faz2-int` → 0 + `ci_local.sh import unit tools`. Birleştirmeleri sırayla yap (dizinler ayrık).
+3. Test-2 (IS-017): kullanıcı arkadaşlarla paketle oynar; istenirse `test-2` etiketi → CI Release. Öncesinde tam CI zaten yeşil.
+4. Sıradaki Faz 2 kalemleri: IS-015 oyun testi botları + strateji istatistiği (tek kişi kolay geçiyor mu), US-037 NPC teması (KR-027), IS-092 küçük GDD bedelleri, IS-081 (GB-04/05 sonrası kalan sahip tepkisi), nit havuzundan dosyası dokunulanlar.
+5. Temizlik: ~30 birleşmiş ajan worktree'si (`git worktree list`) — kullanıcı izniyle `git worktree remove`.
 
 ## Kullanıcıdan bekleyen
-- Test-1 sonuçları (video olabilir); Releases'te test-1 zip'inin görünüp görünmediği.
-- Bekleyen KR: KR-013 ad (öneri Mapless), KR-014 Steamworks (sona), KR-024 AI ses hesabı (ElevenLabs Starter 1 ay önerisi), KR-025 Türkçe ses satırları (kullanıcı kaydı önerisi); itch gizli sayfa (test-2).
-- KR-019/021/023/026/027 geçici tasarım kararlarına itiraz (varsa).
+- Tailscale kurulumu ve arkadaşları tailnet'e davet (internet testi için); deneme paketinin paylaşımı.
+- Test-1 sonuçları (varsa).
+- Bekleyen KR: KR-013 ad (öneri Mapless), KR-014 Steamworks (sona), KR-024 AI ses hesabı, KR-025 Türkçe ses satırları.
+- Fable değerlendirmesine (test-2 sonrası): mahallelinin yalnız örtüsü bozuk oyuncuyu kovalaması (US-043), tezgâh görüşü/tanık sönümü (nit havuzu).
 
 ## Son kapanış
-Faz 1 — 2026-10-02: kod kalemleri Bitti, `faz-1` + `test-1` etiketi (kullanıcı doğrulaması test-1 ile).
+Faz 1 — 2026-10-02: `faz-1` + `test-1` etiketi (main = cc9c9e1).
 Faz 0 — 2026-10-01: IS-001..IS-004 Bitti.
