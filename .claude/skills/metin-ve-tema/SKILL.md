@@ -1,28 +1,28 @@
 ---
 name: metin-ve-tema
-description: Insiders oyuncuya görünen metin (i18n/texts.csv, tr() anahtarları, adlandırma kalıpları, metin varlık testi) ve renk/tema token'ı (ui/theme/tokens.gd, noir.tres yeniden üretimi) reçetesi. UI, balon, HUD olayı, iş sonu metni ya da yeni renk eklerken kullan.
+description: Recipe for Insiders player-visible text (i18n/texts.csv, tr() keys, naming patterns, text-presence tests) and colour/theme tokens (ui/theme/tokens.gd, regenerating noir.tres). Use when adding UI, NPC balloons, HUD events, heist-end text or new colours.
 ---
 
-# Metin ve tema
+# Text and theme
 
-Kural (mimari.md S9, surec.md §9): oyuncuya görünen sabit dize yok; metin `tr()` + `i18n/texts.csv`, renk tema token'ından.
+Rule (mimari.md S9, surec.md §9): no literal player-visible strings; text via `tr()` + `i18n/texts.csv`, colours from theme tokens. Player-facing text is written in Turkish (`tr`) and English (`en`).
 
-## Metin ekle
-1. `i18n/texts.csv` (başlık `keys,tr,en`): satır = `ANAHTAR,Türkçe,English`. tr ve en boş olamaz; yer tutucular (`%s`, `%d`, `{name}`) iki dilde aynı; virgüllü metin tırnak içinde.
-2. Anahtar biçimi `BÜYÜK_HARF_SAYI` (`^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$`).
-3. `"$GODOT" --headless --path . --import` (çeviri dosyaları yeniden üretilir; yoksa `test_translations_match_csv` düşer).
-4. Kodda `tr(&"ANAHTAR")`; `.tscn`'de text alanına anahtarın kendisi.
+## Add text
+1. `i18n/texts.csv` (header `keys,tr,en`): row = `KEY,Türkçe,English`. tr and en must be non-empty; placeholders (`%s`, `%d`, `{name}`) identical in both; quote text containing commas.
+2. Key format `UPPER_CASE_DIGITS` (`^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$`).
+3. `"$GODOT" --headless --path . --import` (regenerates translations; otherwise `test_translations_match_csv` fails).
+4. In code `tr(&"KEY")`; in a `.tscn` text field put the key itself.
 
-## Adlandırma kalıpları
-- `EVENT_<TÜR>` — HUD olay metni; `Hud.event_key(kind)` türü büyütür. Kalıba uymayan: `ui/hud.gd` `EVENT_KEY_OVERRIDES`; sessiz: `SILENT_EVENTS`. **Yeni `session_event` türü yayarsan metni şart** (`test_every_session_event_has_hud_text`).
-- `OWNER_*`, `CIVILIAN_*` — NPC balonları; `entities/npc/components/npc_visual.gd` `BALLOON_KEYS` eşlemesine ekle.
-- `ALERT_T<kademe>_<seviye>` — uyarı merdiveni.
-- `END_OUTCOME_<SONUÇ>` (+ `_NOTE`), `NOTE_<KIND>` + `NOTE_<KIND>_DESC`, `HUD_*`, `MENU_*`, `INTERACT_*`, `PAUSE_*`.
+## Naming patterns
+- `EVENT_<KIND>` - HUD event text; `Hud.event_key(kind)` upper-cases the kind. Exceptions: `ui/hud.gd` `EVENT_KEY_OVERRIDES`; silent: `SILENT_EVENTS`. **Emitting a new `session_event` kind requires its text** (`test_every_session_event_has_hud_text`).
+- `OWNER_*`, `CIVILIAN_*` - NPC balloons; add to `BALLOON_KEYS` in `entities/npc/components/npc_visual.gd`.
+- `ALERT_T<tier>_<level>` - alert ladder.
+- `END_OUTCOME_<OUTCOME>` (+ `_NOTE`), `NOTE_<KIND>` + `NOTE_<KIND>_DESC`, `HUD_*`, `MENU_*`, `INTERACT_*`, `PAUSE_*`.
 
-Denetleyen test: `tests/unit/test_ui_texts.gd` (CSV biçimi, çeviriler, sahnelerde/betiklerde düzyazı yok, her olay türünün metni var).
+Checked by `tests/unit/test_ui_texts.gd` (CSV format, translations, no prose in scenes/scripts, every event kind has text).
 
-## Renk / tema
-- Tek kaynak `ui/theme/tokens.gd` (`ThemeTokens`): BG, FG, ACCENT, SURFACE, `GAMEPLAY_*` (oyun anlamlı renkler her tonda aynı), PLAYER_COLORS…
-- Tür varyasyonları `ui/theme/theme_builder.gd` (TitleLabel, CardPanel, HudChip, AlertPanel, AlertLabel, EscapeLabel…).
-- Değiştirdikten sonra: `"$GODOT" --headless --path . -s res://ui/theme/build_themes.gd` → `ui/theme/noir.tres` (elle düzenlenmez). `test_ui_theme.gd` güncellik, kontrast ve "sahnede yalnız token" denetler.
-- Hareket azaltma ayarına saygı (nabız/salınım kapanır).
+## Colour / theme
+- Single source `ui/theme/tokens.gd` (`ThemeTokens`): BG, FG, ACCENT, SURFACE, `GAMEPLAY_*` (gameplay-meaningful, identical in every tone), PLAYER_COLORS...
+- Type variations in `ui/theme/theme_builder.gd` (TitleLabel, CardPanel, HudChip, AlertPanel, AlertLabel, EscapeLabel...).
+- After changes: `"$GODOT" --headless --path . -s res://ui/theme/build_themes.gd` -> `ui/theme/noir.tres` (never hand-edit). `test_ui_theme.gd` checks freshness, contrast and "tokens only in scenes".
+- Respect the reduce-motion setting (pulses/sway off).

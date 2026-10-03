@@ -20,3 +20,8 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | US-040/041 (oynanis) | ui/escape_panel.gd | Kasayı boşaltan sonradan yakalanırsa istemci geri sayımı göstermez (host kararı doğru); 150 ms'de istemci sayacı ~0,2 sn "0"da bekler |
 | 2026-10-03 | US-040/041 (oynanis) | ui/heist_end.gd | aborted sonucu başarı jingle'ını çalıyor |
 | 2026-10-03 | IS-086 (seviye) | entities/npc/owner | DİNLE sırasında sahip balonu yok (GDD "?") — IS-087'de |
+| 2026-10-03 | US-042 (oynanis) | core/heist_rules.gd | `Tracker.note_social` hazır, bağlı değil — US-010 SATIN AL/OYALA/GÖNDER çağırmalı (US-010 paketine iletilecek) |
+| 2026-10-03 | US-042 (oynanis) | entities/npc/components/perception.gd | Sahibin görüş hattını tezgâh kesiyor (hemen önünü görmüyor) |
+| 2026-10-03 | US-042 (oynanis) | core/heist_rules.gd | 'İşaretli' için yalnız bağırış/tutma sayılıyor, owner_question sayılmıyor; kaçış paneli örtü satırı yüzünden hep görünür |
+| 2026-10-03 | koordinatör | docs/notes/mimari.md | S3 eki tek uzun satır → her birleşmede çakışıyor; maddelere bölünmeli |
+| 2026-10-03 | Explore | autoload/game.gd:53 | PROTOCOL_VERSION üstündeki yorum '2: US-011b' diyor, değer 3 (US-016) |

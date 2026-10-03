@@ -11,6 +11,9 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-030 — Token tasarrufu: ajan dili ve okuma kuralı (2026-10-03, kullanıcı)
+Ajan tanımları (`.claude/agents/`), skill'ler (`.claude/skills/`) ve `AGENTS.md` İngilizce; kullanıcıya giden belgeler (GDD, backlog, kararlar, durum, araştırma notları, tasarım raporları), oyuncu metinleri ve ajan raporları Türkçe kalır; protokol anahtar sözcükleri (`Kalem:`, `Karar gereken`, `Dokunulacak`…) değişmez. Ajan kuralı: büyük dosyalar bütün okunmaz (grep + aralık), yineleme sırasında `--filter`/tek senaryo. Test çıktısı kısaltılır (IS-090). Toplu belge/kod yorumu çevirisi yapılmaz (kazanç %1-7, maliyet ve çakışma yüksek).
+
 ### KR-029 — Kefalet şimdi, basit (2026-10-03, kullanıcı)
 Yakalanma cezası görünür ve ekibe pahalı olsun: yakalanan oyuncu için iş sonunda ekip kasasından kefalet düşer (T1 bakkal 100; kademe tablosu `data/` ayarında, ileride artar). Kasa yetmezse ekip kasası eksiye düşer (borç) ve sonraki işin ödemesinden doğal olarak kapanır; kimse oyundan dışlanmaz. İş sonu ekranı yakalananı, kefaleti ve kasa değişimini açıkça gösterir. GDD §9.3 "bakkalda kefalet yok" satırı bu kararla değişir; sığınak/ekonomi (Faz 3) kefaleti devralır. Kalem US-041.
 
