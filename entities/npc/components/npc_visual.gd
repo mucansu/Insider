@@ -15,8 +15,10 @@ extends Node2D
 ## "?"/"!", balonlar) yalnız FULL iken. Siluet ve hayalet sisin üstünde (VisionRules.ABOVE_FOG_Z) çizilir. Sis
 ## yoksa her şey FULL. Dökümün `vision.visible_npcs` listesi `is_fully_visible()` olanlardan (grup
 ## VisionRules.NPC_VISUAL_GROUP).
+## US-016 eki (yalnız ekleme): müşteri ve yoldan geçen rolleri (gövde rengi), sivil/keşif balonları; sivil bir
+## oyuncuyla iç içe geçince yarı saydam çizilir (GDD §9.2 "Engel": çarpışma yok, okunur kalsın).
 
-enum Role { OWNER, CHASER }
+enum Role { OWNER, CHASER, CUSTOMER, PASSERBY }
 
 const RADIUS := 12.0
 const OUTLINE_WIDTH := 1.5
@@ -30,12 +32,23 @@ const GLYPH_WIDTH := 3.0
 const BALLOON_SEC := 2.5
 const BALLOON_OFFSET := Vector2(0.0, -46.0)
 const HOLD_RING := 16.0
+## Sivil oyuncuyla bu mesafeden yakınsa (px; iki gövde yarıçapı) yarı saydam, saydamlık.
+const OVERLAP_PX := 24.0
+const OVERLAP_ALPHA := 0.5
+## Çizilen koninin en geniş yarım açısı (derece; 180 tam daire, çokgen üçgenlenemez).
+const MAX_CONE_DEG := 175.0
 ## Olay → balon metni anahtarı (i18n/texts.csv).
 const BALLOON_KEYS := {
 	&"owner_question": "OWNER_QUESTION",
 	&"owner_shrug": "OWNER_SHRUG",
 	&"owner_shout": "OWNER_SHOUT",
 	&"owner_held": "OWNER_HELD",
+	&"owner_discover_register": "OWNER_DISCOVER_REGISTER",
+	&"owner_discover_cash": "OWNER_DISCOVER_CASH",
+	&"customer_tell": "CIVILIAN_TELL",
+	&"passerby_tell": "CIVILIAN_TELL",
+	&"customer_flee": "CIVILIAN_FLEE",
+	&"passerby_flee": "CIVILIAN_FLEE",
 }
 
 @export var role: Role = Role.OWNER
@@ -63,11 +76,22 @@ func _physics_process(delta: float) -> void:
 			peripheral = bool(fog.call(&"line_clear", FogView.observer_of(fog).global_position, at))
 	_gate.reduce_motion = Puppet.is_reduced_motion()
 	_gate.step(full, peripheral, at, delta)
+	if role == Role.CUSTOMER or role == Role.PASSERBY:
+		modulate.a = OVERLAP_ALPHA if _overlaps_player(at) else 1.0
 	if full or peripheral:
 		var face_v: Variant = p.get(&"facing")
 		if face_v is Vector2 and not (face_v as Vector2).is_zero_approx():
 			_seen_face = (face_v as Vector2).normalized()
 	z_index = 0 if _gate.is_full() else VisionRules.ABOVE_FOG_Z
+
+
+## Bir oyuncu gövdesiyle iç içe mi (sivil yarı saydamlığı; yalnız çizim).
+func _overlaps_player(at: Vector2) -> bool:
+	for node: Node in get_tree().get_nodes_in_group(PhysicsLayers.ACTORS_GROUP):
+		var p: Node2D = node as Node2D
+		if p != null and p.global_position.distance_to(at) < OVERLAP_PX:
+			return true
+	return false
 
 
 ## Bu peer'da tam çiziliyor mu (işaretler dahil; döküm `visible_npcs`).
@@ -121,7 +145,7 @@ func _draw() -> void:
 	face = face.rotated(-global_rotation)
 	if p.has_method(&"cone_half_angle") and p.has_method(&"cone_range"):
 		_draw_cone(face, float(p.call(&"cone_half_angle")), float(p.call(&"cone_range")), tone.fg_color)
-	var body: Color = tone.accent_color if role == Role.OWNER else ThemeTokens.GAMEPLAY_ALERT.darkened(0.25)
+	var body: Color = _body_color(tone)
 	draw_circle(Vector2.ZERO, RADIUS, body)
 	draw_arc(Vector2.ZERO, RADIUS, 0.0, TAU, 24, tone.bg_color, OUTLINE_WIDTH)
 	var tip: Vector2 = face * (RADIUS + INDICATOR_LENGTH)
@@ -140,6 +164,17 @@ func _draw() -> void:
 			CivilianRules.Bubble.ALARM:
 				_draw_exclaim(ThemeTokens.GAMEPLAY_ALERT)
 	_draw_balloon(p, tone)
+
+
+func _body_color(tone: Tone) -> Color:
+	match role:
+		Role.OWNER:
+			return tone.accent_color
+		Role.CUSTOMER:
+			return tone.fg_color.darkened(0.3)
+		Role.PASSERBY:
+			return tone.line_color
+	return ThemeTokens.GAMEPLAY_ALERT.darkened(0.25)
 
 
 ## Soluk siluet (çevresel bölge ve hayalet): gövde + bakış üçgeni, MUTED, kapının opaklığıyla; işaret yok.
@@ -164,7 +199,7 @@ func _draw_cone(face: Vector2, half_deg: float, reach: float, color: Color) -> v
 	if half_deg <= 0.0 or reach <= 0.0:
 		return
 	var points := PackedVector2Array([Vector2.ZERO])
-	var half: float = deg_to_rad(half_deg)
+	var half: float = deg_to_rad(minf(half_deg, MAX_CONE_DEG))  # tam daire üçgenlenemez
 	for i: int in CONE_SEGMENTS + 1:
 		points.append(face.rotated(-half + 2.0 * half * i / CONE_SEGMENTS) * reach)
 	draw_colored_polygon(points, Color(color, CONE_ALPHA))

@@ -1,11 +1,14 @@
 extends TestCase
 ## US-008 AC5 + AC8: bağırış sonrası (her 5 sn gürültü yinelenir; 30 sn kimse görünmezse uyarı 2 → 1 ve ajanda,
-## sakin kalınca 1 → 0; arka oda nakdi alınmışsa 60 sn sonra yeniden bağırış ve +1 komşu) ve koni histerezisi
-## (görülmekte olan hedef için 50°/224 → 53°/238 px; yakın/uzak bant sınırı değişmez). Tek süreç = host.
+## sakin kalınca 1 → 0) ve koni histerezisi (görülmekte olan hedef için 50°/224 → 53°/238 px; yakın/uzak bant
+## sınırı değişmez). US-039 AC6 güncellemesi: sabit "60 sn sonra yeniden bağırış" kalktı; sakinleşince ajandanın
+## ilk görevi arka oda, nakit alınmışsa varıştan 1 sn sonra keşif (DISCOVER → bağırış, +1 komşu; kaynak başına bir
+## kez). Tek süreç = host.
 
 const DT := 1.0 / 30.0
 const STAFF_FRONT := Vector2(560, 400)
 const HIDDEN := Vector2(656, 176)  # arka oda: duvar arkası
+const FAR := Vector2(880, 592)  # kaçış köşesi (dışarı): sahip arka odaya giderken görmez
 
 
 ## Arka oda nakdi yer tutucusu (US-010/US-012 çanta prop'u gelene kadar; duck typing `taken`).
@@ -29,24 +32,26 @@ func test_shout_repeats_then_calms_down_after_30s() -> void:
 	var a: StoreAlert = stage.alert()
 	a.tuning = a.tuning.duplicate() as OwnerTuning
 	a.tuning.max_neighbours = 0  # komşu içeri girip uyarıyı 3'e kilitlemesin: yalnız sahibin sönümü ölçülür
-	_shout_then_hide(stage)
+	var p: Player = _shout_then_hide(stage)
 	var noises: int = o.brain().shout_noises
 	eq(noises, 1, "ilk bağırış gürültüsü")
 	stage.run(10.0, Callable(), DT)
 	eq(o.brain().shout_noises, 3, "alarmdayken her 5 sn yinelenir")
 	eq(Game.alert_level(), 2)
+	p.position = FAR
 	stage.run(21.0, Callable(), DT)
 	eq(o.brain().state(), OwnerBrain.State.AGENDA, "30 sn kimse görünmedi: ajanda")
 	eq(Game.alert_level(), 1, "uyarı 2 → 1")
 	eq(o.suspicion().latch_level, Suspicion.Level.CALM, "tespit kilidi kalktı")
+	eq(o.agenda().task_name(), &"backroom", "US-039 AC6: ilk görev arka oda kontrolü")
 	stage.run(6.0, Callable(), DT)
 	eq(Game.alert_level(), 0, "sakin kaldı: 1 → 0")
 	eq(stage.alert().ladder.history, PackedInt32Array([0, 1, 2, 1, 0]), "I4")
-	eq(o.agenda().sequence[-1], &"counter", "ajanda tezgâhtan sürer")
+	eq(o.brain().discoveries.size(), 0, "nakit yerinde: keşif yok")
 	stage.leave()
 
 
-func test_taken_backroom_cash_triggers_late_shout_and_second_neighbour() -> void:
+func test_taken_backroom_cash_is_discovered_on_backroom_check() -> void:
 	var stage := NpcStage.new(self)
 	var cash := FakeCash.new()
 	cash.name = "FakeCash"
@@ -56,20 +61,36 @@ func test_taken_backroom_cash_triggers_late_shout_and_second_neighbour() -> void
 	var o: StoreOwner = stage.owner()
 	var shouts: Array[bool] = []
 	o.brain().shouted.connect(func(recheck: bool) -> void: shouts.append(recheck))
-	_shout_then_hide(stage)
+	var p: Player = _shout_then_hide(stage)
 	cash.taken = true
-	stage.run(32.0, Callable(), DT)
+	p.position = FAR
+	stage.run(9.0, Callable(), DT)
+	var first: Array[Chaser] = stage.alert().chasers()
+	eq(first.size(), 1, "bağırış: 8 sn sonra komşu")
+	for c: Chaser in first:
+		c.free()  # komşu sahneden çıkar: uyarı 3'e çıkmasın, sahibin sakinleşip arka odaya gidişi ölçülür
+	stage.run(21.5, Callable(), DT)
 	eq(o.brain().state(), OwnerBrain.State.AGENDA)
-	stage.run(55.0, Callable(), DT)
-	eq(shouts, [false] as Array[bool], "60 sn dolmadan yeniden bağırmaz")
-	stage.run(6.0, Callable(), DT)
-	eq(shouts, [false, true] as Array[bool], "nakit alınmış: ~60 sn sonra yeniden bağırış (geç fark etme)")
+	eq(o.agenda().task_name(), &"backroom", "sakinleşince ilk görev arka oda")
+	eq(Game.alert_level(), 1, "uyarı 2 → 1")
+	eq(shouts, [false] as Array[bool], "varmadan keşif yok")
+	var found: Array[float] = []
+	o.brain().discovered.connect(func(_s: int) -> void: found.append(o.agenda().arrived_for()))
+	stage.run(15.0, Callable(), DT)
+	eq(o.brain().discoveries.size(), 1, "arka oda varışında nakit keşfi")
+	if found.size() == 1:
+		near(found[0], 1.0, DT + 0.001, "AC2: varıştan 1 sn sonra")
+	if o.brain().discoveries.size() == 1:
+		eq(o.brain().discoveries[0]["source"], &"cash")
+		is_true(bool(o.brain().discoveries[0]["full"]), "sakin sahip: DISCOVER → bağırış")
+	eq(shouts, [false, true] as Array[bool], "keşif → bağırış (geç fark etme)")
 	is_true(o.brain().is_alarmed())
+	eq(Game.alert_level(), 2)
 	stage.run(8.5, Callable(), DT)
-	eq(stage.alert().chasers().size(), 2, "ikinci bağırış +1 komşu (en fazla 2)")
-	# GDD §9.3: geç yeniden bağırış oturum başına bir kez (ikinci sakinleşmeden sonra yinelenmez).
+	eq(stage.alert().chasers().size(), 1, "keşif bağırışı +1 komşu (toplam 2 = en fazla)")
+	# Kaynak başına bir keşif: ikinci sakinleşme + arka oda ziyaretinde yinelenmez.
 	stage.run(100.0, Callable(), DT)
-	eq(shouts.count(true), 1, "yeniden (geç) bağırış bir kez (%s)" % [shouts])
+	eq(shouts.count(true), 1, "keşif bir kez (%s)" % [shouts])
 	stage.leave()
 
 

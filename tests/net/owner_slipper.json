@@ -1,6 +1,6 @@
 {
-  "_doc": "US-008 taşıma (S3 eki, US-012 bağı): yakalayan oturum olayında. c2 owner_detect rotasıyla personel tarafında sahibin konisinde durur → bağırış → sahip tutar → 6 sn pencere dolar: `player_caught {peer: c2, by: owner}`. Bağırıştan 8 sn sonra komşu NeighbourSpawn'da çıkar, yan sokak ağzında duran c1'i görür ve yakalar: `player_caught {peer: c1, by: chaser}` (US-012 Terlik notu bu olaydan üretilir; test_heist_game aynı yükü sınar). Olaylar tüm peer'larda aynı sırada. Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 taşıma (S3 eki, US-012 bağı): yakalayan oturum olayında. c2 owner_detect rotasıyla personel tarafında sahibin konisinde durur → bağırış → sahip tutar → 6 sn pencere dolar: `player_caught {peer: c2, by: owner}`. Bağırıştan 8 sn sonra komşu NeighbourSpawn'da çıkar, yan sokak ağzında duran c1'i görür ve yakalar: `player_caught {peer: c1, by: chaser}` (US-012 Terlik notu bu olaydan üretilir; test_heist_game aynı yükü sınar). Olaylar tüm peer'larda aynı sırada. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 23,
@@ -9,7 +9,7 @@
     "c2": "res://tests/net/bots/owner_detect_c1.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
     {"eq": ["*.events.0.kind", "player_held"]},
     {"eq": ["*.events.1.kind", "player_caught"]},
     {"eq": ["*.events.1.data.by", "owner"]},

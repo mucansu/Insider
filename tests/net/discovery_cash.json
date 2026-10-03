@@ -1,0 +1,28 @@
+{
+  "_doc": "US-039 AC10 (ii) + AC2/AC4: store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_first.tscn: tezgâh ~31 sn, sonra ilk pencere görevi ARKA ODA). c1 ara sokaktan arka kapıyı açıp arka odaya girer, çantayı alır ve ara sokağın batısında bekler (sahip tezgâhtadır, görmez, kapı sesi tezgâha ulaşmaz). Sahip arka oda görevinde BackroomSpot'a varınca 1 sn sonra çantanın yerinde olmadığını fark eder: DISCOVER (`owner_discover_cash`, `owner_discover` {source: cash} her peer'da) → bağırış (uyarı 2). Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_backroom_first.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 40,
+  "bots": {
+    "c1": "res://tests/net/bots/discovery_cash_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_backroom_first.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.props.BackDoor.open", true]},
+    {"same": ["host.props.Bag.carrier", "c1.peer_id"]},
+    {"eq": ["*.owner.events.0", "owner_discover_cash"]},
+    {"eq": ["*.owner.events.1", "owner_shout"]},
+    {"eq": ["*.events.0.kind", "owner_discover"]},
+    {"eq": ["*.events.0.data.source", "cash"]},
+    {"len": ["*.events", 1]},
+    {"len": ["host.owner.discoveries", 1]},
+    {"eq": ["host.owner.discoveries.0.source", "cash"]},
+    {"has": ["host.owner.agenda", "backroom"]},
+    {"eq": ["host.owner.peak.$c1", 0]},
+    {"eq": ["*.alert.level", 2]},
+    {"all_equal": "alert.level"},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

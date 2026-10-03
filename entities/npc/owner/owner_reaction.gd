@@ -5,8 +5,8 @@ extends RefCounted
 ## → QUESTION (60: 110 px/sn yürür, 64 px'te durur, `owner_question`, bekler; < 30 ya da bekleme sonunda < 60 →
 ## `owner_shrug`, ajanda) → SHOUT (beyin bağırır) → CHASE (120 px/sn; 28 px + 0,5 sn temas, oyuncu konumu ON-03
 ## ile ileri alınır → HOLD) → HOLD (pencere 6 sn, ikinci kez 3 sn; dolunca yakalanır → CHASE) → kurtarılınca
-## STAGGER (2 sn, kurtarana şüphe 100) → CHASE / SEARCH (son görülen konum; 30 sn kimse görünmezse ajanda, arka
-## oda nakdi alınmışsa 60 sn sonra yeniden bağırış). Beynin yalnız genel API'sini kullanır (§6 kapsülleme).
+## STAGGER (2 sn, kurtarana şüphe 100) → CHASE / SEARCH (son görülen konum; 30 sn kimse görünmezse ajanda, ilk
+## görev arka oda kontrolü; US-039). Beynin yalnız genel API'sini kullanır (§6 kapsülleme).
 
 ## Bağırış süresi (sn): durur, bağırır, sonra kovalar.
 const SHOUT_SEC := 0.5
@@ -176,9 +176,7 @@ func _search(delta: float) -> Vector2:
 		_b.fsm.go(OwnerBrain.State.CHASE)
 		return Vector2.ZERO
 	if _since_seen >= t.calm_after_sec:
-		_b.back_to_agenda()
-		if _b.senses.prop_taken_near(t.cash_marker):
-			_b.schedule_recheck(t.recheck_shout_sec)
+		_b.back_to_agenda(true)  # US-039 AC6: ilk görev arka oda (nakit alınmışsa varışta keşif)
 		return Vector2.ZERO
 	var spot: Vector2 = _b.seen_at(_b.target)
 	if not spot.is_finite():

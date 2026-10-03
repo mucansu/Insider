@@ -1,0 +1,9 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://levels/store_a.tscn" id="1_store"]
+[ext_resource type="Resource" path="res://tests/fixtures/population_busy.tres" id="2_pop"]
+
+[node name="StoreA" instance=ExtResource("1_store")]
+
+[node name="Population" parent="NPCs" index="4"]
+tuning = ExtResource("2_pop")

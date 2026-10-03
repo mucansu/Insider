@@ -4,6 +4,8 @@ extends RefCounted
 ## ağaca ekler, gezinmesini yalıtık ve eşzamanlı bir haritaya bağlar (test_levels_nav kalıbı: harita ilk karelerde
 ## boş, yineleme kimliği beklenir), NPC'lerin kendiliğinden adımını kapatır (testler sabit adımla sürer) ve uzak
 ## oyuncu kopyaları üretir (yetki 2+, girdi yok; konumu test yazar, `interaction_position()` = çizilen konum).
+## US-016: `with_population = true` ise nüfus üreticisi (Population) de elle adımlanır (siviller dahil); varsayılan
+## kapalı (eski testler nüfussuz sürer).
 
 const STORE := "res://levels/store_a.tscn"
 const PLAYER_SCENE := "res://entities/player/player.tscn"
@@ -12,6 +14,8 @@ const DT := 1.0 / 60.0
 var test: TestCase
 var level: Level = null
 var map: RID = RID()
+## Nüfus üreticisi `run` içinde adımlansın mı (US-016).
+var with_population: bool = false
 
 
 func _init(owner_test: TestCase) -> void:
@@ -62,6 +66,7 @@ func sync() -> void:
 
 
 func leave() -> void:
+	Game._events.clear()  # US-039: keşif oturum olayları (çevrimdışı) sonraki testlerin dökümüne sızmasın
 	if level != null and is_instance_valid(level):
 		test.tree().root.remove_child(level)
 		level.queue_free()
@@ -74,6 +79,13 @@ func owner() -> StoreOwner:
 	for child: Node in level.npcs_root().get_children():
 		if child is StoreOwner:
 			return child as StoreOwner
+	return null
+
+
+func population() -> Population:
+	for child: Node in level.npcs_root().get_children():
+		if child is Population:
+			return child as Population
 	return null
 
 
@@ -102,6 +114,7 @@ func player(peer_id: int, at: Vector2) -> Player:
 func run(seconds: float, probe: Callable = Callable(), dt: float = DT) -> void:
 	var o: StoreOwner = owner()
 	var a: StoreAlert = alert()
+	var pop: Population = population() if with_population else null
 	for i: int in roundi(seconds / dt):
 		for node: Node in test.tree().get_nodes_in_group(Interactable.GROUP):
 			(node as Interactable).set_physics_process(false)
@@ -112,6 +125,8 @@ func run(seconds: float, probe: Callable = Callable(), dt: float = DT) -> void:
 				status.set_physics_process(false)
 				status.step(dt)
 		o.step(dt)
+		if pop != null:
+			pop.step(dt)
 		if a != null:
 			a.step(dt)
 			for c: Chaser in a.chasers():

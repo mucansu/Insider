@@ -1,6 +1,6 @@
 {
-  "_doc": "US-001 t2 (denetçi bulgusu 1, inceleme 8): store_a'da c2 host hazır olduktan 2 sn sonra katılır ve hareket eder; host ile c1 de hareket ediyor. Geç katılanın hareketi herkese ulaşmalı (son konum farkı < 8 px). Geç katılan diğerlerini doğma noktasında ya da donmuş görmemeli (host kabulde ve eşitleme başlayana dek konum yetiştirir): hareket sırasında örnek farkı < 40 px (fikstür eşiği, net_smoke docstring). Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-001 t2 (denetçi bulgusu 1, inceleme 8): store_a'da c2 host hazır olduktan 2 sn sonra katılır ve hareket eder; host ile c1 de hareket ediyor. Geç katılanın hareketi herkese ulaşmalı (son konum farkı < 8 px). Geç katılan diğerlerini doğma noktasında ya da donmuş görmemeli (host kabulde ve eşitleme başlayana dek konum yetiştirir): hareket sırasında örnek farkı < 40 px (fikstür eşiği, net_smoke docstring). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
   "player_scene": "res://tests/fixtures/dummy_player.tscn",
   "clients": 2,
   "duration": 10,

@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" path="res://entities/npc/owner/owner.tscn" id="5_owner"]
 [ext_resource type="Script" uid="uid://bw4s7uaqkfgyj" path="res://entities/npc/store_alert.gd" id="6_alert"]
 [ext_resource type="Script" path="res://entities/fx/escape_marker.gd" id="7_escape"]
+[ext_resource type="Script" path="res://entities/npc/population.gd" id="7_pop"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -292,6 +293,12 @@ spawn_path = NodePath("..")
 
 [node name="StoreAlert" type="Node" parent="NPCs" unique_id=1034509440]
 script = ExtResource("6_alert")
+
+[node name="PopulationSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=1388215407]
+spawn_path = NodePath("..")
+
+[node name="Population" type="Node" parent="NPCs" unique_id=905217733]
+script = ExtResource("7_pop")
 
 [node name="Markers" type="Node2D" parent="." unique_id=1450769003]
 

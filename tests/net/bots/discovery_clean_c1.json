@@ -1,0 +1,18 @@
+{
+  "_doc": "discovery_clean.json c1 botu (US-039 AC10 iii): owner_window_c1 rotası (ön kapıdan gir, sahip raf düzeltmedeyken tezgâh ucundan dolanıp kasayı boşalt, müşteri tarafına dön), sonra beklemeden ön kapıdan çık, caddeye in (y≈576) ve doğuya kaçış bölgesine (x≈860) koşmadan yürü.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.672, "move": [0, 0]},
+    {"t": 36.0, "move": [1, 0]},
+    {"t": 37.615, "move": [0, -1]},
+    {"t": 38.13, "move": [0, 0]},
+    {"t": 38.3, "hold": "interact", "dur": 3.6},
+    {"t": 42.1, "move": [0, 1]},
+    {"t": 42.615, "move": [-1, 0]},
+    {"t": 44.23, "move": [0, 1]},
+    {"t": 45.244, "move": [1, 0]},
+    {"t": 48.673, "move": [0, 0]}
+  ]
+}

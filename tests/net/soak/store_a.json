@@ -1,6 +1,6 @@
 {
-  "_doc": "IS-013 AC3 (Faz 1 çıkış kriteri 4): dayanıklılık koşusu; tools/soak.sh bunu --duration (varsayılan 10 dk) ile koşar. tests/net/*.json değildir: ci_local'ın ağ adımına girmez. store_a'da gerçek oyuncu sahnesiyle host + 2 bot turlar (bot dosyalarında \"loop\"; net_smoke yalnız tam turları açar, son tur bot saatinde quit_after - 4 sn (BOT_LOOP_END_MARGIN) biter; tur zamanları kare sınırı dışında): host kasayı bir kez boşaltır ve dükkânın içinde duvar hizalı tur atar (koşu/sızma dahil); c1 her turda ön kapıyı dışarıdan kapatıp açar ve içeri girip çıkar; c2 her turda arka kapıyı arka sokaktan açar, arka odaya inip döner ve kapatır. Değişmezler: log'da ERROR ya da WARNING yok (deny_warnings), süreçler quit_after ile kod 0 kapanır; oyuncu sayısı her süreçte 3'e ulaştıktan sonra hep 3 (samples_players) ve oyuncu düğümleri eşit; özel bellek (mem_sample_sec ile net_smoke süreç ağacında ölçer, \"mem_mb\") ısınmadan sonra kararlı, >= 20 MB (gerçek Godot ölçülüyor) ve koşu sonuna kadar örneklenmiş (mem_stable); ekip nakdi 150, kasa boş; kapılar tur sonu durumunda (ön açık, arka kapalı), her peer her değişimi gördü (flips = host'taki tamamlanma, consistent), ret yok; hareket sırasında senkron farkı < 48 px; botlar son turun sonunda turun bilinen bitiş köşesinde (± 2 px: uzun koşuda kayma yok); kimse duvar/kapı içinde değil. Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016: müşteriler ön kapıyı açıp kapı sayaçlarını bozmasın). IS-013 AC3 (Faz 1 çıkış kriteri 4): dayanıklılık koşusu; tools/soak.sh bunu --duration (varsayılan 10 dk) ile koşar. tests/net/*.json değildir: ci_local'ın ağ adımına girmez. store_a'da gerçek oyuncu sahnesiyle host + 2 bot turlar (bot dosyalarında \"loop\"; net_smoke yalnız tam turları açar, son tur bot saatinde quit_after - 4 sn (BOT_LOOP_END_MARGIN) biter; tur zamanları kare sınırı dışında): host kasayı bir kez boşaltır ve dükkânın içinde duvar hizalı tur atar (koşu/sızma dahil); c1 her turda ön kapıyı dışarıdan kapatıp açar ve içeri girip çıkar; c2 her turda arka kapıyı arka sokaktan açar, arka odaya inip döner ve kapatır. Değişmezler: log'da ERROR ya da WARNING yok (deny_warnings), süreçler quit_after ile kod 0 kapanır; oyuncu sayısı her süreçte 3'e ulaştıktan sonra hep 3 (samples_players) ve oyuncu düğümleri eşit; özel bellek (mem_sample_sec ile net_smoke süreç ağacında ölçer, \"mem_mb\") ısınmadan sonra kararlı, >= 20 MB (gerçek Godot ölçülüyor) ve koşu sonuna kadar örneklenmiş (mem_stable); ekip nakdi 150, kasa boş; kapılar tur sonu durumunda (ön açık, arka kapalı), her peer her değişimi gördü (flips = host'taki tamamlanma, consistent), ret yok; hareket sırasında senkron farkı < 48 px; botlar son turun sonunda turun bilinen bitiş köşesinde (± 2 px: uzun koşuda kayma yok); kimse duvar/kapı içinde değil. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 60,
@@ -12,7 +12,7 @@
     "c2": "res://tests/net/bots/soak_c2.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
     {"eq": ["*.exit_reason", "quit_after"]},
     {"eq": ["*.host_lost", false]},
     {"len": ["*.player_nodes", 3]},

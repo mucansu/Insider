@@ -1,0 +1,33 @@
+{
+  "_doc": "US-016 AC8/AC9 (+ AC2/AC4/AC5): store_a, hızlı nüfus fikstürü (tests/fixtures/store_a_busy.tscn: ilk müşteri 2 sn, sonra her 22 sn; tek raf noktası ShopSpot1, 8 sn; tanık konisi fikstürde geniş 180°/200 px — koni geometrisi birim testte; yoldan geçen her 7 sn, en fazla 1, her camda bakar). Nüfus host'ta üretilir, PopulationSpawner ile çoğaltılır. c1 ShopSpot1'in yanında sızarak bekler (sahibin menzili dışında): Customer1 raf noktasında görür, 100'de bağırmaz, sahibe yürür ve söyler (`customer_tell`, peer c1; sahibin c1'e şüphesi +60 → bakar/sorgular), çıkar. Customer2 kuyrukta servis olur (sahip MÜŞTERİ kesmesi), çıkar ve silinir; Customer3 içeride. Olaylar güvenilir RPC: c1 ile host'ta aynı sırada; c2 14 sn sonra katılır (geç katılan): mevcut sivilleri (Customer1 dahil) görür, sonda bütün peer'larda aynı NPC kümesi. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_busy.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 60,
+  "start_delay": {"c2": 14.0},
+  "bots": {
+    "c1": "res://tests/net/bots/population_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_busy.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["host.population.customers_spawned", 3]},
+    {"between": ["host.population.passersby_spawned", 2, 6]},
+    {"eq": ["host.population.tells", 1]},
+    {"between": ["host.population.served", 1, 3]},
+    {"between": ["host.owner.serves", 1, 3]},
+    {"has": ["host.population.events", "customer_tell"]},
+    {"has": ["host.population.events", "customer_enter"]},
+    {"has": ["host.population.event_peers", "$c1"]},
+    {"same": ["c1.population.events", "host.population.events"]},
+    {"same": ["c1.population.event_peers", "host.population.event_peers"]},
+    {"same": ["c1.population.seen", "host.population.seen"]},
+    {"has": ["host.population.seen", "Customer1"]},
+    {"has": ["c2.population.seen", "Customer1"]},
+    {"all_equal": "population.names"},
+    {"between": ["host.owner.peak.$c1", 59, 100]},
+    {"eq": ["*.chasers.spawned", 0]},
+    {"eq": ["*.alert.level", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

@@ -26,6 +26,12 @@ var bell_marker: StringName = &""
 var bell_radius: float = 0.0
 ## Test/teşhis: RTT (ms) yerine bu değer kullanılır (< 0 = Net'ten ölçülen).
 var rtt_override_ms: int = -1
+## İçerideki müşteri sayısı sorgusu (US-016 örtü; func() -> int). Yalnız sahibin duyusuna nüfus üreticisi bağlar;
+## boşsa 0 (örtü yok).
+var customers_query: Callable = Callable()
+## Oyalanma süresi sorgusu (US-016; func(peer_id) -> float): sivil tanıklar sahibin sayacını okur (oyuncunun dükkân
+## içi süresi tanığın ne zaman doğduğuna bağlı olmasın). Boşsa bu duyunun kendi sayacı.
+var loiter_query: Callable = Callable()
 
 var _level: Node = null
 var _zones: Dictionary = {}
@@ -81,11 +87,18 @@ func step(delta: float) -> void:
 			door_crossed.emit(peer_id, door)
 
 
+## İçerideki müşteri sayısı (US-016 örtü ve keşif; sorgu yoksa 0).
+func customers_inside() -> int:
+	return int(customers_query.call()) if customers_query.is_valid() else 0
+
+
 func zone_of(pos: Vector2) -> CivilianRules.Zone:
 	return CivilianRules.zone_at(pos, _zones)
 
 
 func loiter_time(peer_id: int) -> float:
+	if loiter_query.is_valid():
+		return float(loiter_query.call(peer_id))
 	return float(_loiter.get(peer_id, 0.0))
 
 
@@ -104,6 +117,7 @@ func context_for(target: Node) -> CivilianRules.Context:
 	ctx.carrying_bag = target.has_method(&"is_carrying_bag") and bool(target.call(&"is_carrying_bag"))
 	ctx.alert_level = Game.alert_level()
 	ctx.loiter_time = loiter_time(peer_id)
+	ctx.customers_inside = customers_inside()
 	return ctx
 
 
@@ -173,6 +187,26 @@ func marker_position(marker_name: StringName) -> Vector2:
 		return Vector2.INF
 	var node: Node2D = _level.call(&"marker", marker_name) as Node2D
 	return node.global_position if node != null else Vector2.INF
+
+
+## Sıralı işaret dizisinin adları (`<önek>1..N`; Level `marker_sequence`; US-016 sokak rotası, cam önleri).
+func marker_names(prefix: StringName) -> Array[StringName]:
+	var out: Array[StringName] = []
+	if _level == null or prefix.is_empty() or not _level.has_method(&"marker_sequence"):
+		return out
+	for node: Variant in _level.call(&"marker_sequence", prefix):
+		if node is Node:
+			out.append(StringName((node as Node).name))
+	return out
+
+
+## İçerinin (müşteri, personel, arka oda bölgeleri) dikdörtgenleri (global; US-016 camdan bakış yönü).
+func inside_rects() -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	for z: Variant in _zones:
+		for r: Rect2 in _zones[z]:
+			out.append(r)
+	return out
 
 
 ## Ajanda çözümleyicisi: `<ad>1..N` dizisi varsa onun konumları, yoksa tek işaret.

@@ -145,6 +145,13 @@ func apply_delta(peer_id: int, delta: float) -> void:
 		threshold_reached.emit(peer_id, l)
 
 
+## Host API (US-016, yalnız ekleme): ölçeri olan hedefin son görülen konumunu dışarıdan bildirir (tanığın
+## söylediği yer). Ölçer yoksa yok sayılır (konum sızmaz).
+func hint_position(peer_id: int, pos: Vector2) -> void:
+	if _meters.has(peer_id) and pos.is_finite():
+		_last_seen[peer_id] = pos
+
+
 ## Hedefin ölçerini siler (ör. yakalanan oyuncu artık hedef değil).
 func forget(peer_id: int) -> void:
 	_meters.erase(peer_id)

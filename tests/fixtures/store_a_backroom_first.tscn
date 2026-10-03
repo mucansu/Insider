@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" path="res://levels/store_a.tscn" id="1_store"]
+
+[node name="StoreA" instance=ExtResource("1_store")]
+
+[node name="Owner" parent="NPCs" index="0"]
+agenda_seed_override = 7
+
+[node name="Population" parent="NPCs" index="4"]
+active = false
