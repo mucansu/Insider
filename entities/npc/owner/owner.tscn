@@ -41,6 +41,9 @@ properties/6/replication_mode = 2
 properties/7/path = NodePath(".:net_shouted")
 properties/7/spawn = false
 properties/7/replication_mode = 2
+properties/8/path = NodePath(".:net_misdirected")
+properties/8/spawn = false
+properties/8/replication_mode = 2
 
 [node name="Owner" type="CharacterBody2D"]
 collision_layer = 4
@@ -75,6 +78,9 @@ script = ExtResource("6_senses")
 script = ExtResource("7_brain")
 
 [node name="Talk" type="Area2D" parent="."]
+script = ExtResource("12_int")
+
+[node name="Misdirect" type="Area2D" parent="."]
 script = ExtResource("12_int")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]

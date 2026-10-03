@@ -9,6 +9,7 @@
 [ext_resource type="Resource" path="res://data/npc/perception_tuning.tres" id="7_ptune"]
 [ext_resource type="Resource" path="res://data/npc/chaser_tuning.tres" id="8_chtune"]
 [ext_resource type="Resource" path="res://data/npc/civilian_tuning.tres" id="9_ctune"]
+[ext_resource type="Script" path="res://entities/props/interactable.gd" id="10_int"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 12.0
@@ -47,6 +48,9 @@ script = ExtResource("4_senses")
 
 [node name="Brain" type="Node" parent="."]
 script = ExtResource("5_brain")
+
+[node name="Misdirect" type="Area2D" parent="."]
+script = ExtResource("10_int")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.0667

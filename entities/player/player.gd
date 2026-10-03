@@ -64,6 +64,9 @@ signal rescued(rescuer: int)
 const DUMP_KEY := "player_states"
 const INTERACTION_DUMP_KEY := "interaction"
 const INTERACT_ACTION := &"interact"
+## US-043: örtüsü sağlam oyuncunun etkileşim etiketi ve US-042 örtü bozulma oturum olayı.
+const COVER_TAG := &"cover"
+const COVER_EVENT := &"cover_broken"
 const ALT_INTERACT_ACTION := &"intimidate"
 const TUNING_PATH := "res://data/player_tuning.tres"
 ## Gövde şekli yoksa varsayılan yarıçap (S4: karakter çapı ~24 px).
@@ -106,6 +109,8 @@ var _step_noise: NoiseRules.Cadence = null
 var _look_angle: float = PI * 0.5
 var _look_ready: bool = false
 var _max_turn: float = 0.0
+## US-043: bu oyuncunun örtüsü bozuldu mu (cover_broken oturum olayından).
+var _cover_broken: bool = false
 
 @onready var _input: PlayerInput = $PlayerInput
 @onready var _sync: MultiplayerSynchronizer = $MultiplayerSynchronizer
@@ -143,6 +148,7 @@ func _ready() -> void:
 	_status.changed.connect(status_changed.emit)
 	_status.rescued.connect(rescued.emit)
 	Game.players_changed.connect(_refresh_identity)
+	Game.session_event.connect(_on_session_event)
 	_refresh_identity()
 
 
@@ -286,7 +292,16 @@ func interaction_position() -> Vector2:
 ## Etkileşim etiketleri (S7 `InteractionRequirement.required_tag`; host da aynı yöntemi okur). US-012: eli boşsa
 ## `free_hands` (çanta yalnız eli boşken alınır/devralınır).
 func interaction_tags() -> Dictionary:
-	return {} if is_carrying() else {HeistRules.FREE_HANDS_TAG: 1}
+	var tags: Dictionary = {} if is_carrying() else {HeistRules.FREE_HANDS_TAG: 1}
+	if not _cover_broken:
+		tags[COVER_TAG] = 1  # US-043: örtüsü bozulmadı ("müşteri gibi"; YÖNLENDİR bunu ister; host ayrıca denetler)
+	return tags
+
+
+## US-042 örtü olayı (her peer'da): bu oyuncunun örtüsü bozuldu (seviyeyle birlikte sıfırlanır: yeni düğüm).
+func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if kind == COVER_EVENT and typeof(data.get("peer")) == TYPE_INT and int(data["peer"]) == peer_id():
+		_cover_broken = true
 
 
 ## Çanta taşıyor mu (US-012; durum çantada, host yetkili ve çoğaltılır).

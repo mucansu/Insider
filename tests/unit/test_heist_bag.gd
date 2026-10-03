@@ -226,12 +226,13 @@ func test_player_tags_and_sprint() -> void:
 	player.position = Vector2(400, 420)
 	tree().root.add_child(player)
 	autofree(player)
-	eq(player.interaction_tags(), {HeistRules.FREE_HANDS_TAG: 1}, "eli boş")
+	eq(player.interaction_tags(), {HeistRules.FREE_HANDS_TAG: 1, Player.COVER_TAG: 1}, "eli boş (+ US-043 örtü etiketi)")
 	is_false(player.is_carrying())
 	_pick(bag, 1)
 	eq(bag.carrier, 1)
 	is_true(player.is_carrying())
-	eq(player.interaction_tags(), {}, "taşırken etiket yok: başka çanta/devir istemi yok")
+	eq(player.interaction_tags(), {Player.COVER_TAG: 1},
+		"taşırken free_hands yok: başka çanta/devir istemi yok (örtü etiketi ayrı, US-043)")
 	is_false(player.is_sprinting(), "duran oyuncu koşmuyor")
 	player.move_mode = PlayerMotion.Mode.SPRINT
 	player.velocity = Vector2(220, 0)

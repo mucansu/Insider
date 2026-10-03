@@ -21,14 +21,14 @@ extends RefCounted
 
 enum Zone { OUTSIDE, CUSTOMER, STAFF, BACKROOM }
 ## Tabloda çarpanı veren satır (döküm `behaviour`).
-enum Behaviour { INNOCENT, LOITER, SNEAK, SPRINT, STAFF_SIDE, BAG_OR_LOCK, CASH, ALARM }
+enum Behaviour { INNOCENT, LOITER, SNEAK, SPRINT, STAFF_SIDE, BAG_OR_LOCK, CASH, ALARM, WINDOW_STARE }
 ## Oyuncunun sürdürdüğü (busy_by) etkileşimin türü.
 enum Interaction { NONE, TAMPER, CASH }
 ## İstemci göstergesi.
 enum Bubble { NONE, NOTICE, ALARM }
 
 const BEHAVIOUR_NAMES: Array[StringName] = [&"innocent", &"loiter", &"sneak", &"sprint", &"staff_side",
-	&"bag_or_lock", &"cash", &"alarm"]
+	&"bag_or_lock", &"cash", &"alarm", &"window_stare"]
 const ZONE_NAMES: Array[StringName] = [&"outside", &"customer", &"staff", &"backroom"]
 
 
@@ -54,6 +54,10 @@ class Params:
 	var bubble_hysteresis: float = 0.0
 	## Örtü çarpanı (US-016): içeride müşteri varken müşteri bölgesi satırları; 1 = örtü yok.
 	var cover_factor: float = 1.0
+	## Vitrinden bakma (US-044): dışarıda vitrine yakın, içeri bakarak durmanın masum sayıldığı süre (sn) ve
+	## sonrası çarpanı (yavaş dolum; yürüyüp geçen ve kısa bakan ücretsiz — yoldan geçen örtüsü).
+	var window_stare_grace: float = 0.0
+	var window_stare_factor: float = 0.0
 
 
 ## Bir hedefin bu adımdaki durumu.
@@ -68,6 +72,8 @@ class Context:
 	var loiter_time: float = 0.0
 	## İçerideki müşteri sayısı (US-016 örtü; yalnız sahibin bağlamı doldurur).
 	var customers_inside: int = 0
+	## Dışarıda vitrinden kesintisiz bakma süresi (sn; US-044, yalnız sahibin bağlamı doldurur).
+	var window_stare: float = 0.0
 
 
 static func is_inside(zone: Zone) -> bool:
@@ -113,6 +119,8 @@ static func candidates(p: Params, ctx: Context) -> Array[Behaviour]:
 		out.append(Behaviour.CASH)
 	if p.alarm_level > 0 and ctx.alert_level >= p.alarm_level:
 		out.append(Behaviour.ALARM)
+	if not inside and p.window_stare_factor > 0.0 and ctx.window_stare > p.window_stare_grace:
+		out.append(Behaviour.WINDOW_STARE)
 	return out
 
 
@@ -132,6 +140,8 @@ static func factor_of(p: Params, b: Behaviour) -> float:
 			return p.cash_factor
 		Behaviour.ALARM:
 			return p.alarm_factor
+		Behaviour.WINDOW_STARE:
+			return p.window_stare_factor
 	return 0.0
 
 
@@ -197,6 +207,20 @@ static func purchase_cost(team_cash: int, price: int) -> int:
 ## Oyalanma eşiği bu adımda mı geçildi (önce < eşik ≤ şimdi; "bu adam ne istiyor" anı).
 static func loiter_crossed(before: float, now: float, grace: float) -> bool:
 	return before < grace and now >= grace
+
+
+## OYALA söndürmesi (GDD §9.3): oyuncunun `uses`. söndürmesinde düşülen şüphe (`steps` dışı = 0, "bir daha tutmaz").
+static func soothe_amount(uses: int, steps: Array[float]) -> float:
+	return maxf(steps[uses], 0.0) if uses >= 0 and uses < steps.size() else 0.0
+
+
+## YÖNLENDİR (US-043): gösterilen yön = söyleyenden kaçış noktasının tersine (kaçış noktası yoksa ya da üstündeyse
+## `fallback`); hedef = söyleyen + yön × `run_px`.
+static func misdirect_point(speaker: Vector2, escape: Vector2, run_px: float, fallback: Vector2 = Vector2.UP) -> Vector2:
+	var dir: Vector2 = fallback.normalized()
+	if escape.is_finite() and not speaker.is_equal_approx(escape):
+		dir = (speaker - escape).normalized()
+	return speaker + dir * maxf(run_px, 0.0)
 
 
 ## Dikkat dağıtma defteri (iş başına): kaynak (prop + tür) başına bir kez sayılır — çalmayı sürdüren telefon tek

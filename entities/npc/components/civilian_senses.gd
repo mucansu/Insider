@@ -19,6 +19,8 @@ const ZONE_NAMES := {
 	CivilianRules.Zone.STAFF: &"StaffArea",
 	CivilianRules.Zone.BACKROOM: &"Backroom",
 }
+## US-042 örtü bozulma oturum olayı (Game HEIST_EVENT_COVER).
+const COVER_EVENT := &"cover_broken"
 ## Arka oda nakdinin "alındı" sayıldığı prop yarıçapı (px; işaretten).
 const CASH_PROP_RADIUS := 32.0
 ## Dikkat dağıtma sesinin prop'u: ses prop konumunda yayılır (px payı).
@@ -37,6 +39,10 @@ var customers_query: Callable = Callable()
 ## Oyalanma süresi sorgusu (US-016; func(peer_id) -> float): sivil tanıklar sahibin sayacını okur (oyuncunun dükkân
 ## içi süresi tanığın ne zaman doğduğuna bağlı olmasın). Boşsa bu duyunun kendi sayacı.
 var loiter_query: Callable = Callable()
+## US-044: vitrinden bakma süresi izlensin mi (yalnız sahip açar; siviller ve mahalleli için kapalı).
+var track_window_stare: bool = false
+## Örtü sorgusu `func(peer_id) -> bool` (test/teşhis; verilirse oturum olaylarının yerine geçer).
+var cover_query: Callable = Callable()
 
 var _level: Node = null
 var _zones: Dictionary = {}
@@ -44,6 +50,11 @@ var _loiter: Dictionary = {}
 var _inside: Dictionary = {}
 ## İşaret adı -> başta yanında duran prop'lar (prop_taken_near).
 var _watched: Dictionary = {}
+## US-044: vitrin (cam) dikdörtgenleri (global) ve peer -> kesintisiz bakma süresi (sn).
+var _windows: Array[Rect2] = []
+var _stare: Dictionary = {}
+## US-042/US-043: örtüsü bozulan peer'lar (her peer'da `cover_broken` oturum olayından).
+var _cover_lost: Dictionary = {}
 
 
 ## Seviye (Level API'li ata) ve kurallar.
@@ -52,6 +63,50 @@ func setup(level: Node, civilian: CivilianTuning, perception: PerceptionTuning) 
 	tuning = civilian
 	rules = civilian.rules_params(perception)
 	_zones = zone_rects(level)
+	_windows = window_rects(level)
+	if not Game.session_event.is_connected(_on_session_event):
+		Game.session_event.connect(_on_session_event)
+
+
+## Vitrin (cam) dikdörtgenleri (global): seviyedeki `see_through` grubundaki gövdelerin dikdörtgen şekilleri (S4 eki
+## `Window<n>`).
+static func window_rects(level: Node) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	if level == null or not level.is_inside_tree():
+		return out
+	for node: Node in level.get_tree().get_nodes_in_group(PhysicsLayers.SEE_THROUGH_GROUP):
+		if not level.is_ancestor_of(node):
+			continue
+		for child: Node in node.find_children("*", "CollisionShape2D", false, false):
+			var cs: CollisionShape2D = child as CollisionShape2D
+			var box: RectangleShape2D = cs.shape as RectangleShape2D
+			if box != null:
+				var size: Vector2 = box.size * cs.global_scale.abs()
+				out.append(Rect2(cs.global_position - size * 0.5, size))
+	return out
+
+
+## Örtü (US-042) izleniyor mu: iş sürüyor (Game örtü durumu biliniyor). Değilse herkes "bozuk" sayılır (eski
+## davranış: mahalleli herkesi kovalar; örtü olayları gelmeyen test sahneleri).
+func cover_known() -> bool:
+	return Game.cover_state() != -1
+
+
+## Oyuncunun örtüsü sağlam mı (US-043; iş yoksa false).
+func cover_intact(peer_id: int) -> bool:
+	if cover_query.is_valid():
+		return bool(cover_query.call(peer_id))
+	return cover_known() and not _cover_lost.has(peer_id)
+
+
+func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if kind == COVER_EVENT and typeof(data.get("peer")) == TYPE_INT:
+		_cover_lost[int(data["peer"])] = true
+
+
+## Vitrinden kesintisiz bakma süresi (sn; US-044, izlenmiyorsa 0).
+func window_stare_of(peer_id: int) -> float:
+	return float(_stare.get(peer_id, 0.0))
 
 
 ## Bölge dikdörtgenleri (global): Zone -> Array[Rect2]. Bölge yoksa boş (her yer dışarı).
@@ -89,9 +144,34 @@ func step(delta: float) -> void:
 		elif was != null and bool(was):
 			_loiter[peer_id] = 0.0  # dükkândan çıkış oyalanmayı sıfırlar (US-010, GDD §9.3)
 		_inside[peer_id] = inside
+		if track_window_stare:
+			_stare[peer_id] = (float(_stare.get(peer_id, 0.0)) + maxf(delta, 0.0)) \
+				if not inside and _is_staring(node as Node2D, pos) else 0.0
 		if was != null and bool(was) != inside and door.is_finite() and bell_radius > 0.0 \
 				and pos.distance_to(door) <= bell_radius:
 			door_crossed.emit(peer_id, door)
+
+
+## Vitrinden bakıyor mu (US-044): bir vitrine `outside_stare_px` yakın, bakışı (`look_dir`) ona dönük, yavaş.
+func _is_staring(target: Node2D, pos: Vector2) -> bool:
+	if target == null or _windows.is_empty() or tuning == null:
+		return false
+	var vel: Variant = target.get(&"velocity")
+	if vel is Vector2 and (vel as Vector2).length() > tuning.outside_stare_max_speed:
+		return false
+	var look_v: Variant = target.get(&"look_dir")
+	if not look_v is Vector2 or (look_v as Vector2).is_zero_approx():
+		return false
+	var look: Vector2 = (look_v as Vector2).normalized()
+	for r: Rect2 in _windows:
+		var nearest := Vector2(clampf(pos.x, r.position.x, r.end.x), clampf(pos.y, r.position.y, r.end.y))
+		var to: Vector2 = nearest - pos
+		if to.length() > tuning.outside_stare_px:
+			continue
+		var dir: Vector2 = (r.get_center() - pos).normalized() if to.is_zero_approx() else to.normalized()
+		if look.dot(dir) >= tuning.outside_stare_dot:
+			return true
+	return false
 
 
 ## İçerideki müşteri sayısı (US-016 örtü ve keşif; sorgu yoksa 0).
@@ -149,6 +229,7 @@ func context_for(target: Node) -> CivilianRules.Context:
 	ctx.alert_level = Game.alert_level()
 	ctx.loiter_time = loiter_time(peer_id)
 	ctx.customers_inside = customers_inside()
+	ctx.window_stare = window_stare_of(peer_id)
 	return ctx
 
 

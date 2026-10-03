@@ -1,8 +1,12 @@
 {
-  "_doc": "owner_slipper.json c1 botu (US-008 taşıma): sola sınır duvarına hizalan, kaldırımda (doğma sırası) doğuya, yan sokak ağzına yürü ve dur: komşunun koşu yolunun yanında, görüş menzilinde.",
+  "_doc": "owner_slipper.json c1 botu (US-008 taşıma): sola sınır duvarına hizalan, kaldırımda (doğma sırası) doğuya, yan sokak ağzına yürü ve dur: komşunun koşu yolunun yanında, görüş menzilinde. US-043: mahalleli yalnız örtüsü bozuk oyuncuyu kovalar — c1 durmadan önce kısa bir koşu yapar (geri-ileri, ~yerinde), örtüsü 'koşma' ile bozulur.",
   "steps": [
     {"t": 0.2, "move": [-1, 0]},
     {"t": 1.6, "move": [1, 0]},
-    {"t": 6.0, "move": [0, 0]}
+    {"t": 6.0, "move": [0, 0]},
+    {"t": 6.2, "move": [-1, 0]},
+    {"t": 6.2, "hold": "sprint", "dur": 0.3},
+    {"t": 6.5, "move": [1, 0]},
+    {"t": 6.85, "move": [0, 0]}
   ]
 }

@@ -1,0 +1,10 @@
+{
+  "_doc": "window_stare.json c1 botu (US-044): sola sınır duvarına hizalan, kaldırımda doğuya WindowLook2 önüne (x≈464) yürü, bir adım kuzeye (y≈496, vitrin camının 16 px önü) çık ve dur; vitrine (kuzey) bakar ve bakmayı sürdürür.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.6, "move": [0, -1]},
+    {"t": 4.83, "move": [0, 0]},
+    {"t": 5.0, "look": [0, -1]}
+  ]
+}

@@ -19,6 +19,9 @@ const DISTRACTION_KINDS: Array[StringName] = [KIND_TOPPLE, KIND_CELLPHONE]
 ## Konuşma: en uzun süre (basılı tutma; dolunca sahip konuşmayı bitirir) ve menzil (sahipten, px).
 @export_range(0.0, 60.0, 0.5, "suffix:s") var talk_max_sec: float = 0.0
 @export_range(0.0, 256.0, 1.0, "suffix:px") var talk_range: float = 0.0
+## OYALA sorgudaki/bakan sahibi söndürür (GDD §9.3): o oyuncunun kaçıncı söndürmesi → şüpheden düşülen (1. 40,
+## 2. 20, sonra 0 = "bir daha tutmaz"). Sayaç konuşma başladığında okunur.
+@export var talk_soothe_steps: Array[float] = []
 
 @export_group("Dikkat dağıt")
 ## Raf devirme gürültüsü (px; KR-026: 320, bağırışla aynı sınıf).
@@ -32,6 +35,18 @@ const DISTRACTION_KINDS: Array[StringName] = [KIND_TOPPLE, KIND_CELLPHONE]
 @export_range(0.0, 256.0, 1.0, "suffix:px") var phone_find_px: float = 0.0
 ## İkinci (ve sonraki) dikkat dağıtmada sahibin sorumluya şüphesi ("yine mi?").
 @export_range(0.0, 100.0, 1.0) var again_suspicion: float = 0.0
+
+@export_group("Yönlendir")
+## YÖNLENDİR "o tarafa kaçtı!" (US-043): en düşük uyarı kademesi, basılı tutma (sn), sahip/mahalleliye menzil (px),
+## etkilenen mahallelilerin söyleyene uzaklığı (px), yanlış yöne koşu süresi (sn) ve mesafesi (px), söyleyene
+## sahipte şüphe.
+@export_range(0, 5) var misdirect_min_alert: int = 2
+@export_range(0.0, 10.0, 0.1, "suffix:s") var misdirect_hold_sec: float = 0.0
+@export_range(0.0, 256.0, 1.0, "suffix:px") var misdirect_range: float = 0.0
+@export_range(0.0, 2048.0, 1.0, "suffix:px") var misdirect_radius: float = 0.0
+@export_range(0.0, 60.0, 0.5, "suffix:s") var misdirect_run_sec: float = 0.0
+@export_range(0.0, 2048.0, 1.0, "suffix:px") var misdirect_run_px: float = 0.0
+@export_range(0.0, 100.0, 1.0) var misdirect_suspicion: float = 0.0
 
 static var _default: StoreToolsTuning = null
 

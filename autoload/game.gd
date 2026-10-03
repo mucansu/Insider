@@ -52,7 +52,8 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## El sıkışma protokolü sürümü; uyuşmayan peer reddedilir. Kablo (RPC/eşitleyici/handshake) düzeni değişince artar
 ## (mimari.md S2). 2: US-011b hareket eşitleyicisine 8 bit bakış açısı + görüş kipi/maruziyet RPC'leri.
 ## 4: US-010 tezgâh/raf ucu prop'ları (eşitleyiciler), sahibin OYALA bileşeni ve `net_shouted`.
-const PROTOCOL_VERSION := 4
+## 5: US-043 sahip/mahalleli YÖNLENDİR bileşenleri ve `net_misdirected`.
+const PROTOCOL_VERSION := 5
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 const MAX_EVENTS := 256
@@ -981,6 +982,11 @@ const HEIST_EVENT_HELD := &"player_held"
 const HEIST_EVENT_RESCUED := &"player_rescued"
 ## Sahibin bir oyuncuyu işaretlediği sinyaller (peer_id): bağırdı, tuttu.
 const HEIST_MARK_SIGNALS: Array[StringName] = [&"owner_shout", &"owner_held"]
+## US-010/US-043/US-044 (host): sahibin oyuncu aracı kancası (strateji "sosyal"), tanıma (vitrin sorgusu) ve tezgâh
+## alışverişi oturum olayı (bedel iş sonu kasasından düşer).
+const HEIST_SOCIAL_SIGNAL := &"social_action"
+const HEIST_RECOGNIZED_SIGNAL := &"recognized"
+const HEIST_EVENT_PURCHASE := &"purchase"
 ## Örtüyü bozan personel tarafı bölgeleri (S4 eki).
 const HEIST_STAFF_ZONES: Array[StringName] = [&"StaffArea", &"Backroom"]
 ## Arka kapı prop'u (strateji etiketi "arka_kapı").
@@ -1167,6 +1173,10 @@ func _heist_on_level_loaded(level: Node) -> void:
 			for sig: StringName in HEIST_MARK_SIGNALS:
 				if node.has_signal(sig):
 					node.connect(sig, _heist_on_marked)
+			if node.has_signal(HEIST_SOCIAL_SIGNAL):
+				node.connect(HEIST_SOCIAL_SIGNAL, _heist_on_social)
+			if node.has_signal(HEIST_RECOGNIZED_SIGNAL):
+				node.connect(HEIST_RECOGNIZED_SIGNAL, _heist_on_recognized)
 
 
 ## Seviye kalkarken (yeniden başlatma, seviye değişimi, oturum sonu): iş ve sonucu sıfırlanır. Yeni seviyenin
@@ -1235,6 +1245,18 @@ func _heist_on_interaction(peer_id: int, prop: Node) -> void:
 	_heist.note_interaction(peer_id)
 	if is_instance_valid(prop) and StringName(prop.name) == HEIST_BACK_DOOR:
 		_heist.back_door_used = true
+
+
+## Sahibin oyuncu aracı (host; US-010 SATIN AL/OYALA/GÖNDER/DİKKAT DAĞIT, US-043 YÖNLENDİR): strateji "sosyal".
+func _heist_on_social(peer_id: int, _kind: StringName) -> void:
+	if _heist != null and not _heist.finished and _has_host_authority():
+		_heist.note_social(peer_id)
+
+
+## Sahip oyuncuyu tanıdı (host; US-044 vitrin sorgusu): sonuçta `recognized` +1.
+func _heist_on_recognized(peer_id: int) -> void:
+	if _heist != null and not _heist.finished and _has_host_authority():
+		_heist.note_recognized(peer_id)
 
 
 ## Sahip bir oyuncuya bağırdı / onu tuttu (host): ilişkilendirme penceresi açılır.
@@ -1355,6 +1377,8 @@ func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
 			_heist_mark_caught(int(data.get("peer", 0)), StringName(str(data.get("by", ""))))
 		HEIST_EVENT_SHOUT:
 			_heist.note_shout()
+		HEIST_EVENT_PURCHASE:
+			_heist.note_purchase(int(data.get("cost", 0)))
 		HEIST_EVENT_HELD:
 			_heist.mark_target(int(data.get("peer", 0)))
 		HEIST_EVENT_RESCUED:
@@ -1444,7 +1468,9 @@ func _heist_finish(decision: StringName, views: Dictionary) -> void:
 		if bag.has_method(&"host_lock"):
 			bag.call(&"host_lock")
 	var bail_each: int = HeistRules.bail_for_tier(HeistTuning.load_default().bail_by_tier, venue_tier())
-	var cash_before: int = _team_cash - _heist.cash_grabbed()
+	# İş öncesi kasa: kasadan anında giren ham nakit çıkar, iş içi alışveriş (anında düşmüştü) geri eklenir; sonuç
+	# formülü alışverişi ayrıca düşer (US-010: cash_after = önce + ödeme − kefalet − alışveriş).
+	var cash_before: int = _team_cash - _heist.cash_grabbed() + _heist.purchases_paid
 	var result: Dictionary = _heist.build_result(decision, views, _players, bail_each, cash_before)
 	# Ekip kasası = iş öncesi + ödeme − kefalet (KR-029: eksiye düşebilir); kasadan anında giren ham nakit değişir.
 	var cash_delta: int = int(result["cash_after"]) - _team_cash
@@ -1485,7 +1511,28 @@ func _heist_dump() -> Dictionary:
 		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
 		"cover": _heist_cover_dump(),
 		"strategy": _heist_result.get("strategy", {}),
+		"events_main": _heist_events_main(),
+		"recognized": _heist_recognized_dump(),
 	}
+
+
+## Döküm (US-044): iş içinde tanınma (vitrin sorgusu) peer -> sayı (host; istemcide boş).
+func _heist_recognized_dump() -> Dictionary:
+	var out: Dictionary = {}
+	if _heist != null:
+		for peer: Variant in _heist.recognized_extra:
+			out[str(int(peer))] = int(_heist.recognized_extra[peer])
+	return out
+
+
+## Döküm (IS-094): oturum olayları, US-042 örtü olayları (`cover_broken`) hariç — senaryolar sahip/yakalanma olay
+## sırasını örtü olaylarından bağımsız denetler.
+func _heist_events_main() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e: Dictionary in _events:
+		if StringName(str(e.get("kind", ""))) != HEIST_EVENT_COVER:
+			out.append(e)
+	return out
 
 
 ## Bu peer'ın bildiği örtüler: peer -> sağlam mı (oyuncu listesindekiler).

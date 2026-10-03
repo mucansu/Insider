@@ -1,0 +1,29 @@
+{
+  "_doc": "US-043 YÖNLENDİR \"o tarafa kaçtı!\": store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn), sahibin ajanda tohumu 3. c1 personel tarafında sahibin önüne çıkar (örtü bozulur): sahip bağırır (uyarı 2), tutar, yakalar; 8 sn sonra komşu (mahalleli) gelir, ön kapıdan girer (uyarı 3), bağırış noktasında arar, sonra ön kapıda bekler. c2 baştan beri kaldırımda kapının önünde (örtüsü sağlam): mahalleli onu kovalamaz. Mahalleli kapıdayken c2 ona 64 px içinde E tutar (1,5 sn) → host doğrular (uyarı ≥ 2, örtü sağlam, iş başına 1): mahalleli 8 sn kaçışın tersine koşar (chasers.misled 1), sahipte c2'ye +30 şüphe, owner_misdirect olayı (balon) ve misdirect oturum olayı (HUD) her peer'da; istem her peer'da kapanır (owner.misdirected). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 54,
+  "bots": {
+    "c1": "res://tests/net/bots/misdirect_c1.json",
+    "c2": "res://tests/net/bots/misdirect_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"has": ["*.owner.events", "owner_shout"]},
+    {"has": ["*.owner.events", "owner_misdirect"]},
+    {"has": ["*.owner.event_peers", "$c2"]},
+    {"all_equal": "owner.events"},
+    {"eq": ["*.owner.misdirected", true]},
+    {"len": ["host.owner.misdirects", 1]},
+    {"same": ["host.owner.misdirects.0.peer", "c2.peer_id"]},
+    {"eq": ["host.owner.misdirects.0.chasers", 1]},
+    {"eq": ["host.chasers.misled", 1]},
+    {"between": ["host.owner.peak.$c2", 25, 99]},
+    {"eq": ["host.heist.cover.$c2", true]},
+    {"eq": ["host.heist.cover.$c1", false]},
+    {"lacks": ["host.chasers.catches", "$c2"]},
+    {"between": ["*.alert.level", 2, 3]}
+  ]
+}

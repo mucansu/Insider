@@ -107,7 +107,8 @@ func test_decide_win_needs_everyone_free_in_zone_with_loot() -> void:
 	eq(t.evaluate({A: _view(true, 450), B: _view(true)}), &"win", "çantayla herkes bölgede")
 	t.add_cash(B, 150)
 	eq(t.evaluate({A: _view(true), B: _view(true)}), &"win", "kasa nakdi de ganimet")
-	eq(t.evaluate({A: _view(true), B: _view(false, 0, true)}), &"", "kasayı boşaltan yakalandıysa nakdi gitti")
+	eq(t.evaluate({A: _view(true), B: _view(false, 0, true)}), &"win",
+		"IS-094: kasayı boşaltan yakalansa da nakit ekipte (güvencede); bölgedeki arkadaş kazanır")
 
 
 func test_held_is_not_caught() -> void:
