@@ -1,8 +1,8 @@
 extends TestCase
-## US-038 kaçış okunurluğu: HUD kaçış paneli (hedef satırı uyarı ≥ 2, polis sayacı, "Kaçış noktasında n/m"),
-## kaçış kenar oku (uyarı ≥ 2 ve kaçış noktası ekran dışı), iş sonu yakalanma nedeni (polis / mahalleli / sahip),
-## yeni metin anahtarları (TR + EN), dünya işareti (bölge dikdörtgeni, sisin üstünde kroki, nabız ve hareket
-## azaltma) ve Game salt okunur yardımcıları (escape_point / escape_status; host oturumu + store_a + gerçek oyuncu).
+## US-038 escape legibility: HUD escape panel (target row at alert >= 2, police timer, "n/m at the escape point"), escape edge
+## arrow (alert >= 2 and escape point off-screen), job-end capture reason (police / neighbour / owner), new text keys (TR + EN),
+## world marker (zone rectangle, sketch above the fog, pulse and reduced motion) and Game's read-only helpers (escape_point /
+## escape_status; host session + store_a + real player).
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -47,7 +47,7 @@ func _open(before_ready: Callable = Callable()) -> void:
 		await tree().process_frame
 
 
-# --- AC2/AC3/AC4: panel satırları ---
+# --- AC2/AC3/AC4: panel rows ---
 
 func test_lines_rule() -> void:
 	eq(EscapePanel.lines(0, -1.0, 0, 3), {"objective": false, "police": false, "count": false, "abort": false},
@@ -120,7 +120,7 @@ func test_panel_fits_and_is_legible() -> void:
 	eq(ThemeTokens.theme().get_color(&"font_color", &"EscapeLabel"), ThemeTokens.GAMEPLAY_ESCAPE, "tema token rengi")
 
 
-# --- AC2: kenar oku ---
+# --- AC2: edge arrow ---
 
 func test_arrow_only_when_alert_and_offscreen() -> void:
 	await _open(func() -> void: game.escape_at = Vector2(2000, 360))
@@ -157,7 +157,7 @@ func test_arrow_avoids_escape_panel() -> void:
 		is_false(block.has_point(m["pos"]), "ok kaçış panelinin üstüne düşmez (%s, %s)" % [m["pos"], block])
 
 
-# --- AC5: iş sonu nedeni ---
+# --- AC5: job-end reason ---
 
 func test_caught_cause_rule() -> void:
 	eq(HeistEnd.caught_cause(false, &"chaser", &"police", true), &"", "yakalanmadı")
@@ -209,7 +209,7 @@ func test_end_screen_no_cause_when_escaped() -> void:
 	is_false((screen.get_node("%CauseNote") as Label).visible, "kaçan için neden satırı yok")
 
 
-# --- AC6: metinler ---
+# --- AC6: texts ---
 
 func test_new_keys_have_tr_and_en() -> void:
 	var previous: String = TranslationServer.get_locale()
@@ -224,7 +224,7 @@ func test_new_keys_have_tr_and_en() -> void:
 		has(NEW_KEYS, HeistEnd.CAUSE_KEY_PREFIX + String(cause).to_upper(), "nedenin açıklama anahtarı listede")
 
 
-# --- AC1: dünya işareti ---
+# --- AC1: world marker ---
 
 func _marker_level() -> Array:
 	var level := Level.new()
@@ -288,7 +288,7 @@ func test_store_has_escape_marker() -> void:
 	level.free()
 
 
-# --- AC7: Game salt okunur yardımcıları (host; istemci aynı hesabı yerel kopyadan yapar) ---
+# --- AC7: Game's read-only helpers (host; the client does the same computation from the local copy) ---
 
 func _start() -> Node2D:
 	_previous_scene = Game.player_scene

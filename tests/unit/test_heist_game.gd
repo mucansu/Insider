@@ -1,9 +1,9 @@
 extends TestCase
-## US-012 Game bölümü (S3 eki) tek süreçli: host oturumu + store_a + gerçek oyuncu. Kazanma (kasa → kaçış
-## bölgesi: temiz %90; çanta + uyarı 2: bağırışlı %85, ısı +5), kaybetme (police: içeride kalan yakalanır;
-## caught_all), ekip nakdi = ödeme, request_restart (aynı seviye, nakit 0, sonuç sıfır), venue_tier, kaçış bölgesi
-## olmayan seviyede iş izlenmez. US-008 olayları yokken sahte sahip olayları S3 session_event'leriyle verilir
-## (&"alert_level", &"police_arrived", &"player_caught"). Çok süreçli: tests/net/heist_full.json.
+## US-012 Game part (S3 addition), single process: host session + store_a + real player. Win (register -> escape zone:
+## clean 90%; bag + alert 2: shouted 85%, heat +5), lose (police: those still inside are caught; caught_all), team cash =
+## payout, request_restart (same level, cash 0, result reset), venue_tier, no job tracking on a level without an escape
+## zone. Without US-008 events, fake owner events are fed as S3 session_events (&"alert_level", &"police_arrived",
+## &"player_caught"). Multi-process: tests/net/heist_full.json.
 
 const STORE := "res://levels/store_a.tscn"
 const PLAIN_LEVEL := "res://tests/fixtures/empty_level.tscn"
@@ -89,7 +89,7 @@ func test_clean_win_pays_ninety_percent_of_register() -> void:
 	eq(Game.team_cash(), 135, "ekip nakdi = ödeme (ham kasa nakdi ödemeyle değişti)")
 	await _frames()
 	eq(_results.size(), 1, "iş bitti: yeniden karar yok")
-	# Bir daha (host): aynı seviye, kasa taşınır (KR-029, US-042 paketi), sonuç sıfır, kasa prop'u yeniden dolu.
+	# Again (host): same level, register carried over (KR-029, US-042 package), result reset, register prop refilled.
 	var old_level: Level = _level()
 	Game.request_restart()
 	is_true(_level() != old_level and _level() != null, "seviye yeniden yüklendi")
@@ -157,8 +157,8 @@ func test_caught_all_by_chaser() -> void:
 	await _stop()
 
 
-## US-008 sinyal yolu: Game'de `player_caught(peer_id, by)` varsa seviye yüklenince bağlanır; by = chaser → Terlik
-## yedi. (Sinyal US-008'de betikte olacak; burada çalışma anında eklenir — betik sinyali gibi get_signal_list'te.)
+## US-008 signal path: if Game has `player_caught(peer_id, by)` it is connected on level load; by = chaser -> Terlik
+## is eaten. (The signal will be in the script with US-008; here it is added at runtime, like a script signal in get_signal_list.)
 func test_player_caught_signal_with_cause() -> void:
 	if not Game.has_signal(&"player_caught"):
 		Game.add_user_signal("player_caught", [
@@ -176,7 +176,7 @@ func test_player_caught_signal_with_cause() -> void:
 	await _stop()
 
 
-## İş bitince host yeni ganimet isteğini reddeder; bitmeden başlamış boşaltma sonradan biterse nakdi geri alınır.
+## After the job ends the host rejects new loot requests; if an unloading started earlier finishes later the cash is refunded.
 func test_loot_locked_after_finish() -> void:
 	var me: Player = _start()
 	if not is_true(me != null, "yerel oyuncu"):
@@ -247,7 +247,7 @@ func test_level_without_escape_zone_is_not_a_heist() -> void:
 	await _stop()
 
 
-## US-040: ganimetsiz kaçış bölgesinde 3 sn (data/heist_tuning.tres) kesintisiz → `aborted`; çıkınca sayaç sıfır.
+## US-040: 3 s (data/heist_tuning.tres) continuously in the escape zone without loot -> `aborted`; leaving resets the counter.
 func test_empty_handed_abort() -> void:
 	var me: Player = _start()
 	if not is_true(me != null, "yerel oyuncu"):
@@ -279,14 +279,14 @@ func test_empty_handed_abort() -> void:
 	await _stop()
 
 
-## US-041 (KR-029): yakalanan başına kefalet 100 (T1); kasa eksiye düşer; sonraki işin ödemesi borcu kapatır
-## (yeniden başlatma değil, aynı seviyenin düz yüklenmesi: kasa taşınır).
+## US-041 (KR-029): bail 100 per caught player (T1); cash may go negative; the next job's payout clears the debt
+## (not a restart, a plain load of the same level: cash carries over).
 func test_bail_debt_closed_by_next_payout() -> void:
 	var me: Player = _start()
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
-	me.position = STAFF  # personel tarafı: örtü bozulur (US-042), polis yakalar
+	me.position = STAFF  # staff side: cover breaks (US-042), police catch
 	await _frames()
 	Game.raise_session_event(&"police_arrived")
 	await _frames()
@@ -315,7 +315,7 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	await _stop()
 
 
-## US-042 AC1/AC3: yerel örtü göstergesi kaynağı; personel tarafına geçince bozulur, olay herkese gider, geri gelmez.
+## US-042 AC1/AC3: source of the local cover indicator; breaks on crossing to the staff side, the event reaches everyone, no return.
 func test_cover_state_breaks_on_staff_side() -> void:
 	eq(Game.cover_state(), -1, "iş yok")
 	var me: Player = _start()
@@ -335,7 +335,7 @@ func test_cover_state_breaks_on_staff_side() -> void:
 	await _stop()
 
 
-## US-042 AC2: polis geldiğinde örtüsü sağlam (dışarıda bekleyen) oyuncu tanık sorgusuyla serbest.
+## US-042 AC2: when police arrive, a player with intact cover (waiting outside) is released by the witness check.
 func test_police_releases_witness() -> void:
 	var me: Player = _start()
 	if not is_true(me != null, "yerel oyuncu"):
@@ -356,8 +356,8 @@ func test_police_releases_witness() -> void:
 	await _stop()
 
 
-## US-042 AC1: işaretli arkadaşla (sahip tuttu) sahibin konisinde ve görüş hattında yakın etkileşim → örtü bozulur,
-## sahibin o oyuncuya şüphesi +60 (report_suspicion: müşteri-tanık yolu). Görülmeyen / işaretsiz etkileşim bozmaz.
+## US-042 AC1: close interaction with a marked friend (owner held) inside the owner's cone and line of sight -> cover breaks,
+## owner's suspicion of that player +60 (report_suspicion: customer-witness path). Unseen / unmarked interaction does not break it.
 func test_association_seen_by_owner() -> void:
 	var me: Player = _start()
 	if not is_true(me != null, "yerel oyuncu"):
@@ -367,7 +367,7 @@ func test_association_seen_by_owner() -> void:
 	var owner: Node2D = _level().npcs_root().get_node("Owner") as Node2D
 	var eye: Perception = owner.get_node("Perception") as Perception
 	var meter: Suspicion = owner.get_node("Suspicion") as Suspicion
-	# Konisinde ve görüş hattında bir nokta (tezgâh bazı ışınları keser): adaylardan ilki.
+	# A point inside the cone and line of sight (the counter blocks some rays): the first candidate.
 	var seen_at: Vector2 = Vector2.INF
 	for d: Vector2 in [Vector2(-60, 60), Vector2(-60, -60), Vector2(-100, 60), Vector2(-40, 30)]:
 		var at: Vector2 = eye.global_position + d
@@ -394,5 +394,5 @@ func test_association_seen_by_owner() -> void:
 
 
 func test_request_restart_needs_level() -> void:
-	Game.request_restart()  # çevrimdışı, seviye yok: uyarı, etkisiz
+	Game.request_restart()  # offline, no level: warning, no effect
 	is_true(Game.current_level() == null)

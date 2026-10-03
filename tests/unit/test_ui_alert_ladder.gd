@@ -1,7 +1,7 @@
 extends TestCase
-## Uyarı merdiveni HUD'u (US-013; S3 eki KR-021): sahte Game'in alert_level_changed / alert_level() /
-## alert_timer_left() sözleşmesiyle kademe geçişleri, kutu doluluğu ve sayı + ad metni, polis sayacının
-## yalnız 3'te görünmesi, değişim vurgusu (hareket azaltmada yok), API'siz Game'de gizlilik, okunabilirlik.
+## Alert ladder HUD (US-013; S3 addition KR-021): level transitions via the fake Game's alert_level_changed / alert_level() /
+## alert_timer_left() contract, box fill and number + name text, the police timer visible only at 3, change highlight (absent with
+## reduced motion), hidden on a Game without the API, legibility.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -90,7 +90,7 @@ func test_level_transitions_follow_signal() -> void:
 
 func test_police_timer_only_at_level_three() -> void:
 	await _open(func() -> void: game.timer_left = 83.2)
-	# US-038: HUD'da sayaç kaçış panelinde (test_ui_escape.gd); merdivenin kendi sayacı panelsiz Game için kalır.
+	# US-038: the HUD timer is in the escape panel (test_ui_escape.gd); the ladder's own timer remains for a Game without the panel.
 	is_false(ladder.show_timer, "HUD kaçış paneli varken merdiven sayacı kapalı")
 	game.alert_level_changed.emit(3)
 	is_false(_timer().visible, "kademe 3, show_timer kapalı: merdivende sayaç yok")
@@ -178,7 +178,7 @@ func test_legibility() -> void:
 	for label: Label in [ladder.get_node("%LevelLabel"), police]:
 		is_true(label.visible, "%s görünür" % label.name)
 		is_true(label.get_theme_font_size(&"font_size") >= ThemeTokens.FONT_SIZE_BODY, "%s ≥ 18 px" % label.name)
-	# Metin dışı öge ≥ 3:1: boş kutu çerçevesi kendi zemininde, dolu kutu panel zemininde.
+	# Non-text element >= 3:1: empty box outline on its own background, filled box on the panel background.
 	var t: Theme = ThemeTokens.theme()
 	var empty: StyleBoxFlat = t.get_stylebox(&"panel", &"LadderStep") as StyleBoxFlat
 	is_true(_contrast(empty.border_color, empty.bg_color) >= 3.0, "boş kutu çerçevesi")

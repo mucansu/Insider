@@ -1,19 +1,17 @@
 extends TestCase
-## US-010 bakkal etkileşimleri (store_a, sabit adım, tek süreç = host; GDD §9.3, KR-026):
-## kurallar (CivilianRules: SATIN AL bedeli, oyalanma eşiği, dikkat dağıtma defteri, telefon saati), SATIN AL
-## (servis kancası, şüphe/oyalanma 0, bedel, sahip yokken gelir), ARKA ODAYA GÖNDER (iş başına 1, kasa penceresi
-## ≥ 10 sn), bağırınca istemler gizli, OYALA (bakış kilidi, "bu adam ne istiyor", masum), DİKKAT DAĞIT (raf
-## devirme ClerkSpot'tan ≤ 1 sn DİNLE, BackroomSpot/PhoneSpot'tan değil; telefon 3 sn sonra çalar, bulunur, iş başına
-## 1; ikinci dikkat dağıtma +30), iki istem satırı (E/Q kanalları), peer'lı start_blocker, oyalanma dükkândan
-## çıkınca sıfır, metin varlığı.
+## US-010 shop interactions (store_a, fixed step, single process = host; GDD §9.3, KR-026): rules (CivilianRules: BUY cost, loiter
+## threshold, distraction ledger, phone time), BUY (service hook, suspicion/loiter 0, cost, comes when no owner), SEND TO BACK ROOM
+## (1 per job, register window >= 10 s), prompts hidden after a shout, LOITER (look lock, "what does this guy want", innocent),
+## DISTRACT (knocking over a shelf: LISTEN <= 1 s from ClerkSpot, not from BackroomSpot/PhoneSpot; the phone rings after 3 s, is
+## found, 1 per job; a second distraction +30), two prompt lines (E/Q channels), start_blocker with peers, loiter resets on
+## leaving the shop, text presence.
 
 const DT := 1.0 / 60.0
-## Tezgâhın müşteri tarafı: QueueSpot2 (tezgâh önü: SATIN AL + GÖNDER) ve QueueSpot1 (kasa önü, sahibe 64 px:
-## OYALA + GÖNDER).
+## Customer side of the counter: QueueSpot2 (counter front: BUY + SEND) and QueueSpot1 (register front, 64 px from the owner: LOITER + SEND).
 const COUNTER_FRONT := Vector2(528, 336)
 const REGISTER_FRONT := Vector2(528, 368)
 const STREET := Vector2(880, 592)
-## Satış alanında sahibe (ClerkSpot) 68 px, tam batısında değil (bakışın dönmesi ölçülür).
+## In the sales area 68 px from the owner (ClerkSpot), not exactly west (the look turning is measured).
 const TALK_SPOT := Vector2(532, 404)
 const TEXT_KEYS: Array[String] = ["INTERACT_COUNTER_BUY", "INTERACT_COUNTER_SEND", "INTERACT_OWNER_TALK",
 	"INTERACT_SHELF_TOPPLE", "INTERACT_PHONE_DROP", "OWNER_SERVE", "OWNER_TALK", "OWNER_SENT", "OWNER_LISTEN",
@@ -27,7 +25,7 @@ func _counter(stage: NpcStage) -> ShopCounter:
 
 func _shelf(stage: NpcStage, index: int) -> ShelfProp:
 	var shelf: ShelfProp = stage.level.props_root().get_node(NodePath("ShelfProp%d" % index)) as ShelfProp
-	shelf.set_physics_process(false)  # testte saat elle (probe) adımlanır
+	shelf.set_physics_process(false)  # the clock is stepped by hand (probe) in the test
 	return shelf
 
 
@@ -35,18 +33,18 @@ func _events(o: StoreOwner) -> Array:
 	var out: Array = []
 	for kind: StringName in StoreOwner.EVENT_KINDS:
 		o.connect(kind, func(peer_id: int) -> void: out.append([kind, peer_id]))
-	# Host kancası (US-042 strateji etiketi "sosyal"): [&"social", peer, kind].
+	# Host hook (US-042 strategy tag "social"): [&"social", peer, kind].
 	o.social_action.connect(func(peer_id: int, kind: StringName) -> void: out.append([&"social", peer_id, kind]))
 	return out
 
 
-## Basılı tutmayı host yolundan sürdürür (Interactable host API'si; isteyen aktör sahnede).
+## Keeps a hold going through the host path (Interactable host API; the requesting actor is in the scene).
 func _hold(stage: NpcStage, item: Interactable, peer_id: int, seconds: float) -> void:
 	item.host_start(peer_id, 1)
 	stage.run(seconds)
 
 
-# --- kurallar ---
+# --- rules ---
 
 func test_rules_purchase_loiter_distraction_log() -> void:
 	eq(CivilianRules.purchase_cost(100, 10), 10)
@@ -116,7 +114,7 @@ func test_texts_exist_in_both_languages() -> void:
 		has(NpcVisual.BALLOON_KEYS, kind, "balon " + kind)
 
 
-# --- SATIN AL ---
+# --- BUY ---
 
 func test_buy_serves_player_resets_suspicion_and_pays() -> void:
 	var stage := NpcStage.new(self)
@@ -129,10 +127,10 @@ func test_buy_serves_player_resets_suspicion_and_pays() -> void:
 	stage.player(2, COUNTER_FRONT)
 	stage.run(1.0)
 	var cash_before: int = Game.team_cash()
-	Game.add_team_cash(100 - cash_before)  # ekip nakdi 100
+	Game.add_team_cash(100 - cash_before)  # team cash 100
 	counter.buy_interactable().host_start(2, 1)
 	stage.run(1.9)
-	o.apply_suspicion(2, 45.0)  # sahip BAK'ta: SATIN AL onu da keser (kesme API'si, tur 2 #14)
+	o.apply_suspicion(2, 45.0)  # owner is in LOOK: BUY interrupts that too (interrupt API, round 2 #14)
 	stage.run(DT)
 	eq(o.brain().state(), OwnerBrain.State.LOOK)
 	stage.run(0.2)
@@ -178,7 +176,7 @@ func test_buy_while_owner_away_brings_him_to_the_counter() -> void:
 	stage.leave()
 
 
-# --- ARKA ODAYA GÖNDER ---
+# --- SEND TO BACK ROOM ---
 
 func test_send_to_backroom_once_per_heist_with_register_window() -> void:
 	var stage := NpcStage.new(self)
@@ -231,7 +229,7 @@ func test_shout_hides_counter_and_talk_prompts() -> void:
 	stage.leave()
 
 
-# --- OYALA ---
+# --- LOITER ---
 
 func test_talk_locks_gaze_on_talker_and_loiter_threshold() -> void:
 	var stage := NpcStage.new(self)
@@ -260,11 +258,11 @@ func test_talk_locks_gaze_on_talker_and_loiter_threshold() -> void:
 	stage.run(0.5)
 	has(events, [&"owner_loiter", 2], "oyalanma eşiği: bu adam ne istiyor")
 	eq(events.count([&"owner_loiter", 2]), 1, "bir kez")
-	# Bırakınca ajanda sürer.
+	# On release the agenda continues.
 	talk.host_abort()
 	stage.run(0.5)
 	eq(o.agenda().task_name(), &"counter", "konuşma bitti, tezgâh")
-	# Süre dolunca konuşma kendiliğinden biter.
+	# When the time runs out the conversation ends by itself.
 	loiter[0] = 0.0
 	talk.host_start(2, 2)
 	stage.run(StoreToolsTuning.load_default().talk_max_sec + 0.5)
@@ -291,7 +289,7 @@ func test_talk_needs_calm_agenda_and_yields_to_service() -> void:
 	stage.leave()
 
 
-# --- DİKKAT DAĞIT ---
+# --- DISTRACT ---
 
 func test_topple_heard_from_clerk_spot_not_from_backroom_or_phone() -> void:
 	for index: int in [1, 2, 3]:
@@ -354,12 +352,12 @@ func test_phone_rings_lures_owner_and_second_distraction_costs_suspicion() -> vo
 	var step_shelves := func() -> void:
 		for s: ShelfProp in shelves:
 			s.step(DT)
-	# Telefonu bırak (Q, 0,5 sn): iş başına bir.
+	# Drop the phone (Q, 0.5 s): one per job.
 	_hold(stage, s2.get_node(^"Phone") as Interactable, 3, 0.6)
 	eq(s2.phone_state, CivilianRules.Phone.PLANTED)
 	stage.run(DT, step_shelves)
 	is_false((s3.get_node(^"Phone") as Interactable).enabled, "ikinci telefon yok (iş başına 1)")
-	# Raf devirme (1. dikkat dağıtma): sahip sese yürür.
+	# Knocking over a shelf (1st distraction): the owner walks to the sound.
 	_hold(stage, s1.get_node(^"Topple") as Interactable, 2, DT)
 	eq(o.agenda().task_name(), &"listen")
 	eq(o.brain().distractions.count, 1)
@@ -387,7 +385,7 @@ func test_phone_rings_lures_owner_and_second_distraction_costs_suspicion() -> vo
 	stage.leave()
 
 
-# --- istem satırları ve oyalanma ---
+# --- prompt lines and loitering ---
 
 func test_two_prompt_lines_pick_targets_per_input_action() -> void:
 	var stage := NpcStage.new(self)

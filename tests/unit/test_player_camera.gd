@@ -1,7 +1,7 @@
 extends TestCase
-## IS-027 yerel oyuncu kamerası ve görünüm cilası: yakınlaştırma `data/player_tuning.tres` camera_zoom 1,5
-## (`--camera-zoom` geliştirici argümanı geçersiz kılar), kamera seviyenin harita dikdörtgenine (S4
-## `Level.map_rect()`) kenetlenir, harita görüşten darsa ortalanır; viewport temizleme rengi tonun BG'si.
+## IS-027 local player camera and view polish: zoom 1.5 from `data/player_tuning.tres` camera_zoom (the `--camera-zoom` developer
+## argument overrides), the camera is clamped to the level's map rectangle (S4 `Level.map_rect()`), centred if the map is narrower
+## than the view; the viewport clear colour is the tone's BG.
 
 const SCENE := "res://entities/player/player.tscn"
 const TUNING := "res://data/player_tuning.tres"
@@ -62,13 +62,13 @@ func test_local_camera_uses_tuning_zoom_or_argument() -> void:
 
 func test_camera_limits_math() -> void:
 	var map := Rect2(0, 0, 960, 640)
-	# Zoom 1,5: görüş 853×480 haritadan küçük -> sınır harita.
+	# Zoom 1.5: view 853x480 is smaller than the map -> limit is the map.
 	eq(Player.camera_limits(map, Vector2(1280, 720) / 1.5), Rect2i(0, 0, 960, 640))
-	# Zoom 1,0: görüş 1280×720 haritadan büyük -> harita ortada, sınır görüş boyunda.
+	# Zoom 1.0: view 1280x720 is larger than the map -> map centred, limit is the view size.
 	eq(Player.camera_limits(map, Vector2(1280, 720)), Rect2i(-160, -40, 1280, 720))
-	# Karışık: yalnız dar eksen genişler; konumlu harita.
+	# Mixed: only the narrow axis widens; a positioned map.
 	eq(Player.camera_limits(Rect2(100, 50, 2000, 300), Vector2(1280, 720)), Rect2i(100, -160, 2000, 720))
-	# Kesirli genişletme aşağı/yukarı yuvarlanır, görüşten dar kalmaz.
+	# Fractional widening is rounded down/up, never narrower than the view.
 	var odd: Rect2i = Player.camera_limits(map, Vector2(1281, 721))
 	is_true(odd.size.x >= 1281 and odd.size.y >= 721, "yuvarlama görüşü kapsar: %s" % odd)
 	near(Vector2(odd.get_center()), map.get_center(), 1.0, "ortalı")
@@ -78,7 +78,7 @@ func test_camera_clamps_to_level_map() -> void:
 	var saved: float = Args.camera_zoom
 	Args.camera_zoom = 0.0
 	var level: Level = autofree((load(STORE) as PackedScene).instantiate()) as Level
-	level.position = Vector2(100, 200)  # kökün dönüşümü global sınıra yansır
+	level.position = Vector2(100, 200)  # the root's transform is reflected in the global limit
 	tree().root.add_child(level)
 	var player: Player = _spawn_local(level.players_root())
 	var cam: Camera2D = _camera(player)
@@ -86,7 +86,7 @@ func test_camera_clamps_to_level_map() -> void:
 	var expected: Rect2i = Player.camera_limits(map, player.get_viewport_rect().size / cam.zoom)
 	eq(Rect2i(cam.limit_left, cam.limit_top, cam.limit_right - cam.limit_left, cam.limit_bottom - cam.limit_top),
 		expected, "Camera2D limit_* = harita (görüşe göre)")
-	# Görüş haritadan büyükse sınır görüşü kapsar ve haritayı ortalar (gri boşluk değil, çevresi BG).
+	# If the view is larger than the map the limit covers the view and centres the map (no grey gap, surroundings are BG).
 	cam.zoom = Vector2.ONE
 	player.get_viewport().size_changed.emit()
 	var view: Vector2 = player.get_viewport_rect().size

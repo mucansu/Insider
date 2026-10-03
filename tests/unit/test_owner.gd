@@ -1,19 +1,19 @@
 extends TestCase
-## US-008 AC1/AC3/AC4/AC5/AC8/AC9: bakkal sahibi store_a'da (gerçek geometri, gezinme, görüş hattı; sabit adım,
-## tek süreç = host). Tepki zinciri "?" → sorgu → bağırış, uyarı merdiveni (StoreAlert → Game), değişmezler I1
-## ("?" tespitten ≥ 0,5 sn önce; tespit kaydı), I2 (ölçer sıçramaz), I3 (BAK ≥ 0,5 sn), I4 (merdiven), I5 (dönüş
-## ≤ 120°/sn), I7 (duvar içinde değil); raf arkası hiç; çarpan bağlamı (bölge, kasa etkileşimi, tutulan 0);
-## `apply_delta` API'si; tespit kilidi (kısa saklanmada "!" titremez); duck typing Hearing (sahte) ve kapı zili.
+## US-008 AC1/AC3/AC4/AC5/AC8/AC9: the shop owner in store_a (real geometry, navigation, sight line; fixed step, single process =
+## host). Reaction chain "?" -> question -> shout, alert ladder (StoreAlert -> Game), invariants I1 ("?" >= 0.5 s before
+## detection; detection record), I2 (meter does not jump), I3 (LOOK >= 0.5 s), I4 (ladder), I5 (turn <= 120 deg/s), I7 (not
+## inside a wall); never behind a shelf; multiplier context (zone, register interaction, held 0); `apply_delta` API; detection
+## lock (no "!" flicker on a brief hide); duck-typed Hearing (fake) and the door bell.
 
 const DT := 1.0 / 60.0
-## Personel tarafı, tezgâh ucunun içi (sahibin konisinde, yakın bant).
+## Staff side, inside the counter end (in the owner's cone, near band).
 const STAFF_FRONT := Vector2(560, 400)
-## Kasanın personel tarafı (kasa boşaltma yeri).
+## Staff side of the register (where the register is emptied).
 const REGISTER_STAFF := Vector2(586, 366)
 const CUSTOMER_OPEN := Vector2(400, 400)
 
 
-## US-009 Hearing'in sahtesi (S11 sözleşmesi: yalnız `heard` sinyali).
+## Fake of US-009 Hearing (S11 contract: only the `heard` signal).
 class FakeHearing:
 	extends Node
 	signal heard(pos: Vector2, radius: float, kind: StringName)
@@ -54,7 +54,7 @@ func test_staff_side_chain_question_shout_and_ladder() -> void:
 	eq(Game.alert_level(), 2, "uyarı 2: bağırdı")
 	eq(stage.alert().ladder.history, PackedInt32Array([0, 1, 2]), "I4: 0 → 1 → 2, atlamasız")
 	is_true(look_time[0] >= 0.5 - 0.0001, "I3: BAK ≥ 0,5 sn (gelen %.3f)" % look_time[0])
-	# I1 + AC8 döküm alanları.
+	# I1 + AC8 dump fields.
 	var det: Array[Dictionary] = o.brain().detections
 	if is_true(det.size() == 1, "bir tespit kaydı"):
 		var d: Dictionary = det[0]
@@ -67,13 +67,13 @@ func test_staff_side_chain_question_shout_and_ladder() -> void:
 	stage.run(3.0, probe)
 	is_true(p.is_held() or p.is_caught(), "sahip kovalar ve tutar (28 px + 0,5 sn)")
 	has(events, [&"owner_held", 2])
-	# I2: ölçer sıçramaz.
+	# I2: the meter does not jump.
 	var cap: float = 25.0 * 2.0 * 2.5 * DT + 0.001
 	var worst: float = 0.0
 	for i: int in range(1, meter.size()):
 		worst = maxf(worst, absf(meter[i] - meter[i - 1]))
 	is_true(worst <= cap, "I2: |Δölçer| ≤ dolum × Δt (en büyük %.3f, sınır %.3f)" % [worst, cap])
-	# I5: dönüş tavanı.
+	# I5: turn ceiling.
 	var turn_cap: float = deg_to_rad(o.perception().tuning.max_turn_deg_per_sec) * DT + 0.0001
 	var worst_turn: float = 0.0
 	for i: int in range(1, facings.size()):
@@ -90,13 +90,13 @@ func test_behind_shelf_never_fills() -> void:
 	var o: StoreOwner = stage.owner()
 	o.global_position = Vector2(420, 240)
 	o.perception().facing = Vector2.LEFT
-	Game.set_alert_level(2)  # bağırıştan sonra herkes 2,5: en kötü durum
+	Game.set_alert_level(2)  # after the shout everyone is 2.5: worst case
 	var p: Player = stage.player(2, Vector2(240, 176))
 	await tree().physics_frame
 	for i: int in roundi(5.0 / DT):
 		o.suspicion().tick(DT)
 	eq(o.suspicion().value_of(2), 0.0, "raf arkası (görüş hattı kesik) hiç dolmaz")
-	p.position = Vector2(304, 240)  # aynı uzaklıkta açık koridor (uzak bant)
+	p.position = Vector2(304, 240)  # open aisle at the same distance (far band)
 	var detected_at: float = -1.0
 	for i: int in roundi(3.0 / DT):
 		o.suspicion().tick(DT)
@@ -146,11 +146,11 @@ func test_apply_delta_api_and_detection_latch() -> void:
 	eq(levels, [[7, 1]], "AC4: apply_delta eşik sinyali")
 	o.apply_suspicion(7, -40.0)
 	eq(o.suspicion().value_of(7), 0.0, "OYALA −40 (US-010)")
-	# Tespit kilidi: bağırıştan sonra oyuncu kısa süre görünmez olunca özet düzey ve "!" titremez.
+	# Detection lock: after the shout, if the player is briefly invisible, the summary level and "!" do not flicker.
 	var p: Player = stage.player(2, STAFF_FRONT)
 	stage.run(1.8)
 	is_true(o.brain().is_alarmed())
-	p.position = Vector2(656, 176)  # arka oda: duvar arkası
+	p.position = Vector2(656, 176)  # back room: behind a wall
 	var levels_seen: Array[int] = []
 	var bubbles: Array[int] = []
 	stage.run(1.5, func() -> void:
@@ -182,7 +182,7 @@ func test_hearing_duck_typing_and_bell_interrupts() -> void:
 	stage.run(8.0)
 	eq(o.agenda().task_name(), &"counter", "8 sn sonra ajanda sürer")
 	stage.run(6.0)
-	# Kapı zili: oyuncu ön kapıdan içeri girer.
+	# Door bell: the player enters through the front door.
 	var p: Player = stage.player(2, Vector2(368, 496))
 	stage.run(0.1)
 	p.position = Vector2(368, 432)
@@ -194,7 +194,7 @@ func test_hearing_duck_typing_and_bell_interrupts() -> void:
 	stage.leave()
 
 
-## I7: ulaşılamayan görev noktasında sahip donmaz (gidemiyor = vardı sayılır), duvara yüklenmez.
+## I7: at an unreachable task point the owner does not freeze (cannot go = counts as arrived), does not push into walls.
 func test_unreachable_task_does_not_freeze() -> void:
 	var stage: NpcStage = _stage()
 	await stage.enter()

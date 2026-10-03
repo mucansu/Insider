@@ -1,13 +1,12 @@
 extends TestCase
-## IS-085 çanta taşıma görseli: BagCarry (düğümsüz) taraf seçimi (bakışa göre yakın el, dikeyde son taraf), yumuşak
-## taraf geçişi, ışınlanmada anında kurulum, sarkaç salınımı (yürürken var, dururken söner, hareket azaltmada 0),
-## katman (sırt dönükken arkada); BagVisual + gerçek oyuncu: çanta kukla elinde, ayak hizasının üstünde, yöne göre
-## z, düşünce yerde taşıyanın konumunda.
+## IS-085 bag carry visual: BagCarry (no node) side choice (near hand by facing, last side when vertical), smooth side
+## switch, instant setup on teleport, pendulum swing (present walking, fades standing, 0 with reduced motion), layer
+## (behind when back turned); BagVisual + real player: bag in puppet hand, above foot line, z by direction, on the ground at carrier on drop.
 
 const BAG_SCENE := "res://entities/props/bag.tscn"
 const PLAYER_SCENE := "res://entities/player/player.tscn"
 const DT := 1.0 / 60.0
-## Sağa bakan kukla elleri (taşıyana göre px) [sol, sağ]: yakın el (sağ) aşağıda.
+## Hands of a right-facing puppet (px relative to carrier) [left, right]: near hand (right) is lower.
 const HANDS_RIGHT: Array[Vector2] = [Vector2(0.0, -10.2), Vector2(0.0, -7.8)]
 const HANDS_DOWN: Array[Vector2] = [Vector2(10.5, -9.0), Vector2(-10.5, -9.0)]
 
@@ -66,7 +65,7 @@ func test_back_facing_draws_behind_and_teleport_snaps() -> void:
 	near(carry.grip, _grip_target(HANDS_DOWN, 1), 0.001, "sıfırlanınca (yeni taşıyan) anında kurulur")
 
 
-## Yürüyüş: el ileri-geri salınır, taşıyan sağa yürür.
+## Walking: hand swings back and forth, carrier walks right.
 func _walk(carry: BagCarry, seconds: float, speed: float, reduced: bool) -> float:
 	var peak: float = 0.0
 	var t: float = 0.0

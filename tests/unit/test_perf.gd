@@ -1,6 +1,6 @@
 extends TestCase
-## IS-067 çizim ölçümü: Args `--perf`/`--perf-seconds`, FrameStats halka tamponu + istatistik (core), PerfReport
-## döküm şeması (headless işaretli), PerfProbe (main.gd'nin --perf çocuğu) şeması ve kare başı ölçüm bağlantısı.
+## IS-067 draw measurement: Args `--perf`/`--perf-seconds`, FrameStats ring buffer + statistics (core), PerfReport dump schema
+## (headless marked), PerfProbe (main.gd's --perf child) schema and per-frame measurement hookup.
 
 const ArgsScript := preload("res://autoload/args.gd")
 
@@ -105,7 +105,7 @@ func test_percentile_nearest_rank() -> void:
 
 
 func test_summarize_and_fps() -> void:
-	# 99 kare 10 ms + 1 kare 50 ms (takılma): ortalama 10,4 ms, p99 = 10 (en yakın sıra), max 50.
+	# 99 frames of 10 ms + 1 frame of 50 ms (a hitch): mean 10.4 ms, p99 = 10 (nearest rank), max 50.
 	var frames := PackedFloat32Array()
 	for i: int in 99:
 		frames.append(10.0)
@@ -122,7 +122,7 @@ func test_summarize_and_fps() -> void:
 	near(f["avg"], 1000.0 / 10.4, 0.01, "ortalama = kare sayısı / toplam süre")
 	near(f["min"], 20.0, 0.001, "en uzun kare 50 ms → 20 FPS")
 	near(f["p1_low"], 100.0, 0.001)
-	frames.append(40.0)  # artık en yavaş %1 iki kare: p99 40 ms
+	frames.append(40.0)  # now the slowest 1% is two frames: p99 40 ms
 	near(FrameStats.fps_summary(frames)["p1_low"], 25.0, 0.001)
 	var empty: Dictionary = FrameStats.summarize(PackedFloat32Array())
 	eq(empty["count"], 0)
@@ -147,7 +147,7 @@ func test_tail_within_time_window() -> void:
 
 
 func test_cost_of_push_is_small() -> void:
-	# Kare başına bir push + 8 monitör toplama; 10 sn × 1000 FPS tamponunda bile ihmal edilebilir olmalı.
+	# One push per frame + 8 monitors gathered; must be negligible even in a 10 s x 1000 FPS buffer.
 	var r := FrameStats.new(10000)
 	var t0: int = Time.get_ticks_usec()
 	for i: int in 10000:
@@ -156,7 +156,7 @@ func test_cost_of_push_is_small() -> void:
 	is_true(per_push_us < 20.0, "push %.2f µs" % per_push_us)
 
 
-# --- PerfReport şeması --------------------------------------------------------------------------------------
+# --- PerfReport schema --------------------------------------------------------------------------------------
 
 func _monitors(value: float) -> Dictionary:
 	var out: Dictionary = {}
@@ -210,7 +210,7 @@ func test_report_tolerates_missing_and_untyped_monitors() -> void:
 
 
 func test_probe_report_before_begin_is_headless_schema() -> void:
-	# Ağaca eklenmeden, ölçüm başlamadan: şema tam, headless işaretli, motor bilgisi alanları var.
+	# Before adding to the tree, before measurement starts: schema complete, headless marked, engine info fields present.
 	var probe := autofree(PerfProbe.new()) as PerfProbe
 	var r: Dictionary = probe.report()
 	is_true(r["headless"])
@@ -226,7 +226,7 @@ func test_probe_report_before_begin_is_headless_schema() -> void:
 
 
 class _Busy extends Node:
-	## Her karede ~3 ms _process, ~1 ms _physics_process harcar (ölçülen süreye girmeli).
+	## Spends ~3 ms _process and ~1 ms _physics_process every frame (should show in the measured time).
 	func _process(_delta: float) -> void:
 		var t: int = Time.get_ticks_usec()
 		while Time.get_ticks_usec() - t < 3000:
@@ -239,7 +239,7 @@ class _Busy extends Node:
 
 
 func test_probe_measures_process_and_physics_per_frame() -> void:
-	# begin → process_frame/physics_frame bağlantıları gerçek ağaçta koşar; seviye sorgusu ve ısınma test için açık.
+	# begin -> process_frame/physics_frame hookups run in the real tree; level query and warm-up are open for the test.
 	var busy := autofree(_Busy.new()) as Node
 	var probe := autofree(PerfProbe.new()) as PerfProbe
 	probe.level_query = func() -> bool: return true
@@ -259,7 +259,7 @@ func test_probe_measures_process_and_physics_per_frame() -> void:
 	is_true(int(process["count"]) >= 2, "0,25 sn aralıkları yazıldı")
 	is_true(float(process["avg"]) >= 2.5, "_process maliyeti kare başına ölçülür: %s ms" % process["avg"])
 	is_true(float(process["avg"]) < float(r["frame_ms"]["avg"]) + 0.5, "process ≤ kare süresi")
-	# Fizik adımı her karede olmayabilir (FPS > 60): adımlı karelerin tepesi ~1 ms olmalı.
+	# A physics step may not occur every frame (FPS > 60): the peak of stepped frames should be ~1 ms.
 	is_true(float(physics["max"]) >= 0.9, "_physics_process maliyeti ölçülür: max %s ms" % physics["max"])
 	has(r, "process_max_1s_ms")
 	is_true(r["headless"])

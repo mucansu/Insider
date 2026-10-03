@@ -1,8 +1,8 @@
 extends TestCase
-## US-016 (store_a geometrisinde, sabit adım, tek süreç = host): müşteri gelir (zil), raf noktalarında durur, kuyrukta
-## servis olur (sahip MÜŞTERİ kesmesi + "kasa açılır" kancası), çıkar ve silinir; iki müşteri aynı noktayı tutmaz;
-## tanık sahibe söyler (+60) ya da sahibi görmüyorsa kaçar; yoldan geçen rota + cam bakışı, bağırışta mahalleliye
-## dönüşür; örtü sayımı sahibin bağlamında; NPC tavanı 6; çarpışma katmanları ve yarı saydamlık (AC7).
+## US-016 (store_a geometry, fixed step, single process = host): a customer arrives (bell), stops at shelf points, is served in the
+## queue (owner CUSTOMER interrupt + "register opens" hook), leaves and is removed; two customers do not hold the same point;
+## a witness tells the owner (+60) or flees if the owner is not seen; a passer-by route + glass look, becomes a neighbour on a shout;
+## cover counting in the owner's context; NPC cap 6; collision layers and translucency (AC7).
 
 const DT := 1.0 / 30.0
 
@@ -76,7 +76,7 @@ func test_customer_visits_is_served_and_leaves() -> void:
 	stage.leave()
 
 
-## İki müşteri aynı raf/kuyruk noktasını tutmaz; ikisi de sırayla servis olur.
+## Two customers do not hold the same shelf/queue point; both are served in turn.
 func test_two_customers_never_share_spots() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.customer_first_min = 1.0
@@ -115,19 +115,19 @@ func _first_customer(stage: NpcStage, pop: Population) -> Civilian:
 	return null
 
 
-## AC5: tanık 100'de bağırmaz; sahibi görüyorsa ona yürür, 3-5 sn içinde sahibin o oyuncuya şüphesi +60.
+## AC5: a witness does not shout at 100; if it sees the owner it walks to them, the owner's suspicion of that player +60 within 3-5 s.
 func test_witness_tells_owner() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.customer_first_min = 0.5
 		t.customer_first_max = 0.5)
 	var o: StoreOwner = stage.owner()
 	var pop: Population = stage.population()
-	var p: Player = stage.player(2, Vector2(880, 592))  # dışarıda, kimse görmüyor
+	var p: Player = stage.player(2, Vector2(880, 592))  # outside, nobody sees
 	var c: Civilian = _first_customer(stage, pop)
 	if not is_true(c != null, "müşteri geldi"):
 		stage.leave()
 		return
-	c.global_position = Vector2(592, 440)  # tezgâhın arkası, sahibi (ClerkSpot) açıkça görür
+	c.global_position = Vector2(592, 440)  # behind the counter, the owner (ClerkSpot) clearly sees
 	stage.run(0.5, Callable(), DT)
 	c.suspicion().apply_delta(2, 100.0)
 	var told: Array[float] = []
@@ -149,7 +149,7 @@ func test_witness_tells_owner() -> void:
 	stage.leave()
 
 
-## AC5: sahibi görmüyorsa ön kapıdan kaçar, sahibe bir şey olmaz.
+## AC5: if the owner is not seen it flees through the front door, nothing happens to the owner.
 func test_witness_flees_without_owner_in_sight() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.customer_first_min = 0.5
@@ -174,8 +174,8 @@ func test_witness_flees_without_owner_in_sight() -> void:
 	stage.leave()
 
 
-## AC4 + dönüşüm (oyun-yz #20): rota StreetRoute1..6, planındaki camlarda 2 sn içeri bakış; sahip bağırınca
-## 320 px içindeki yoldan geçen aynı yerde mahalleliye dönüşür (NPC sayısı aynı).
+## AC4 + conversion (play-test #20): route StreetRoute1..6, looks inside for 2 s at the windows in its plan; when the owner shouts
+## a passer-by within 320 px turns into a neighbour on the spot (NPC count unchanged).
 func test_passerby_route_looks_and_conversion() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.passerby_interval = 1.0
@@ -197,7 +197,7 @@ func test_passerby_route_looks_and_conversion() -> void:
 	eq(facings, [Vector2.UP, Vector2.UP, Vector2.LEFT] as Array[Vector2], "içeri bakar")
 	is_true(int(pop.dump_state()["looks"]) >= 3, "bakış sayısı")
 	is_true(int(pop.dump_state()["passersby_spawned"]) >= 2, "rota sonunda silinir, yenisi gelir")
-	# Dönüşüm: yoldan geçen sahibe 320 px içindeyken bağırış.
+	# Conversion: a shout while the passer-by is within 320 px of the owner.
 	var near_one: Array[Civilian] = []
 	for i: int in 900:
 		stage.run(DT, Callable(), DT)
@@ -221,7 +221,7 @@ func test_passerby_route_looks_and_conversion() -> void:
 	stage.leave()
 
 
-## AC6: içeride müşteri varken sahibin bağlamı örtüyü taşır (×0,5 kuralı test_population_rules'ta).
+## AC6: with a customer inside the owner's context carries the cover (the x0.5 rule is in test_population_rules).
 func test_cover_count_reaches_owner_context() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.customer_first_min = 0.5
@@ -242,7 +242,7 @@ func test_cover_count_reaches_owner_context() -> void:
 	stage.leave()
 
 
-## AC8: NPC tavanı 6 (sahip + siviller + mahalleli); bağırıştan (uyarı 2) sonra yeni sivil gelmez.
+## AC8: NPC cap 6 (owner + civilians + neighbour); no new civilian arrives after the shout (alert 2).
 func test_npc_cap_and_pause_on_alarm() -> void:
 	var stage: NpcStage = await _stage(func(t: PopulationTuning) -> void:
 		t.customer_first_min = 0.5
@@ -267,7 +267,7 @@ func test_npc_cap_and_pause_on_alarm() -> void:
 	stage.leave()
 
 
-## AC7: NPC'ler oyuncuyu itmez, oyuncu NPC'yi itmez (katman/maske); iç içe geçince sivil yarı saydam.
+## AC7: NPCs do not push the player and the player does not push NPCs (layer/mask); when overlapping the civilian is translucent.
 func test_no_collision_and_overlap_translucency() -> void:
 	var civ: Civilian = autofree((load(Population.CIVILIAN_SCENE) as PackedScene).instantiate()) as Civilian
 	eq(civ.collision_layer, PhysicsLayers.NPCS)

@@ -1,11 +1,11 @@
 extends TestCase
-## IS-037: fizik katmanı bitleri, maskeler ve oyun grubu adları tek kaynakta (core/physics_layers.gd, PhysicsLayers).
-## (1) Eski yerel adlar aynı değeri taşır (davranış aynı; değerler burada bilinçli olarak sayıyla yazılır).
-## (2) Tarama: tests/ dışındaki betiklerde (yorumlar hariç) katman sayısı ya da grup adı dizesi yalnız
-## physics_layers.gd'de geçer. Kurallar: fizik bağlamında `1 <<`; `collision_layer/mask`'e sıfırdan farklı sayı;
-## adı katman/maske olan sabite sayı (`*_MASK`, `*_LAYERS`, `*_LAYER_BIT`, `<KATMAN>_LAYER`); ışın sorgusuna sayı
-## maske; PhysicsLayers'taki grup adlarının dize hâli. Sahne (.tscn) değerleri veri olarak kapsam dışı.
-## Tarayıcının kendisi mutantlarla denetlenir (her kural bir ihlali yakalar; temiz örnek ihlal vermez).
+## IS-037: physics layer bits, masks and game group names in a single source (core/physics_layers.gd, PhysicsLayers).
+## (1) The old local names carry the same value (same behaviour; values are deliberately written as numbers here).
+## (2) Scan: in scripts outside tests/ (comments excluded) a layer number or group name string appears only in physics_layers.gd.
+## Rules: `1 <<` in a physics context; a non-zero number to `collision_layer/mask`; a number to a constant named layer/mask
+## (`*_MASK`, `*_LAYERS`, `*_LAYER_BIT`, `<LAYER>_LAYER`); a number mask in a ray query; the string form of PhysicsLayers group names.
+## Scene (.tscn) values are out of scope as data.
+## The scanner itself is checked with mutants (each rule catches a violation; a clean sample gives none).
 
 const Deps := preload("res://tests/unit/test_deps.gd")
 const SOURCE := "res://core/physics_layers.gd"
@@ -91,7 +91,7 @@ func test_scanner_catches_mutants() -> void:
 	eq(violations(clean, groups), PackedStringArray(), "temiz örnek ihlal vermez")
 
 
-## Kaynaktaki ihlal satırları (yorumlar atılmış kod; her satır en fazla bir kez).
+## Violation lines in the source (code with comments dropped; each line at most once).
 static func violations(source: String, groups: PackedStringArray) -> PackedStringArray:
 	var rules: Array[RegEx] = [
 		RegEx.create_from_string("(?i)^(?=.*\\b1\\s*<<)(?=.*(layer|mask|collision))"),
@@ -113,7 +113,7 @@ static func violations(source: String, groups: PackedStringArray) -> PackedStrin
 	return out
 
 
-## PhysicsLayers'taki grup adları (StringName sabitleri).
+## Group names in PhysicsLayers (StringName constants).
 static func _group_names() -> PackedStringArray:
 	var out: PackedStringArray = []
 	var consts: Dictionary = (load(SOURCE) as Script).get_script_constant_map()

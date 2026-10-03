@@ -1,23 +1,23 @@
 extends TestCase
-## Düzen (US-003 AC6): 1280×720 ve 1920×1080'de, her tonda ve her dilde, en uzun içerikle ekran
-## öğeleri görünür alanın dışına taşmaz, sıkışmaz ve ana bloklar birbirinin üstüne binmez.
-## Ekran görüntüsü headless alınamadığından kontrol boyut/konum üzerinden yapılır.
+## Layout (US-003 AC6): at 1280x720 and 1920x1080, in every tone and every language, with the longest content, screen elements do
+## not overflow the visible area, are not squeezed and the main blocks do not overlap.
+## Screenshots cannot be taken headless, so the check is done via size/position.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1920, 1080)]
 const LOCALES: Array[String] = ["tr", "en"]
-## En geniş harflerle azami uzunlukta ad.
+## A name of maximum length in the widest letters.
 const LONG_NAME := "WWWWWWWWWWWWWWWW"
-## Bir piksel altı yuvarlama payı.
+## A sub-pixel rounding margin.
 const EPSILON := 0.5
-## En kalabalık davet bölümü (US-026): Tailscale yok (not satırı) ve en çok adayla, en uzun adresler.
+## The most crowded invite section (US-026): no Tailscale (note line) and with the most candidates, the longest addresses.
 const WORST_ADDRESSES: Array[String] = ["192.168.100.100", "172.31.255.255", "10.100.100.100", "192.168.200.200",
 	"10.200.200.200", "172.16.100.100"]
 const SETTLE_FRAMES := 3
-## İş sonu ekranı Steam Deck çözünürlüğünde de denetlenir (steam-yayin.md: 1280×800, yazı ≥ 12 px).
+## The job-end screen is also checked at Steam Deck resolution (steam-yayin.md: 1280x800, text >= 12 px).
 const END_SIZES: Array[Vector2i] = [Vector2i(1280, 720), Vector2i(1280, 800), Vector2i(1920, 1080)]
 const DECK_MIN_FONT := 12
-## Üst HUD (nakit, ekip, uyarı merdiveni) en uzun içerikle ekranın en fazla bu oranını örter (US-013).
+## The top HUD (cash, crew, alert ladder) with the longest content covers at most this fraction of the screen (US-013).
 const MAX_TOP_COVERAGE := 0.075
 
 
@@ -26,7 +26,7 @@ func test_main_menu_fits() -> void:
 		var ctx: Dictionary = await _open_menu(size)
 		var menu: MainMenu = ctx["menu"]
 		var net: Fakes.FakeNet = ctx["net"]
-		# Form + en uzun hata.
+		# Form + the longest error.
 		(menu.get_node("%NameEdit") as LineEdit).text = LONG_NAME
 		(menu.get_node("%HostPortEdit") as LineEdit).text = "65535"
 		net.host_result = ERR_CANT_CREATE
@@ -38,7 +38,7 @@ func test_main_menu_fits() -> void:
 		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
 			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
 			menu.get_node("%ErrorPanel")], label + " form")
-		# US-026: "Gelişmiş" açık (port görünür), davet notu görünür, en uzun yapıştırma hatası.
+		# US-026: "Advanced" open (port visible), invite note visible, the longest paste error.
 		is_true((menu.get_node("%HostInvite").get_node("%NoteLabel") as Control).visible, label + ": davet notu")
 		(menu.get_node("%AdvancedButton") as Button).button_pressed = true
 		menu.clipboard_getter = func() -> String: return ""
@@ -48,13 +48,13 @@ func test_main_menu_fits() -> void:
 		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
 			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
 			menu.get_node("%ErrorPanel")], label + " form+gelişmiş")
-		# Bağlanıyor, en uzun adresle.
+		# Connecting, with the longest address.
 		(menu.get_node("%JoinAddressEdit") as LineEdit).text = "w".repeat(60) + ".example.ts.net"
 		(menu.get_node("%JoinButton") as Button).pressed.emit()
 		await _settle()
 		eq(menu.state, MainMenu.State.CONNECTING, label)
 		_check_fits(menu, size, label + " bağlanıyor")
-		# Host açılıyor (Vazgeç görünür).
+		# Host starting (Cancel visible).
 		(menu.get_node("%CancelButton") as Button).pressed.emit()
 		net.host_result = OK
 		(menu.get_node("%HostButton") as Button).pressed.emit()
@@ -65,7 +65,7 @@ func test_main_menu_fits() -> void:
 
 
 func test_pause_invite_fits() -> void:
-	# US-026: host'ta duraklat menüsü, davet listesi açık, en çok adayla (Tailscale yok → not satırı).
+	# US-026: pause menu on the host, invite list open, with the most candidates (no Tailscale -> note line).
 	await _each_variant(func(size: Vector2i, label: String) -> void:
 		var ctx: Dictionary = await _open_hud(size)
 		var hud: Hud = ctx["hud"]
@@ -97,7 +97,7 @@ func test_hud_fits() -> void:
 		game.roster = roster
 		net.my_peer_id = 3
 		game.players_changed.emit()
-		(game as Fakes.FakeVisionGame).player_exposure_changed.emit(3, 2)  # en uzun rozet metni
+		(game as Fakes.FakeVisionGame).player_exposure_changed.emit(3, 2)  # longest badge text
 		game.team_cash_changed.emit(1999999999)
 		net.ping_ms = 9999
 		hud.refresh_ping()
@@ -109,7 +109,7 @@ func test_hud_fits() -> void:
 		var player: Node = autofree(Fakes.FakePlayer.new()) as Node
 		game.local_player_changed.emit(player)
 		player.emit_signal(&"interaction_target_changed", "MENU_ERROR_CONNECTION_FAILED")
-		player.emit_signal(&"interaction_alt_target_changed", "MENU_ERROR_CONNECTION_FAILED")  # IS-091 Q satırı
+		player.emit_signal(&"interaction_alt_target_changed", "MENU_ERROR_CONNECTION_FAILED")  # IS-091 Q line
 		await _settle()
 		_check_fits(hud.get_node("%Root"), size, label + " HUD istem")
 		near((hud.get_node("%Prompt") as Control).get_global_rect().get_center().x, size.x / 2.0, 2.0, label + ": istem ortada")
@@ -121,7 +121,7 @@ func test_hud_fits() -> void:
 		_check_disjoint([hud.get_node(top + "CashPanel"), hud.get_node("%Toasts"), hud.get_node(top + "Right"),
 			hud.get_node("%Interaction"), hud.get_node("%AlertLadder"), hud.get_node("%ExposureBadge")], label + " HUD blokları")
 		is_true((hud.get_node("%ExposureBadge") as Control).visible, label + ": maruziyet rozeti görünür")
-		# US-013: köşe ögeleri ve merdiven haritayı az örter (en uzun içerikle bile).
+		# US-013: corner elements and the ladder cover little of the map (even with the longest content).
 		var covered: float = 0.0
 		for block: Node in [hud.get_node(top + "CashPanel"), hud.get_node(top + "Right/PlayersPanel"), hud.get_node("%AlertLadder")]:
 			covered += (block as Control).get_global_rect().get_area()
@@ -138,7 +138,7 @@ func test_hud_fits() -> void:
 
 
 func test_heist_end_fits() -> void:
-	# En uzun içerik: 4 oyuncu azami adla, en büyük tutarlar, en uzun açıklamalı 3 not; kazanma ve kayıp.
+	# Longest content: 4 players with maximum names, the largest amounts, 3 notes with the longest descriptions; win and loss.
 	var longest_notes: Array = [{"kind": &"pulled_free", "peer": 1}, {"kind": &"window_star", "peer": 2},
 		{"kind": &"owner_favourite", "peer": 4}]
 	await _each_variant(func(size: Vector2i, label: String) -> void:
@@ -165,9 +165,9 @@ func test_heist_end_fits() -> void:
 	, END_SIZES)
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
-## Görünen her yazı Steam Deck'te okunur (≥ 12 px); ikincil başlık (CaptionLabel) dışındakiler ≥ gövde (18 px).
+## Every visible text is readable on Steam Deck (>= 12 px); other than the secondary title (CaptionLabel) all are >= body (18 px).
 func _check_fonts(root: Node, label: String) -> void:
 	var problems: PackedStringArray = []
 	for c: Control in _visible_controls(root):
@@ -180,7 +180,7 @@ func _check_fonts(root: Node, label: String) -> void:
 	is_true(problems.is_empty(), "%s: küçük yazı: %s" % [label, "; ".join(problems.slice(0, 4))])
 
 
-## Her ton × dil × boyut için `body(size, label)` çalıştırır; sonra ton ve dili geri alır.
+## Runs `body(size, label)` for every tone x language x size; then restores tone and language.
 func _each_variant(body: Callable, sizes: Array[Vector2i] = SIZES) -> void:
 	var previous_locale: String = TranslationServer.get_locale()
 	for tone: Tone in ThemeTokens.available_tones():
@@ -200,7 +200,7 @@ func _viewport(size: Vector2i) -> SubViewport:
 	return vp
 
 
-## Sahte Game görüş ekini taşır (US-011c): menüde görüş seçimi, HUD'da maruziyet rozeti düzene girer.
+## The fake Game carries the vision addition (US-011c): the vision choice in the menu and the exposure badge in the HUD enter the layout.
 func _open_menu(size: Vector2i) -> Dictionary:
 	var pair: Array = Fakes.make_pair(self, true)
 	var menu: MainMenu = (load("res://ui/main_menu.tscn") as PackedScene).instantiate() as MainMenu
@@ -219,7 +219,7 @@ func _open_hud(size: Vector2i) -> Dictionary:
 	hud.net = pair[0]
 	hud.game = pair[1]
 	hud.menu_override = func(_key: StringName) -> void: pass
-	hud.warning_override = func(_missing_key: String) -> void: pass  # bilinmeyen olay türü bilerek gönderilir
+	hud.warning_override = func(_missing_key: String) -> void: pass  # an unknown event kind is sent on purpose
 	_viewport(size).add_child(hud)
 	await _settle()
 	return {"hud": hud, "net": pair[0], "game": pair[1]}
@@ -230,7 +230,7 @@ func _settle() -> void:
 		await tree().process_frame
 
 
-## Görünen her Control alanın içinde; metin taşıyan öğeler en küçük boyutlarından dar değil.
+## Every visible Control is inside the area; text-bearing elements are not narrower than their minimum size.
 func _check_fits(root: Node, size: Vector2i, label: String) -> void:
 	var bounds := Rect2(Vector2.ZERO, Vector2(size)).grow(EPSILON)
 	var problems: PackedStringArray = []
@@ -248,7 +248,7 @@ func _check_fits(root: Node, size: Vector2i, label: String) -> void:
 	is_true(problems.is_empty(), "%s: %s" % [label, "; ".join(problems.slice(0, 4))])
 
 
-## Görünen bloklar ikişer ikişer kesişmez.
+## Visible blocks do not intersect pairwise.
 func _check_disjoint(nodes: Array, label: String) -> void:
 	var rects: Array[Rect2] = []
 	var names: Array[String] = []

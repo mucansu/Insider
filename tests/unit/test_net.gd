@@ -1,5 +1,5 @@
 extends TestCase
-## Net (autoload/net.gd, S1) tek süreçli birim testleri (US-001 AC7). Çok süreçli davranış tests/net/*.json.
+## Net (autoload/net.gd, S1) single-process unit tests (US-001 AC7). Multi-process behaviour: tests/net/*.json.
 
 var _failed: int = 0
 var _connected: int = 0
@@ -47,7 +47,7 @@ static func free_udp_port() -> int:
 	return port
 
 
-## `connection_failed` sayacı artana ya da süre dolana kadar kare bekler.
+## Waits frames until the `connection_failed` counter rises or time runs out.
 func _wait_failed(timeout_sec: float) -> bool:
 	var deadline: int = Time.get_ticks_msec() + int(timeout_sec * 1000.0)
 	while _failed == 0 and Time.get_ticks_msec() < deadline:
@@ -61,7 +61,7 @@ func test_offline_defaults() -> void:
 	eq(Net.local_peer_id(), 0)
 	eq(Net.get_ping_ms(), -1)
 	eq(Net.get_ping_ms(1), -1)
-	Net.leave()  # çevrimdışıyken etkisiz
+	Net.leave()  # no effect while offline
 
 
 func test_host_and_leave() -> void:
@@ -84,15 +84,15 @@ func test_host_and_leave() -> void:
 	await tree().process_frame
 	await tree().process_frame
 	eq([_failed, _connected, _host_lost, _peer_events], [0, 0, 0, 0], "leave() sinyal yaymaz")
-	# Port bırakıldı: aynı porta yeniden host olunabilir.
+	# Port released: the same port can be hosted again.
 	eq(Net.host(port), OK)
 	Net.leave()
 	_unwatch()
 
 
 func test_ping_estimate_is_window_median() -> void:
-	# IS-026: gösterilen ping yankı penceresinin medyanı (ms, yuvarlanmış, en az 1); çift sayıda örnekte iki
-	# ortanın ortalaması. Azınlıktaki takılma örnekleri değeri şişirmez.
+	# IS-026: the displayed ping is the median of the echo window (ms, rounded, at least 1); with an even number of samples the
+	# mean of the two middle ones. A minority of stall samples does not inflate the value.
 	eq(Net._ping_estimate_ms([], {}, 0), -1, "örnek yok")
 	eq(Net._ping_estimate_ms([31_000, 62_400, 187_000, 30_600], {}, 0), 47, "çift: iki ortanın ortalaması")
 	eq(Net._ping_estimate_ms([166_200, 155_400, 157_900], {}, 0), 158, "tek: orta")
@@ -103,10 +103,10 @@ func test_ping_estimate_is_window_median() -> void:
 
 
 func test_ping_estimate_under_jitter_stays_near_nominal() -> void:
-	# Sert ağ: örnekler nominal 150 ms ± 30 ms (düzgün; sabit tohumlar, belirlenimci). En küçük (t2) burada
-	# ~120'ye inip gecikme kanıtını ve HUD uyarısını bozuyordu. 16 örneğin medyanının standart hatası bu
-	# dağılımda ~7,5 ms: denemelerin >= %90'ı nominale ±%10, hepsi ±%20 içinde olmalı (tek pencerenin
-	# istatistiksel sınırı; daha sıkısı pencereyi uzatıp HUD tepkisini yavaşlatırdı).
+	# Hard network: samples nominal 150 ms +-30 ms (uniform; fixed seeds, deterministic). The smallest (t2) dropped to ~120 here and
+	# broke the latency proof and the HUD warning. The standard error of the median of 16 samples is ~7.5 ms in this distribution:
+	# >= 90% of trials must be within +-10% of nominal, all within +-20% (the statistical limit of a single window; tighter would
+	# lengthen the window and slow the HUD response).
 	var rng: RandomNumberGenerator = RandomNumberGenerator.new()
 	var min_low: int = 0
 	var near: int = 0
@@ -127,7 +127,7 @@ func test_ping_estimate_under_jitter_stays_near_nominal() -> void:
 
 
 func test_ping_estimate_ignores_minority_outliers() -> void:
-	# 16 örneğin 1..7'si takılma aykırısı (ör. 187-900 ms): medyan ağ gecikmesinde kalır.
+	# 1..7 of 16 samples are stall outliers (e.g. 187-900 ms): the median stays at the network latency.
 	for outliers: int in range(1, 8):
 		var samples: Array = []
 		for i: int in Net.PING_WINDOW:
@@ -138,7 +138,7 @@ func test_ping_estimate_ignores_minority_outliers() -> void:
 
 
 func test_ping_rpc_config_is_unreliable_on_own_channel() -> void:
-	# Koordinatör kararı (IS-026 t2): ping/pong sırasız güvenilmez, oyun RPC'lerinden ayrı kanalda.
+	# Coordinator decision (IS-026 t2): ping/pong is unordered unreliable, on a channel separate from game RPCs.
 	var config: Dictionary = (Net.get_script() as Script).get_rpc_config()
 	for method: String in ["_rpc_ping", "_rpc_pong"]:
 		if not is_true(config.has(method), "%s RPC olarak tanımlı" % method):
@@ -148,7 +148,7 @@ func test_ping_rpc_config_is_unreliable_on_own_channel() -> void:
 		eq(c.get("transfer_mode"), MultiplayerPeer.TRANSFER_MODE_UNRELIABLE, method + " unreliable (sırasız)")
 		eq(c.get("channel"), Net.PING_CHANNEL, method + " kendi kanalı")
 		eq(c.get("call_local"), false, method + " call_remote")
-	# Başlatma iletisi güvenilir ve auth ile aynı sıralı kanalda (0): el sıkışmasından önce ping varmasın.
+	# The start message is reliable and on the same ordered channel as auth (0): ping must not arrive before the handshake.
 	var hello: Dictionary = config.get("_rpc_ping_hello", {})
 	eq(hello.get("rpc_mode"), MultiplayerAPI.RPC_MODE_AUTHORITY, "hello yalnız host'tan")
 	eq(hello.get("transfer_mode"), MultiplayerPeer.TRANSFER_MODE_RELIABLE, "hello güvenilir")
@@ -157,7 +157,7 @@ func test_ping_rpc_config_is_unreliable_on_own_channel() -> void:
 	is_true(Net.PING_CHANNEL <= 2, "Steam şerit sınırı (0-2)")
 
 
-## IS-026 t2: 20 ms RTT'li peer; 250 ms aralıkla istek, `lost`taki sıra numaraları yanıtsız kalır.
+## IS-026 t2: a peer with 20 ms RTT; a request every 250 ms, the sequence numbers in `lost` stay unanswered.
 func _simulate_pings(peer_id: int, first_seq: int, count: int, lost: Array[int]) -> void:
 	for i: int in count:
 		var seq: int = first_seq + i
@@ -176,7 +176,7 @@ func test_ping_stall_raises_value_single_loss_does_not() -> void:
 	Net._forget_ping(p)
 	_simulate_pings(p, 0, 16, [])
 	eq(_estimate(p, 3_990), 20, "sağlıklı: 20 ms")
-	# Tek kayıp: 16 yanıtsız, 17 zamanında yanıtlanır -> değer sıçramaz; 17'nin yanıtı 16'yı kayıp sayar.
+	# Single loss: 16 unanswered, 17 answered on time -> the value does not jump; 17's reply counts 16 as lost.
 	Net._note_ping_request(p, 16, 4_000_000)
 	eq(_estimate(p, 4_240), 20, "tek yanıtsız istek")
 	Net._note_ping_request(p, 17, 4_250_000)
@@ -184,7 +184,7 @@ func test_ping_stall_raises_value_single_loss_does_not() -> void:
 	is_true(Net._note_ping_reply(p, 17, 4_270_000))
 	eq((Net._ping_pending[p] as Dictionary).size(), 0, "yanıt eski bekleyenleri siler")
 	eq(_estimate(p, 4_300), 20, "tek kayıp değeri şişirmedi")
-	# Karşı uç durur (18..26 yanıtsız): değer yükselir, tablo en eski ikisini koruyarak budanır.
+	# The far end stops (18..26 unanswered): the value rises, the table is pruned keeping the oldest two.
 	_simulate_pings(p, 18, 9, [18, 19, 20, 21, 22, 23, 24, 25, 26])
 	var pending: Dictionary = Net._ping_pending[p]
 	eq(pending.size(), Net.PING_PENDING_MAX, "tablo sınırlı")
@@ -194,7 +194,7 @@ func test_ping_stall_raises_value_single_loss_does_not() -> void:
 	is_false(Net._note_ping_reply(p, 20, 6_500_000), "budanmış isteğe gelen yanıt sayılmaz")
 	is_false(Net._note_ping_reply(p, 999, 6_500_000), "bilinmeyen sıra numarası sayılmaz")
 	is_false(Net._note_ping_reply(p + 1, 26, 6_500_000), "başka peer'a gitmiş istek sayılmaz")
-	# Takılma biter: yeni istek yanıtlanır, değer ağ gecikmesine döner.
+	# Stall ends: a new request is answered, the value returns to the network latency.
 	_simulate_pings(p, 27, 1, [])
 	eq(_estimate(p, 6_800), 20, "takılma bitince değer düşer")
 	Net._forget_ping(p)
@@ -216,7 +216,7 @@ func test_ping_request_acceptance() -> void:
 func test_unsolicited_pong_is_ignored_and_leave_clears_ping_state() -> void:
 	var port: int = free_udp_port()
 	eq(Net.host(port, 4), OK)
-	# RPC dışı çağrıda gönderen 0: beklenmeyen yanıt örnek eklemez.
+	# On a call outside an RPC the sender is 0: an unexpected reply adds no sample.
 	Net._rpc_pong(1)
 	Net._rpc_ping(1)
 	Net._rpc_ping_hello()
@@ -272,14 +272,14 @@ func test_unreachable_host_times_out_with_connection_failed() -> void:
 	eq(Net.local_peer_id(), 0)
 	eq([_connected, _host_lost], [0, 0])
 	Net.connect_timeout_ms = previous
-	# Başarısızlıktan sonra yeniden denenebilir.
+	# Can be retried after a failure.
 	eq(Net.host(free_udp_port()), OK)
 	Net.leave()
 	_unwatch()
 
 
 func test_transport_is_private_to_net() -> void:
-	# S1: taşıma sınıflarına yalnız net.gd dokunur.
+	# S1: only net.gd touches the transport classes.
 	var offenders: PackedStringArray = []
 	for path: String in _scripts_under("res://"):
 		if path == "res://autoload/net.gd" or path.begins_with("res://tests/"):

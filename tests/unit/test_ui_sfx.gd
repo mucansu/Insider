@@ -1,6 +1,6 @@
 extends TestCase
-## Arayüz sesleri (IS-024): düğme odak/basma sesi, uyarı kademesi değişim sesi (bağlanınca değil, değişince;
-## hareket azaltmadan bağımsız), iş sonu stinger'ı (kayıp/kaçış). Sahte Game (S3 eki) ile, yalnız genel API.
+## UI sounds (IS-024): button focus/press sound, alert level change sound (on change, not on connect; independent of reduced
+## motion), job-end stinger (loss/escape). With the fake Game (S3 addition), public API only.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -85,14 +85,14 @@ func test_buttons_play_focus_and_click() -> void:
 	tree().root.add_child(menu)
 	autofree(menu)
 	var heard: Array[StringName] = _listen(UiSfx.of(menu))
-	menu.open()  # Devam düğmesi odak alır
+	menu.open()  # the Continue button takes focus
 	clock.t += 1.0
 	(menu.get_node("%LeaveButton") as Button).pressed.emit()
 	eq(heard, [UiSfx.FOCUS, UiSfx.CLICK] as Array[StringName], "odak tik, basma tık")
 	_check_all_wired(menu)
 
 
-## IS-078: davet listesi (host'ta) duraklat menüsü her açılışta yeniden kurulur; yeni düğmeler de ses alır.
+## IS-078: the invite list (on the host) pause menu is rebuilt on every open; new buttons get sound too.
 func test_pause_invite_list_buttons_are_wired() -> void:
 	var menu: PauseMenu = PAUSE_SCENE.instantiate() as PauseMenu
 	var pair: Array = Fakes.make_pair(self)
@@ -113,7 +113,7 @@ func test_pause_invite_list_buttons_are_wired() -> void:
 	eq(heard.count(UiSfx.CLICK), 1, "liste düğmesi tek tık (çift bağ yok)")
 
 
-## Her düğmenin basma sinyali ekranın arayüz çalarına (tam bir kez) bağlı.
+## Every button's press signal is connected (exactly once) to the screen's UI player.
 func _check_all_wired(screen: Node) -> void:
 	var player: UiSfx = UiSfx.of(screen)
 	for node: Node in screen.find_children("*", "BaseButton", true, false):

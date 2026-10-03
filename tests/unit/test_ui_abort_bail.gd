@@ -1,8 +1,8 @@
 extends TestCase
-## US-040 eli boş çekilme + US-041 kefalet (KR-029) arayüzü: kaçış panelinde "Eli boş çekiliyorsunuz… n" satırı
-## (Game.abort_left), iş sonu `aborted` başlık + açıklama (kayıp rengi değil), yakalanan satırında kefalet, ödeme
-## altında "− Kefalet" ve "Ekip kasası a → b" (eksi uyarı renginde; geç katılan da görür), HUD ekip nakdi eksiyken
-## uyarı token rengi ve "-$" biçimi, yeni metin anahtarları TR + EN.
+## US-040 empty-handed retreat + US-041 bail (KR-029) UI: on the escape panel the retreat countdown line (Game.abort_left), at job end
+## an `aborted` title + description (not the loss colour), bail on the caught row, "- Bail" under the payout and the team register
+## a -> b line (negative in the warning colour; a late joiner sees it too), HUD team cash in the warning token colour and "-$"
+## format when negative, new text keys TR + EN.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -67,7 +67,7 @@ func _texts(container: String) -> Array[String]:
 	return out
 
 
-# --- US-040 AC3: geri sayım satırı ---
+# --- US-040 AC3: countdown line ---
 
 func test_abort_line_rule() -> void:
 	eq(EscapePanel.lines(0, -1.0, 2, 2)["abort"], false, "sayaç yok (-1)")
@@ -109,7 +109,7 @@ func test_panel_shows_abort_countdown() -> void:
 	eq(warnings, [] as Array[String])
 
 
-# --- US-040 AC3: iş sonu ---
+# --- US-040 AC3: job end ---
 
 func test_end_screen_aborted() -> void:
 	await _open()
@@ -127,7 +127,7 @@ func test_end_screen_aborted() -> void:
 	eq(warnings, [] as Array[String])
 
 
-# --- US-041 AC6: kefalet ve kasa ---
+# --- US-041 AC6: bail and register ---
 
 func test_end_screen_bail_and_team_cash() -> void:
 	await _open(func() -> void: net.my_peer_id = 1)
@@ -172,7 +172,7 @@ func test_old_result_without_bail_fields() -> void:
 	eq(_texts("PayoutGrid").size(), 6, "alanlar yoksa yalnız ganimet/oran/ödeme")
 
 
-# --- US-041 AC5: HUD ekip nakdi ---
+# --- US-041 AC5: HUD team cash ---
 
 func test_hud_negative_cash_in_alert_color() -> void:
 	await _open(func() -> void: game.cash = -100)
@@ -189,7 +189,7 @@ func test_hud_negative_cash_in_alert_color() -> void:
 	eq(label.get_theme_color(&"font_color"), ThemeTokens.GAMEPLAY_ALERT)
 
 
-# --- metinler ---
+# --- texts ---
 
 func test_new_keys_have_tr_and_en() -> void:
 	var previous: String = TranslationServer.get_locale()

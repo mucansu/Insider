@@ -1,7 +1,7 @@
 extends Node2D
-## US-009 test dinleyicisi (yalnız testler): `Hearing` alt düğümünün `heard` sinyalini sayar (yalnız host'ta
-## yayılır). Döküm (S6, yalnız `--dump`): "noise_probes" — {"<düğüm adı>": {"heard": int, "kinds": {tür: int},
-## "min_radius": float (duyulan en küçük etkin yarıçap; yoksa -1)}}. Ağ senaryosu: tests/net/noise_ring.json.
+## US-009 test listener (tests only): counts the `heard` signal of a `Hearing` child (emitted only on the host). Dump (S6, `--dump`
+## only): "noise_probes" - {"<node name>": {"heard": int, "kinds": {kind: int},
+## "min_radius": float (smallest effective radius heard; -1 if none)}}. Network scenario: tests/net/noise_ring.json.
 
 const GROUP := &"noise_probes"
 const DUMP_KEY := "noise_probes"

@@ -1,11 +1,10 @@
 extends TestCase
-## US-005 bileşen ve prop'lar (tek süreç; çevrimdışı tekil kimlik 1 = host, ya da Net.host oturumu):
-## Interactable host doğrulaması (AC1, AC4: taraf, menzil + 24 px, meşguliyet, tekrar beklemesi, aktör yok),
-## kasa (AC2: 3 sn → +150, boş, yarıda bırakma sıfırlar, son 0,25 sn payı), kapı (AC3: anında, engel), store_a
-## yerleşimi (AC5), PropDef verisi (S10), oyuncu tarafı (PlayerInteraction + Player sinyalleri, S7).
-## Kurallar: test_interaction.gd; kapı engeli ve uzak gösterge: test_interaction_{door_block,indicator}.gd;
-## ağ: tests/net/{register_empty,door_sync,contention}.json. Yalnız genel API (§6, KR-018): uzak peer isteği
-## `host_start/host_cancel` (RPC gövdesi), süre sayımı `step` (fizik adımı); `_` üyelere erişim yok.
+## US-005 component and props (single process; offline singular id 1 = host, or a Net.host session): Interactable host
+## validation (AC1, AC4: side, range + 24 px, busy, retry cooldown, no actor), register (AC2: 3 s -> +150, empty, early release
+## resets, last 0.25 s margin), door (AC3: instant, obstruction), store_a placement (AC5), PropDef data (S10), player side
+## (PlayerInteraction + Player signals, S7). Rules: test_interaction.gd; door obstruction and remote indicator:
+## test_interaction_{door_block,indicator}.gd; network: tests/net/{register_empty,door_sync,contention}.json. Public API only
+## (§6, KR-018): remote peer request `host_start/host_cancel` (RPC body), duration counting `step` (physics step); no `_` members.
 
 const REGISTER_SCENE := "res://entities/props/register.tscn"
 const DOOR_SCENE := "res://entities/props/door.tscn"
@@ -19,7 +18,7 @@ const CUSTOMER := Vector2(532, 368)
 const DT := 1.0 / 60.0
 
 
-## Etkileşim aktörü taklidi (oyuncunun S7 arayüzü: grup + interaction_position).
+## Fake interaction actor (the player's S7 interface: group + interaction_position).
 class FakeActor:
 	extends Node2D
 
@@ -27,7 +26,7 @@ class FakeActor:
 		return global_position
 
 
-## Uzak istemcideki bileşen gibi: istekleri yalnız kaydeder, kararı test yayar (host gecikmesi).
+## Like a component on a remote client: only records requests, the test emits the decision (host latency).
 class RemoteInteractable:
 	extends Interactable
 	var sent: Array = []
@@ -76,7 +75,7 @@ func _watch(item: Interactable) -> void:
 	item.cancelled.connect(func(peer: int) -> void: _cancelled.append(peer))
 
 
-## Host'un süre sayımını `seconds` kadar ilerletir (fizik adımlarını beklemeden).
+## Advances the host's duration counting by `seconds` (without waiting for physics steps).
 func _run(item: Interactable, seconds: float) -> void:
 	var steps: int = roundi(seconds / DT)
 	for i: int in steps:
@@ -87,7 +86,7 @@ func _interactable(prop: Node) -> Interactable:
 	return prop.get_node("Interactable") as Interactable
 
 
-# --- veri (S10) ---
+# --- data (S10) ---
 
 func test_prop_defs() -> void:
 	var reg: PropDef = load(REGISTER_DEF) as PropDef
@@ -108,7 +107,7 @@ func test_prop_defs() -> void:
 		ne(TranslationServer.translate(key), StringName(key), "i18n anahtarı: " + key)
 
 
-# --- Interactable bileşeni (AC1, AC4) ---
+# --- Interactable component (AC1, AC4) ---
 
 func test_component_setup() -> void:
 	var reg: Node2D = _prop(REGISTER_SCENE, REG_POS)
@@ -139,7 +138,7 @@ func test_host_rejects_customer_side_and_out_of_range() -> void:
 	actor.position = REG_POS + Vector2(65, 0)
 	item.request_start(2)
 	eq(item.stats()["rejected"], {"wrong_side": 1, "out_of_range": 1}, "AC4: +24 px üstü reddedilir")
-	# İstemcinin bayat konumu: menzil dışı ama +24 px içinde → host kabul eder (S2).
+	# Client's stale position: out of range but within +24 px -> host accepts (S2).
 	actor.position = REG_POS + Vector2(60, 0)
 	is_false(item.can_start(1, actor.position))
 	item.request_start(3)
@@ -150,14 +149,14 @@ func test_host_rejects_customer_side_and_out_of_range() -> void:
 func test_host_accepts_lagging_staff_side_position() -> void:
 	var item: Interactable = _interactable(_prop(REGISTER_SCENE, REG_POS))
 	_watch(item)
-	# İstemci personel tarafına doğuya yürürken istem görür; host konumu ~14 px geriden bilir (S2 taraf payı).
+	# Client walking east to the staff side sees the prompt; the host knows the position ~14 px behind (S2 side margin).
 	var client_sees := Vector2(576.5, 395)
 	is_true(item.can_start(1, client_sees))
 	var actor: FakeActor = _actor(1, client_sees - Vector2(14, 0))
 	item.request_start(1)
 	eq(item.busy_by, 1, "geriden görülen personel tarafı konumu kabul")
 	item.request_cancel(1)
-	# Müşteri tarafının en yakın konumu (tezgâha yaslanmış) yine reddedilir.
+	# The nearest customer-side position (leaning on the counter) is still rejected.
 	actor.position = Vector2(534, 368)
 	_run(item, InteractionRules.REPEAT_COOLDOWN + DT)
 	item.request_start(2)
@@ -172,7 +171,7 @@ func test_duplicate_request_adopts_new_seq_and_range_shape_follows() -> void:
 	_watch(item)
 	_actor(1, STAFF)
 	item.request_start(1)
-	item.request_start(2)  # aynı peer'ın yinelenen isteği
+	item.request_start(2)  # duplicate request from the same peer
 	eq(item.busy_by, 1)
 	eq(item.stats()["requests"], 1, "yineleme yeni istek sayılmaz")
 	_run(item, 3.1)
@@ -193,7 +192,7 @@ func test_busy_and_missing_actor() -> void:
 	_actor(2, STAFF + Vector2(0, 8))
 	item.request_start(1)
 	eq(item.busy_by, 1)
-	item.host_start(2, 7)  # uzak peer'ın isteği (RPC gövdesi)
+	item.host_start(2, 7)  # remote peer's request (RPC body)
 	eq(item.busy_by, 1, "AC4: yalnız biri")
 	eq(item.stats()["rejected"], {"busy": 1})
 	item.host_cancel(2, 7)
@@ -202,7 +201,7 @@ func test_busy_and_missing_actor() -> void:
 	eq(item.busy_by, 1, "eski sıra numaralı iptal etkisiz")
 	item.host_start(3, 1)
 	eq(item.stats()["rejected"], {"busy": 1, "no_actor": 1}, "aktörü olmayan peer")
-	# Tutan aktör kaybolursa (ayrıldı) host iptal eder.
+	# If the holding actor disappears (left) the host cancels.
 	for node: Node in tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
 		if node.get_multiplayer_authority() == 1:
 			node.remove_from_group(Interactable.ACTOR_GROUP)
@@ -211,7 +210,7 @@ func test_busy_and_missing_actor() -> void:
 	eq(_cancelled, [1])
 
 
-# --- kasa (AC2) ---
+# --- register (AC2) ---
 
 func test_register_full_hold_pays_once() -> void:
 	eq(Net.host(free_udp_port()), OK)
@@ -261,14 +260,14 @@ func test_register_partial_hold_resets() -> void:
 	item.request_cancel(2)
 	is_false(reg.emptied, "2 + 1,5 sn: sıfırlandığı için tamamlanmaz")
 	eq(Game.team_cash(), start_cash)
-	# Son 0,25 sn payında bırakma tamam sayılır (S2 zaman toleransı).
+	# Release in the last 0.25 s margin counts as done (S2 time tolerance).
 	item.request_start(3)
 	_run(item, 2.8)
 	item.request_cancel(3)
 	eq(_results.back(), [3, true])
 	is_true(reg.emptied)
 	eq(Game.team_cash(), start_cash + 150)
-	# Menzilden (+ tolerans) çıkınca host iptal eder.
+	# The host cancels when the actor leaves range (+ tolerance).
 	var reg2: Register = _prop(REGISTER_SCENE, REG_POS + Vector2(0, 200)) as Register
 	var item2: Interactable = _interactable(reg2)
 	_watch(item2)
@@ -285,7 +284,7 @@ func test_register_partial_hold_resets() -> void:
 	await tree().process_frame
 
 
-# --- kapı (AC3) ---
+# --- door (AC3) ---
 
 func test_door_toggles_instantly_and_blocks() -> void:
 	var door: Door = _prop(DOOR_SCENE, Vector2(368, 464)) as Door
@@ -306,7 +305,7 @@ func test_door_toggles_instantly_and_blocks() -> void:
 	eq(item.action_key, "INTERACT_DOOR_CLOSE")
 	await tree().process_frame
 	is_false(door.is_blocking(), "açıkken engel yok")
-	# Tekrar beklemesi: aynı anda basan ikinci oyuncu kapıyı geri çevirmez (AC4).
+	# Retry cooldown: a second player pressing at the same time does not turn the door away (AC4).
 	_actor(2, Vector2(368, 430))
 	item.host_start(2, 1)
 	is_true(door.is_open)
@@ -357,7 +356,7 @@ func test_door_start_state_from_scene() -> void:
 	eq(_interactable(door).action_key, "INTERACT_DOOR_CLOSE")
 
 
-# --- store_a yerleşimi (AC5) ---
+# --- store_a placement (AC5) ---
 
 func test_store_props_on_markers() -> void:
 	var level: Level = autofree((load(STORE) as PackedScene).instantiate()) as Level
@@ -376,7 +375,7 @@ func test_store_props_on_markers() -> void:
 			eq(prop.rotation, marker.rotation, "%s işaret yönünde" % prop_name)
 	eq((props.get_node("FrontDoor") as Door).is_open, true, "ön kapı mesai saatinde açık")
 	eq((props.get_node("BackDoor") as Door).is_open, false, "arka kapı kapalı")
-	# Personel tarafı: tezgâhtar yerinden boşaltılır; aynı uzaklıkta müşteri tarafından değil.
+	# Staff side: the clerk spot unloads; not from the customer side at the same distance.
 	tree().root.add_child(level)
 	var item: Interactable = _interactable(props.get_node("Register"))
 	var clerk: Vector2 = level.marker(&"ClerkSpot").global_position
@@ -385,7 +384,7 @@ func test_store_props_on_markers() -> void:
 	is_false(item.can_start(1, reg - (clerk - reg)), "müşteri tarafı aynı uzaklıkta")
 
 
-# --- oyuncu tarafı (S7) ---
+# --- player side (S7) ---
 
 func test_player_interaction_flow() -> void:
 	var interaction := PlayerInteraction.new()
@@ -400,14 +399,14 @@ func test_player_interaction_flow() -> void:
 	var reg: Register = _prop(REGISTER_SCENE, REG_POS) as Register
 	var door: Door = _prop(DOOR_SCENE, REG_POS + Vector2(0, 80)) as Door
 	var actor: FakeActor = _actor(1, CUSTOMER)
-	# Müşteri tarafında kasa hedef değil; kapı menzil dışında.
+	# The register is not a target on the customer side; the door is out of range.
 	interaction.tick(DT, false, actor.position, 1)
 	eq(keys, [] as Array[String], "hedef yok")
-	# Personel tarafı: en yakın uygun hedef kasa.
+	# Staff side: the nearest valid target is the register.
 	actor.position = STAFF
 	interaction.tick(DT, false, actor.position, 1)
 	eq(keys, ["INTERACT_REGISTER_EMPTY"] as Array[String])
-	# Basılı tutma: ön kenarda istek; erken bırakmada hemen başarısız (host da iptal eder).
+	# Holding: request on the leading edge; early release fails immediately (the host cancels too).
 	interaction.tick(DT, true, actor.position, 1)
 	eq(started, [["INTERACT_REGISTER_EMPTY", 3.0]])
 	is_true(interaction.is_active())
@@ -415,7 +414,7 @@ func test_player_interaction_flow() -> void:
 	interaction.tick(DT, false, actor.position, 1)
 	eq(finished, [false] as Array[bool])
 	eq(_interactable(reg).busy_by, 0)
-	# Basılı kalmak yeniden başlatmaz: bırakıp yeniden basmak gerekir.
+	# Staying held does not restart: release and press again.
 	interaction.tick(DT, true, actor.position, 1)
 	interaction.tick(DT, true, actor.position, 1)
 	eq(started.size(), 2)
@@ -423,7 +422,7 @@ func test_player_interaction_flow() -> void:
 	interaction.tick(DT, true, actor.position, 1)
 	eq(started.size(), 3)
 	interaction.tick(DT, false, actor.position, 1)
-	# Kapıya yaklaş: hedef değişir; anlık eylem host kararıyla biter.
+	# Approach the door: the target changes; the instant action ends with the host decision.
 	actor.position = door.position + Vector2(0, 30)
 	interaction.tick(DT, false, actor.position, 1)
 	eq(keys.back(), "INTERACT_DOOR_OPEN")
@@ -451,10 +450,10 @@ func test_player_ignores_stale_verdict_and_waits_in_tolerance_window() -> void:
 	var at: Vector2 = item.position + Vector2(20, 0)
 	interaction.tick(DT, false, at, 1)
 	eq(interaction.target_key(), "INTERACT_REGISTER_EMPTY")
-	# 1) Erken bırakma: iptal yollanır, sonuç beklenmeden başarısız; geç gelen eski karar yok sayılır.
+	# 1) Early release: cancel is sent, fails without waiting for a result; a late old decision is ignored.
 	interaction.tick(DT, true, at, 1)
 	eq(item.sent, [["start", 1]])
-	item.request_finished.emit(0, true)  # başka isteğin kararı
+	item.request_finished.emit(0, true)  # another request's decision
 	is_true(interaction.is_active())
 	_hold(interaction, 2.0, at)
 	interaction.tick(DT, false, at, 1)
@@ -462,7 +461,7 @@ func test_player_ignores_stale_verdict_and_waits_in_tolerance_window() -> void:
 	eq(finished, [false] as Array[bool])
 	item.request_finished.emit(1, true)
 	eq(finished, [false] as Array[bool], "bitmiş isteğin kararı uygulanmaz")
-	# 2) Son payda bırakma: host kararı beklenir ve uygulanır (S2 zaman toleransı).
+	# 2) Release in the last margin: wait for the host decision and apply it (S2 time tolerance).
 	interaction.tick(DT, true, at, 1)
 	_hold(interaction, 2.7, at)
 	interaction.tick(DT, false, at, 1)
@@ -471,7 +470,7 @@ func test_player_ignores_stale_verdict_and_waits_in_tolerance_window() -> void:
 	eq(finished.size(), 1)
 	item.request_finished.emit(2, true)
 	eq(finished, [false, true] as Array[bool])
-	# 3) Karar hiç gelmezse (bağlantı sorunu) süre aşımında başarısız.
+	# 3) If the decision never arrives (connection problem): fails on timeout.
 	interaction.tick(DT, true, at, 1)
 	_hold(interaction, 2.9, at)
 	interaction.tick(DT, false, at, 1)

@@ -1,15 +1,14 @@
 extends TestCase
-## US-006 AC2/AC5: Perception + Suspicion bileşenleri gerçek fizik sorgusuyla, test odasında
-## (tests/fixtures/perception_room.tscn): muhafız (100, 300) +x'e bakar; raf (Shelf1) ve duvar (Wall1) ortak
-## Walls gövdesinin şekilleri, görüşü keser; camlar (Window1, Glass) `see_through` grubundaki ayrı gövdeler
-## (US-007 düzeni, S4 eki), görüşü geçirir. Grup yalnız gövde düzeyinde geçerlidir. Hedefler `interaction_actors`
-## grubundaki aktörler (oyuncunun S7 arayüzü: interaction_position + net_mode/move_mode). Tek süreç = host.
+## US-006 AC2/AC5: Perception + Suspicion components with a real physics query, in the test room (tests/fixtures/perception_room.tscn):
+## guard (100, 300) faces +x; shelf (Shelf1) and wall (Wall1) are shapes of the shared Walls body, block sight; windows (Window1, Glass)
+## are separate bodies in the `see_through` group (US-007 layout, S4 addition), pass sight. The group applies only at body level.
+## Targets are actors in the `interaction_actors` group (the player's S7 interface: interaction_position + net_mode/move_mode). Single process = host.
 
 const ROOM := "res://tests/fixtures/perception_room.tscn"
 const PLAYER_SCRIPT := "res://entities/player/player.gd"
 const DT := 1.0 / 60.0
 const GUARD := Vector2(100, 300)
-## Hedef konumları (oda düzeni; açıklama dosya başında).
+## Target positions (room layout; described at the top of the file).
 const OPEN_NEAR := Vector2(200, 300)
 const OPEN_FAR := Vector2(300, 300)
 const BEHIND_SHELF := Vector2(260, 240)
@@ -20,7 +19,7 @@ const WINDOW_THEN_WALL := Vector2(340, 380)
 const BEHIND_GUARD := Vector2(40, 300)
 
 
-## Oyuncu taklidi: S7 aktör arayüzü + hareket kipi (Player.move_mode, PlayerMotion.Mode).
+## Player fake: S7 actor interface + movement mode (Player.move_mode, PlayerMotion.Mode).
 class FakeActor:
 	extends Node2D
 	var move_mode: int = PlayerMotion.Mode.WALK
@@ -29,7 +28,7 @@ class FakeActor:
 		return global_position
 
 
-## Gerçek oyuncu gibi iki kip alanı: eşitleyicinin yazdığı net_mode ve ara değerlenmiş move_mode.
+## Two mode fields like the real player: net_mode written by the synchroniser and the interpolated move_mode.
 class SyncedActor:
 	extends FakeActor
 	var net_mode: int = PlayerMotion.Mode.WALK
@@ -42,7 +41,7 @@ func _room() -> Node2D:
 	var room: Node2D = (load(ROOM) as PackedScene).instantiate() as Node2D
 	tree().root.add_child(room)
 	autofree(room)
-	_suspicion(room).set_physics_process(false)  # testler adımları elle sürer (sabit adım)
+	_suspicion(room).set_physics_process(false)  # tests drive steps by hand (fixed step)
 	_suspicion(room).threshold_reached.connect(func(peer_id: int, level: int) -> void: _events.append([peer_id, level]))
 	await tree().physics_frame
 	await tree().physics_frame
@@ -87,7 +86,7 @@ func test_line_of_sight_in_room() -> void:
 	is_true(p.has_line_of_sight(BEHIND_WINDOW, GUARD), "cam iki yönde geçirir")
 
 
-## Görüşü geçiren şey grup üyeliğidir: grup kalkınca cam da keser.
+## What lets sight through is group membership: when the group is removed the glass blocks too.
 func test_see_through_group_is_what_passes() -> void:
 	var room: Node2D = await _room()
 	var p: Perception = _perception(room)
@@ -98,7 +97,7 @@ func test_see_through_group_is_what_passes() -> void:
 	is_true(p.has_line_of_sight(GUARD, OPEN_NEAR))
 
 
-## Grup yalnız gövde düzeyinde: ortak Walls gövdesinin gruptaki şekli görüşü keser (t2 nit 1: şekil yolu yok).
+## The group is body-level only: a grouped shape of the shared Walls body blocks sight (t2 nit 1: no shape path).
 func test_grouped_shape_in_shared_body_blocks() -> void:
 	var room: Node2D = await _room()
 	var shape := CollisionShape2D.new()
@@ -112,8 +111,8 @@ func test_grouped_shape_in_shared_body_blocks() -> void:
 	is_false(_perception(room).has_line_of_sight(GUARD, OPEN_NEAR))
 
 
-## Cama bitişik duvar (ortak kenar), sığ açılı ışınlar: cam dışlanınca ışın baştan atılır, duvar hiçbir ışında
-## atlanmaz. Doğruluk: ışın parçasının duvar dikdörtgeniyle analitik kesişimi (sıyıran ışınlar sayılmaz).
+## A wall adjacent to glass (shared edge), shallow-angle rays: when glass is excluded the ray is cast from the start, the wall is never
+## skipped on any ray. Correctness: analytic intersection of the ray segment with the wall rectangle (grazing rays do not count).
 func test_window_adjacent_to_wall_never_leaks() -> void:
 	var room: Node2D = await _room()
 	var glass_rect := Rect2(1100, 960, 8, 40)
@@ -160,7 +159,7 @@ static func _static_rect(rect: Rect2, layer: int, see_through: bool) -> StaticBo
 	return body
 
 
-## Parça–dikdörtgen kesişimi (Liang–Barsky).
+## Segment-rectangle intersection (Liang-Barsky).
 static func _segment_hits_rect(a: Vector2, b: Vector2, r: Rect2) -> bool:
 	var d: Vector2 = b - a
 	var t0: float = 0.0
@@ -182,7 +181,7 @@ static func _segment_hits_rect(a: Vector2, b: Vector2, r: Rect2) -> bool:
 	return t0 <= t1
 
 
-## vision_block (6) katmanı da keser (yürünebilen ama görüşü kesen engel, mimari.md §4).
+## The vision_block (6) layer blocks too (walkable but sight-blocking obstacle, mimari.md §4).
 func test_vision_block_layer_blocks() -> void:
 	var room: Node2D = await _room()
 	var block := StaticBody2D.new()
@@ -227,7 +226,7 @@ func test_observe_rates_by_position_and_mode() -> void:
 
 
 func test_stance_mapping_and_player_contract() -> void:
-	# Host'ta en güncel kip: eşitleyici değeri net_mode, ara değerlenmiş move_mode'a baskın (t2 nit 2).
+	# On the host the freshest mode: the synchroniser's net_mode dominates the interpolated move_mode (t2 nit 2).
 	var synced := SyncedActor.new()
 	synced.net_mode = PlayerMotion.Mode.SPRINT
 	synced.move_mode = PlayerMotion.Mode.SNEAK
@@ -247,7 +246,7 @@ func test_stance_mapping_and_player_contract() -> void:
 	eq(Perception.stance_of(plain), PerceptionRules.Stance.WALK, "kip yoksa yürüme")
 	actor.free()
 	plain.free()
-	# Gerçek oyuncu bu okuma arayüzünü sunar (Player.move_mode + interaction_position, S7).
+	# The real player offers this read interface (Player.move_mode + interaction_position, S7).
 	var script: Script = load(PLAYER_SCRIPT) as Script
 	var props: Array[String] = []
 	for info: Dictionary in script.get_script_property_list():
@@ -288,7 +287,7 @@ func test_window_target_detected_with_events() -> void:
 	near(float(times.get(3, INF)), 0.2 + 2.0, DT + 0.0001, "cam arkası koşan, uzak bant: 0,2 + 2 sn")
 	is_true(float(times.get(3, INF)) - float(times.get(1, -INF)) >= 0.5, "\"?\" ≥ 0,5 sn önce")
 	eq(s.max_level, Suspicion.Level.DETECT)
-	# S11 eki (US-008): çoğaltılan yön 1/16 adıma yuvarlanır (ON_CHANGE her karede delta üretmesin).
+	# S11 addition (US-008): the replicated direction is rounded to 1/16 steps (so ON_CHANGE does not produce a delta every frame).
 	near(s.focus_direction, (BEHIND_WINDOW - GUARD).normalized(), Suspicion.FOCUS_STEP, "özet yön hedefe")
 	eq(s.focus_direction, s.focus_direction.snapped(Vector2.ONE * Suspicion.FOCUS_STEP), "1/16 adımda")
 
@@ -297,7 +296,7 @@ func test_hiding_behind_shelf_decays_and_hides_position() -> void:
 	var room: Node2D = await _room()
 	var s: Suspicion = _suspicion(room)
 	var actor: FakeActor = _actor(2, OPEN_NEAR, PlayerMotion.Mode.SPRINT)
-	_tick(s, 0.6)  # 0,4 sn dolum × 100 = 40 → "?"
+	_tick(s, 0.6)  # 0.4 s fill x 100 = 40 -> "?"
 	near(s.value_of(2), 40.0, 1.0)
 	eq(s.max_level, Suspicion.Level.NOTICE)
 	actor.position = BEHIND_SHELF
@@ -321,7 +320,7 @@ func test_per_player_meters_and_departure() -> void:
 	near(s.value_of(3), 12.5, 1.0, "sızan uzak: 1 sn × 12,5")
 	eq(s.max_level, Suspicion.Level.NOTICE, "özet: en yüksek ölçer")
 	near(s.focus_direction, Vector2.RIGHT, 0.0001)
-	a.remove_from_group(Interactable.ACTOR_GROUP)  # ayrılan oyuncu: ölçeri boşalıp silinir
+	a.remove_from_group(Interactable.ACTOR_GROUP)  # the departing player: the meter drains and is removed
 	_tick(s, 3.0)
 	eq(s.value_of(2), 0.0)
 	is_true(s.value_of(3) > 12.5)
@@ -380,8 +379,8 @@ func multiplayer_is_server() -> bool:
 	return tree().root.multiplayer.is_server()
 
 
-## Raf kenarında kıpırdayan koşan (11 kare görünür / 1 kare raf arkası): kısa kesintiler ölçeri sıfırlamaz,
-## tespit kesintisizin ≤ 1,3 katında gelir ve bir kez yayılır (t2 should-fix, gerçek fizik sorgusuyla).
+## A running player fidgeting at a shelf edge (11 frames visible / 1 frame behind the shelf): short interruptions do not reset the
+## meter, detection comes within <= 1.3x of uninterrupted and is emitted once (t2 should-fix, real physics query).
 func test_peeking_at_shelf_edge_is_detected_once() -> void:
 	var room: Node2D = await _room()
 	var s: Suspicion = _suspicion(room)

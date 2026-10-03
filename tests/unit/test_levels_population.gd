@@ -1,45 +1,44 @@
 extends TestCase
-## IS-023: bakkal v1 nüfus işaretleri ve bölgeleri (GDD v0.3 §9.2-9.3, KR-020/KR-021; mimari S4 + S4 eki).
-## İşaretler tam ve engel dışında; sokak rotası sırası ve dışarıda kalması; komşu doğma noktası ve rota gezinmeyle
-## bağlı; bölgeler örtüşmez, iç zemini tam böler ve kapılarda ayrılır; nüfus işaretleri doğru bölgede; raf düzeltme
-## noktalarından kasaya görüş hattı raf/duvarla kesik, cam bakış noktalarından içerisi camdan görünür (gerçek fizik
-## ışını, US-007 kalıbı).
+## IS-023: store v1 population markers and zones (GDD v0.3 §9.2-9.3, KR-020/KR-021; mimari S4 + S4 addition). Markers complete
+## and off obstacles; street route order and staying outside; neighbour spawn and route linked by navigation; zones do not overlap,
+## fully partition the interior floor and split at doors; population markers in the right zone; the sight line from shelf-fix
+## points to the register is cut by shelf/wall, from glass look points the interior is visible through glass (real physics ray, US-007 pattern).
 
 const STORE := "res://levels/store_a.tscn"
 const ARENA := "res://levels/test_arena.tscn"
 const LEVELS: Array[String] = [STORE, ARENA]
 
 const TILE := 32
-const CHAR_RADIUS := 12.0       # karakter çapı ~24 px (S4)
-const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 katman 1
-const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4 katman 2
-const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4 katman 5
+const CHAR_RADIUS := 12.0       # character diameter ~24 px (S4)
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 layer 1
+const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4 layer 2
+const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4 layer 5
 const SEE_THROUGH := PhysicsLayers.SEE_THROUGH_GROUP
-const ARRIVE := 2.0             # yol sonu hedefe bu kadar yakınsa "ulaştı"
-const DOOR_PASS := TILE + 1.0   # kapı bağı uçları kapı merkezinden bir karo ötede
+const ARRIVE := 2.0             # path end this close to the goal counts as "reached"
+const DOOR_PASS := TILE + 1.0   # door link ends are one tile from the door centre
 
-## Tekil nüfus işaretleri (her seviyede).
+## Singular population markers (in every level).
 const SINGLES: Array[StringName] = [&"NeighbourSpawn", &"PhoneSpot", &"BackroomSpot"]
-## Sıralı nüfus işaretleri: önek -> bakkaldaki sayı (arenada en az 1).
+## Ordered population markers: prefix -> count in the store (at least 1 in the arena).
 const SEQUENCES: Dictionary = {
 	&"StreetRoute": 6, &"WindowLook": 3, &"ShopSpot": 5, &"QueueSpot": 2, &"RestockSpot": 3, &"ShelfProp": 3,
 }
 const POPULATION_ZONES: Array[StringName] = [&"CustomerArea", &"StaffArea", &"Backroom"]
-## İşaretin bulunması gereken bölge ("" = hiçbir bölge, dışarısı); sıralı adlar önekle eşleşir.
+## Zone the marker must be in ("" = no zone, outside); ordered names match by prefix.
 const MARKER_ZONES: Dictionary = {
 	&"ShopSpot": &"CustomerArea", &"QueueSpot": &"CustomerArea", &"RestockSpot": &"CustomerArea",
 	&"ShelfProp": &"CustomerArea", &"PhoneSpot": &"StaffArea", &"ClerkSpot": &"StaffArea",
 	&"BackroomSpot": &"Backroom", &"BackroomCash": &"Backroom", &"BackroomSafe": &"Backroom",
 	&"StreetRoute": &"", &"WindowLook": &"", &"NeighbourSpawn": &"", &"Exit": &"EscapeZone",
 }
-## Kapının iki yanındaki karoların bölgeleri (sıralı; "" = bölgesiz).
+## Zones of the tiles on both sides of a door (ordered; "" = no zone).
 const DOOR_ZONES: Dictionary = {
 	&"FrontDoor": [&"", &"CustomerArea"], &"BackDoor": [&"", &"Backroom"], &"BackroomDoor": [&"Backroom", &"StaffArea"],
 }
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 
 
-# --- işaretler tam, engel dışında; bölgeler var ---
+# --- markers complete, off obstacles; zones present ---
 
 func test_population_markers_complete_and_clear() -> void:
 	for path: String in LEVELS:
@@ -82,13 +81,13 @@ func test_population_markers_complete_and_clear() -> void:
 			is_true(zone.monitoring and not zone.monitorable, "%s: %s izler, izlenmez" % [path, zone_name])
 			is_true(_zone_rects(zone).size() >= 1, "%s: %s dikdörtgen şekil taşır" % [path, zone_name])
 		if path == STORE:
-			# Props altı (US-005 örnekleri) yeniden üretimde korunur.
+			# Under Props (US-005 instances) survive regeneration.
 			for prop: String in ["Register", "FrontDoor", "BackDoor"]:
 				var node: Node = level.props_root().get_node_or_null(prop)
 				is_true(node != null and not node.scene_file_path.is_empty(), "bakkal: Props/%s alt sahne örneği korunmalı" % prop)
 
 
-# --- sokak rotası ---
+# --- street route ---
 
 func test_store_street_route_order() -> void:
 	var level: Level = _load(STORE)
@@ -105,20 +104,20 @@ func test_store_street_route_order() -> void:
 	var building: Rect2i = _building(tiles)
 	var front: Vector2i = _marker_cell(level, &"FrontDoor")
 	var back: Vector2i = _marker_cell(level, &"BackDoor")
-	# 1 ön camlar: kuzeyindeki karo vitrin camı (ön cephe).
+	# 1 front windows: the tile north is display glass (front facade).
 	eq(tiles.kind_at(cells[0] + Vector2i.UP), LevelLayout.Kind.WINDOW, "StreetRoute1 ön camın önünde")
 	is_true(cells[0].y == building.end.y, "StreetRoute1 ön cephe kaldırımında")
-	# 2 ön kapı: kapıya en çok 2 karo ve kaldırımda (cephenin dışı).
+	# 2 front door: at most 2 tiles from the door, on the sidewalk (outside the facade).
 	is_true(_tile_dist(cells[1], front) <= 2.0 and cells[1].y >= building.end.y, "StreetRoute2 ön kapıda")
 	is_true(cells[0].x < cells[1].x and cells[1].x < cells[2].x, "ön cephe batıdan doğuya yürünür")
-	# 3 köşe: binanın güneydoğu köşesinin dışı.
+	# 3 corner: outside the building's south-east corner.
 	is_true(cells[2].x >= building.end.x and cells[2].y >= building.end.y, "StreetRoute3 güneydoğu köşede")
-	# 4 yan camlar: batısındaki karo vitrin camı (yan cephe).
+	# 4 side windows: the tile west is display glass (side facade).
 	eq(tiles.kind_at(cells[3] + Vector2i.LEFT), LevelLayout.Kind.WINDOW, "StreetRoute4 yan camın önünde")
-	# 5 yan sokak: binanın doğusunda, yan camlardan kuzeyde.
+	# 5 side street: east of the building, north of the side windows.
 	is_true(cells[4].x >= building.end.x and cells[4].y < cells[3].y, "StreetRoute5 yan sokakta, kuzeyde")
 	is_true(cells[2].y > cells[3].y and cells[3].y > cells[4].y, "yan cephe güneyden kuzeye yürünür")
-	# 6 arka kapı: binanın kuzeyindeki ara sokakta, arka kapıya en çok 2 karo.
+	# 6 back door: in the alley north of the building, at most 2 tiles from the back door.
 	is_true(cells[5].y < building.position.y and _tile_dist(cells[5], back) <= 2.0, "StreetRoute6 arka kapıda")
 	is_true(cells[5].x < cells[4].x, "ara sokağa batıya dönülür")
 
@@ -137,9 +136,9 @@ func test_store_route_and_neighbour_navigation() -> void:
 		return
 	var front: Vector2 = level.marker(&"FrontDoor").position
 	var back: Vector2 = level.marker(&"BackDoor").position
-	var outside_front: Vector2 = front + Vector2(0, TILE)  # ön kapı yatay duvarda, dışarısı +y
-	var outside_back: Vector2 = back - Vector2(0, TILE)    # arka kapı kuzey duvarında, dışarısı -y
-	# Kapılar kapalıyken: rota ve komşu dışarıda bağlı, yol karoları hep dışarıda.
+	var outside_front: Vector2 = front + Vector2(0, TILE)  # front door on a horizontal wall, outside is +y
+	var outside_back: Vector2 = back - Vector2(0, TILE)    # back door on the north wall, outside is -y
+	# Doors closed: route and neighbour are linked outside, path tiles always outside.
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		level.door_link(door).enabled = false
 	await _sync(map)
@@ -151,7 +150,7 @@ func test_store_route_and_neighbour_navigation() -> void:
 			has(outdoor, tiles.kind_at(LevelLayout.cell_of(p)), "StreetRoute%d → %d yolu dışarıda kalır (%s)" % [i, i + 1, p])
 	for target: Vector2 in [outside_front, outside_back]:
 		is_true(_arrives(_path(map, neighbour.position, target), target), "NeighbourSpawn → kapı önü %s dışarıdan" % target)
-	# Kapılar açıkken: komşu iki kapıdan da içeri girer (ön kapı → satış alanı, arka kapı → arka oda).
+	# Doors open: the neighbour enters through both doors (front door -> sales floor, back door -> back room).
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		level.door_link(door).enabled = true
 	await _sync(map)
@@ -165,7 +164,7 @@ func test_store_route_and_neighbour_navigation() -> void:
 	_leave(level, map)
 
 
-# --- bölgeler ---
+# --- zones ---
 
 func test_zones_disjoint_and_partition_interior() -> void:
 	for path: String in LEVELS:
@@ -173,7 +172,7 @@ func test_zones_disjoint_and_partition_interior() -> void:
 		if level == null:
 			continue
 		var tiles: LevelLayout = level.get_node("Tiles") as LevelLayout
-		var owner_of: Dictionary = {}  # karo -> bölge adı
+		var owner_of: Dictionary = {}  # tile -> zone name
 		var overlaps: PackedStringArray = []
 		for zone: Node in level.get_node("Zones").get_children():
 			for rect: Rect2 in _zone_rects(zone as Area2D):
@@ -196,7 +195,7 @@ func test_zones_disjoint_and_partition_interior() -> void:
 			is_false(owner_of.has(cell), "%s: Spawn%d bölge dışında (dışarısı)" % [path, i + 1])
 		if path != STORE:
 			continue
-		# Bakkal: iç zeminin (satış alanı + arka oda) her karosu tam bir nüfus bölgesinde.
+		# Store: every tile of the interior floor (sales floor + back room) is in exactly one population zone.
 		var uncovered: PackedStringArray = []
 		var size: Vector2i = tiles.size_in_tiles()
 		for y: int in size.y:
@@ -207,7 +206,7 @@ func test_zones_disjoint_and_partition_interior() -> void:
 						and not POPULATION_ZONES.has(StringName(owner_of.get(cell, &""))):
 					uncovered.append(str(cell))
 		is_true(uncovered.is_empty(), "bakkal: bölgesiz iç zemin: %s" % ", ".join(uncovered))
-		# Kapılar bölgeleri ayırır: kapı karosu bölgesiz (eşik), iki yanı beklenen bölgelerde.
+		# Doors separate zones: the door tile has no zone (threshold), both sides are in the expected zones.
 		for door: StringName in DOOR_ZONES:
 			var marker: Node2D = level.marker(door)
 			var cell: Vector2i = LevelLayout.cell_of(marker.position)
@@ -238,7 +237,7 @@ func test_markers_lie_in_expected_zones() -> void:
 		is_true(checked >= MARKER_ZONES.size(), "%s: bölgesi denetlenen işaret sayısı %d" % [path, checked])
 
 
-# --- yerleşim kuralları (düzen) ---
+# --- placement rules (layout) ---
 
 func test_store_marker_placement() -> void:
 	var level: Level = _load(STORE)
@@ -282,7 +281,7 @@ func test_store_marker_placement() -> void:
 		eq(windows, 1, "%s tam bir camın önünde" % point.name)
 
 
-# --- görüş hattı (gerçek fizik ışını) ---
+# --- sight line (real physics ray) ---
 
 func test_store_lines_of_sight() -> void:
 	var level: Level = _load(STORE)
@@ -294,15 +293,15 @@ func test_store_lines_of_sight() -> void:
 	var space: PhysicsDirectSpaceState2D = level.get_world_2d().direct_space_state
 	var register: Vector2 = level.marker(&"Register").position
 	var clerk: Vector2 = level.marker(&"ClerkSpot").position
-	# Raf düzeltme: sahip kasayı ve kasayı boşaltanın durduğu tezgâh arkasını göremez (raf/duvar keser).
+	# Shelf fix: the owner cannot see the register nor the counter spot behind it where the emptier stands (shelf/wall blocks).
 	for point: Node2D in level.marker_sequence(&"RestockSpot"):
 		for target: Vector2 in [register, clerk]:
 			var blocker: String = _shape_name(_ray(space, point.position, target, true))
 			has(["Shelf", "Wall"], blocker, "%s → %s görüş hattı raf/duvarla kesik (gelen '%s')" % [point.name, target, blocker])
-	# Kontrol: açık koridorda ışın engelsiz (ShopSpot4 → QueueSpot1, 11. satır).
+	# Control: the ray is clear in the open aisle (ShopSpot4 -> QueueSpot1, row 11).
 	is_true(_ray(space, level.marker(&"ShopSpot4").position, level.marker(&"QueueSpot1").position, true).is_empty(),
 		"açık koridorda görüş hattı engelsiz")
-	# Cam bakışı: kaldırımdan içeri ışın önce cama çarpar, cam atlanınca 3 karo içeriye engelsiz; her cam parçasına bir.
+	# Glass look: from the sidewalk the ray first hits glass, with glass skipped it is clear 3 tiles inside; one per glass piece.
 	var tiles: LevelLayout = level.get_node("Tiles") as LevelLayout
 	var seen_windows: Dictionary = {}
 	for point: Node2D in level.marker_sequence(&"WindowLook"):
@@ -324,13 +323,13 @@ func test_store_lines_of_sight() -> void:
 		if child.is_in_group(SEE_THROUGH):
 			window_bodies += 1
 	eq(seen_windows.size(), window_bodies, "her cam parçasının önünde bir WindowLook")
-	# Telefon: doğuya bakan sahip duvara bakar (yan cam dışarıyı göstermez).
+	# Phone: the owner facing east faces the wall (the side glass does not show outside).
 	var phone: Vector2 = level.marker(&"PhoneSpot").position
 	eq(_shape_name(_ray(space, phone, phone + Vector2(TILE, 0), false)), "Wall", "PhoneSpot doğusu duvar")
 	tree().root.remove_child(level)
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
 func _load(path: String) -> Level:
 	var scene: PackedScene = load(path) as PackedScene
@@ -349,7 +348,7 @@ func _marker_cell(level: Level, marker_name: StringName) -> Vector2i:
 	return LevelLayout.cell_of(marker.position)
 
 
-## Binanın karo dikdörtgeni: duvar, cam ve kapı karolarının kapsayıcısı.
+## The building's tile rectangle: container of wall, glass and door tiles.
 static func _building(tiles: LevelLayout) -> Rect2i:
 	var out := Rect2i()
 	var size: Vector2i = tiles.size_in_tiles()
@@ -373,7 +372,7 @@ static func _tile_dist(a: Vector2i, b: Vector2i) -> float:
 	return Vector2(a).distance_to(Vector2(b))
 
 
-## İşaret adının bölge tablosundaki anahtarı (sıralı adlarda önek); tabloda yoksa boş.
+## The marker name's key in the zone table (prefix for ordered names); empty if not in the table.
 static func _zone_key(marker_name: StringName) -> StringName:
 	var text: String = String(marker_name)
 	if MARKER_ZONES.has(marker_name):
@@ -384,7 +383,7 @@ static func _zone_key(marker_name: StringName) -> StringName:
 	return &""
 
 
-## Noktayı içeren bölgelerin adları (Zones çocuk sırasıyla).
+## Names of the zones containing the point (Zones child order).
 static func _zones_at(level: Level, pos: Vector2) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for zone: Node in level.get_node("Zones").get_children():
@@ -404,7 +403,7 @@ static func _zone_rects(zone: Area2D) -> Array[Rect2]:
 	return out
 
 
-## Dikdörtgenin kapsadığı karolar (karo sınırına oturan dikdörtgen).
+## Tiles covered by the rectangle (rectangle aligned to tile boundaries).
 static func _cells(rect: Rect2) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	for y: int in range(roundi(rect.position.y / TILE), roundi(rect.end.y / TILE)):
@@ -413,7 +412,7 @@ static func _cells(rect: Rect2) -> Array[Vector2i]:
 	return out
 
 
-## `Walls` altındaki tüm dikdörtgen çarpışma şekilleri (camlar dahil), seviye kökü koordinatında.
+## All rectangular shapes under `Walls` (glass included), in level-root coordinates.
 func _wall_rects(level: Level) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for node: Node in level.get_node("Walls").find_children("*", "CollisionShape2D", true, false):
@@ -436,7 +435,7 @@ static func _circle_hits(center: Vector2, radius: float, rect: Rect2) -> bool:
 	return center.distance_to(closest) < radius
 
 
-## İlk engel; `skip_see_through` ise see_through gövdeleri atlanır (algının görüş hattı kuralı, S11).
+## First obstacle; with `skip_see_through`, see_through bodies are skipped (perception's sight-line rule, S11).
 func _ray(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, skip_see_through: bool) -> Dictionary:
 	var query := PhysicsRayQueryParameters2D.create(from, to, WORLD_LAYER)
 	var exclude: Array[RID] = []
@@ -449,7 +448,7 @@ func _ray(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, skip_see
 	return {}
 
 
-## Çarpılan şeklin ad öneki (Shelf/Wall/Counter/Window …); çarpma yoksa boş.
+## Name prefix of the hit shape (Shelf/Wall/Counter/Window ...); empty if no hit.
 static func _shape_name(hit: Dictionary) -> String:
 	if hit.is_empty():
 		return ""
@@ -460,7 +459,7 @@ static func _shape_name(hit: Dictionary) -> String:
 	return prefix.search(shape_name).get_string() if shape_name != "Shape" else prefix.search(String(body.name)).get_string()
 
 
-## Seviyeyi ağaca ekler; gezinme düğümlerini yalıtık yeni bir haritaya bağlar ve eşitler (test_levels_nav kalıbı).
+## Adds the level to the tree; links navigation nodes to a fresh isolated map and syncs (test_levels_nav pattern).
 func _enter_with_map(level: Level) -> RID:
 	var region: NavigationRegion2D = level.navigation_region()
 	if not is_true(region != null, "Navigation yok"):

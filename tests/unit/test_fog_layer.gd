@@ -1,11 +1,10 @@
 extends TestCase
-## US-011a AC1/AC2/AC9/AC10: görüş sisi katmanı (`FogLayer`, levels/fog) gerçek seviyede (store_a) ve gerçek fizik
-## sorgusuyla (`FogLayer.line_clear`: NPC algısıyla aynı kural — world + vision_block keser, `see_through` camlar
-## geçirir), `Level` görüş API'si (vision_cells, attach_fog), kroki geometrisi ve maskesi, ton token'ları, geçiş,
-## kontrast ve kare başına maliyet.
-## store_a karoları (levels/layouts/store_a.txt): satış alanı satır 4-13, ön camlar satır 14 (sütun 3-9, 13-16),
-## kaldırım satır 15, raflar satır 4/6/8/10 (sütun 4-9), tezgâh sütun 17 satır 9-11, arka oda satır 4-7 sütun
-## 15-21, arka kapı B (20,3) kapalı, ön kapı F (11,14) açık.
+## US-011a AC1/AC2/AC9/AC10: vision fog layer (`FogLayer`, levels/fog) on the real level (store_a) with the real physics
+## query (`FogLayer.line_clear`: same rule as NPC perception - world + vision_block cut, `see_through` glass passes),
+## `Level` vision API (vision_cells, attach_fog), sketch geometry and mask, tone tokens, transition, contrast and per-frame cost.
+## store_a tiles (levels/layouts/store_a.txt): sales floor rows 4-13, front windows row 14 (cols 3-9, 13-16), sidewalk
+## row 15, shelves rows 4/6/8/10 (cols 4-9), counter col 17 rows 9-11, back room rows 4-7 cols 15-21, back door B (20,3)
+## closed, front door F (11,14) open.
 
 const STORE := "res://levels/store_a.tscn"
 const FOG_FILES: Array[String] = ["res://levels/fog/fog_layer.gd", "res://levels/fog/fog_layer.gdshader",
@@ -34,7 +33,7 @@ func _observer(level: Level, cell: Vector2i) -> Node2D:
 	return node
 
 
-## Gözlemciyi karoya koyar ve sisi hemen günceller.
+## Puts the observer on a tile and updates the fog immediately.
 static func _move(fog: FogLayer, observer: Node2D, cell: Vector2i) -> void:
 	observer.global_position = fog.to_global(_at(cell))
 	fog.update_now()
@@ -46,21 +45,21 @@ func test_level_vision_api() -> void:
 	var cells: PackedByteArray = level.vision_cells()
 	eq(cells.size(), 600)
 	var expect: Dictionary = {
-		Vector2i(0, 0): VisionGrid.Cell.SOLID,  # sınır
-		Vector2i(1, 4): VisionGrid.Cell.SOLID,  # duvar
-		Vector2i(4, 4): VisionGrid.Cell.SOLID,  # raf
-		Vector2i(17, 9): VisionGrid.Cell.SOLID,  # tezgâh
-		Vector2i(3, 14): VisionGrid.Cell.PORTAL,  # vitrin camı
-		Vector2i(11, 14): VisionGrid.Cell.PORTAL,  # ön kapı boşluğu
-		Vector2i(19, 8): VisionGrid.Cell.PORTAL,  # iç kapı boşluğu
-		Vector2i(2, 4): VisionGrid.Cell.OPEN,  # satış alanı
-		Vector2i(16, 6): VisionGrid.Cell.SOLID,  # arka oda rafı
-		Vector2i(17, 5): VisionGrid.Cell.OPEN,  # arka oda
-		Vector2i(6, 15): VisionGrid.Cell.OPEN,  # kaldırım
-		Vector2i(26, 18): VisionGrid.Cell.OPEN,  # cadde
-		Vector2i(13, 6): VisionGrid.Cell.SOLID,  # içecek dolabı (US-033)
-		Vector2i(20, 6): VisionGrid.Cell.SOLID,  # arka oda kolisi (US-033)
-		Vector2i(21, 2): VisionGrid.Cell.SOLID,  # ara sokak kolisi (US-033)
+		Vector2i(0, 0): VisionGrid.Cell.SOLID,  # boundary
+		Vector2i(1, 4): VisionGrid.Cell.SOLID,  # wall
+		Vector2i(4, 4): VisionGrid.Cell.SOLID,  # shelf
+		Vector2i(17, 9): VisionGrid.Cell.SOLID,  # counter
+		Vector2i(3, 14): VisionGrid.Cell.PORTAL,  # display glass
+		Vector2i(11, 14): VisionGrid.Cell.PORTAL,  # front door gap
+		Vector2i(19, 8): VisionGrid.Cell.PORTAL,  # inner door gap
+		Vector2i(2, 4): VisionGrid.Cell.OPEN,  # sales floor
+		Vector2i(16, 6): VisionGrid.Cell.SOLID,  # back room shelf
+		Vector2i(17, 5): VisionGrid.Cell.OPEN,  # back room
+		Vector2i(6, 15): VisionGrid.Cell.OPEN,  # sidewalk
+		Vector2i(26, 18): VisionGrid.Cell.OPEN,  # street
+		Vector2i(13, 6): VisionGrid.Cell.SOLID,  # drinks cooler (US-033)
+		Vector2i(20, 6): VisionGrid.Cell.SOLID,  # back room crate (US-033)
+		Vector2i(21, 2): VisionGrid.Cell.SOLID,  # alley crate (US-033)
 	}
 	for cell: Vector2i in expect:
 		eq(cells[cell.y * 30 + cell.x], expect[cell], "görüş sınıfı %s" % cell)
@@ -89,7 +88,7 @@ func test_attach_fog_follows_and_is_idempotent() -> void:
 	eq(fog.state_at(Vector2i(3, 5)), VisionGrid.State.VISIBLE)
 
 
-## Kaldırımdan camın arkası görünür; tezgâh camdan ~205 px'te görünür (GDD §6.5 "camdan bak").
+## From the sidewalk the area behind the glass is visible; the counter is visible from ~205 px through the glass (GDD §6.5 "look through glass").
 func test_glass_shows_inside_from_sidewalk() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(6, 15))
@@ -117,15 +116,15 @@ func test_wall_and_shelf_block() -> void:
 	ne(fog.state_at(Vector2i(17, 5)), VisionGrid.State.VISIBLE, "arka oda duvar arkasında")
 	ne(fog.state_at(Vector2i(16, 4)), VisionGrid.State.VISIBLE)
 	eq(fog.state_at(Vector2i(14, 8)), VisionGrid.State.VISIBLE, "duvar karosu komşuluktan görünür")
-	# Dışarıdan: sokağın görünen karoları cam dışında duvar arkası değil.
+	# From outside: visible street tiles are not behind a wall outside the glass.
 	_move(fog, me, Vector2i(5, 1))
 	for x: int in range(2, 14):
 		ne(fog.state_at(Vector2i(x, 5)), VisionGrid.State.VISIBLE, "arka ara sokaktan satış alanı (%d,5) görünmez" % x)
 	eq(fog.state_at(Vector2i(5, 3)), VisionGrid.State.VISIBLE, "kuzey duvarı komşuluktan görünür")
 
 
-## US-033: dolap ve koliler görüş ızgarasında katı; arkaları görünmez (BackroomSpot'tan kese, StreetRoute5'ten
-## arka kapıyı açanın karosu, koridordan dolabın arkasındaki duvar), kontrol karoları görünür.
+## US-033: cooler and crates are solid in the vision grid; behind them is unseen (cut from BackroomSpot, from StreetRoute5
+## the tile of whoever opens the back door, the wall behind the cooler from the corridor), control tiles are visible.
 func test_cover_obstacles_hide_behind() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(18, 5))
@@ -145,7 +144,7 @@ func test_cover_obstacles_hide_behind() -> void:
 	ne(fog.state_at(Vector2i(14, 6)), VisionGrid.State.VISIBLE, "dolabın arkasındaki duvar görünmez")
 
 
-## Kapalı arka kapı görüşü keser; açılınca arkası ≤ 100 ms'de (bir güncelleme aralığı) görünen olur.
+## A closed back door cuts vision; once opened, the area behind it becomes visible within <= 100 ms (one update interval).
 func test_door_opening_reveals_within_update_interval() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(20, 2))
@@ -155,7 +154,7 @@ func test_door_opening_reveals_within_update_interval() -> void:
 	eq(fog.state_at(Vector2i(20, 3)), VisionGrid.State.VISIBLE, "kapı karosu komşuluktan görünür")
 	ne(fog.state_at(Vector2i(20, 5)), VisionGrid.State.VISIBLE, "kapalı kapı arkası görünmez")
 	ne(fog.state_at(Vector2i(19, 4)), VisionGrid.State.VISIBLE)
-	fog.update_now()  # en kötü durum: güncelleme yeni oldu, kapı hemen ardından açılır
+	fog.update_now()  # worst case: the update just ran, the door opens right after
 	door.is_open = true
 	var frames: int = 0
 	var limit: int = roundi(fog.tuning.update_interval_sec * Engine.physics_ticks_per_second)
@@ -167,7 +166,7 @@ func test_door_opening_reveals_within_update_interval() -> void:
 	eq(fog.state_at(Vector2i(20, 6)), VisionGrid.State.VISIBLE)
 
 
-## Yönlü kip, gerçek seviye: tezgâh arkasından kuzeye bakan oyuncu güneyini (ön camlar) görmez.
+## Directional mode, real level: a player behind the counter facing north does not see south (front windows).
 func test_directional_back_is_hidden_in_store() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(12, 11))
@@ -192,7 +191,7 @@ func test_directional_back_is_hidden_in_store() -> void:
 	eq(int(fog.stats()["peripheral_tiles"]), 0, "çevresel 360° kipte durum 3 yok")
 
 
-## Geçiş 0,15 sn; hareket azaltmada anlık (AC2).
+## Transition 0.15 s; instant with reduced motion (AC2).
 func test_transition_and_reduce_motion() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(6, 15))
@@ -216,13 +215,13 @@ func test_transition_and_reduce_motion() -> void:
 	eq(fog.blend_t(), 1.0, "hareket azaltma: blend_t anında 1")
 
 
-## Geçiş shader'da (prev/next + blend_t): süren geçişin ortasında yeni güncelleme gelince görüntü sıçramaz (ara
-## değer prev'e sabitlenir), blend_t 0'dan başlar; uniform'lar materyalde.
+## Transition in the shader (prev/next + blend_t): a new update mid-transition does not make the image jump (the
+## intermediate value is pinned to prev), blend_t restarts from 0; uniforms live in the material.
 func test_transition_is_continuous_across_updates() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(6, 15))
 	var fog: FogLayer = level.attach_fog(me)
-	fog._process(1.0)  # ilk açılış geçişi bitsin
+	fog._process(1.0)  # let the first opening transition finish
 	_move(fog, me, Vector2i(22, 15))
 	fog._process(fog.tuning.transition_sec * 0.6)
 	var cells: Array[Vector2i] = [Vector2i(25, 15), Vector2i(27, 16), Vector2i(19, 15), Vector2i(16, 16)]
@@ -230,7 +229,7 @@ func test_transition_is_continuous_across_updates() -> void:
 	for c: Vector2i in cells:
 		before.append(fog.shown_weights(c))
 	is_true(before[0].x > 0.05 and before[0].x < 0.95, "(25,15) geçişin ortasında: %s" % before[0])
-	_move(fog, me, Vector2i(23, 15))  # 0,09 sn sonra yeni güncelleme
+	_move(fog, me, Vector2i(23, 15))  # new update after 0.09 s
 	eq(fog.blend_t(), 0.0, "yeni geçiş 0'dan")
 	for k: int in cells.size():
 		near(fog.shown_weights(cells[k]), before[k], 2.5 / 255.0, "sıçrama yok: %s" % cells[k])
@@ -243,7 +242,7 @@ func test_transition_is_continuous_across_updates() -> void:
 	eq(outline.get_shader_parameter(&"next_data"), mat.get_shader_parameter(&"next_data"), "kroki aynı veriyi okur")
 
 
-## Sisin renkleri yalnız ThemeTokens.GAMEPLAY_FOG_* (AC2): değerler tasarımla aynı, dosyalarda sabit renk yok.
+## Fog colours come only from ThemeTokens.GAMEPLAY_FOG_* (AC2): values match the design, no hard-coded colours in files.
 func test_fog_tokens_and_no_literal_colors() -> void:
 	var bg: Color = ThemeTokens.BG
 	for spec: Array in [[ThemeTokens.GAMEPLAY_FOG_UNKNOWN, 1.0], [ThemeTokens.GAMEPLAY_FOG_MEMORY, 0.55],
@@ -253,8 +252,8 @@ func test_fog_tokens_and_no_literal_colors() -> void:
 		near(Vector3(c.r, c.g, c.b), Vector3(bg.r, bg.g, bg.b), 0.001, "sis rengi BG")
 	near(ThemeTokens.GAMEPLAY_FOG_MEMORY_SATURATION, 0.5, 0.001)
 	near(ThemeTokens.GAMEPLAY_FOG_PERIPHERAL_SATURATION, 0.6, 0.001)
-	# Sabit renk: sayı ya da dize ile kurulan Color, adlı renk, onaltılık kod, renk ipuçlu uniform. (Veri dokusuna
-	# değişkenlerden yazılan Color(ağırlık, ...) renk değildir, eşleşmez.)
+	# Hard-coded colour: Color built from numbers or strings, named colour, hex code, colour-hinted uniform. (A Color(weight, ...)
+	# written into a data texture from variables is not a colour and does not match.)
 	var literal := RegEx.create_from_string(
 		"Color\\s*\\(\\s*[\"'0-9.]|Color\\.[A-Z]|#[0-9a-fA-F]{6}\\b|source_color|hint_color")
 	var vec_default := RegEx.create_from_string("uniform\\s+vec4\\s+\\w+\\s*=")
@@ -274,9 +273,9 @@ func test_fog_tokens_and_no_literal_colors() -> void:
 	eq(mat.get_shader_parameter(&"edge_px"), 8.0, "kenar yumuşatma 8 px")
 
 
-## AC10: hafıza tonunda duvar/kroki çizgisi ve ekip atkı renkleri ≥ 3:1; bilinmeyen opak düz tondur (zeminden
-## bağımsız, içerik sızmaz) ve onun üstünde de ≥ 3:1. Sis tonu shader'daki formülle hesaplanır: doygunluk çarpanı,
-## sonra sis rengiyle alfa karışımı (sRGB uzayında, 2D gibi).
+## AC10: wall/sketch line and crew scarf colours at memory tone >= 3:1; unknown is an opaque flat tone (independent of the floor,
+## no content leak) and also >= 3:1 above it. Fog tone follows the shader formula: saturation multiplier, then alpha blend
+## with the fog colour (sRGB space, like 2D).
 func test_contrast_on_fog_tones() -> void:
 	var tone: Tone = ThemeTokens.tone()
 	var grounds: Array[Color] = [tone.level_floor_color, tone.level_backroom_color, tone.level_sidewalk_color,
@@ -294,15 +293,15 @@ func test_contrast_on_fog_tones() -> void:
 			for scarf: Color in ThemeTokens.PLAYER_COLORS:
 				var r: float = contrast(scarf, under)
 				is_true(r >= 3.0, "atkı %s / %s(%s) %.2f" % [scarf.to_html(false), fog_tone[0], ground.to_html(false), r])
-	# Üç ton ayrışır: satış alanı zemini görünen > hafıza > bilinmeyen parlaklıkta.
+	# Three tones separate: sales floor visible > memory > unknown in brightness.
 	var floor_visible: Color = tone.level_floor_color
 	var floor_memory: Color = fogged(floor_visible, ThemeTokens.GAMEPLAY_FOG_MEMORY, ThemeTokens.GAMEPLAY_FOG_MEMORY_SATURATION)
 	is_true(luminance(floor_visible) > luminance(floor_memory) and luminance(floor_memory) > luminance(flat),
 		"görünen > hafıza > bilinmeyen")
 
 
-## Katı arkasında katı (komşuluk zincirlenmez): arka ara sokaktan kuzey duvarı görünür, arkasındaki satır 4
-## rafları (4..11, 4) görünmez.
+## Solid behind solid (adjacency does not chain): from the back alley the north wall is visible, the row-4
+## shelves behind it (4..11, 4) are not.
 func test_solid_behind_solid_from_back_alley() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(4, 2))
@@ -314,7 +313,7 @@ func test_solid_behind_solid_from_back_alley() -> void:
 			ne(fog.state_at(Vector2i(x, 4)), VisionGrid.State.VISIBLE, "duvar arkası raf (%d,4), gözlemci %s" % [x, spot])
 
 
-## Kroki geometrisi: duvar kenarı şeritleri ve kapı eşiği (store_a karoları), FogLayer önbelleği aynı geometri.
+## Sketch geometry: wall edge strips and door threshold (store_a tiles), FogLayer cache has the same geometry.
 func test_outline_geometry() -> void:
 	var level: Level = await _store()
 	var layout: LevelLayout = level.layout()
@@ -342,7 +341,7 @@ func test_outline_geometry() -> void:
 	eq(expect_gaps.size(), 6, "üç kapı boşluğu")
 
 
-## Kroki çizgileri yalnız bilinmeyen/hafıza karosunda görünür (maske formülü = fog_outline.gdshader).
+## Sketch lines are visible only on unknown/memory tiles (mask formula = fog_outline.gdshader).
 func test_outline_only_on_unknown_and_memory() -> void:
 	var level: Level = await _store()
 	var me: Node2D = _observer(level, Vector2i(6, 12))
@@ -366,7 +365,7 @@ func test_outline_only_on_unknown_and_memory() -> void:
 	has(shader, "COLOR.a *= clamp(d.r + d.g, 0.0, 1.0)", "shader maskesi outline_alpha ile aynı formül")
 
 
-## `_draw_wall_edges` yeniden düzenlemesi: wall_edge_rects eski satır içi çizimle aynı dikdörtgenleri verir.
+## `_draw_wall_edges` refactor: wall_edge_rects yields the same rectangles as the old inline drawing.
 func test_wall_edge_rects_match_previous_drawing() -> void:
 	for path: String in LAYOUTS:
 		var level: Level = autofree((load(path) as PackedScene).instantiate()) as Level
@@ -382,7 +381,7 @@ func test_wall_edge_rects_match_previous_drawing() -> void:
 		is_true(total > 20, "%s: %d kenar" % [path.get_file(), total])
 
 
-## Eski `_draw_wall_edges(cell, rect)` gövdesinin dikdörtgenleri (US-002/IS-008 çizimi; yalnız duvar ve cam).
+## Rectangles of the old `_draw_wall_edges(cell, rect)` body (US-002/IS-008 drawing; walls and glass only).
 static func _previous_wall_edges(layout: LevelLayout, cell: Vector2i) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var kind: LevelLayout.Kind = layout.kind_at(cell)
@@ -405,7 +404,7 @@ static func _previous_wall_edges(layout: LevelLayout, cell: Vector2i) -> Array[R
 	return out
 
 
-## levels/ → entities/ bağımlılığı yok: sis katmanı algı bileşenini kullanmaz, kendi görüş hattı sorgusu var.
+## No levels/ -> entities/ dependency: the fog layer does not use the perception component, it has its own line-of-sight query.
 func test_fog_has_no_entities_dependency() -> void:
 	var text: String = FileAccess.get_file_as_string("res://levels/fog/fog_layer.gd")
 	is_false(text.contains("res://entities"), "entities yolu")
@@ -414,11 +413,10 @@ func test_fog_has_no_entities_dependency() -> void:
 	eq(FogLayer.SEE_THROUGH_GROUP, &"see_through")
 
 
-## AC9: store_a'da hareket halinde kare başına toplam maliyet (fizik adımı: zamanlayıcı + ızgara güncellemesi +
-## ışınlar; süreç: geçiş + doku yükleme) ortalama ≤ 0,5 ms, tepe ≤ 2 ms; ışın ≤ 320 / güncelleme. Kroki çizimi
-## kurulumda bir kez (kare maliyeti yok). İş yükü belirlenimli olduğundan aynı yürüyüş RUNS kez koşulur ve her
-## karenin süresi koşuların en küçüğü alınır (işletim sistemi kesintisi tek koşudaki tek kareyi şişirir; testler
-## paralel koşabilir). Ham (tek koşu) tepe de basılır.
+## AC9: total per-frame cost while moving in store_a (physics step: timer + grid update + rays; process: transition + texture
+## upload) averages <= 0.5 ms, peak <= 2 ms; rays <= 320 / update. Sketch drawing happens once at setup (no frame cost).
+## The workload is deterministic, so the same walk runs RUNS times and each frame takes the minimum across runs (an OS
+## hiccup inflates only one frame in a single run; tests may run in parallel). The raw (single-run) peak is printed too.
 func test_performance_in_store() -> void:
 	const RUNS := 3
 	var level: Level = await _store()
@@ -428,7 +426,7 @@ func test_performance_in_store() -> void:
 		Vector2i(20, 2), Vector2i(3, 2), Vector2i(3, 1), Vector2i(23, 1), Vector2i(23, 15), Vector2i(11, 15),
 		Vector2i(11, 12), Vector2i(3, 12), Vector2i(3, 9), Vector2i(16, 9), Vector2i(18, 11)]
 	var dt: float = 1.0 / Engine.physics_ticks_per_second
-	var speed: float = 120.0  # px/sn, yürüme
+	var speed: float = 120.0  # px/s, walking
 	var frame_usec := PackedInt64Array()
 	var raw_peak: int = 0
 	var rays_max: int = 0

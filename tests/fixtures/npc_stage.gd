@@ -1,11 +1,11 @@
 class_name NpcStage
 extends RefCounted
-## US-008 birim testleri için sahne yardımcısı: store_a'yı (sahip + uyarı yöneticisi + mahalleli üreticisi)
-## ağaca ekler, gezinmesini yalıtık ve eşzamanlı bir haritaya bağlar (test_levels_nav kalıbı: harita ilk karelerde
-## boş, yineleme kimliği beklenir), NPC'lerin kendiliğinden adımını kapatır (testler sabit adımla sürer) ve uzak
-## oyuncu kopyaları üretir (yetki 2+, girdi yok; konumu test yazar, `interaction_position()` = çizilen konum).
-## US-016: `with_population = true` ise nüfus üreticisi (Population) de elle adımlanır (siviller dahil); varsayılan
-## kapalı (eski testler nüfussuz sürer).
+## Scene helper for US-008 unit tests: adds store_a (owner + alert manager + neighbour spawner) to the tree, links its navigation to an
+## isolated synchronous map (test_levels_nav pattern: the map is empty in the first frames, wait for the iteration id), turns off the
+## NPCs' own stepping (tests drive a fixed step) and spawns remote player copies (authority 2+, no input; the test writes the
+## position, `interaction_position()` = drawn position).
+## US-016: with `with_population = true` the population spawner (Population) is stepped by hand too (civilians included); off by default
+## (old tests run without population).
 
 const STORE := "res://levels/store_a.tscn"
 const PLAYER_SCENE := "res://entities/player/player.tscn"
@@ -14,12 +14,12 @@ const DT := 1.0 / 60.0
 var test: TestCase
 var level: Level = null
 var map: RID = RID()
-## Nüfus üreticisi `run` içinde adımlansın mı (US-016).
+## Whether the population spawner is stepped inside `run` (US-016).
 var with_population: bool = false
-## IS-087: kapılar sahnedeki gibi başlar (iç kapı D kapalı). `run` fizik karesi beklemeden adımladığı için bir kapı
-## açılıp kapanınca (NPC açar/arkasından kapatır) kanat gövdesi (Door ertelenmiş uygular) ve gezinme bağı (harita
-## yinelemesi) adım içinde güncellenmez; `run` her adımdan sonra durumu değişen kapının gövdesini hemen uygular ve
-## yalıtık haritayı zorla eşitler (`map_force_update`; harita eşzamanlı, tek iş parçacığı).
+## IS-087: doors start as in the scene (inner door D closed). Since `run` steps without waiting for a physics frame, when a door
+## opens and closes (an NPC opens it / closes it behind) the wing body (Door applies deferred) and the navigation link (map
+## iteration) are not updated within the step; after each step `run` applies the changed door's body at once and force-syncs
+## the isolated map (`map_force_update`; the map is synchronous, single thread).
 var _door_open: Dictionary = {}
 var _forced: bool = false
 
@@ -28,8 +28,8 @@ func _init(owner_test: TestCase) -> void:
 	test = owner_test
 
 
-## store_a'yı kurar; NPC adımları elle. `before_enter(level)` ağaca eklemeden önce çağrılır (ör. sahte bileşen).
-## Game'in uyarı durumu (autoload, testler arası kalır) sıfırlanır. Başarısızsa null.
+## Builds store_a; NPC steps by hand. `before_enter(level)` is called before adding to the tree (e.g. a fake component).
+## Game's alert state (an autoload, persists between tests) is reset. Null on failure.
 func enter(path: String = STORE, before_enter: Callable = Callable()) -> Level:
 	Game.set_alert_level(0)
 	Game.set_alert_timer(-1.0)
@@ -60,11 +60,11 @@ func enter(path: String = STORE, before_enter: Callable = Callable()) -> Level:
 	return level
 
 
-## Harita eşitlemesi (kapı bağı değişince de çağrılır): yineleme kimliği artana kadar fizik karesi beklenir
-## (`map_force_update` 4.7'de kullanımdan kalkıyor; kullanılmaz).
+## Map sync (also called when a door link changes): waits physics frames until the iteration id rises
+## (`map_force_update` is being deprecated in 4.7; not used).
 func sync() -> void:
 	if _forced and not _doors_dirty():
-		_forced = false  # `run` haritayı zaten zorla eşitledi, o günden beri kapı değişmedi
+		_forced = false  # `run` already force-synced the map and no door has changed since
 		return
 	_forced = false
 	var before: int = NavigationServer2D.map_get_iteration_id(map)
@@ -76,7 +76,7 @@ func sync() -> void:
 
 
 func leave() -> void:
-	Game._events.clear()  # US-039: keşif oturum olayları (çevrimdışı) sonraki testlerin dökümüne sızmasın
+	Game._events.clear()  # US-039: discovery session events (offline) must not leak into later tests' dumps
 	if level != null and is_instance_valid(level):
 		test.tree().root.remove_child(level)
 		level.queue_free()
@@ -110,7 +110,7 @@ func marker(marker_name: StringName) -> Vector2:
 	return level.marker(marker_name).global_position
 
 
-## Uzak oyuncu kopyası (yetki `peer_id` ≥ 2): seviyenin Players altında.
+## Remote player copy (authority `peer_id` >= 2): under the level's Players.
 func player(peer_id: int, at: Vector2) -> Player:
 	var p: Player = (load(PLAYER_SCENE) as PackedScene).instantiate() as Player
 	p.name = str(peer_id)
@@ -120,7 +120,7 @@ func player(peer_id: int, at: Vector2) -> Player:
 	return p
 
 
-## Sahip + uyarı yöneticisi (+ mahalleliler) birlikte `seconds` sn sabit adım; her adımdan sonra `probe` (varsa).
+## Owner + alert manager (+ neighbours) together for `seconds` s at a fixed step; `probe` after each step (if any).
 func run(seconds: float, probe: Callable = Callable(), dt: float = DT) -> void:
 	var o: StoreOwner = owner()
 	var a: StoreAlert = alert()
@@ -147,7 +147,7 @@ func run(seconds: float, probe: Callable = Callable(), dt: float = DT) -> void:
 			probe.call()
 
 
-## Durumu değişen kapının gövdesi hemen, gezinme haritası zorla eşitlenir (bkz. `_door_open` notu).
+## The changed door's body is applied at once, the navigation map is force-synced (see the `_door_open` note).
 func _sync_doors() -> void:
 	var changed: bool = false
 	for child: Node in level.props_root().get_children():
@@ -159,7 +159,7 @@ func _sync_doors() -> void:
 		var known: bool = _door_open.has(child.name)
 		_door_open[child.name] = open
 		if not known:
-			continue  # ilk kayıt: sahnedeki/testin verdiği durum zaten eşitli
+			continue  # first record: the state in the scene/given by the test is already synced
 		var shape: CollisionShape2D = child.get_node_or_null(^"Body/CollisionShape2D") as CollisionShape2D
 		if shape != null:
 			shape.disabled = open
@@ -169,7 +169,7 @@ func _sync_doors() -> void:
 		_forced = true
 
 
-## `run`ın son kaydından beri durumu değişmiş kapı var mı (test elle değiştirdiyse sync beklemeli).
+## Whether any door has changed state since `run`'s last record (if the test changed it by hand it must wait for sync).
 func _doors_dirty() -> bool:
 	for child: Node in level.props_root().get_children():
 		var known: bool = &"is_open" in child and _door_open.has(child.name)

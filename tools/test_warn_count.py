@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""tools/warn_count.py saf yardımcı testleri (IS-047). Yalnız standart kütüphane; Godot gerekmez.
+"""tools/warn_count.py pure helper tests (IS-047). Standard library only; no Godot needed.
 
-Koşu: python tools/test_warn_count.py   (Windows'ta `python` ya da `py -3`)
-Kapsam: grup sınıflaması, @@WC_JSON satırının çözülmesi, türe/dosyaya göre sayım (etkin/kapalı ayrımı,
-sıralama, üretim listesi), metin özeti ve main'in başarısızlık/JSON yazma yolları (Godot koşusu taklit).
+Run: python tools/test_warn_count.py   (on Windows `python` or `py -3`)
+Coverage: group classification, parsing of the @@WC_JSON line, count by kind/file (active/off split, ordering,
+production list), text summary and main's failure/JSON-writing paths (Godot run mocked).
 """
 
 from __future__ import annotations
@@ -92,11 +92,11 @@ class AggregateTest(unittest.TestCase):
         self.assertEqual(t["unsafe_cast"], {"level": 0, "uretim": 2, "test": 0, "diger": 0, "toplam": 2})
         self.assertEqual(t["untyped_declaration"]["toplam"], 0)
         self.assertEqual(t["unused_signal"]["diger"], 1)
-        # project.godot'ta adı olmayan tür: düzey -1, etkin sayılmaz.
+        # A kind with no name in project.godot: level -1, not counted as active.
         self.assertEqual(t["brand_new_warning"]["level"], -1)
 
     def test_brief_is_one_line_without_tables(self) -> None:
-        # IS-090: ci_local kısa kipi tek satır basar; tablo ve "en çok" listesi yalnız ayrıntılı kipte.
+        # IS-090: ci_local short mode prints one line; the table and the "most" list only in verbose mode.
         line = wc.render_brief(self.r)
         self.assertNotIn("\n", line)
         self.assertIn("etkin 6 (üretim 2)", line)
@@ -112,7 +112,7 @@ class AggregateTest(unittest.TestCase):
         a = self.r["dosyalar"]["res://core/a.gd"]
         self.assertEqual((a["etkin"], a["toplam"]), (2, 3))
         self.assertEqual(a["types"], {"return_value_discarded": 2, "unsafe_cast": 1})
-        # Yalnız kapalı/bilinmeyen tür veren dosya listeye girmez; üretim listesi ayrı.
+        # A file with only off/unknown kinds does not enter the list; the production list is separate.
         self.assertEqual([f["file"] for f in self.r["en_cok_uretim"]], ["res://core/a.gd"])
 
     def test_tie_break_by_path(self) -> None:
@@ -125,7 +125,7 @@ class AggregateTest(unittest.TestCase):
         self.assertIn("Etkin türler (düzey >= 1): toplam 6", text)
         self.assertIn("Kapalı türler (düzey 0; açılsa, bilgi): toplam 3", text)
         self.assertRegex(text, r"return_value_discarded\s+uyar\s+2\s+3\s+0\s+5")
-        self.assertNotIn("untyped_declaration", text)  # sıfır sayılı tür basılmaz
+        self.assertNotIn("untyped_declaration", text)  # a kind with a zero count is not printed
         empty = wc.render_text(wc.aggregate({"levels": {}, "files": [], "warnings": []}))
         self.assertGreaterEqual(empty.count("(yok)"), 3)
 
@@ -181,28 +181,28 @@ class MainTest(unittest.TestCase):
         code, _, err, _ = self._main([GATE_OK, (3, ["@@WC_JSON {}"], False)], ["--json", ""])
         self.assertEqual((code, "çıkış kodu 3" in err), (1, True))
         code, _, err, calls = self._main([(None, ["x"], False)], ["--json", "", "--gate"])
-        self.assertEqual((code, calls, "zaman aşımı" in err), (1, 1, True))  # tarama koşusu da kapı için şart
+        self.assertEqual((code, calls, "zaman aşımı" in err), (1, 1, True))  # the scan run is a condition for the gate too
 
     def test_hard_violation_skips_count(self) -> None:
         code, _, err, calls = self._main([(0, HARD_LINES, False)], ["--json", "", "--gate"])
         self.assertEqual((code, calls), (2, 1))
         self.assertIn("res://core/noise_rules.gd:113", err)
         self.assertIn("1 betik hatası", err)
-        code, _, _, _ = self._main([(0, HARD_LINES, False)], ["--json", ""])  # --gate yok: sayım alınamadı
+        code, _, _, _ = self._main([(0, HARD_LINES, False)], ["--json", ""])  # no --gate: the count could not be taken
         self.assertEqual(code, 1)
         code, _, _, calls = self._main([(0, HARD_LINES[-2:], False)], ["--json", "", "--gate"])
-        self.assertEqual((code, calls), (1, 1))  # yalnız başka betik hatası: kapı değil, koşu başarısız
+        self.assertEqual((code, calls), (1, 1))  # only another script error: not the gate, the run fails
 
     def test_gate(self) -> None:
         bad = wc.gate_violations(wc.aggregate(PAYLOAD))
-        self.assertEqual(bad, [])  # untyped_declaration düzey 2 ama sayısı 0
+        self.assertEqual(bad, [])  # untyped_declaration is level 2 but its count is 0
         hard = {**PAYLOAD, "levels": {**PAYLOAD["levels"], "unused_signal": 2}}
         line = (0, ["@@WC_JSON " + json.dumps(hard)], False)
         self.assertEqual([v["file"] for v in wc.gate_violations(wc.aggregate(hard))], ["res://tools/x.gd"])
         code, _, err, _ = self._main([GATE_OK, line], ["--json", "", "--gate", "--quiet"])
         self.assertEqual(code, 2)
         self.assertIn("res://tools/x.gd:9  [unused_signal]", err)
-        code, _, _, _ = self._main([GATE_OK, line], ["--json", "", "--quiet"])  # --gate yoksa yalnız bilgi
+        code, _, _, _ = self._main([GATE_OK, line], ["--json", "", "--quiet"])  # without --gate only information
         self.assertEqual(code, 0)
         ok = (0, ["@@WC_JSON " + json.dumps(PAYLOAD)], False)
         code, out, _, calls = self._main([GATE_OK, ok], ["--json", "", "--gate", "--quiet"])

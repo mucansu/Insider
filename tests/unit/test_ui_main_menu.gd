@@ -1,6 +1,6 @@
 extends TestCase
-## Ana menü (US-003 AC1, AC5, AC6; IS-009): sahte Net/Game'e doğru çağrılar, hata/bağlanıyor durumları,
-## host'ta seviye yüklenmezse zaman aşımı/vazgeç, klavye ve gamepad odak sırası.
+## Main menu (US-003 AC1, AC5, AC6; IS-009): correct calls to the fake Net/Game, error/connecting states, timeout/cancel if
+## the host does not load a level, keyboard and gamepad focus order.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const MENU_SCENE := preload("res://ui/main_menu.tscn")
@@ -12,7 +12,7 @@ var viewport: SubViewport
 var menu: MainMenu
 
 
-## `fresh_settings` false ise ayar dosyası silinmez (testin önceden yazdığı değerlerle açılır).
+## If `fresh_settings` is false the settings file is not deleted (opens with the values the test wrote earlier).
 func _open(fresh_settings: bool = true) -> void:
 	var pair: Array = Fakes.make_pair(self, false, fresh_settings)
 	net = pair[0]
@@ -69,7 +69,7 @@ static func _joy(button: JoyButton, pressed: bool = true) -> InputEventJoypadBut
 	return e
 
 
-## Geçerli adla Host'a basar (sahte Net host'u başarıyla açar).
+## Presses Host with a valid name (the fake Net opens the host successfully).
 func _start_hosting() -> void:
 	_type("NameEdit", "Ayşe")
 	_press("HostButton")
@@ -93,7 +93,7 @@ func test_host_calls_set_name_host_and_start_level_in_order() -> void:
 
 
 func test_host_start_timeout_closes_session() -> void:
-	# start_level sessizce başarısız: level_loaded hiç gelmez, menü STARTING'de takılı kalmaz.
+	# start_level fails silently: level_loaded never arrives, the menu does not stay stuck in STARTING.
 	await _open()
 	_start_hosting()
 	menu.advance(MainMenu.START_TIMEOUT_SEC - 0.5)
@@ -143,7 +143,7 @@ func test_host_failure_shows_error_and_stays() -> void:
 	eq(_error_text(), tr("MENU_ERROR_HOST_FAILED") % MainMenu.DEFAULT_PORT)
 
 
-# --- AC1: Katıl ---
+# --- AC1: Join ---
 
 func test_join_calls_set_name_and_join_then_shows_connecting() -> void:
 	await _open()
@@ -270,7 +270,7 @@ func test_defaults_and_initial_focus() -> void:
 
 
 func test_join_address_errors_focus_visible_field() -> void:
-	# US-026 t2: tek ayrıştırıcı (ConnectInfo.parse_host_port); hata odağı hep görünen bir alanda.
+	# US-026 t2: a single parser (ConnectInfo.parse_host_port); the error focus is always on a visible field.
 	await _open()
 	_type("NameEdit", "Bo")
 	for bad_port: String in ["100.64.0.2:", "1.2.3.4:65536", "1.2.3.4:80", "kasa-pc:x"]:
@@ -283,7 +283,7 @@ func test_join_address_errors_focus_visible_field() -> void:
 		_press("JoinButton")
 		eq(_error_text(), tr("MENU_ERROR_ADDRESS_INVALID"), "adres: '%s'" % bad_address)
 		eq(_focused(), "JoinAddressEdit")
-	# Gelişmiş'teki port hatalı: açıkken odak portta, kapalıyken adres alanında.
+	# A bad port in Advanced: focus on the port when open, on the address field when closed.
 	_type("JoinAddressEdit", "10.0.0.9")
 	_type("JoinPortEdit", "80")
 	_press("JoinButton")
@@ -298,7 +298,7 @@ func test_join_address_errors_focus_visible_field() -> void:
 	eq(journal.names(), PackedStringArray(["set_local_name", "join"]), "hatalı denemelerde Net çağrılmaz")
 
 
-# --- AC6: odak sırası ---
+# --- AC6: focus order ---
 
 func test_keyboard_focus_order() -> void:
 	await _open()
@@ -308,7 +308,7 @@ func test_keyboard_focus_order() -> void:
 		_push(_key(KEY_DOWN))
 		down.append(_focused())
 	eq(down, ["CopyButton", "HostPortEdit", "HostButton", "QuitButton", "NameEdit"] as Array[String], "aşağı ok (sol sütun, sarar)")
-	# Yazı alanında sol/sağ ok imleci taşır; alanlar arası yatay geçiş butonlarda, Tab'la ve gamepad'le.
+	# In a text field left/right arrows move the caret; horizontal moves between fields are on buttons, with Tab and gamepad.
 	_node("HostButton").grab_focus()
 	_push(_key(KEY_RIGHT))
 	eq(_focused(), "JoinButton", "sağ ok: Host → Katıl")
@@ -367,7 +367,7 @@ func test_gamepad_cancel_while_connecting() -> void:
 	eq(menu.state, MainMenu.State.IDLE)
 
 
-# --- US-026: bağlantı kolaylığı ---
+# --- US-026: connection ease ---
 
 func test_remembers_name_and_last_address() -> void:
 	Fakes.reset_connect_settings()

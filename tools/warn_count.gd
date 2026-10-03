@@ -1,17 +1,15 @@
 extends SceneTree
-## GDScript uyarı sayımı (IS-047; yalnız ölçüm, hiçbir dosyayı değiştirmez). Doğrudan değil, tools/warn_count.py
-## üzerinden koşar:
-##   godot --headless -d --path . -s res://tools/warn_count.gd
-## Neden böyle: Godot 4.7 `--import` ve `--check-only` GDScript uyarılarını basmaz; çözümleyici uyarıları yalnız
-## hata ayıklayıcı etkinken (`-d`) betik yüklenirken Logger'a (kod adıyla, ör. UNSAFE_METHOD_ACCESS) iletilir.
-## Akış: (1) bütün .gd dosyaları proje ayarlarıyla bir kez yüklenir (bağımlılıklar önbelleğe girsin);
-## (2) bellekte bütün uyarı türleri 1'e (uyar) çekilir (ProjectSettings kaydedilmez; settings_changed bir kare
-## sonra işlendiğinden iki kare beklenir); (3) her dosya CACHE_MODE_IGNORE ile yeniden çözümlenir ve o dosyaya ait
-## uyarılar toplanır. Sonuç tek satır: `@@WC_JSON {...}` (levels: project.godot'taki düzeyler, files, warnings,
-## errors, stray). Çıkış kodu 0; yükleme hatası JSON'da `errors` altında raporlanır.
-## `-- --gate-only` (hata ayıklayıcısız koşu, `-d` YOK): yalnız (1). adım; düzeyi 2 olan uyarılar ve diğer çözümleme
-## hataları motorun kendi `SCRIPT ERROR: Parse Error: ...` satırlarıyla basılır (warn_count.py okur). Önce bu koşu
-## yapılır: `-d` altında çözümleme hatası yerel hata ayıklayıcıyı durdurur (Debugger Break) ve süreç takılır.
+## GDScript warning count (IS-047; measurement only, modifies no file). Run via tools/warn_count.py, not directly:
+## godot --headless -d --path . -s res://tools/warn_count.gd
+## Why: Godot 4.7 `--import` and `--check-only` do not print GDScript warnings; analyser warnings reach the Logger (with the code
+## name, e.g. UNSAFE_METHOD_ACCESS) only while loading a script with the debugger active (`-d`).
+## Flow: (1) all .gd files are loaded once with the project settings (so dependencies get cached); (2) all warning kinds are set to
+## 1 (warn) in memory (ProjectSettings is not saved; settings_changed is handled one frame later, so wait two frames); (3) each file
+## is re-analysed with CACHE_MODE_IGNORE and warnings belonging to that file are collected. Result is a single line: `@@WC_JSON {...}`
+## (levels: levels in project.godot, files, warnings, errors, stray). Exit code 0; a load error is reported under `errors` in the JSON.
+## `-- --gate-only` (run without the debugger, NO `-d`): only step (1); warnings at level 2 and other analysis errors are printed as
+## the engine's own `SCRIPT ERROR: Parse Error: ...` lines (warn_count.py reads them). This run goes first: under `-d` an
+## analysis error stops the local debugger (Debugger Break) and the process hangs.
 
 const PREFIX: String = "debug/gdscript/warnings/"
 const SELF_PATH: String = "res://tools/warn_count.gd"
@@ -19,7 +17,7 @@ const SKIP_DIRS: PackedStringArray = ["addons", "build", "docs"]
 const JSON_MARKER: String = "@@WC_JSON "
 
 
-## Yükleme sırasında motorun bildirdiği uyarı ve hataları toplar.
+## Collects warnings and errors the engine reports while loading.
 class Capture extends Logger:
 	var _mutex: Mutex = Mutex.new()
 	var _entries: Array[Dictionary] = []
@@ -57,7 +55,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	await process_frame  # autoload'ların _ready'si tamamlansın
+	await process_frame  # let the autoloads' _ready finish
 	var files: PackedStringArray = _gd_files("res://")
 	files.sort()
 	for path: String in files:
@@ -115,7 +113,7 @@ func _run() -> void:
 	quit(0)
 
 
-## res:// altındaki .gd dosyaları; gizli dizinler (.godot, .tools ...), SKIP_DIRS ve bu betik hariç.
+## .gd files under res://; hidden dirs (.godot, .tools ...), SKIP_DIRS and this script excluded.
 func _gd_files(dir: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	for f: String in DirAccess.get_files_at(dir):

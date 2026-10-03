@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""tests/run_tests.gd çıktı kipi testi (IS-090). Yalnız standart kütüphane; Godot ister (GODOT ortam değişkeni,
-yoksa atlanır). Geçici dizinde bir geçen + bir başarısız test yazar, koşucuyu `--dir=` ile koşar ve doğrular:
-kısa kipte [PASS] satırı yok, [FAIL] satırı ve nedeni var, özet satırı biçimi değişmedi, çıkış kodu 1;
-`--verbose-tests` ve TESTS_VERBOSE=1 [PASS] satırlarını geri getirir.
+"""tests/run_tests.gd output mode test (IS-090). Standard library only; needs Godot (GODOT env var, skipped if absent). Writes one
+passing + one failing test in a temp dir, runs the runner with `--dir=` and checks: in short mode no [PASS] line, a [FAIL] line
+with its reason, the summary line format unchanged, exit code 1; `--verbose-tests` and TESTS_VERBOSE=1 bring back the [PASS] lines.
 
-Koşu: python tools/test_run_tests.py
+Run: python tools/test_run_tests.py
 """
 
 from __future__ import annotations

@@ -1,18 +1,18 @@
 extends TestCase
-## IS-014 (2): kapı, kapı boşluğunda gövdesi olan bir oyuncu (players katmanı) varken kapanmaz: host `blocked`
-## ile reddeder, istem görünür kalır, oyuncu tarafında HUD sinyalleri dengeli (started → finished(false));
-## açma her zaman serbest. Tek süreç: çevrimdışı tekil kimlik 1 = host. Kural: test_interaction.gd
-## (circle_overlaps_box, BLOCKED); ağ: tests/net/{door_sync,contention}.json.
+## IS-014 (2): a door does not close while a player with a body in the doorway (players layer) is there: host rejects with
+## `blocked`, the prompt stays visible, HUD signals balanced on the player side (started -> finished(false)); opening is always
+## free. Single process: offline singular id 1 = host. Rule: test_interaction.gd (circle_overlaps_box, BLOCKED); network:
+## tests/net/{door_sync,contention}.json.
 
 const DOOR_SCENE := "res://entities/props/door.tscn"
 const PLAYER_SCENE := "res://entities/player/player.tscn"
 const DOOR_POS := Vector2(368, 464)
-## Kapatan oyuncu: kapının önünde, kanattan uzak (door_sync'teki bekleme yeri).
+## The closing player: in front of the door, away from the wing (the waiting spot in door_sync).
 const CLOSER := Vector2(368, 498)
 const DT := 1.0 / 60.0
 
 
-## Etkileşim aktörü taklidi (S7: grup + interaction_position); fizik gövdesi yok → players katmanında değil.
+## Fake interaction actor (S7: group + interaction_position); no physics body -> not on the players layer.
 class FakeActor:
 	extends Node2D
 
@@ -47,7 +47,7 @@ func _fake(peer_id: int, at: Vector2) -> FakeActor:
 	return actor
 
 
-## Gerçek oyuncu sahnesi; `peer_id` 1 değilse uzak kopya (host'ta çizilen ara değerlenmiş oyuncu).
+## Real player scene; if `peer_id` is not 1 it is a remote copy (the interpolated player drawn on the host).
 func _player(peer_id: int, at: Vector2) -> Player:
 	var player: Player = (load(PLAYER_SCENE) as PackedScene).instantiate() as Player
 	player.name = str(peer_id)
@@ -76,7 +76,7 @@ func test_open_door_does_not_close_on_player_in_gap() -> void:
 	eq(item.stats()["rejected"], {"blocked": 1})
 	eq(item.action_key, "INTERACT_DOOR_CLOSE", "istem aynı: kapat")
 	is_true(item.can_start(1, CLOSER), "red sonrası istem yine görünür")
-	# Kanada yaslanmış (teğet) ve boşluktan çıkmış oyuncu engel değil.
+	# A player leaning on the wing (tangent) or out of the doorway is not an obstruction.
 	other.position = DOOR_POS + Vector2(0, 16)
 	is_false(door.is_closing_blocked(), "teğet temas engel değil")
 	other.position = DOOR_POS - Vector2(0, 40)
@@ -96,7 +96,7 @@ func test_opening_is_always_free() -> void:
 	item.request_start(1)
 	is_true(door.is_open, "boşlukta (kanada dayalı) oyuncu varken de açılır")
 	eq(_results, [[1, true]])
-	# Açılınca engel değerlendirilir: aynı oyuncu hâlâ kanat çizgisinde → kapanmaz.
+	# On opening the obstruction is evaluated: the same player still on the wing line -> does not close.
 	_wait_cooldown(item)
 	item.request_start(2)
 	is_true(door.is_open)
@@ -106,12 +106,12 @@ func test_opening_is_always_free() -> void:
 func test_closer_in_gap_blocks_itself_and_latest_position_counts() -> void:
 	var door: Door = _door(true)
 	var item: Interactable = _interactable(door)
-	# Kapatan oyuncunun kendisi boşlukta (menzil içinde): kanat ona kapanmaz.
+	# The closing player themselves in the doorway (within range): the wing does not close on them.
 	var closer: Player = _player(2, DOOR_POS + Vector2(4, 8))
 	item.host_start(2, 1)
 	is_true(door.is_open, "kendi üstüne kapanmaz")
 	eq(item.stats()["rejected"], {"blocked": 1})
-	# Host oyuncuyu boşluğun dışında çiziyor ama eşitleyiciden gelen en güncel konum boşlukta (S2, oyuncu lehine).
+	# The host draws the player outside the doorway but the latest position from the synchroniser is in it (S2, in the player's favour).
 	closer.position = DOOR_POS + Vector2(0, 34)
 	closer.net_position = DOOR_POS + Vector2(0, 10)
 	closer.net_time = 1.0
@@ -128,13 +128,13 @@ func test_non_player_actor_does_not_block() -> void:
 	var door: Door = _door(true)
 	var item: Interactable = _interactable(door)
 	_fake(1, CLOSER)
-	_fake(3, DOOR_POS)  # players katmanında gövdesi yok
+	_fake(3, DOOR_POS)  # no body on the players layer
 	is_false(door.is_closing_blocked())
 	item.request_start(1)
 	is_false(door.is_open)
 
 
-## Oyuncu tarafı (S7 HUD sözleşmesi): engelli kapatma basışı started → finished(false) üretir, istem kalır.
+## Player side (S7 HUD contract): a blocked close press yields started -> finished(false), the prompt remains.
 func test_player_signals_balanced_when_blocked() -> void:
 	var door: Door = _door(true)
 	var player: Player = _player(1, CLOSER)

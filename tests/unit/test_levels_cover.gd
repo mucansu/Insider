@@ -1,25 +1,25 @@
 extends TestCase
-## US-033: bakkal keseleri ve görüş kesen engeller (mekan-estetigi.md K3, §2.1 #1/#11/#14, §2.1 yoğunluk kuralı;
-## GDD §6.5 görüş kuralı: world + vision_block keser, see_through geçer; mimari S4 + S4 eki).
-## Engeller düzen dosyasında ayrı lejant karakterleri (`I` içecek dolabı, `G` koli yığını; levels/level_layout.gd):
-## dolu engel = `Walls` gövdesinin şekli (world katmanı), çarpışır ve görüşü keser. Görüş testleri algının kendi
-## fizik sorgusuyla (`SightLine`, karo merkezinden karo merkezine; Perception de merkez → merkez bakar).
+## US-033: shop pockets and sight-blocking obstacles (mekan-estetigi.md K3, §2.1 #1/#11/#14, §2.1 density rule; GDD §6.5
+## vision rule: world + vision_block cut, see_through passes; mimari S4 + S4 addition). Obstacles use separate legend chars in
+## the layout file (`I` drinks cooler, `G` crate pile; levels/level_layout.gd): a solid obstacle = a `Walls` body shape (world
+## layer), collides and blocks sight. Vision tests use perception's own physics query (`SightLine`, tile centre to tile
+## centre; Perception also looks centre to centre).
 
 const STORE := "res://levels/store_a.tscn"
 const TILE := 32
-const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 katman 1
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 layer 1
 const SEE_THROUGH := PhysicsLayers.SEE_THROUGH_GROUP
 const ARRIVE := 2.0
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 
-## Beklenen engel karoları (düzen dosyasıyla birebir; değişirse bu liste ve rapor birlikte güncellenir).
+## Expected obstacle tiles (exactly the layout file; if it changes, update this list and the report together).
 const COOLER_CELLS: Array[Vector2i] = [Vector2i(13, 5), Vector2i(13, 6), Vector2i(13, 7)]
 const CRATE_CELLS: Array[Vector2i] = [Vector2i(20, 6), Vector2i(21, 2)]
-## Arka oda kesesi (mekan-estetigi §2.1 #11): BackroomSpot'tan gizli, iç kapıdan (BackroomDoor) giren ilk karodan açık.
+## Back room pocket (mekan-estetigi §2.1 #11): hidden from BackroomSpot, open from the first tile entering through the inner door (BackroomDoor).
 const BACKROOM_POCKET: Array[Vector2i] = [Vector2i(21, 6), Vector2i(21, 7)]
-## Ara sokakta arka kapıyı açanın durduğu karo (arka kapının dış yanı).
+## The tile where whoever opens the back door in the alley stands (outer side of the back door).
 const LOCK_SPOT := Vector2i(20, 2)
-## Yoğunluk kuralı (mekan-estetigi §2.1): çarpışan dekor ≤ 8 karo, görüş kesen yeni engel ≤ 3 parça.
+## Density rule (mekan-estetigi §2.1): colliding decor <= 8 tiles, new sight-blocking obstacles <= 3 pieces.
 const MAX_OBSTACLE_TILES := 8
 const MAX_OCCLUDERS := 3
 
@@ -35,7 +35,7 @@ func test_obstacles_in_layout_and_walls() -> void:
 	eq(LevelLayout.kind_of_char("G"), LevelLayout.Kind.CRATE, "lejant G = koli")
 	for kind: LevelLayout.Kind in [LevelLayout.Kind.COOLER, LevelLayout.Kind.CRATE]:
 		is_true(LevelLayout.is_solid(kind), "%s çarpışan tür" % LevelLayout.Kind.keys()[kind])
-	# Şekiller Walls gövdesinde (görüşü keser, see_through değil), world katmanında; birleştirilmiş dikdörtgen başına bir.
+	# Shapes are in the Walls body (block sight, not see_through), on the world layer; one per merged rectangle.
 	var walls: StaticBody2D = level.get_node("Walls") as StaticBody2D
 	eq(walls.collision_layer, WORLD_LAYER, "Walls world katmanında")
 	var counts: Dictionary = {"Cooler": 0, "Crate": 0}
@@ -56,21 +56,21 @@ func test_obstacles_keep_clear_of_doors_and_markers() -> void:
 		return
 	var tiles: LevelLayout = level.get_node("Tiles") as LevelLayout
 	var obstacles: Array[Vector2i] = COOLER_CELLS + CRATE_CELLS
-	# Kapı eşiği ve iki yanı (kapıdan geçiş) engelsiz.
+	# The door threshold and both sides (passing through the door) are free of obstacles.
 	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
 		var cell: Vector2i = LevelLayout.cell_of(level.marker(door).position)
 		for dir: Vector2i in [Vector2i.ZERO] + DIRS:
 			is_false(obstacles.has(cell + dir), "%s eşiği/yanı (%s) engelsiz" % [door, cell + dir])
-	# Hiçbir işaret ya da spawn engel karosunda değil (yarıçap çakışması test_levels_population/test_levels'ta).
+	# No marker or spawn is on an obstacle tile (radius overlap is checked in test_levels_population/test_levels).
 	for parent: String in ["Markers", "SpawnPoints"]:
 		for marker: Node in level.get_node(parent).get_children():
 			var cell: Vector2i = LevelLayout.cell_of((marker as Node2D).position)
 			is_false(obstacles.has(cell), "%s engel karosunda değil" % marker.name)
-	# Satış koridoru dolapla 2 karo kalır (11-12. sütun açık zemin).
+	# The sales aisle keeps 2 tiles next to the cooler (columns 11-12 open floor).
 	for y: int in range(5, 8):
 		for x: int in [11, 12]:
 			eq(tiles.kind_at(Vector2i(x, y)), LevelLayout.Kind.FLOOR, "dolap önü koridoru (%d, %d) açık" % [x, y])
-	# Ara sokak kolisi: kuzeyindeki karo açık (rota satır 1'den dolanır).
+	# Alley crate: the tile north of it is open (the route goes around via row 1).
 	eq(tiles.kind_at(Vector2i(21, 1)), LevelLayout.Kind.SIDEWALK, "ara sokak kolisinin kuzeyi açık")
 
 
@@ -82,29 +82,29 @@ func test_obstacles_block_sight_pockets() -> void:
 	await tree().physics_frame
 	await tree().physics_frame
 	var space: PhysicsDirectSpaceState2D = level.get_world_2d().direct_space_state
-	# Arka oda kesesi: BackroomSpot'tan bakan koliye çarpar; iç kapıdan giren (kapının iç karosu) keseyi görür.
+	# Back room pocket: BackroomSpot looking hits the crate; whoever enters the inner door (the door's inner tile) sees the pocket.
 	var spot: Vector2 = level.marker(&"BackroomSpot").position
 	var door: Vector2i = LevelLayout.cell_of(level.marker(&"BackroomDoor").position)
-	var door_inside: Vector2 = _center(door + Vector2i.UP)  # iç kapı yatay duvarda; arka oda kuzeyde
+	var door_inside: Vector2 = _center(door + Vector2i.UP)  # inner door on a horizontal wall; back room to the north
 	for cell: Vector2i in BACKROOM_POCKET:
 		eq(_blocker(space, spot, _center(cell)), "Crate", "BackroomSpot → %s koliyle kesik" % cell)
-	# İç kapıdan giren (iç karo) kesenin ağzını (21, 7) görür; kolinin hemen doğusu (21, 6) bir adım içeriden
-	# (20, 7) görünür (iç karodan bakış kolinin güney kenarını sıyırır: koli kendi kuytusunu saklar).
+	# Whoever enters the inner door (inner tile) sees the pocket mouth (21, 7); (21, 6) just east of the crate is visible one step
+	# inside at (20, 7) (looking from the inner tile grazes the crate's south edge: the crate hides its own nook).
 	eq(_blocker(space, door_inside, _center(Vector2i(21, 7))), "", "iç kapıdan giren (21, 7)'yi görür")
 	eq(_blocker(space, _center(door + Vector2i(1, -1)), _center(Vector2i(21, 6))), "", "(20, 7)'den (21, 6) görünür")
-	# Kontrol: kesenin dışı BackroomSpot'tan açık (koli tüm odayı kapatmaz): iç kapının iç karosu, D→O yolu,
-	# arka kapının iç yanı ve kuzeydoğu köşesi.
+	# Control: outside the pocket is open from BackroomSpot (the crate does not block the whole room): the inner tile of the inner
+	# door, the D->O path, the inner side of the back door and the north-east corner.
 	var back: Vector2i = LevelLayout.cell_of(level.marker(&"BackDoor").position)
 	for cell: Vector2i in [door + Vector2i.UP, Vector2i(19, 6), back + Vector2i.DOWN, Vector2i(21, 5), Vector2i(21, 4)]:
 		eq(_blocker(space, spot, _center(cell)), "", "BackroomSpot → %s açık" % cell)
-	# Ara sokak: StreetRoute5'ten (e) kilit açan gizli, StreetRoute6'dan (f) görünür.
+	# Alley: hidden from StreetRoute5 (e) which unlocks, visible from StreetRoute6 (f).
 	var e: Vector2 = level.marker(&"StreetRoute5").position
 	var f: Vector2 = level.marker(&"StreetRoute6").position
 	var lock: Vector2 = _center(LOCK_SPOT)
 	eq(LOCK_SPOT, back + Vector2i.UP, "kilit açanın karosu arka kapının dış yanı")
 	eq(_blocker(space, e, lock), "Crate", "StreetRoute5 → kilit açan koliyle kesik")
 	eq(_blocker(space, f, lock), "", "StreetRoute6 → kilit açan görünür")
-	# İçecek dolabı görüşü keser (koridordan doğuya bakan duvardan önce dolabı görür).
+	# The drinks cooler blocks sight (from the corridor you see the cooler before the wall to the east).
 	eq(_blocker(space, _center(Vector2i(12, 6)), _center(Vector2i(15, 6))), "Cooler", "dolap görüşü keser")
 	tree().root.remove_child(level)
 
@@ -136,7 +136,7 @@ func test_routes_around_obstacles() -> void:
 	NavigationServer2D.free_rid(map)
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
 func _load() -> Level:
 	var scene: PackedScene = load(STORE) as PackedScene
@@ -148,7 +148,7 @@ func _load() -> Level:
 	return autofree(level) as Level
 
 
-## Türün karoları (satır satır, soldan sağa).
+## Tiles of the kind (row by row, left to right).
 static func _cells_of(tiles: LevelLayout, kind: LevelLayout.Kind) -> Array[Vector2i]:
 	var out: Array[Vector2i] = []
 	var size: Vector2i = tiles.size_in_tiles()
@@ -159,7 +159,7 @@ static func _cells_of(tiles: LevelLayout, kind: LevelLayout.Kind) -> Array[Vecto
 	return out
 
 
-## Algının görüş hattı sorgusuyla ilk kesen şeklin ad öneki (Crate/Cooler/Wall …); açıksa boş.
+## Name prefix of the first shape cut by perception's sight-line query (Crate/Cooler/Wall ...); empty if clear.
 static func _blocker(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2) -> String:
 	var hit: Dictionary = SightLine.first_blocker(space, from, to)
 	if hit.is_empty():
@@ -173,7 +173,7 @@ static func _center(cell: Vector2i) -> Vector2:
 	return LevelLayout.cell_center(cell)
 
 
-## Seviyeyi ağaca ekler; gezinme düğümlerini yalıtık yeni bir haritaya bağlar ve eşitler (test_levels_nav kalıbı).
+## Adds the level to the tree; links navigation nodes to a fresh isolated map and syncs (test_levels_nav pattern).
 func _enter_with_map(level: Level) -> RID:
 	var region: NavigationRegion2D = level.navigation_region()
 	if not is_true(region != null, "Navigation yok"):

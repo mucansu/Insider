@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""tools/perf_run.py saf yardımcı testleri (IS-067). Yalnız standart kütüphane; Godot ve ekran gerekmez.
+"""tools/perf_run.py pure helper tests (IS-067). Standard library only; no Godot or display needed.
 
-Koşu: python tools/test_perf_run.py   (Windows'ta `python` ya da `py -3`)
-Kapsam: saniye doğrulama, Godot argümanları (S6 --perf), döküm özet tablosu (pencereli/headless/döküm yok),
-host doğrulaması, ortam satırı, ekransız ortamda atlama, .bat ile export.sh bağlantısı.
+Run: python tools/test_perf_run.py   (on Windows `python` or `py -3`)
+Coverage: seconds validation, Godot arguments (S6 --perf), dump summary table (windowed/headless/no dump),
+host validation, environment line, skipping on a display-less machine, the .bat to export.sh link.
 """
 
 from __future__ import annotations
@@ -150,7 +150,7 @@ class BatTest(unittest.TestCase):
         path = os.path.join(pr.ROOT, "tools", "perf_dump.bat")
         with open(path, "rb") as f:
             raw = f.read()
-        raw.decode("ascii")  # cmd kod sayfasından bağımsız kalsın
+        raw.decode("ascii")  # independent of the cmd code page
         text = raw.decode("ascii")
         for part in ("--host", "--perf", "--perf-seconds=", "--quit-after=", "--dump=", "start \"\" /wait"):
             self.assertIn(part, text)

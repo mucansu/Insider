@@ -1,15 +1,14 @@
 extends CharacterBody2D
-## Test fikstürü oyuncu (US-001): yalnız ağ testleri için; gerçek oyuncu entities/player/ altında (US-004).
-## Kök CharacterBody2D + MultiplayerSynchronizer (`position`, 0,05 sn). Yetki Game'in spawn_function'ında
-## peer_id'ye verilir; yalnız yetkili kopya hareket eder ve `--bot` zaman çizelgesini (S6) oynatır:
-##   {"t": SN, "move": [x, y]}  -> hız = yön (uzunluk ≤ 1) × SPEED
-##   {"t": SN, "game": "add_team_cash", "args": [100]}            (yalnız fikstür: Game çağrısı)
-##   {"t": SN, "game": "raise_session_event", "args": ["police_called", {...}]}
-##   {"t": SN, "game": "set_local_name", "args": ["ad"]}
-##   {"t": SN, "game": "start_level", "args": ["res://..."]}       (ertelenmiş; bu düğüm de kaldırılır)
-## `t` süreçteki ilk yerel oyuncunun doğuşundan beri geçen fizik süresidir ("oyun başlangıcı"); zaman çizelgesi
-## süreç genelidir (static), seviye değişiminde yeniden doğan oyuncu kaldığı yerden sürdürür.
-## Diğer adım türleri (hold/press) yok sayılır.
+## Test fixture player (US-001): for network tests only; the real player is under entities/player/ (US-004).
+## Root CharacterBody2D + MultiplayerSynchronizer (`position`, 0.05 s). Authority is given to peer_id in Game's spawn_function;
+## only the authoritative copy moves and plays the `--bot` timeline (S6):
+## {"t": SEC, "move": [x, y]}  -> velocity = direction (length <= 1) x SPEED
+## {"t": SEC, "game": "add_team_cash", "args": [100]}            (fixture only: Game call)
+## {"t": SEC, "game": "raise_session_event", "args": ["police_called", {...}]}
+## {"t": SEC, "game": "set_local_name", "args": ["name"]}
+## {"t": SEC, "game": "start_level", "args": ["res://..."]}       (deferred; this node is removed too)
+## `t` is the physics time since the first local player in the process spawned ("game start"); the timeline is process-wide
+## (static); a player respawned on level change resumes where it left off. Other step kinds (hold/press) are ignored.
 
 const SPEED := 100.0
 
@@ -34,7 +33,7 @@ func _physics_process(delta: float) -> void:
 	if not _local:
 		return
 	var frame: int = Engine.get_physics_frames()
-	if frame != _last_frame:  # aynı karede iki yerel kopya (eski + yeni) zamanı iki kez ilerletmesin
+	if frame != _last_frame:  # so two local copies (old + new) in the same frame do not advance time twice
 		_last_frame = frame
 		_t += delta
 		while _next < _steps.size() and float(_steps[_next]["t"]) <= _t:

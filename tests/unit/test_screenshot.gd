@@ -1,6 +1,6 @@
 extends TestCase
-## Ekran görüntüsü argümanları (Args, S6) ve main.gd zamanlaması (IS-022). Gerçek görüntü pencereli koşuda
-## tools/screenshot.py ile alınır; burada headless'ta ayrıştırma, plan, dosya adı ve headless atlaması sınanır.
+## Screenshot arguments (Args, S6) and main.gd timing (IS-022). The real image is taken in a windowed run with tools/screenshot.py;
+## here, headless, parsing, plan, file name and the headless skip are tested.
 
 const ArgsScript := preload("res://autoload/args.gd")
 const MainScript := preload("res://main.gd")

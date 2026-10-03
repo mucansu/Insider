@@ -1,6 +1,6 @@
 extends TestCase
-## US-008 AC1/AC9: core/fsm.gd küçük durum makinesi + değişmez I4 (bakkal uyarı kümesi {0→1, 1→2, 2→3, 3→5,
-## 2→1, 1→0}; atlama ara kademeden yürünür, 3'ten düşüş yok) ve beyin kenar tabloları.
+## US-008 AC1/AC9: core/fsm.gd small state machine + invariant I4 (shopkeeper alert set {0->1, 1->2, 2->3, 3->5,
+## 2->1, 1->0}; a jump walks through intermediate levels, no drop from 3) and brain edge tables.
 
 const ALERT_EDGES := StoreAlert.EDGES
 
@@ -49,8 +49,8 @@ func test_alert_ladder_invariant_i4() -> void:
 		is_false(Fsm.is_valid_sequence(ALERT_EDGES, bad), "I4 ihlali yakalanır: %s" % bad)
 
 
-## Beyin tabloları: tepki zinciri yalnız ileri (AGENDA → LOOK → QUESTION → SHOUT), alarmdan ajandaya yalnız
-## SEARCH (30 sn görüş yok) üzerinden; mahalleli yakalamadan sonra beklemeye geçmez, arar.
+## Brain tables: the reaction chain only goes forward (AGENDA -> LOOK -> QUESTION -> SHOUT), from alarm back to the agenda only
+## via SEARCH (30 s no sight); the neighbour chaser does not go to waiting after a catch, it searches.
 func test_brain_edge_tables() -> void:
 	var o := Fsm.new(OwnerBrain.State.AGENDA, OwnerBrain.EDGES)
 	is_false(o.can(OwnerBrain.State.CHASE), "ajandadan doğrudan kovalama yok")

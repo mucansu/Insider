@@ -1,7 +1,7 @@
 extends TestCase
-## İş sonu ekranı (US-013 asgari 2a; S3 eki heist_finished/heist_result, KR-021): sahte Game'in sonucuyla
-## başlık, süre, ödeme satırları, oyuncu satırları, notlar (eksik anahtarda genel metin + uyarı), geç
-## katılım, host/istemci düğmeleri, gamepad/klavye odak sırası, "Bir daha" sinyali ve "Menü" ayrılışı.
+## Job-end screen (US-013 minimum 2a; S3 addition heist_finished/heist_result, KR-021): with the fake Game's result, the title,
+## time, payout rows, player rows, notes (generic text + warning on a missing key), late joining, host/client buttons, gamepad/
+## keyboard focus order, the "again" signal and the "Menu" exit.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -119,7 +119,7 @@ func test_heist_finished_fills_fields() -> void:
 		tr("END_PAYOUT"), tr("HUD_CASH_VALUE") % ("1" + sep + "063"),
 	] as Array[String], "ganimet × oran = ödeme, sayılar sonuçtan")
 	eq((screen.get_node("%PayoutGrid").get_child(5) as Label).theme_type_variation, &"CashLabel", "ödeme nakit renginde")
-	# Oyuncular slot sırasıyla: [renk, ad, durum, ganimet].
+	# Players in slot order: [colour, name, status, loot].
 	eq(_texts("PlayerGrid"), [
 		"Ayşe", tr("END_STATUS_ESCAPED"), tr("HUD_CASH_VALUE") % "900",
 		tr("HUD_PLAYER_YOU") % (tr("HUD_PLAYER_UNNAMED") % 2), tr("END_STATUS_ESCAPED"), tr("HUD_CASH_VALUE") % "350",
@@ -130,7 +130,7 @@ func test_heist_finished_fills_fields() -> void:
 	eq([(grid.get_child(0) as ColorRect).color, (grid.get_child(4) as ColorRect).color, (grid.get_child(8) as ColorRect).color],
 		[colors[0], colors[1], colors[2]], "slot rengi")
 	eq((grid.get_child(10) as Label).theme_type_variation, &"AlertLabel", "yakalandı: renk + metin")
-	# Notlar: başlık, kişi (ya da ekip), açıklama.
+	# Notes: title, person (or crew), description.
 	var notes: Node = screen.get_node("%NoteRow")
 	eq(notes.get_child_count(), 3)
 	var titles: Array[String] = []

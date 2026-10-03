@@ -1,13 +1,12 @@
 extends TestCase
-## Ses kataloğu ve çalarlar (IS-024): katalogdaki her olayın dosyası var ve yükleniyor (döngü kapalı), olay
-## adları tekil, yer tutucu sayısı raporlanır; SfxEmitter en kısa aralık, tekrar (kasa tiki), eksik olayda
-## sessizlik; kapı ve kasa durum değişiminde ses; headless'ta (dummy ses sürücüsü) çalış hata/uyarı vermez.
-## Yalnız genel API (§6).
+## Sound catalog and players (IS-024): every event's file in the catalog exists and loads (loop off), event names unique,
+## placeholder count reported; SfxEmitter minimum interval, repeat (register tick), silence on a missing event; sound on door and
+## register state change; runs headless (dummy audio driver) without errors/warnings. Public API only (§6).
 
 const DOOR_SCENE := "res://entities/props/door.tscn"
 const REGISTER_SCENE := "res://entities/props/register.tscn"
 const SFX_DIR := "res://assets/sfx/"
-## Bu kalemde bağlananlar + bağlanmayı bekleyen anahtarlar (US-008: bakkal sahibi; US-009: koşu adımı).
+## Bound in this item + keys waiting to be bound (US-008: shop owner; US-009: run step).
 const REQUIRED_EVENTS: Array[StringName] = [
 	&"door_open", &"door_close", &"register_tick", &"register_done", &"ui_click", &"ui_focus",
 	&"alert_step", &"alert_high", &"stinger_success", &"stinger_caught",
@@ -15,7 +14,7 @@ const REQUIRED_EVENTS: Array[StringName] = [
 ]
 
 
-## Uyarılar dahil bütün motor/betik kayıtlarını toplar (koşucu uyarıları saymaz; bu test sayar).
+## Collects all engine/script logs including warnings (the runner ignores warnings; this test counts them).
 class AllLogs extends Logger:
 	var entries: PackedStringArray = []
 	var _mutex := Mutex.new()
@@ -33,7 +32,7 @@ class AllLogs extends Logger:
 			_mutex.unlock()
 
 
-## Elle ilerletilen saat.
+## Manually advanced clock.
 class FakeClock extends RefCounted:
 	var t: float = 100.0
 
@@ -55,7 +54,7 @@ func _emitter(clock: FakeClock = null) -> SfxEmitter:
 	return emitter
 
 
-# --- katalog ---
+# --- catalog ---
 
 func test_every_catalog_event_has_loadable_file() -> void:
 	var catalog: SfxCatalog = _catalog()
@@ -88,7 +87,7 @@ func test_every_catalog_event_has_loadable_file() -> void:
 func test_placeholder_count_is_reported() -> void:
 	var catalog: SfxCatalog = _catalog()
 	var placeholders: Array[StringName] = catalog.placeholder_events()
-	# Bugün bütün sesler yer tutucu (assetler.md "Yer tutucu sesler"); üretim sesi gelince false'a çekilir.
+	# Today all sounds are placeholders (assetler.md "Yer tutucu sesler"); set to false when production sounds arrive.
 	eq(placeholders.size(), catalog.entries.size(), "bütün girdiler placeholder = true")
 	print("       [bilgi] yer tutucu ses: %d/%d" % [placeholders.size(), catalog.entries.size()])
 	var fresh := SfxEntry.new()
@@ -96,7 +95,7 @@ func test_placeholder_count_is_reported() -> void:
 
 
 func test_positional_events_heard_within_twice_noise_radius() -> void:
-	# ses-ve-sfx §1 kural 3: duyulma mesafesi = gürültü yarıçapı × 2 (S8 başlangıç değerleri).
+	# ses-ve-sfx §1 rule 3: audible distance = noise radius x 2 (S8 starting values).
 	var expected := {&"door_open": 320.0, &"door_close": 320.0, &"register_tick": 180.0, &"register_done": 180.0,
 		&"run_step": 240.0}
 	var catalog: SfxCatalog = _catalog()
@@ -152,7 +151,7 @@ func test_emitter_repeat_while_condition() -> void:
 	eq(count[0], 2, "koşul yanlışken tik yok")
 
 
-# --- bağlanan prop'lar ---
+# --- bound props ---
 
 func test_door_toggle_plays_open_and_close() -> void:
 	var door: Door = (load(DOOR_SCENE) as PackedScene).instantiate() as Door
@@ -173,7 +172,7 @@ func test_register_ticks_while_emptying_and_chimes_when_done() -> void:
 	tree().root.add_child(register)
 	autofree(register)
 	var interactable: Interactable = register.get_node("Interactable") as Interactable
-	interactable.set_physics_process(false)  # aktör yok: host süreyi iptal etmesin
+	interactable.set_physics_process(false)  # no actor: the host must not cancel the duration
 	var heard: Array[StringName] = []
 	SfxEmitter.of(register).played.connect(func(ev: StringName) -> void: heard.append(ev))
 	await tree().process_frame
@@ -190,8 +189,8 @@ func test_register_ticks_while_emptying_and_chimes_when_done() -> void:
 
 
 func test_register_client_order_done_not_cut_by_late_progress() -> void:
-	# İstemcide `emptied` (değişince, her kare) `busy_by/progress`'ten (0,1 sn arayla) önce gelebilir: "çın"dan
-	# sonra eski ilerleme bir kare daha görünse de tik çalmamalı (tek kanallı çalarda "çın"ı keser).
+	# On the client `emptied` (on change, every frame) can arrive before `busy_by/progress` (0.1 s apart): after the "ding" the old
+	# progress may show one more frame yet no tick must play (on a single-channel player it would cut the "ding").
 	var clock := FakeClock.new()
 	var register: Register = (load(REGISTER_SCENE) as PackedScene).instantiate() as Register
 	tree().root.add_child(register)
@@ -206,11 +205,11 @@ func test_register_client_order_done_not_cut_by_late_progress() -> void:
 	interactable.progress = 2.9
 	await tree().process_frame
 	await tree().process_frame
-	register.emptied = true  # önce durum gelir
-	clock.t += 5.0  # tik aralığı çoktan doldu
+	register.emptied = true  # state arrives first
+	clock.t += 5.0  # the tick interval has long elapsed
 	await tree().process_frame
 	await tree().process_frame
-	interactable.busy_by = 0  # sonra ilerleme sıfırı gelir
+	interactable.busy_by = 0  # then the progress zero arrives
 	interactable.progress = 0.0
 	await tree().process_frame
 	eq(heard.front(), &"register_tick")
@@ -218,21 +217,21 @@ func test_register_client_order_done_not_cut_by_late_progress() -> void:
 
 
 func test_first_sync_is_silent_baseline_then_changes_play() -> void:
-	# Geç katılan/yeniden bağlanan istemci: ilk eşitleme paketi taban durumdur (olay o peer'ın gözü önünde
-	# olmadı), sessiz uygulanır; sonraki değişim çalar. Eşitleyici sinyali elle yayılır (istemci benzetimi).
+	# A late-joining/reconnecting client: the first sync packet is the base state (the event did not happen in front of that peer),
+	# applied silently; the next change plays. The synchroniser signal is emitted by hand (client simulation).
 	var door: Door = (load(DOOR_SCENE) as PackedScene).instantiate() as Door
 	tree().root.add_child(door)
 	autofree(door)
 	var emitter: SfxEmitter = SfxEmitter.of(door)
 	is_false(emitter.baseline_pending, "host/çevrimdışı taban beklemez")
-	emitter.baseline_pending = true  # istemci: _ready'de eşitleyici bulununca kurulur
+	emitter.baseline_pending = true  # client: set up in _ready once the synchroniser is found
 	var heard: Array[StringName] = []
 	emitter.played.connect(func(ev: StringName) -> void: heard.append(ev))
-	door.is_open = not door.is_open  # ilk eşitleme paketi (taban)
+	door.is_open = not door.is_open  # first sync packet (base)
 	(door.get_node("MultiplayerSynchronizer") as MultiplayerSynchronizer).delta_synchronized.emit()
 	eq(heard.size(), 0, "ilk eşitleme değeri ses çalmaz")
 	eq(door.dump_state()["sfx"], {"played": 0, "silent": 1})
-	door.is_open = not door.is_open  # sonraki eşitleme: gerçek değişim
+	door.is_open = not door.is_open  # next sync: a real change
 	eq(heard.size(), 1, "ikinci değişim çalar")
 	eq(door.dump_state()["sfx"], {"played": 1, "silent": 1})
 
@@ -241,14 +240,14 @@ func test_max_distance_reset_per_play() -> void:
 	var emitter: SfxEmitter = _emitter()
 	emitter.play_event(&"door_open")
 	eq(emitter.max_distance, _catalog().find(&"door_open").max_distance)
-	emitter.play_event(&"ui_click")  # girdide mesafe yok (0)
+	emitter.play_event(&"ui_click")  # no distance on input (0)
 	eq(emitter.max_distance, SfxEmitter.DEFAULT_MAX_DISTANCE, "önceki olayın mesafesi kalmaz")
 
 
 # --- headless ---
 
 func test_headless_skips_stream_start() -> void:
-	# Headless'ta akış başlatılmaz (kapanışta askıda oynatma nesnesi kalmasın; IS-029 kapısı); olay yine işlenir.
+	# In headless playback is not started (no dangling playback object at shutdown; IS-029 gate); the event is still processed.
 	is_false(SfxCatalog.force_playback)
 	var emitter: SfxEmitter = _emitter()
 	is_true(emitter.play_event(&"door_open"), "olay işlenir (played, sayaç)")
@@ -257,8 +256,8 @@ func test_headless_skips_stream_start() -> void:
 
 
 func test_headless_playback_has_no_errors_or_warnings() -> void:
-	# Gerçek çalış (force_playback): dummy sürücüde hata/uyarı yok. Bitince akışlar durdurulur ve ses sunucusunun
-	# oynatma nesnelerini silmesi beklenir (süreç sonuna askıda nesne kalmasın).
+	# Real playback (force_playback): no errors/warnings on the dummy driver. When done the streams are stopped and the audio server is
+	# expected to delete its playback objects (no object left dangling at process end).
 	var logs := AllLogs.new()
 	OS.add_logger(logs)
 	SfxCatalog.force_playback = true

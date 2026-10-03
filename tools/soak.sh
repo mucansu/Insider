@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Dayanıklılık koşusu (IS-013 AC3; Faz 1 çıkış kriteri 4): store_a'da host + 2 bot (gerçek oyuncu sahnesi)
-# N dakika dolaşır, kasa/kapı etkileşir. Senaryo tests/net/soak/store_a.json; koşuyu tools/net_smoke.py yapar
-# (süreç ağacı öldürme, log'da ERROR/WARNING denetimi, bellek örnekleme, döküm beklentileri). Süreçler her
-# durumda (zaman aşımı, Ctrl-C, SIGTERM) net_smoke tarafından kapatılır; asılı Godot kalmaz.
-# Kullanım: tools/soak.sh [--minutes N] [net_smoke seçenekleri, ör. --latency-ms 150 --keep]
-#   --minutes N   koşu süresi (dakika, ondalık olabilir; varsayılan 10)
-# Windows (Git Bash) ve Linux'ta çalışır. Python: python3 → python → py -3 (>= 3.10). Çıkış kodu 0 = geçti.
+# Endurance run (IS-013 AC3; Phase 1 exit criterion 4): host + 2 bots (real player scene) in store_a roam
+# for N minutes, interacting with register/door. Scenario tests/net/soak/store_a.json; tools/net_smoke.py does the run
+# (process-tree kill, ERROR/WARNING check in the log, memory sampling, dump expectations). Processes are closed by
+# net_smoke in every case (timeout, Ctrl-C, SIGTERM); no Godot is left hanging.
+# Usage: tools/soak.sh [--minutes N] [net_smoke options, e.g. --latency-ms 150 --keep]
+# --minutes N   run length (minutes, may be fractional; default 10)
+# Works on Windows (Git Bash) and Linux. Python: python3 -> python -> py -3 (>= 3.10). Exit code 0 = passed.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -42,7 +42,7 @@ fi
 
 python=()
 for cand in "python3" "python" "py -3"; do
-	# shellcheck disable=SC2086 # aday bilerek sözcüklere bölünür
+	# shellcheck disable=SC2086 # candidate is deliberately split into words
 	if command -v "${cand%% *}" >/dev/null 2>&1 \
 		&& $cand -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
 		read -r -a python <<<"$cand"
@@ -56,5 +56,5 @@ fi
 
 seconds="$("${python[@]}" -c "import sys; print(round(float(sys.argv[1]) * 60, 1))" "$minutes")"
 echo "== soak: store_a, ${minutes} dk (${seconds} sn), $(date '+%Y-%m-%d %H:%M:%S')"
-# exec: sinyaller (SIGTERM/SIGINT) doğrudan net_smoke'a gider; o da Godot süreç ağaçlarını kapatır.
+# exec: signals (SIGTERM/SIGINT) go straight to net_smoke, which closes the Godot process trees.
 exec "${python[@]}" tools/net_smoke.py tests/net/soak/store_a.json --duration "$seconds" -v ${extra[@]+"${extra[@]}"}

@@ -1,17 +1,16 @@
 extends TestCase
-## US-008 AC5 + AC8: bağırış sonrası (her 5 sn gürültü yinelenir; 30 sn kimse görünmezse uyarı 2 → 1 ve ajanda,
-## sakin kalınca 1 → 0) ve koni histerezisi (görülmekte olan hedef için 50°/224 → 53°/238 px; yakın/uzak bant
-## sınırı değişmez). US-039 AC6 güncellemesi: sabit "60 sn sonra yeniden bağırış" kalktı; sakinleşince ajandanın
-## ilk görevi arka oda, nakit alınmışsa varıştan 1 sn sonra keşif (DISCOVER → bağırış, +1 komşu; kaynak başına bir
-## kez). Tek süreç = host.
+## US-008 AC5 + AC8: after the shout (noise repeats every 5 s; if nobody is seen for 30 s alert 2 -> 1 and the agenda, calm 1 -> 0)
+## and cone hysteresis (for a target being seen 50 deg/224 -> 53 deg/238 px; near/far band boundary unchanged). US-039 AC6 update:
+## the fixed "shout again after 60 s" is gone; once calm the agenda's first task is the back room, and if cash was taken,
+## discovery 1 s after arrival (DISCOVER -> shout, +1 neighbour; once per source). Single process = host.
 
 const DT := 1.0 / 30.0
 const STAFF_FRONT := Vector2(560, 400)
-const HIDDEN := Vector2(656, 176)  # arka oda: duvar arkası
-const FAR := Vector2(880, 592)  # kaçış köşesi (dışarı): sahip arka odaya giderken görmez
+const HIDDEN := Vector2(656, 176)  # back room: behind a wall
+const FAR := Vector2(880, 592)  # escape corner (outside): the owner cannot see while heading to the back room
 
 
-## Arka oda nakdi yer tutucusu (US-010/US-012 çanta prop'u gelene kadar; duck typing `taken`).
+## Back room cash placeholder (until the US-010/US-012 bag prop; duck-typed `taken`).
 class FakeCash:
 	extends Node2D
 	var taken: bool = false
@@ -31,7 +30,7 @@ func test_shout_repeats_then_calms_down_after_30s() -> void:
 	var o: StoreOwner = stage.owner()
 	var a: StoreAlert = stage.alert()
 	a.tuning = a.tuning.duplicate() as OwnerTuning
-	a.tuning.max_neighbours = 0  # komşu içeri girip uyarıyı 3'e kilitlemesin: yalnız sahibin sönümü ölçülür
+	a.tuning.max_neighbours = 0  # so a neighbour entering does not lock the alert at 3: only the owner's decay is measured
 	var p: Player = _shout_then_hide(stage)
 	var noises: int = o.brain().shout_noises
 	eq(noises, 1, "ilk bağırış gürültüsü")
@@ -68,7 +67,7 @@ func test_taken_backroom_cash_is_discovered_on_backroom_check() -> void:
 	var first: Array[Chaser] = stage.alert().chasers()
 	eq(first.size(), 1, "bağırış: 8 sn sonra komşu")
 	for c: Chaser in first:
-		c.free()  # komşu sahneden çıkar: uyarı 3'e çıkmasın, sahibin sakinleşip arka odaya gidişi ölçülür
+		c.free()  # the neighbour leaves the scene: the alert does not rise to 3, the owner's calming and walk to the back room is measured
 	stage.run(21.5, Callable(), DT)
 	eq(o.brain().state(), OwnerBrain.State.AGENDA)
 	eq(o.agenda().task_name(), &"backroom", "sakinleşince ilk görev arka oda")
@@ -88,13 +87,13 @@ func test_taken_backroom_cash_is_discovered_on_backroom_check() -> void:
 	eq(Game.alert_level(), 2)
 	stage.run(8.5, Callable(), DT)
 	eq(stage.alert().chasers().size(), 1, "keşif bağırışı +1 komşu (toplam 2 = en fazla)")
-	# Kaynak başına bir keşif: ikinci sakinleşme + arka oda ziyaretinde yinelenmez.
+	# One discovery per source: not repeated on the second calm + back room visit.
 	stage.run(100.0, Callable(), DT)
 	eq(shouts.count(true), 1, "keşif bir kez (%s)" % [shouts])
 	stage.leave()
 
 
-## AC8: koni kenarında histerezis; yakın/uzak bant sınırı aynı kalır.
+## AC8: hysteresis at the cone edge; the near/far band boundary stays the same.
 func test_cone_hysteresis_keeps_seen_target() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()

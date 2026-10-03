@@ -1,6 +1,6 @@
 extends TestCase
-## US-004 AC3: PlayerInput (S5 cihaz girdisi, S6 bot zaman çizelgesi) ve BotTimeline ayrıştırma/oynatma;
-## `UiInput.is_gameplay_input_blocked()` true iken cihaz girdisi okunmaz, bot etkilenmez; uzak kopya girdi okumaz.
+## US-004 AC3: PlayerInput (S5 device input, S6 bot timeline) and BotTimeline parsing/playback; while
+## `UiInput.is_gameplay_input_blocked()` is true device input is not read and the bot is unaffected; a remote copy reads no input.
 
 const BOT_FILE := "user://test_player_input_bot.json"
 

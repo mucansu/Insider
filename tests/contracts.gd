@@ -1,8 +1,8 @@
 extends RefCounted
-## Sözleşme yüzeyinin tek kaynağı (IS-039): docs/notes/mimari.md S1/S3/S4/S8 satırları birebir (yorumlar hariç).
-## test_smoke.gd imzaları satır satır, test_ui_fakes.gd üye adlarını buradan okur.
-## PENDING: sözleşmede olup gerçek koda henüz gelmemiş üyeler. Gerçek betikte yoksa denetim atlanır; üye gelince
-## imza denetimi kendiliğinden açılır (yanlış imza düşer). Üye gerçek koda geldikten sonra listeden silinebilir.
+## Single source of the contract surface (IS-039): the S1/S3/S4/S8 lines of docs/notes/mimari.md, verbatim (comments excluded).
+## test_smoke.gd reads signatures line by line; test_ui_fakes.gd reads member names from here.
+## PENDING: contract members not in real code yet; the check is skipped while the script lacks them and
+## turns on by itself once they land (a wrong signature then fails). Remove from the list afterwards.
 
 const LINES := {
 	"Net": [
@@ -39,7 +39,7 @@ const LINES := {
 		"func raise_session_event(kind: StringName, data: Dictionary = {}) -> void",
 		"func register_dump_provider(key: String, provider: Callable) -> void",
 		"func collect_dump() -> Dictionary",
-		# S3 eki (Faz 2, KR-021; US-008/US-012/US-013).
+		# S3 addition (Phase 2, KR-021; US-008/US-012/US-013).
 		"signal alert_level_changed(level: int)",
 		"func alert_level() -> int",
 		"func alert_timer_left() -> float",
@@ -47,24 +47,24 @@ const LINES := {
 		"func heist_result() -> Dictionary",
 		"func request_restart() -> void",
 		"func venue_tier() -> int",
-		# S3 görüş ekleri (US-011b/c, KR-023). set_vision_mode dönüşü belgede yazmıyor: void varsayıldı.
+		# S3 vision additions (US-011b/c, KR-023). The set_vision_mode return type is not in the doc: assumed void.
 		"signal player_exposure_changed(peer: int, level: int)",
 		"func player_exposure(peer: int) -> int",
 		"func vision_mode() -> int",
 		"func set_vision_mode(mode: int) -> void",
 		"func player_world_position(peer: int) -> Vector2",
-		# S3 eki adayı (US-038, kaçış okunurluğu; mimari.md'ye koordinatör işler): salt okunur, RPC yok.
+		# S3 addition candidate (US-038, escape legibility; coordinator carries it to mimari.md): read-only, no RPC.
 		"func escape_point() -> Vector2",
 		"func escape_status() -> Dictionary",
-		# S3 eki (US-040, eli boş çekilme): HUD geri sayımı; salt okunur, RPC yok.
+		# S3 addition (US-040, empty-handed retreat): HUD countdown; read-only, no RPC.
 		"func abort_left() -> float",
-		# S3 eki (US-042, örtü): yerel oyuncunun örtüsü (1 sağlam, 0 bozuk, -1 iş yok); salt okunur.
+		# S3 addition (US-042, cover): local player's cover (1 intact, 0 broken, -1 no job); read-only.
 		"func cover_state() -> int",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
 	],
-	# S4 Level API (autoload değil; levels/level.gd, sınıf adı ve taban test_smoke'ta ayrıca denetlenir).
+	# S4 Level API (not an autoload; levels/level.gd, class name and base are checked separately in test_smoke).
 	"Level": [
 		"func players_root() -> Node2D",
 		"func props_root() -> Node2D",
@@ -72,15 +72,15 @@ const LINES := {
 		"func spawn_count() -> int",
 		"func spawn_position(index: int) -> Vector2",
 		"func marker(marker_name: StringName) -> Node2D",
-		# S4 eki (US-007) ve IS-027.
+		# S4 addition (US-007) and IS-027.
 		"func marker_sequence(prefix: StringName) -> Array[Node2D]",
 		"func zone(zone_name: StringName) -> Area2D",
 		"func navigation_region() -> NavigationRegion2D",
 		"func door_link(door_name: StringName) -> NavigationLink2D",
 		"func map_rect() -> Rect2",
-		# S3 eki (US-013): mekân kademesi.
+		# S3 addition (US-013): venue tier.
 		"func tier() -> int",
-		# S3 görüş ekleri (sis; US-011a).
+		# S3 vision additions (fog; US-011a).
 		"func attach_fog(observer: Node2D) -> FogLayer",
 		"func fog_layer() -> FogLayer",
 	],
@@ -95,14 +95,14 @@ const PENDING := {
 }
 
 
-## Sözleşme satırının üye adı ("signal x(...)", "func x(...)", "const X := ...", "var x: T").
+## Member name of a contract line ("signal x(...)", "func x(...)", "const X := ...", "var x: T").
 static func member_name(line: String) -> String:
 	var re := RegEx.create_from_string("^(?:static )?(?:signal|func|const|var) ([A-Za-z_][A-Za-z0-9_]*)")
 	var m: RegExMatch = re.search(line)
 	return m.get_string(1) if m != null else ""
 
 
-## Sahibin (Net, Game, NoiseBus, Level) sözleşmeli üye adları.
+## Contract member names of the owner (Net, Game, NoiseBus, Level).
 static func names(owner: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	for line: String in LINES.get(owner, []):

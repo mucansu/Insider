@@ -1,7 +1,7 @@
 extends TestCase
-## US-008 t2 (denetim düzeltmeleri): ÇEK host doğrulaması (B1), tutulan/yakalanan oyuncunun etkileşimi reddedilir
-## ve süreni iptal edilir (S1), sorgu yürüyüşü + `owner_shrug` + masumken boşalma 10/sn (S2), `player_caught`
-## yakalayanı (S3), NPC kapıyı yalnız açar (kapatmaz, beklemeye uyar). Tek süreç = host; NpcStage sabit adım.
+## US-008 t2 (audit fixes): PULL host validation (B1), a held/caught player's interaction is rejected and the ongoing one cancelled
+## (S1), question walk + `owner_shrug` + drain while innocent 10/s (S2), `player_caught` carries the catcher (S3), an NPC only
+## opens a door (does not close, obeys the wait). Single process = host; NpcStage fixed step.
 
 const DT := 1.0 / 60.0
 const STAFF_FRONT := Vector2(560, 400)
@@ -11,7 +11,7 @@ const REGISTER_SCENE := "res://entities/props/register.tscn"
 const DOOR_SCENE := "res://entities/props/door.tscn"
 
 
-## Etkileşim aktörü taklidi (S7: grup + interaction_position; gövdesi yok).
+## Fake interaction actor (S7: group + interaction_position; no body).
 class FakeActor:
 	extends Node2D
 
@@ -47,7 +47,7 @@ func test_rescue_is_validated_on_host() -> void:
 func test_held_or_caught_player_cannot_interact_and_running_one_is_cancelled() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()
-	stage.owner().active = false  # sahip etkisiz: yalnız etkileşim kuralı ölçülür
+	stage.owner().active = false  # owner inert: only the interaction rule is measured
 	var register: Interactable = stage.level.props_root().get_node(^"Register/Interactable") as Interactable
 	var p: Player = stage.player(2, REGISTER_STAFF)
 	is_true(p.host_hold(6.0))
@@ -68,7 +68,7 @@ func test_held_or_caught_player_cannot_interact_and_running_one_is_cancelled() -
 	stage.leave()
 
 
-## Yerel oyuncu tarafı: kasayı tutarken tutulursa girdi kesilir → istemci iptali, busy_by 0, finished(false).
+## Local player side: if held while holding the register, input is cut -> client cancel, busy_by 0, finished(false).
 func test_local_hold_cuts_interaction_input() -> void:
 	var reg: Node2D = (load(REGISTER_SCENE) as PackedScene).instantiate() as Node2D
 	reg.position = Vector2(560, 368)
@@ -99,7 +99,7 @@ func test_local_hold_cuts_interaction_input() -> void:
 	is_false(reg.get(&"emptied"))
 
 
-## S2: sorgu yürüyüşü (110 px/sn, ~64 px'te durur, `owner_question`), masumken boşalma 10/sn, `owner_shrug`.
+## S2: question walk (110 px/s, stops at ~64 px, `owner_question`), drain while innocent 10/s, `owner_shrug`.
 func test_question_walk_decay_and_shrug() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()
@@ -131,7 +131,7 @@ func test_question_walk_decay_and_shrug() -> void:
 		near(speed, 110.0, 3.0, "sorgu yürüyüşü 110 px/sn")
 	near(asked_dist[0], 64.0, 8.0, "64 px'te durur ve sorar")
 	eq(events.slice(0, 1), [&"owner_question"] as Array[StringName])
-	# Masum (müşteri bölgesi, görünür): 0,2 sn kesinti payından sonra 10/sn.
+	# Innocent (customer zone, visible): 10/s after the 0.2 s interruption margin.
 	var a: float = values[60]
 	var b: float = values[120]
 	near(a - b, 10.0, 0.5, "görünüp masumken boşalma 10/sn (1 sn'de)")
@@ -157,7 +157,7 @@ func test_caught_by_records_catcher() -> void:
 	stage.leave()
 
 
-## Çürütme #1: NPC kapıyı yalnız açar; açık kapıya dokunmaz, oyuncunun hemen ardından beklemeye uyar.
+## Refutation #1: an NPC only opens a door; does not touch an open door, obeys the wait right after the player.
 func test_npc_only_opens_doors() -> void:
 	var door: Door = (load(DOOR_SCENE) as PackedScene).instantiate() as Door
 	door.position = Vector2(368, 464)
@@ -171,7 +171,7 @@ func test_npc_only_opens_doors() -> void:
 		item.step(DT)
 	item.host_use_by_npc(Vector2(368, 496))
 	is_true(door.is_open, "açık kapıya dokunmaz (kapatmaz)")
-	# Oyuncu kapatır; NPC hemen ardından (bekleme süresinde) açamaz, sonra açar.
+	# The player closes it; the NPC cannot open immediately after (during the wait), then opens.
 	var closer := FakeActor.new()
 	closer.position = Vector2(368, 500)
 	closer.set_multiplayer_authority(5)
@@ -189,7 +189,7 @@ func test_npc_only_opens_doors() -> void:
 	is_true(door.is_open)
 
 
-## Taşıma (US-012 birleşimi): arka oda nakdi = BackroomCash'teki çanta; taşınınca "alındı" (geç yeniden bağırış).
+## Carrying (US-012 integration): back room cash = the bag at BackroomCash; once carried "taken" (late re-shout).
 func test_backroom_bag_taken_is_noticed() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()

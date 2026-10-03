@@ -1,9 +1,9 @@
 extends TestCase
-## US-008 AC3 (+ AC7/AC8 kuralları, ON-03, ON-04): sivil çarpan tablosu (GDD §6.1) core'da, sabit adımla
-## (PerceptionRules + SuspicionMeter + CivilianRules; gerçek data/npc ayarlarıyla). Süreler: kasa tutarken yakın
-## bant tespit 1,0 sn (0,2 + 0,8; ±1 kare), uzak 1,8 sn; müşteri bölgesinde yürüyen 60 sn hiç dolmaz, sonra 0,25;
-## personel tarafı 1,5 sn; sızma 4,2 sn; "?" her satırda tespitten ≥ 0,5 sn önce; görünüp masumken boşalma
-## 10/sn, görünmeyince 20/sn. Hatalı varyantlar (çarpanları çarpmak, kasa çarpanını büyütmek) bu ölçütte düşer.
+## US-008 AC3 (+ AC7/AC8 rules, ON-03, ON-04): civilian multiplier table (GDD §6.1) in core with a fixed step
+## (PerceptionRules + SuspicionMeter + CivilianRules; real data/npc tuning). Times: holding register near band
+## detection 1.0 s (0.2 + 0.8; +-1 frame), far 1.8 s; walking in the customer zone never fills in 60 s, then 0.25;
+## staff side 1.5 s; infiltration 4.2 s; "?" >= 0.5 s before detection in every row; drain while seen and innocent
+## 10/s, 20/s when unseen. Faulty variants (multiplying the multipliers, enlarging the register multiplier) fail this check.
 
 const DT := 1.0 / 60.0
 const FRAME := DT + 0.0001
@@ -39,12 +39,12 @@ func _ctx(zone: CivilianRules.Zone, stance: PerceptionRules.Stance = PerceptionR
 	return c
 
 
-## Görülen hedef: dolum = taban × bant × çarpan (Perception.observe_target'taki factor_query yolu).
+## Seen target: fill = base x band x multiplier (the factor_query path in Perception.observe_target).
 func _rate(band: PerceptionRules.Band, factor: float) -> float:
 	return _cone.base_fill * PerceptionRules.band_factor(_cone, band) * factor
 
 
-## Sabit adımla sürer: [t_?, t_tespit] (yoksa -1). `factor_at(t)` o andaki çarpan.
+## Runs with a fixed step: [t_?, t_detect] (-1 if none). `factor_at(t)` is the multiplier at that moment.
 func _times(band: PerceptionRules.Band, factor_at: Callable, seconds: float) -> Array[float]:
 	var m := SuspicionMeter.new()
 	var out: Array[float] = [-1.0, -1.0]
@@ -64,7 +64,7 @@ func _constant(ctx: CivilianRules.Context) -> Callable:
 	return func(_t: float) -> float: return f
 
 
-## Satır ölçütü: tespit beklenen süreye ±1 kare, "?" tespitten ≥ 0,5 sn önce.
+## Row criterion: detection within +-1 frame of the expected time, "?" >= 0.5 s before detection.
 func _row_ok(times: Array[float], expected: float) -> bool:
 	return absf(times[1] - expected) <= FRAME and times[0] >= 0.0 and times[1] - times[0] >= 0.5 - 0.0001
 
@@ -112,7 +112,7 @@ func test_customer_area_is_innocent_for_60_seconds() -> void:
 		CivilianRules.Interaction.NONE, 61.0)), 0.25)
 	eq(CivilianRules.behaviour(_rules, _ctx(CivilianRules.Zone.CUSTOMER, PerceptionRules.Stance.WALK,
 		CivilianRules.Interaction.NONE, 61.0)), CivilianRules.Behaviour.LOITER)
-	# Oyalanmada yakın bantta tespit: 0,2 + 100 / 12,5 = 8,2 sn ("?" çok önce).
+	# Detection in the near band while loitering: 0.2 + 100 / 12.5 = 8.2 s ("?" much earlier).
 	var long: Array[float] = _times(PerceptionRules.Band.NEAR, func(_t: float) -> float: return 0.25, 20.0)
 	near(long[1], 8.2, FRAME)
 
@@ -136,7 +136,7 @@ func test_most_suspicious_row_wins_not_product() -> void:
 	eq(CivilianRules.behaviour_name(CivilianRules.behaviour(_rules, ctx)), &"alarm")
 
 
-## Hatalı varyantlar ölçütü geçemez: çarpanları çarpmak ve kasa çarpanını 3'e çıkarmak.
+## Faulty variants cannot pass the criterion: multiplying multipliers and raising the register multiplier to 3.
 func test_wrong_variants_fail_the_row_check() -> void:
 	_setup()
 	var ok: Array[float] = _times(PerceptionRules.Band.NEAR, _constant(_ctx(CivilianRules.Zone.STAFF,
@@ -147,7 +147,7 @@ func test_wrong_variants_fail_the_row_check() -> void:
 	is_false(_row_ok(product, 1.0), "çarpılan çarpanlar (3,75) kasa satırını tutturamaz (gelen %.3f)" % product[1])
 	var greedy: Array[float] = _times(PerceptionRules.Band.NEAR, func(_t: float) -> float: return 3.0, 5.0)
 	is_false(_row_ok(greedy, 1.0), "kasa çarpanı 3 → tespit < 1 sn")
-	# Pay yok (0,2 sn grace atlanırsa) "?" → tespit aralığı yine ≥ 0,5 ama süre tutmaz.
+	# No margin (if the 0.2 s grace is skipped): the "?" -> detection gap is still >= 0.5 but the timing does not hold.
 	var no_grace := SuspicionMeter.Params.new()
 	no_grace.decay_per_sec = _meter.decay_per_sec
 	no_grace.thresholds = _meter.thresholds
@@ -171,8 +171,8 @@ func test_innocent_decay_vs_unseen_decay() -> void:
 	a.seen_for = 1.0
 	b.seen_for = 1.0
 	for i: int in roundi(2.2 / DT):
-		a.step(innocent, 0.0, DT)  # görünüyor ama masum (çarpan 0)
-		b.step(_meter, 0.0, DT)  # görünmüyor
+		a.step(innocent, 0.0, DT)  # visible but innocent (multiplier 0)
+		b.step(_meter, 0.0, DT)  # not visible
 	near(a.value, 50.0 - 10.0 * 2.0, 0.2, "görünüp masumken 10/sn (0,2 sn kesinti payından sonra)")
 	near(b.value, 50.0 - 20.0 * 2.0, 0.2, "görünmeyince 20/sn")
 
@@ -199,7 +199,7 @@ func test_zone_lookup_and_rescue_rules() -> void:
 	eq(CivilianRules.contact_step(c, 28.5, 28.0, DT), 0.0, "menzilden çıkınca sıfır")
 
 
-## ON-03: tutma/yakalamada oyuncu konumu hızı yönünde min(RTT/2, 0,1 sn) ileri alınır.
+## ON-03: on hold/catch the player's position is advanced along its velocity by min(RTT/2, 0.1 s).
 func test_contact_lead_prediction() -> void:
 	var v := Vector2(220, 0)
 	eq(CivilianRules.predicted_position(Vector2.ZERO, v, 0.0, 0.1), Vector2.ZERO, "host (RTT 0): ileri alma yok")
@@ -208,7 +208,7 @@ func test_contact_lead_prediction() -> void:
 	eq(CivilianRules.predicted_position(Vector2(5, 5), Vector2.ZERO, 150.0, 0.1), Vector2(5, 5), "duran oyuncu")
 
 
-## ON-04: gösterge istemcide çoğaltılan ölçerden; "?" histerezisli, "!" alarm kilidinde titremez.
+## ON-04: the indicator reads the meter replicated on the client; "?" has hysteresis, "!" does not flicker under alarm lock.
 func test_bubble_thresholds_and_hysteresis() -> void:
 	_setup()
 	var none: int = CivilianRules.Bubble.NONE

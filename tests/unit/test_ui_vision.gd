@@ -1,7 +1,7 @@
 extends TestCase
-## Görüş arayüzü (US-011c; GDD §6.5): HUD maruziyet rozeti (gizli / görünür / görüldü), ekip arkadaşı "görüldü"
-## gözü ve ekran dışı kenar oku (atkı rengi), ana menüde host'un görüş kipi seçimi. Game görüş ekini
-## (S3 eki; mimari.md, US-011b/c) taşımıyorsa hepsi gizli kalır.
+## Vision UI (US-011c; GDD §6.5): the HUD exposure badge (hidden / visible / seen), the teammate "seen" eye and off-screen edge
+## arrow (scarf colour), the host's vision mode choice in the main menu. If Game does not carry the vision addition (S3 addition;
+## mimari.md, US-011b/c) all stay hidden.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -15,7 +15,7 @@ var journal: Fakes.CallLog
 var viewport: SubViewport
 var hud: Hud
 var menu: MainMenu
-## HUD'un eksik metin uyarıları; görüş öğeleri hiçbir durumda uyarı üretmez.
+## The HUD's missing-text warnings; the vision elements never produce a warning.
 var warnings: Array[String] = []
 
 
@@ -33,7 +33,7 @@ func _fakes(vision: bool) -> void:
 	journal = pair[2]
 
 
-## HUD'u açar; `before_ready` sahteleri sahneye eklenmeden önce hazırlar.
+## Opens the HUD; `before_ready` prepares the fakes before they are added to the scene.
 func _open_hud(vision: bool = true, before_ready: Callable = Callable()) -> void:
 	_fakes(vision)
 	if before_ready.is_valid():
@@ -99,7 +99,7 @@ static func _joy(button: JoyButton, pressed: bool = true) -> InputEventJoypadBut
 	return e
 
 
-## Üç kişilik ekip: yerel 1 (slot 0), arkadaşlar 2 (slot 1) ve 3 (slot 2).
+## A three-person crew: local 1 (slot 0), friends 2 (slot 1) and 3 (slot 2).
 func _crew() -> void:
 	net.my_peer_id = 1
 	game.roster = {1: {"name": "Ada", "slot": 0}, 2: {"name": "Bo", "slot": 1}, 3: {"name": "Cem", "slot": 2}}
@@ -113,7 +113,7 @@ func _markers_of(peer: int) -> Array[Dictionary]:
 	return out
 
 
-# --- rozet ---
+# --- badge ---
 
 func test_badge_hidden_without_exposure_api() -> void:
 	await _open_hud(false)
@@ -134,7 +134,7 @@ func test_hidden_with_real_game_until_contract_lands() -> void:
 	markers.bind(Game, fake_net)
 	eq(markers.visible, TeamMarkers.supports(Game))
 	if not TeamMarkers.supports(Game):
-		markers.advance(0.1)  # gizliyken konum sorulmaz (hata yok)
+		markers.advance(0.1)  # while hidden the position is not queried (no error)
 		eq(markers.markers().size(), 0)
 
 
@@ -178,7 +178,7 @@ func test_badge_pop_and_reduce_motion() -> void:
 func test_eye_colors_and_sizes() -> void:
 	eq(EyeIcon.color_for(EyeIcon.SEEN), ThemeTokens.GAMEPLAY_ALERT, "görüldü oyun uyarı rengi")
 	is_true(EyeIcon.color_for(EyeIcon.HIDDEN) != EyeIcon.color_for(EyeIcon.VISIBLE), "gizli ve görünür ayrışır")
-	# GDD §14.1: oyun bilgisi işaretleri 1280×720'de ≥ 22 px.
+	# GDD §14.1: game-info markers >= 22 px at 1280x720.
 	is_true(TeamMarkers.ARROW_SIZE >= 22.0 and TeamMarkers.SEEN_ICON_SIZE >= 22.0, "işaretler ≥ 22 px")
 	await _open_hud()
 	var icon: Control = _badge().get_node("%EyeIcon") as Control
@@ -187,7 +187,7 @@ func test_eye_colors_and_sizes() -> void:
 	is_true(_badge().get_global_rect().end.y > SCREEN.y * 0.85, "rozet altta")
 
 
-# --- ekip işaretleri ---
+# --- crew markers ---
 
 func test_edge_point() -> void:
 	var rect := Rect2(0, 0, 100, 100)
@@ -208,7 +208,7 @@ func test_push_clear() -> void:
 
 
 func test_arrows_avoid_hud_blocks() -> void:
-	# Arkadaş sol üstte ekran dışında: ok, nakit panelinin üstüne değil altına düşer.
+	# A friend off-screen at top left: the arrow falls below the cash panel, not above it.
 	await _open_hud(true, func() -> void:
 		_crew()
 		_vgame().exposure = {2: 2}
@@ -257,7 +257,7 @@ func test_markers_arrow_and_seen_icon() -> void:
 	_vgame().player_exposure_changed.emit(2, 1)
 	layer.refresh()
 	eq(_markers_of(2).size(), 0, "görünür (1) arkadaşa göz çizilmez")
-	await tree().process_frame  # çizim hatasız
+	await tree().process_frame  # draws without error
 
 
 func test_markers_use_canvas_transform_and_skip_unknown() -> void:
@@ -266,7 +266,7 @@ func test_markers_use_canvas_transform_and_skip_unknown() -> void:
 		game.roster[4] = {"name": "Dee", "slot": 3}
 		_vgame().exposure = {2: 2}
 		_vgame().positions = {1: Vector2(0, 0), 2: Vector2(100, 100), 3: Vector2(-400, 100)})
-	# Kamera 1,5 yakınlaştırma; dünya (0,0) ekranda (640,360).
+	# Camera zoom 1.5; world (0,0) at screen (640,360).
 	viewport.canvas_transform = Transform2D(0.0, Vector2(1.5, 1.5), 0.0, Vector2(640, 360))
 	var layer: TeamMarkers = _markers()
 	layer.refresh()
@@ -274,7 +274,7 @@ func test_markers_use_canvas_transform_and_skip_unknown() -> void:
 	var seen: Array[Dictionary] = _markers_of(2)
 	if eq(seen.size(), 1):
 		eq(seen[0]["pos"], Vector2(640, 360) + (Vector2(100, 100) + TeamMarkers.SEEN_ANCHOR) * 1.5, "dünya → ekran")
-	# -400 × 1,5 + 640 = 40: ekranda (kenar payında da olsa) → görülmüyorsa işaret yok.
+	# -400 x 1.5 + 640 = 40: on screen (even in the edge margin) -> no marker if not seen.
 	var arrows: Array[Dictionary] = _markers_of(3)
 	eq(arrows.size(), 0, "ekrandaki arkadaşa ok yok")
 	_vgame().positions[3] = Vector2(-500, 100)
@@ -299,7 +299,7 @@ func test_players_changed_rereads_exposure() -> void:
 	eq(_markers_of(2).size(), 1, "oyuncu listesi değişince maruziyet yeniden okunur")
 
 
-# --- ana menü: host'un görüş kipi ---
+# --- main menu: the host's vision mode ---
 
 func test_menu_vision_hidden_without_api() -> void:
 	await _open_menu(false)
@@ -338,8 +338,8 @@ func test_menu_vision_not_sent_on_join_or_host_failure() -> void:
 
 
 func test_menu_vision_focus_order() -> void:
-	# IS-078: görüş seçimi host portuyla aynı satırda (davet paneliyle birlikte 720p'ye sığsın diye);
-	# dikey zincirde değil, sağ/sol ve Tab ile gelinir.
+	# IS-078: the vision choice is on the same row as the host port (so it fits 720p with the invite panel);
+	# reached with left/right and Tab, not in the vertical chain.
 	await _open_menu()
 	_menu_node("NameEdit").grab_focus()
 	var down: Array[String] = []
@@ -353,7 +353,7 @@ func test_menu_vision_focus_order() -> void:
 		tabs.append(_focused())
 	eq(tabs, ["CopyButton", "HostPortEdit", "VisionOption", "HostButton", "JoinAddressEdit", "PasteButton",
 		"AdvancedButton", "JoinButton", "QuitButton", "NameEdit"] as Array[String], "Tab halkası")
-	# Gamepad satırı: host portu ↔ görüş ↔ Gelişmiş.
+	# Gamepad row: host port <-> vision <-> Advanced.
 	_menu_node("HostPortEdit").grab_focus()
 	var row: Array[String] = []
 	for b: JoyButton in [JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_DPAD_RIGHT, JOY_BUTTON_DPAD_LEFT, JOY_BUTTON_DPAD_LEFT]:
@@ -366,7 +366,7 @@ func test_menu_vision_focus_order() -> void:
 	_menu_node("VisionOption").grab_focus()
 	viewport.push_input(_joy(JOY_BUTTON_DPAD_DOWN))
 	eq(_focused(), "HostButton", "gamepad aşağı: görüş → Host ol")
-	# Gelişmiş açık: Katıl portundan sola görüşe; Tab halkasında port Gelişmiş'ten sonra.
+	# Advanced open: from the Join port left to vision; in the Tab ring the port comes after Advanced.
 	(_menu_node("AdvancedButton") as Button).button_pressed = true
 	_menu_node("JoinPortEdit").grab_focus()
 	viewport.push_input(_joy(JOY_BUTTON_DPAD_LEFT))
@@ -377,7 +377,7 @@ func test_menu_vision_focus_order() -> void:
 
 
 func test_menu_focus_row_without_vision() -> void:
-	# Görüş gizliyken host portu satırı doğrudan Gelişmiş'e bağlanır (gizli öğeye odak gitmez).
+	# When vision is hidden the host port row links directly to Advanced (focus never goes to a hidden element).
 	await _open_menu(false)
 	_menu_node("HostPortEdit").grab_focus()
 	viewport.push_input(_joy(JOY_BUTTON_DPAD_RIGHT))

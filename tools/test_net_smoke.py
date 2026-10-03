@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""tools/net_smoke.py süreç ağacı öldürme ve zaman aşımı yolu testleri (IS-011 AC2). Yalnız standart kütüphane.
+"""tools/net_smoke.py process-tree kill and timeout path tests (IS-011 AC2). Standard library only.
 
-Koşu: python3 tools/test_net_smoke.py   (Windows'ta `python` ya da `py -3`; tools/ci_local.sh `tools` adımı)
-Godot gerekmez: Godot yerine çocuk + torun süreç açan, sonra asılı kalan küçük Python betikleri kullanılır.
-POSIX'te ayrı oturum + killpg (SIGTERM → SIGKILL); Windows'ta ayrı süreç grubu + CTRL_BREAK → kök
-TerminateProcess, oluşturma zamanıyla süzülmüş torunlar taskkill /F /PID (pid yeniden kullanımı: DescendantsFromTableTest).
+Run: python3 tools/test_net_smoke.py   (on Windows `python` or `py -3`; tools/ci_local.sh `tools` step)
+No Godot needed: small Python scripts that open a child + grandchild process and then hang stand in for Godot.
+On POSIX a separate session + killpg (SIGTERM -> SIGKILL); on Windows a separate process group + CTRL_BREAK -> root
+TerminateProcess, descendants filtered by creation time via taskkill /F /PID (pid reuse: DescendantsFromTableTest).
 """
 
 from __future__ import annotations
@@ -28,10 +28,10 @@ import net_smoke  # noqa: E402
 WINDOWS = os.name == "nt"
 DEAD_WAIT_SEC = 10.0
 
-# `hang.py <bayraklar>`: bayrak başına bir kuşak (ör. "101" = kök, çocuk, torun). Her kuşak bir sonrakini açar,
-# onun READY satırını bekler, `INSIDERS_READY` ve `READY <kendi pid> <alt kuşak pid'leri>` basar, asılı kalır.
-# Bayrak 1: o süreç zarif sinyalleri (SIGTERM/SIGINT/SIGBREAK) yok sayar; yalnız zorla yoldan (SIGKILL /
-# TerminateProcess) ölür. Bayrak 0: varsayılan davranış (zarif sinyalle ölür).
+# `hang.py <flags>`: one generation per flag (e.g. "101" = root, child, grandchild). Each generation starts the next,
+# waits for its READY line, prints `INSIDERS_READY` and `READY <own pid> <descendant pids>`, then hangs.
+# Flag 1: that process ignores graceful signals (SIGTERM/SIGINT/SIGBREAK); dies only the forced way (SIGKILL /
+# TerminateProcess). Flag 0: default behaviour (dies from the graceful signal).
 HANG_SCRIPT = r"""
 import os, signal, subprocess, sys, time
 flags = sys.argv[1]
@@ -77,7 +77,7 @@ def pid_alive(pid: int) -> bool:
         return False
     except PermissionError:
         return True
-    # Zombi (ölmüş, henüz toplanmamış) süreç de os.kill'e cevap verir; Linux'ta durumu okunur.
+    # A zombie (dead, not yet reaped) process also answers os.kill; on Linux its state is read.
     try:
         with open(f"/proc/{pid}/stat", encoding="ascii") as f:
             return f.read().rsplit(")", 1)[1].split()[0] != "Z"
@@ -86,7 +86,7 @@ def pid_alive(pid: int) -> bool:
 
 
 def wait_dead(pids: list[int], timeout: float = DEAD_WAIT_SEC) -> list[int]:
-    """timeout içinde ölmeyen pid'leri döner."""
+    """Returns the pids that did not die within the timeout."""
     deadline = time.monotonic() + timeout
     alive = list(pids)
     while alive and time.monotonic() < deadline:
@@ -97,7 +97,7 @@ def wait_dead(pids: list[int], timeout: float = DEAD_WAIT_SEC) -> list[int]:
 
 
 def force_kill(pids: list[int]) -> None:
-    """Test başarısız olsa da süreç asılı kalmasın."""
+    """The process must not stay hung even if the test fails."""
     for pid in pids:
         if not pid_alive(pid):
             continue
@@ -125,7 +125,7 @@ class KillProcessTreeTest(unittest.TestCase):
         os.rmdir(self.tmp)
 
     def start_tree(self, flags: str) -> subprocess.Popen:
-        """flags: kuşak başına sinyal yok sayma bayrağı (bkz. HANG_SCRIPT). self.pids = kökten aşağı pid'ler."""
+        """flags: per-generation signal-ignore flag (see HANG_SCRIPT). self.pids = pids from the root down."""
         popen = subprocess.Popen(
             [sys.executable, self.script, flags],
             stdout=subprocess.PIPE,
@@ -158,15 +158,15 @@ class KillProcessTreeTest(unittest.TestCase):
         self.assert_tree_killed(self.start_tree("00"))
 
     def test_forced_kill_when_signals_ignored(self) -> None:
-        # Zarif sinyali yok sayan kök + çocuk: zorla yol (POSIX SIGKILL, Windows TerminateProcess/taskkill /F).
+        # Root + child ignoring the graceful signal: forced path (POSIX SIGKILL, Windows TerminateProcess/taskkill /F).
         self.assert_tree_killed(self.start_tree("11"))
 
     def test_dead_intermediate_grandchild_killed(self) -> None:
-        """Kök ve torun sinyali yok sayar, aradaki çocuk sinyalle ölür (Windows'ta torunun ebeveyn zinciri kopar).
+        """Root and grandchild ignore the signal, the middle child dies from it (on Windows the grandchild's parent chain breaks).
 
-        Windows'ta torun yalnız sinyalden ÖNCE toplanan ağaç (`known`) sayesinde bulunur: ikinci taramada
-        kökün çocuğu yoktur, torunun ebeveyni ölüdür. Bunu ayırt etmek için Windows'ta aynı ağaç bir de
-        `known` atılarak öldürülür ve torunun bu kez sağ kaldığı gösterilir (sonra testin kendisi temizler).
+            On Windows the grandchild is found only thanks to the tree collected BEFORE the signal (`known`): in the second scan
+            the root has no child and the grandchild's parent is dead. To tell this apart, on Windows the same tree is also killed
+            with `known` dropped and the grandchild is shown to survive this time (the test itself cleans up afterwards).
         """
         self.assert_tree_killed(self.start_tree("101"))
         if not WINDOWS:
@@ -184,29 +184,29 @@ class KillProcessTreeTest(unittest.TestCase):
     def test_already_exited_process_is_noop(self) -> None:
         popen = subprocess.Popen([sys.executable, "-c", "pass"], **net_smoke.popen_group_kwargs())
         popen.wait(timeout=10)
-        net_smoke.kill_process_tree(popen, grace=0.5)  # istisna fırlatmaz
+        net_smoke.kill_process_tree(popen, grace=0.5)  # does not throw
         self.assertEqual(popen.returncode, 0)
 
 
 class DescendantsFromTableTest(unittest.TestCase):
-    """Sahte süreç tablosuyla ağaç süzme (Windows yolunun saf çekirdeği; her platformda koşar).
+    """Tree filtering with a fake process table (the pure core of the Windows path; runs on every platform).
 
-    Windows ölü ebeveyni yeniden bağlamaz ve pid'ler yeniden kullanılır: ebeveyn pid'i kökümüzle (ya da bir
-    torunla) çakışan, ama ondan ÖNCE oluşmuş ilgisiz süreçler ağaca girmemeli.
+    Windows does not re-parent children of a dead parent and pids are reused: unrelated processes whose parent pid
+    collides with our root (or a descendant) but that were created BEFORE it must not enter the tree.
     """
 
-    # pid: oluşturma zamanı (None = ölmüş/erişilemez)
+    # pid: creation time (None = dead/inaccessible)
     TIMES = {
-        100: 1000,  # kök (Popen)
-        200: 1100,  # kökün gerçek çocuğu
-        300: 1200,  # gerçek torun
-        400: 500,  # ilgisiz: eski bir ebeveynin pid'i 100 idi (masaüstü oturumu gibi), kökten önce oluşmuş
-        401: 600,  # 400'ün çocuğu (ilgisiz alt ağaç)
-        402: 1300,  # 400'ün kökten SONRA oluşmuş çocuğu: 400 ağaçta olmadığından yine girmez
-        500: 1050,  # ilgisiz: ebeveyni 200 pid'li ölmüş eski süreç; 200'den (1100) önce oluşmuş
-        650: 1150,  # ölmüş ara düğüm (önceden toplandı, known); artık zamanı alınamıyor
-        700: 1250,  # 650'nin gerçek çocuğu (ebeveyn zinciri kopuk)
-        701: 900,  # ebeveyni 650 görünen ama kökten önce oluşmuş ilgisiz süreç
+        100: 1000,  # root (Popen)
+        200: 1100,  # the root's real child
+        300: 1200,  # real grandchild
+        400: 500,  # unrelated: an old parent's pid was 100 (like a desktop session), created before the root
+        401: 600,  # child of 400 (unrelated subtree)
+        402: 1300,  # child of 400 created AFTER the root: 400 is not in the tree so it still does not enter
+        500: 1050,  # unrelated: a dead old process whose parent had pid 200; created before 200 (1100)
+        650: 1150,  # dead intermediate node (collected earlier, known); its time can no longer be read
+        700: 1250,  # real child of 650 (parent chain broken)
+        701: 900,  # unrelated process whose parent looks like 650 but was created before the root
     }
     TABLE = [(100, 1), (200, 100), (300, 200), (400, 100), (401, 400), (402, 400), (500, 200), (700, 650), (701, 650)]
 
@@ -227,20 +227,20 @@ class DescendantsFromTableTest(unittest.TestCase):
         self.assertEqual(net_smoke.descendants_from_table(100, self.TABLE, lambda p: None if p == 100 else 2000), {})
 
     def test_known_reused_pid_children_not_searched(self) -> None:
-        # IS-013 AC5: kayıtlı ara düğüm 650 (1150) ölmüş, pid'i sonradan ilgisiz bir sürece (1400) verilmiş;
-        # o sürecin çocuğu 702 (1500) hem kökten hem kayıtlı zamandan sonra oluşmuş olsa da ağaca girmemeli.
+        # IS-013 AC5: the recorded intermediate node 650 (1150) died and its pid was later given to an unrelated process (1400);
+        # that process's child 702 (1500) must not enter the tree even though it was created after both the root and the recorded time.
         table = [(100, 1), (650, 9), (702, 650)]
         times = {100: 1000, 650: 1400, 702: 1500}
         tree = net_smoke.descendants_from_table(100, table, times.get, known={650: 1150})
         self.assertNotIn(702, tree)
-        self.assertEqual(tree, {650: 1150})  # kayıt kalır; öldürme adımı zamanı eşleşmediği için dokunmaz
-        # Aynı pid hâlâ aynı süreçse (zaman = kayıt) çocukları aranır.
+        self.assertEqual(tree, {650: 1150})  # the record stays; the kill step does not touch it because the time does not match
+        # If the same pid is still the same process (time = record) its children are searched.
         times[650] = 1150
         self.assertIn(702, net_smoke.descendants_from_table(100, table, times.get, known={650: 1150}))
 
     def test_process_born_before_root_never_enters(self) -> None:
-        # Kökün zamanı mutlak alt sınırdır: ebeveyn (ölmüş, kayıtlı) zamanından sonra ama kökten önce oluşmuş
-        # süreç de girmez.
+        # The root's time is an absolute lower bound: a process created after the (dead, recorded) parent's time but before the root
+        # does not enter either.
         table = [(800, 100), (801, 800), (802, 800)]
         times = {100: 1000, 801: 950, 802: 1200}
         tree = net_smoke.descendants_from_table(100, table, times.get, known={800: 900})
@@ -249,7 +249,7 @@ class DescendantsFromTableTest(unittest.TestCase):
 
 
 class ExpandBotLoopTest(unittest.TestCase):
-    """Bot dosyasındaki "loop" bölümünün açılması (IS-013 dayanıklılık koşusu)."""
+    """Expansion of the "loop" section in a bot file (IS-013 endurance run)."""
 
     RAW = {
         "_doc": "x",
@@ -267,7 +267,7 @@ class ExpandBotLoopTest(unittest.TestCase):
         self.assertIs(net_smoke.expand_bot_loop(raw, 100.0), raw)
 
     def test_prelude_once_and_only_complete_turns(self) -> None:
-        out = net_smoke.expand_bot_loop(self.RAW, 9.9)  # turlar [2,5), [5,8); [8,11) yarım: eklenmez
+        out = net_smoke.expand_bot_loop(self.RAW, 9.9)  # laps [2,5), [5,8); [8,11) is partial: not added
         times = [s["t"] for s in out["steps"]]
         self.assertEqual(times, [0.5, 2.0, 3.5, 4.5, 5.0, 6.5, 7.5])
         self.assertEqual(out["steps"][5], {"t": 6.5, "hold": "sprint", "dur": 1.0})
@@ -281,7 +281,7 @@ class ExpandBotLoopTest(unittest.TestCase):
             {"loop": {"from": 0.0}, "steps": []},
             {"loop": {"from": 0.0, "period": 0.0}, "steps": []},
             {"loop": {"from": 0.0, "period": 1.0, "x": 1}, "steps": []},
-            {"loop": {"from": 0.0, "period": 1.0}, "steps": [{"t": 1.5, "move": [0, 0]}]},  # turun dışında
+            {"loop": {"from": 0.0, "period": 1.0}, "steps": [{"t": 1.5, "move": [0, 0]}]},  # outside the lap
             {"loop": {"from": 0.0, "period": 1.0}},
         ]
         for raw in bad:
@@ -290,9 +290,9 @@ class ExpandBotLoopTest(unittest.TestCase):
 
     @staticmethod
     def apply_frames(steps: list[dict], until: float) -> dict[float, int]:
-        """entities/player/bot_timeline.gd aritmetiği: her fizik karesinde saat += 1/60 (float64) ve
-        t <= saat olan adım o karede uygulanır; t + dur (basılı tutmanın bitişi) de aynı kuralla işler.
-        Dönüş: zaman işareti -> uygulandığı kare."""
+        """entities/player/bot_timeline.gd arithmetic: each physics frame clock += 1/60 (float64) and a step with
+            t <= clock is applied in that frame; t + dur (the end of a hold) works by the same rule.
+            Returns: time mark -> frame it is applied in."""
         marks = sorted({float(s["t"]) for s in steps} | {float(s["t"]) + float(s["dur"]) for s in steps if "dur" in s})
         out: dict[float, int] = {}
         clock, frame, i = 0.0, 0, 0
@@ -305,7 +305,7 @@ class ExpandBotLoopTest(unittest.TestCase):
         return out
 
     def turn_frame_patterns(self, raw: dict, until: float) -> set[tuple[int, ...]]:
-        """Açılmış her turda, turun ilk adımından her işarete (adım ve t + dur) kaç kare geçtiği."""
+        """In each expanded lap, how many frames pass from the lap's first step to each mark (step and t + dur)."""
         start, period = float(raw["loop"]["from"]), float(raw["loop"]["period"])
         body = [s for s in raw["steps"] if float(s["t"]) >= start]
         marks = sorted({float(s["t"]) for s in body} | {float(s["t"]) + float(s["dur"]) for s in body if "dur" in s})
@@ -317,8 +317,8 @@ class ExpandBotLoopTest(unittest.TestCase):
         }
 
     def test_boundary_times_change_leg_frames_between_turns(self) -> None:
-        # İnceleme bulgusu (t2): eski soak_c2 turu 18.3 gibi kare sınırındaki (t·60 tam sayı) zamanlar
-        # kullanıyordu; bacaklar turdan tura 16/17 kare oluyordu. Simülasyon bunu yakalamalı.
+        # Review finding (t2): the old soak_c2 lap used times on a frame boundary like 18.3 (t*60 an integer);
+        # the legs became 16/17 frames from lap to lap. The simulation must catch this.
         old = {
             "loop": {"from": 12.8, "period": 8.0},
             "steps": [
@@ -330,8 +330,8 @@ class ExpandBotLoopTest(unittest.TestCase):
         self.assertGreater(len(self.turn_frame_patterns(old, 600.0)), 1)
 
     def test_repo_loop_bots_keep_leg_frames_constant(self) -> None:
-        # Depodaki her tur dosyasında: tur zamanları kare sınırından uzak, period·60 tam sayı ve 1 saatlik
-        # açılımda her turun bacak kare sayıları aynı (uzun koşuda son konum kaymaz).
+        # In every lap file in the repo: lap times are away from frame boundaries, period*60 is an integer and in a 1-hour
+        # expansion every lap's leg frame counts are the same (the final position does not drift in a long run).
         bots_dir = os.path.join(net_smoke.ROOT, "tests", "net", "bots")
         checked = 0
         for name in sorted(os.listdir(bots_dir)):
@@ -362,7 +362,7 @@ class ExpandBotLoopTest(unittest.TestCase):
 
 
 class EvaluatorExtrasTest(unittest.TestCase):
-    """IS-013 beklenti eklemeleri: $rtt sınırı, samples_players, mem_stable; log uyarı denetimi."""
+    """IS-013 expectation additions: $rtt bound, samples_players, mem_stable; log warning check."""
 
     @staticmethod
     def results(dumps: dict, exp: dict, rtt: float = 0.0) -> list[tuple[bool, str]]:
@@ -403,17 +403,17 @@ class EvaluatorExtrasTest(unittest.TestCase):
         res = self.results({"host": {"mem_mb": leak}}, exp)
         self.assertFalse(res[0][0])
         self.assertIn("artış", res[0][1])
-        # Isınma son örnek zamanının dörtte birine kısılır; ısınmadaki büyük ilk değer sayılmaz.
+        # Warm-up is clamped to a quarter of the last sample time; a large first value during warm-up does not count.
         warm = [[0, 10.0], [2, 50.0], [4, 50.0], [6, 50.0], [8, 50.0], [10, 50.0], [12, 50.0], [14, 50.0]]
         self.assertTrue(self.results({"host": {"mem_mb": warm}}, exp)[0][0])
         self.assertFalse(self.results({"host": {"mem_mb": [[0, 1.0], [40, 1.0]]}}, exp)[0][0], "az örnek")
         self.assertFalse(self.results({"host": {}}, exp)[0][0], "mem_mb yok")
-        # min_mb: yalnız ~1 MB'lık sarmalayıcı ölçülüyorsa düşer.
+        # min_mb: fails only if the ~1 MB wrapper alone is measured.
         floor = {"mem_stable": {**exp["mem_stable"], "min_mb": 20}}
         self.assertTrue(self.results({"host": {"mem_mb": flat}}, floor)[0][0])
         wrapper = [[t, 1.25] for t in range(0, 40, 2)]
         self.assertFalse(self.results({"host": {"mem_mb": wrapper}}, floor)[0][0])
-        # Kapsam: son örnek quit_after - 2 x every'den önceyse (örnekleme erken durdu) düşer.
+        # Coverage: fails if the last sample is before quit_after - 2 x every (sampling stopped early).
         meta_ok = {"every": 2, "quit_after": 40}
         self.assertTrue(self.results({"host": {"mem_mb": flat, "mem_meta": meta_ok}}, exp)[0][0])
         early = {"host": {"mem_mb": flat, "mem_meta": {"every": 2, "quit_after": 60}}}
@@ -458,8 +458,8 @@ class EvaluatorExtrasTest(unittest.TestCase):
         self.assertIsNotNone(sc, problem)
 
 
-# `alloc_tree.py`: kök küçük kalır, belleği (ALLOC_MB, yazılmış sayfalar) çocuk ayırır — Windows'ta Godot console
-# exe'si (~1 MB) ile belleği tutan asıl exe çocuğunun ilişkisi. Çocuk READY basınca kök `READY <kök> <çocuk>` basar.
+# `alloc_tree.py`: the root stays small, the child allocates the memory (ALLOC_MB, written pages) - like the Godot console
+# exe (~1 MB) and the real exe child that holds the memory on Windows. When the child prints READY the root prints `READY <root> <child>`.
 ALLOC_MB = 48
 ALLOC_SCRIPT = r"""
 import os, subprocess, sys, time
@@ -493,7 +493,7 @@ class ProcessMemoryTest(unittest.TestCase):
             self.assertEqual(len(pids), 2, line)
             tree_mb = net_smoke.process_tree_memory_mb(popen)
             self.assertIsNotNone(tree_mb)
-            # Toplam çocuğun ayırdığını içerir; yalnız kökü ölçmek (eski hata) bu sınırın altında kalır.
+            # Includes what the whole child allocated; measuring only the root (the old bug) stays below this bound.
             self.assertGreaterEqual(tree_mb, ALLOC_MB)
             root_only = (net_smoke._windows_private_bytes if WINDOWS else net_smoke._linux_private_bytes)(popen.pid)
             self.assertIsNotNone(root_only)
@@ -510,7 +510,7 @@ class ProcessMemoryTest(unittest.TestCase):
 
 
 class LogExcerptTest(unittest.TestCase):
-    """IS-090: FAIL'de kısa kip log'un yalnız hata satırlarını (en çok 20) ya da son satırlarını basar."""
+    """IS-090: on FAIL short mode prints only the log's error lines (at most 20) or its last lines."""
 
     def test_picks_error_lines_and_at_lines(self) -> None:
         lines = ["Godot Engine v4", "bilgi", "ERROR: kırık", "   at: f (a.gd:3)", "bilgi 2",
@@ -531,20 +531,20 @@ class LogExcerptTest(unittest.TestCase):
 
 
 class LeaveTimingTest(unittest.TestCase):
-    """IS-095: varsayılan --quit-after kuralı ve döküm yayılması (zamanlama yarışı) denetimi."""
+    """IS-095: default --quit-after rule and dump spread (timing race) check."""
 
     def test_every_client_dumps_after_host_staggered_within_linger(self) -> None:
         duration = 40.0
-        # (ad, host başlangıcından istemci başlangıcına sn): aynı anda başlayanlar ve geç katılan (start_delay).
+        # (name, seconds from host start to client start): simultaneous starters and a late joiner (start_delay).
         for starts in ([("c1", 1.8), ("c2", 1.8)], [("c1", 1.7), ("c2", 30.2)], [("c1", 0.4)]):
             moments = {n: e + net_smoke.default_quit_after(n, duration, e) for n, e in starts}
             for i, (name, _) in enumerate(starts):
-                # c1 dahil her istemci host'un döküm anından (duration) sonra döker.
+                # Every client, c1 included, dumps after the host's dump moment (duration).
                 self.assertAlmostEqual(moments[name] - duration, net_smoke.LEAVE_STAGGER * (i + 1))
             ordered = [moments[n] for n, _ in starts]
             for a, b in zip(ordered, ordered[1:]):
-                self.assertGreaterEqual(b - a, net_smoke.LEAVE_STAGGER - 1e-9)  # aynı host karesinde kopmasınlar
-            # Oyun en çok 3 kişi (host + 2 istemci): adı geçen yayılma bekleme payının epey altında kalır.
+                self.assertGreaterEqual(b - a, net_smoke.LEAVE_STAGGER - 1e-9)  # so they do not drop in the same host frame
+            # The game has at most 3 people (host + 2 clients): that spread stays well below the wait margin.
             self.assertLess(max(ordered) - duration, net_smoke.LINGER_SEC - 0.3)
 
     def test_quit_after_floor(self) -> None:
@@ -562,10 +562,10 @@ class LeaveTimingTest(unittest.TestCase):
         self.assertIn("c2 dökümü host", net_smoke.timing_race({"host": 100.0, "c1": 100.3, "c2": 100.0 + linger}))
 
 
-# `fake_godot.py`: Godot yerine; net_smoke'un kullanıcı argümanlarını (--host/--join, --dump, --quit-after) alır,
-# INSIDERS_READY basar, --quit-after sn sonra {"peer_id", "x": 1} dökümü yazar ve 0 ile çıkar. Host, ortamdaki
-# FAKE_STATE sayaç dosyasına göre ilk FAKE_LATE_RUNS başlatılışında dökümü FAKE_HOST_LATE sn geciktirir (yük
-# altında saati geri kalan host).
+# `fake_godot.py`: stands in for Godot; takes net_smoke's user arguments (--host/--join, --dump, --quit-after),
+# prints INSIDERS_READY, after --quit-after s writes a {"peer_id", "x": 1} dump and exits with 0. The host delays its dump by
+# FAKE_HOST_LATE s in the first FAKE_LATE_RUNS launches, counted via the FAKE_STATE counter file in the environment (a host whose
+# clock lags under load).
 FAKE_GODOT_SCRIPT = r"""
 import json, os, sys, time
 args = dict((a.split("=", 1) + [""])[:2] for a in sys.argv[1:])
@@ -585,8 +585,8 @@ with open(args["--dump"], "w", encoding="utf-8") as f:
 
 
 class RaceRetryTest(unittest.TestCase):
-    """IS-095: ortak döküm anları LINGER_SEC'ten fazla yayılan koşu değerlendirilmez, yeniden koşulur; yarış
-    sürerse FAIL (beklentiler gevşemez)."""
+    """IS-095: a run whose shared dump moments spread more than LINGER_SEC is not evaluated and is re-run; if the race
+    persists it FAILs (expectations are not loosened)."""
 
     def run_fake(self, late_runs: int, retries: int) -> tuple[int, str, int]:
         tmp = tempfile.mkdtemp(prefix="test_net_smoke_")
@@ -643,7 +643,7 @@ class RaceRetryTest(unittest.TestCase):
 
 
 class TimeoutPathTest(unittest.TestCase):
-    """net_smoke.run(): senaryonun sert üst süresi dolunca asılı süreç ağaçları öldürülür ve FAIL raporlanır."""
+    """net_smoke.run(): when the scenario's hard upper limit expires hung process trees are killed and FAIL is reported."""
 
     def test_hard_timeout_kills_hung_processes(self) -> None:
         tmp = tempfile.mkdtemp(prefix="test_net_smoke_")
@@ -658,7 +658,7 @@ class TimeoutPathTest(unittest.TestCase):
         created: list[net_smoke.Proc] = []
 
         class HangProc(net_smoke.Proc):
-            """Godot yerine zarif sinyali yok sayan kök + çocuk ağacı başlatır."""
+            """Starts a root + child tree that ignores the graceful signal, in place of Godot."""
 
             def start(self) -> None:
                 self.cmd = [sys.executable, script, "11"]
@@ -666,7 +666,7 @@ class TimeoutPathTest(unittest.TestCase):
                 super().start()
 
         def record_pids() -> None:
-            # READY satırları okuyucu iş parçacığınca proc.lines'a yazılır; burada toplanır.
+            # READY lines are written to proc.lines by the reader thread; collected here.
             for proc in created:
                 for line in list(proc.lines):
                     if line.startswith("READY "):
@@ -691,10 +691,10 @@ class TimeoutPathTest(unittest.TestCase):
             self.assertIn("host zaman aşımında öldürüldü", text)
             self.assertIn("c1 zaman aşımında öldürüldü", text)
             self.assertTrue(all(p.killed for p in created))
-            # IS-090 kısa kip: -v olmadan geçen iddia satırı ("ok") yok, tam log yerine özet + ipucu.
+            # IS-090 short mode: without -v there is no passed-assertion line ("ok"), a summary + hint instead of the full log.
             self.assertNotIn("  ok  ", text)
             self.assertIn("--keep -v", text)
-            # timeout 3 sn + öldürme payı (her süreç: 2 x grace + taskkill); asılı sürecin 60 sn uykusundan çok önce.
+            # timeout 3 s + kill margin (each process: 2 x grace + taskkill); well before the hung process's 60 s sleep.
             self.assertLess(elapsed, 3.0 + 2 * (2 * net_smoke.KILL_GRACE_SEC + 3.0))
         finally:
             record_pids()

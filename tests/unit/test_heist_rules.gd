@@ -1,8 +1,8 @@
 extends TestCase
-## US-012 kuralları (düğümsüz; core/heist_rules.gd): sonuç türü (uyarı kademesinden), aracı oranı ve ödeme,
-## kazanma/kaybetme kararı (yakalanmamış herkes kaçış bölgesinde + ganimet; police → bölge dışındakiler yakalanır;
-## herkes yakalandı), held ≠ caught, yakalananın payı 0, notlar (tek kişi, en fazla 2, en fazla 3, hayalet ekip),
-## çanta düşürme zarları. Sahte sahip olayları Tracker yöntemleriyle verilir (US-008 yokken).
+## US-012 rules (no node; core/heist_rules.gd): result kind (from alert level), broker rate and payout, win/lose decision
+## (everyone not caught is in the escape zone + loot; police -> those outside the zone are caught; everyone caught),
+## held != caught, caught player's share 0, notes (solo, at most 2, at most 3, ghost crew), bag drop dice.
+## Fake owner events are fed through Tracker methods (without US-008).
 
 const A := 11
 const B := 22
@@ -18,7 +18,7 @@ static func _roster() -> Dictionary:
 	return {A: {"name": "Ayşe", "slot": 0}, B: {"name": "Bora", "slot": 1}, C: {"name": "Cem", "slot": 2}}
 
 
-## Oyuncu durumu taklidi (US-008 oyuncu API'si).
+## Fake of player state (US-008 player API).
 class FlagNode:
 	extends RefCounted
 	var caught: bool = false
@@ -89,8 +89,8 @@ func test_marathon_accumulates_sprint_time() -> void:
 		ne(n["kind"], &"marathon", "5 sn altı not yok")
 
 
-## Belgeleme (koordinatör kararı: değişiklik yok): iş sürerken katılan oyuncu kaçış bölgesi dışında doğar ve
-## yakalanmamış sayıldığı için kazanmayı bekletir; kazanma onun da bölgeye girmesini ister.
+## Documented (coordinator decision: no change): a player joining mid-job spawns outside the escape zone and counts as
+## not caught, so holds the win back; winning requires them to enter the zone too.
 func test_late_joiner_outside_zone_blocks_win_today() -> void:
 	var t := HeistRules.Tracker.new()
 	var views: Dictionary = {A: _view(true, 450), B: _view(true)}
@@ -142,7 +142,7 @@ func test_caught_all() -> void:
 func test_police_catches_everyone_inside() -> void:
 	var t := HeistRules.Tracker.new()
 	var inside: Dictionary = _view(false)
-	inside["staff_side"] = true  # örtüsü bozuk (US-042): tanık sorgusu yok
+	inside["staff_side"] = true  # cover broken (US-042): no witness check
 	var views: Dictionary = {A: inside, B: _view(false, 450, false, true), C: _view(true)}
 	t.arrive_police(views)
 	is_true(t.is_caught(A), "içeride kalan (örtüsü bozuk) yakalanır")
@@ -264,9 +264,9 @@ func test_finished_tracker_stops_deciding() -> void:
 	eq(t.evaluate({A: _view(true, 450)}), &"")
 
 
-# --- US-040 eli boş çekilme ---
+# --- US-040 empty-handed retreat ---
 
-## `t`'yi `seconds` boyunca 60 Hz adımlarla gözler ve her adımda karar verir: [ilk karar (yoksa &""), anı (sn)].
+## Watches `t` for `seconds` in 60 Hz steps and decides at each step: [first decision (&"" if none), its time (s)].
 static func _run(t: HeistRules.Tracker, views: Dictionary, seconds: float) -> Array:
 	var dt: float = 1.0 / 60.0
 	for i: int in roundi(seconds / dt):
@@ -300,7 +300,7 @@ func test_abort_resets_when_someone_leaves_or_is_caught() -> void:
 	var r: Array = _run(t, both, 1.0)
 	eq(r[0], &"aborted")
 	near(float(r[1]), 0.5, 0.02, "toplam 3 sn sonra")
-	# Yakalanma: o adımda koşul yeniden kurulur (serbestlerin hepsi bölgede); sayaç kesintisiz değil, baştan.
+	# Caught: the condition is rebuilt at that step (all free players in the zone); the counter is not continuous, it restarts.
 	t = HeistRules.Tracker.new()
 	var three: Dictionary = {A: _view(true), B: _view(true), C: _view(false)}
 	eq(_run(t, three, 2.0)[0], &"", "biri bölge dışında: sayaç yok")
@@ -309,7 +309,7 @@ func test_abort_resets_when_someone_leaves_or_is_caught() -> void:
 	r = _run(t, three, 3.1)
 	eq(r[0], &"aborted", "yakalanan sayıma girmez: kalan ikisi bölgede ganimetsiz")
 	near(float(r[1]), 3.0, 0.02, "sayaç yakalanmadan sonra başladı")
-	# Bölgede sayılırken biri yakalanırsa (kalanlar hâlâ bölgede ganimetsiz) sayaç baştan başlar.
+	# If someone is caught while counting in the zone (the rest still in the zone without loot) the counter restarts.
 	var t2 := HeistRules.Tracker.new()
 	eq(_run(t2, both, 2.0)[0], &"")
 	t2.mark_caught(B, &"chaser")
@@ -391,7 +391,7 @@ func test_abort_clock() -> void:
 	near(c.held_s, 0.1, 0.0001, "epoch değişti: baştan")
 
 
-# --- US-041 kefalet ---
+# --- US-041 bail ---
 
 func test_bail_table_and_cash() -> void:
 	var table: Dictionary = HeistTuning.load_default().bail_by_tier
@@ -408,14 +408,14 @@ func test_bail_table_and_cash() -> void:
 
 func test_bail_per_caught_player() -> void:
 	var two: Dictionary = {A: _roster()[A], B: _roster()[B]}
-	# 0 yakalanan.
+	# 0 caught.
 	var t := HeistRules.Tracker.new()
 	t.add_cash(A, 150)
 	var views: Dictionary = {A: _view(true), B: _view(true)}
 	var r: Dictionary = t.build_result(&"win", views, two, 100, 0)
 	eq(r["bail"], 0)
 	eq(r["cash_after"], 135, "iş öncesi 0 + ödeme 135")
-	# 1 yakalanan: B yakalandı, A kasayla kaçtı.
+	# 1 caught: B caught, A escaped with the register.
 	t = HeistRules.Tracker.new()
 	t.add_cash(A, 150)
 	t.mark_caught(B, &"chaser")
@@ -427,14 +427,14 @@ func test_bail_per_caught_player() -> void:
 	eq(r["players"][str(A)]["bail"], 0)
 	eq(r["cash_before"], 50)
 	eq(r["cash_after"], 50 + 135 - 100, "iş öncesi + ödeme − kefalet")
-	# 2 yakalanan (herkes): ödeme 0, kasa eksiye.
+	# 2 caught (everyone): payout 0, register goes negative.
 	t = HeistRules.Tracker.new()
 	t.mark_caught(A)
 	t.mark_caught(B)
 	r = t.build_result(&"caught_all", {A: _view(false), B: _view(false)}, two, 100, 0)
 	eq(r["bail"], 200)
 	eq(r["cash_after"], -200, "borç")
-	# Sonraki iş ödemesi borcu doğal olarak kapatır (ek mantık yok: iş öncesi = önceki işin cash_after).
+	# The next job's payout naturally clears the debt (no extra logic: pre-job = previous job's cash_after).
 	t = HeistRules.Tracker.new()
 	t.add_cash(A, 150)
 	t.add_cash(B, 300)
@@ -443,7 +443,7 @@ func test_bail_per_caught_player() -> void:
 	eq(r["cash_after"], 205, "-200 + 405: borç kapandı")
 
 
-# --- US-042 örtü ve tanık sorgusu ---
+# --- US-042 cover and witness check ---
 
 static func _with(view: Dictionary, extra: Dictionary) -> Dictionary:
 	var out: Dictionary = view.duplicate()
@@ -533,7 +533,7 @@ func test_police_witness_branches() -> void:
 	is_false(HeistRules.witness_released(true, 150, false), "ganimet taşıyor")
 	is_false(HeistRules.witness_released(true, 0, true), "tutuluyor")
 	var t := HeistRules.Tracker.new()
-	t.add_cash(A, 150)  # kasayı boşaltıp müşteri tarafına dönen: nakit üzerinde
+	t.add_cash(A, 150)  # emptied the register and returned to the customer side: cash on them
 	var views: Dictionary = {A: _view(false), B: _view(false, 0, false, true)}
 	t.arrive_police(views)
 	is_true(t.is_caught(A), "nakit taşıyan yakalanır")
@@ -569,7 +569,7 @@ func test_strategy_dump_fields() -> void:
 	t.observe({A: _with(_view(false), {"staff_side": true}), B: _view(false)}, 3.0)
 	t.note_bag(A)
 	t.note_interaction(A)
-	t.note_interaction(0)  # NPC: sayılmaz
+	t.note_interaction(0)  # NPC: not counted
 	var s: Dictionary = t.build_result(&"win", {A: _view(true, 450), B: _view(true)},
 		{A: _roster()[A], B: _roster()[B]})["strategy"]
 	eq(s, {
