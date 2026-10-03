@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="HeistTuning" format=3]
+
+[ext_resource type="Script" path="res://data/heist_tuning.gd" id="1_htune"]
+
+[resource]
+script = ExtResource("1_htune")
+abort_hold_s = 3.0
+bail_by_tier = Dictionary[int, int]({
+1: 100
+})

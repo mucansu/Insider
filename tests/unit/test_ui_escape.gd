@@ -50,7 +50,8 @@ func _open(before_ready: Callable = Callable()) -> void:
 # --- AC2/AC3/AC4: panel satırları ---
 
 func test_lines_rule() -> void:
-	eq(EscapePanel.lines(0, -1.0, 0, 3), {"objective": false, "police": false, "count": false}, "sakin, sayaç yok")
+	eq(EscapePanel.lines(0, -1.0, 0, 3), {"objective": false, "police": false, "count": false, "abort": false},
+		"sakin, sayaç yok")
 	eq(EscapePanel.lines(1, -1.0, 0, 3)["objective"], false, "şüphe: hedef yok")
 	eq(EscapePanel.lines(2, -1.0, 0, 3)["objective"], true, "bağırdı: hedef")
 	eq(EscapePanel.lines(3, 59.0, 0, 3)["police"], true, "sayaç varken polis satırı")

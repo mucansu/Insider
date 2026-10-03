@@ -168,8 +168,10 @@ static func format_clock(seconds: float) -> String:
 	return "%d:%02d" % [floori(total / 60.0), total % 60]
 
 
+## Eksi tutar (borç, KR-029) işaret para biriminin önünde: "-$100".
 func format_cash(value: int) -> String:
-	return tr(&"HUD_CASH_VALUE") % group_digits(value, tr(&"NUMBER_GROUP_SEPARATOR"))
+	var text: String = tr(&"HUD_CASH_VALUE") % group_digits(absi(value), tr(&"NUMBER_GROUP_SEPARATOR"))
+	return "-" + text if value < 0 else text
 
 
 func _on_team_cash_changed(value: int) -> void:
@@ -179,6 +181,8 @@ func _on_team_cash_changed(value: int) -> void:
 func _set_cash(value: int, flash: bool) -> void:
 	_cash = value
 	_cash_value.text = format_cash(value)
+	# Borç (US-041, KR-029): eksi kasa uyarı token renginde (tema varyasyonu; geçersiz kılma yasak, S9).
+	_cash_value.theme_type_variation = &"AlertLabel" if value < 0 else &"CashLabel"
 	if flash:
 		_cash_value.modulate.a = CASH_FLASH_ALPHA
 		create_tween().tween_property(_cash_value, "modulate:a", 1.0, CASH_FLASH_SEC)

@@ -194,9 +194,9 @@ func test_result_shape_and_shares() -> void:
 	eq(result["heat"], 5)
 	var players: Dictionary = result["players"]
 	eq(players.size(), 3)
-	eq(players[str(A)], {"name": "Ayşe", "slot": 0, "escaped": true, "caught": false, "loot": 150})
+	eq(players[str(A)], {"name": "Ayşe", "slot": 0, "escaped": true, "caught": false, "loot": 150, "bail": 0})
 	eq(players[str(B)]["loot"], 450)
-	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": true, "loot": 0})
+	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": true, "loot": 0, "bail": 0})
 	eq(t.cash_grabbed(), 150)
 
 
@@ -257,3 +257,182 @@ func test_finished_tracker_stops_deciding() -> void:
 	var t := HeistRules.Tracker.new()
 	t.finished = true
 	eq(t.evaluate({A: _view(true, 450)}), &"")
+
+
+# --- US-040 eli boş çekilme ---
+
+## `t`'yi `seconds` boyunca 60 Hz adımlarla gözler ve her adımda karar verir: [ilk karar (yoksa &""), anı (sn)].
+static func _run(t: HeistRules.Tracker, views: Dictionary, seconds: float) -> Array:
+	var dt: float = 1.0 / 60.0
+	for i: int in roundi(seconds / dt):
+		t.observe(views, dt)
+		var d: StringName = t.evaluate(views)
+		if d != &"":
+			return [d, (i + 1) * dt]
+	return [&"", seconds]
+
+
+func test_abort_after_three_seconds_together_without_loot() -> void:
+	var t := HeistRules.Tracker.new()
+	eq(t.abort.hold_s, 3.0, "yedek süre 3 sn (asıl değer veride)")
+	eq(HeistTuning.load_default().abort_hold_s, 3.0, "data/heist_tuning.tres: 3 sn")
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	is_true(HeistRules.abort_ready(t.players_state(views)), "koşul: herkes bölgede, ganimet 0")
+	eq(_run(t, views, 2.9)[0], &"", "3 sn dolmadan iş sürer")
+	near(t.abort.left(), 0.1, 0.02, "kalan ~0,1 sn")
+	eq(_run(t, views, 0.2)[0], &"aborted", "3 sn kesintisiz: aborted")
+	near(t.abort.held_s, 3.0, 0.02)
+
+
+func test_abort_resets_when_someone_leaves_or_is_caught() -> void:
+	var t := HeistRules.Tracker.new()
+	var both: Dictionary = {A: _view(true), B: _view(true)}
+	eq(_run(t, both, 2.5)[0], &"")
+	_run(t, {A: _view(true), B: _view(false)}, 1.0 / 60.0)
+	eq(t.abort.held_s, 0.0, "biri çıktı: sayaç sıfır")
+	eq(t.abort.left(), -1.0, "sayaç yok: -1")
+	eq(_run(t, both, 2.5)[0], &"", "yeniden 2,5 sn: hâlâ sürer (sıfırdan saydı)")
+	var r: Array = _run(t, both, 1.0)
+	eq(r[0], &"aborted")
+	near(float(r[1]), 0.5, 0.02, "toplam 3 sn sonra")
+	# Yakalanma: o adımda koşul yeniden kurulur (serbestlerin hepsi bölgede); sayaç kesintisiz değil, baştan.
+	t = HeistRules.Tracker.new()
+	var three: Dictionary = {A: _view(true), B: _view(true), C: _view(false)}
+	eq(_run(t, three, 2.0)[0], &"", "biri bölge dışında: sayaç yok")
+	eq(t.abort.held_s, 0.0)
+	t.mark_caught(C, &"chaser")
+	r = _run(t, three, 3.1)
+	eq(r[0], &"aborted", "yakalanan sayıma girmez: kalan ikisi bölgede ganimetsiz")
+	near(float(r[1]), 3.0, 0.02, "sayaç yakalanmadan sonra başladı")
+	# Bölgede sayılırken biri yakalanırsa (kalanlar hâlâ bölgede ganimetsiz) sayaç baştan başlar.
+	var t2 := HeistRules.Tracker.new()
+	eq(_run(t2, both, 2.0)[0], &"")
+	t2.mark_caught(B, &"chaser")
+	r = _run(t2, both, 3.1)
+	eq(r[0], &"aborted")
+	near(float(r[1]), 3.0, 0.02, "yakalanma sayacı sıfırladı (2 sn sayılmış süre gitti)")
+	var result: Dictionary = t.build_result(&"aborted", three, _roster(), 100, 0)
+	eq(result["players"][str(C)]["caught"], true, "yakalanan yakalı kalır")
+	eq(result["players"][str(C)]["escaped"], false)
+	eq(result["bail"], 100, "yakalananın kefaleti eli boş çekilmede de düşer")
+
+
+func test_abort_never_with_loot_uses_win_rule() -> void:
+	var t := HeistRules.Tracker.new()
+	t.add_cash(A, 150)
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	is_false(HeistRules.abort_ready(t.players_state(views)), "ganimet var: koşul yok")
+	var r: Array = _run(t, views, 5.0)
+	eq(r[0], &"win", "ganimet > 0: kazanma anında")
+	near(float(r[1]), 1.0 / 60.0, 0.001, "ilk adımda")
+	t = HeistRules.Tracker.new()
+	eq(_run(t, {A: _view(true, 450), B: _view(true)}, 1.0)[0], &"win", "çanta da ganimet")
+
+
+func test_abort_not_after_police() -> void:
+	var t := HeistRules.Tracker.new()
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	t.arrive_police(views)
+	eq(_run(t, views, 1.0 / 60.0)[0], &"police", "polis geldiyse polis kuralı (ganimetsiz)")
+	eq(t.abort.held_s, 0.0, "polisten sonra sayaç işlemez")
+	eq(HeistRules.decide({A: {"caught": false, "in_zone": true, "loot": 0}}, false, true), &"aborted")
+	eq(HeistRules.decide({A: {"caught": false, "in_zone": true, "loot": 0}}, true, true), &"police")
+	eq(HeistRules.decide({A: {"caught": false, "in_zone": false, "loot": 0}}, false, true), &"",
+		"sayaç dolmuş olsa da koşul bozulduysa karar yok")
+	is_false(HeistRules.abort_ready({}), "oyuncu yok")
+	is_false(HeistRules.abort_ready({A: {"caught": true, "in_zone": true, "loot": 0}}), "serbest kimse yok")
+
+
+func test_aborted_result_and_heat() -> void:
+	var t := HeistRules.Tracker.new()
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	var two: Dictionary = {A: _roster()[A], B: _roster()[B]}
+	eq(_run(t, views, 3.1)[0], &"aborted")
+	var result: Dictionary = t.build_result(&"aborted", views, two, 100, 40)
+	eq(result["outcome"], &"aborted")
+	eq(result["payout"], 0, "pay 0")
+	eq(result["payout_ratio"], 0.0)
+	eq(result["loot_total"], 0)
+	eq(result["heat"], 0, "bağırış yok: ısı 0")
+	eq(result["bail"], 0, "kimse yakalanmadı: kefalet yok")
+	eq(result["cash_after"], 40, "kasa değişmez")
+	for id: int in [A, B]:
+		eq(result["players"][str(id)]["escaped"], true, "bölgedekiler kaçmış sayılır")
+		eq(result["players"][str(id)]["caught"], false)
+	has(result["notes"], {"kind": &"ghost_crew", "peer": 0}, "notlar mevcut kurallarla")
+	eq(HeistRules.heat_for(&"aborted", 1), 0, "şüphe: 0")
+	eq(HeistRules.heat_for(&"aborted", 2), 5, "bağırış olduysa +5")
+	eq(HeistRules.heat_for(&"aborted", 3), 5)
+	t = HeistRules.Tracker.new()
+	t.set_alert(2)
+	eq(_run(t, views, 3.1)[0], &"aborted")
+	eq(t.build_result(&"aborted", views, two)["heat"], 5, "sonuç sözlüğünde +5")
+
+
+func test_abort_clock() -> void:
+	var c := HeistRules.AbortClock.new(1.0)
+	eq(c.left(), -1.0)
+	is_false(c.done())
+	c.step(true, 0.4)
+	near(c.left(), 0.6, 0.0001)
+	c.step(false, 0.1)
+	eq(c.left(), -1.0, "koşul bozuldu: sıfır")
+	near(c.peak_s, 0.4, 0.0001, "en uzun görülen süre kalır")
+	for i: int in 60:
+		c.step(true, 1.0 / 60.0)
+	is_true(c.done(), "60 × 1/60 = 1 sn (kayan nokta toleransı)")
+	eq(c.left(), 0.0)
+	c.step(true, 0.1, 1)
+	near(c.held_s, 0.1, 0.0001, "epoch değişti: baştan")
+
+
+# --- US-041 kefalet ---
+
+func test_bail_table_and_cash() -> void:
+	var table: Dictionary = HeistTuning.load_default().bail_by_tier
+	eq(HeistRules.bail_for_tier(table, 1), 100, "T1 bakkal 100 (data/heist_tuning.tres)")
+	eq(HeistRules.bail_for_tier({1: 100, 3: 250}, 2), 100, "tabloda yok: en yakın alt kademe")
+	eq(HeistRules.bail_for_tier({1: 100, 3: 250}, 4), 250)
+	eq(HeistRules.bail_for_tier({2: 100}, 1), 0, "alt kademe yok: 0")
+	eq(HeistRules.bail_for_tier({}, 1), 0)
+	eq(HeistRules.cash_after(0, 540, 0), 540)
+	eq(HeistRules.cash_after(0, 0, 200), -200, "kasa eksiye düşebilir (borç)")
+	eq(HeistRules.cash_after(-200, 135, 0), -65, "sonraki ödeme borcu azaltır")
+	eq(HeistRules.cash_after(-65, 383, 100), 218, "borç kapanır, yeni kefalet düşer")
+
+
+func test_bail_per_caught_player() -> void:
+	var two: Dictionary = {A: _roster()[A], B: _roster()[B]}
+	# 0 yakalanan.
+	var t := HeistRules.Tracker.new()
+	t.add_cash(A, 150)
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	var r: Dictionary = t.build_result(&"win", views, two, 100, 0)
+	eq(r["bail"], 0)
+	eq(r["cash_after"], 135, "iş öncesi 0 + ödeme 135")
+	# 1 yakalanan: B yakalandı, A kasayla kaçtı.
+	t = HeistRules.Tracker.new()
+	t.add_cash(A, 150)
+	t.mark_caught(B, &"chaser")
+	views = {A: _view(true), B: _view(false)}
+	eq(t.evaluate(views), &"win")
+	r = t.build_result(&"win", views, two, 100, 50)
+	eq(r["bail"], 100, "toplam kefalet")
+	eq(r["players"][str(B)]["bail"], 100, "yakalanan kaydında")
+	eq(r["players"][str(A)]["bail"], 0)
+	eq(r["cash_before"], 50)
+	eq(r["cash_after"], 50 + 135 - 100, "iş öncesi + ödeme − kefalet")
+	# 2 yakalanan (herkes): ödeme 0, kasa eksiye.
+	t = HeistRules.Tracker.new()
+	t.mark_caught(A)
+	t.mark_caught(B)
+	r = t.build_result(&"caught_all", {A: _view(false), B: _view(false)}, two, 100, 0)
+	eq(r["bail"], 200)
+	eq(r["cash_after"], -200, "borç")
+	# Sonraki iş ödemesi borcu doğal olarak kapatır (ek mantık yok: iş öncesi = önceki işin cash_after).
+	t = HeistRules.Tracker.new()
+	t.add_cash(A, 150)
+	t.add_cash(B, 300)
+	r = t.build_result(&"win", {A: _view(true), B: _view(true)}, two, 100, -200)
+	eq(r["payout"], 405)
+	eq(r["cash_after"], 205, "-200 + 405: borç kapandı")

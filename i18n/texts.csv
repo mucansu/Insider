@@ -83,12 +83,16 @@ HUD_ESCAPE_OBJECTIVE,Kaçış noktasına git,Get to the escape point
 HUD_ESCAPE_RULE,Ekip birlikte oradayken kaçarsınız.,You get away once the whole crew is there.
 HUD_ESCAPE_POLICE,Polis gelmesine: %s,Police arrive in %s
 HUD_ESCAPE_COUNT,Kaçış noktasında: %d/%d,At the escape point: %d/%d
+HUD_ESCAPE_ABORT,Eli boş çekiliyorsunuz… %d,Leaving empty-handed… %d
 END_DURATION_LABEL,SÜRE,TIME
 END_PAYOUT_LABEL,ÖDEME,PAYOUT
 END_LOOT,Ganimet,Loot
 END_RATIO,× Aracı oranı,× Fence rate
 END_RATIO_VALUE,%%%d,%d%%
 END_PAYOUT,= Ekip ödemesi,= Crew payout
+END_BAIL,− Kefalet,− Bail
+END_TEAM_CASH,Ekip kasası,Crew cash
+END_TEAM_CASH_CHANGE,%s → %s,%s → %s
 END_PLAYERS_LABEL,EKİP,CREW
 END_STATUS_ESCAPED,Kaçtı,Escaped
 END_STATUS_CAUGHT,Yakalandı,Caught
@@ -96,6 +100,7 @@ END_STATUS_INSIDE,İçeride kaldı,Left inside
 END_STATUS_CAUGHT_POLICE,Yakalandı (polis),Caught (police)
 END_STATUS_CAUGHT_CHASER,Yakalandı (mahalleli),Caught (neighbour)
 END_STATUS_CAUGHT_OWNER,Yakalandı (dükkân sahibi),Caught (shopkeeper)
+END_STATUS_WITH_BAIL,%s · Kefalet: %s,%s · Bail: %s
 END_CAUSE_POLICE,Polis geldiğinde kaçış noktasında değildin.,You weren't at the escape point when the police arrived.
 END_CAUSE_CHASER,Mahalleli seni yakaladı.,A neighbour caught you.
 END_CAUSE_OWNER,Dükkân sahibi seni tuttu; kimse çekip kurtarmadı.,The shopkeeper held you and nobody pulled you free.
@@ -115,6 +120,8 @@ END_OUTCOME_CAUGHT_ALL,EKİP YAKALANDI,CREW BUSTED
 END_OUTCOME_CAUGHT_ALL_NOTE,Kimse dışarı çıkamadı.,Nobody made it out.
 END_OUTCOME_POLICE,POLİS GELDİ,POLICE ARRIVED
 END_OUTCOME_POLICE_NOTE,Polis geldiğinde kaçış noktasında olmayan herkes yakalandı.,Everyone who wasn't at the escape point when the police arrived was caught.
+END_OUTCOME_ABORTED,ELİ BOŞ KAÇTINIZ,EMPTY-HANDED GETAWAY
+END_OUTCOME_ABORTED_NOTE,Kimse yakalanmadı ama dükkândan bir şey alamadınız.,"Nobody got caught, but you left the shop with nothing."
 NOTE_GENERIC,Kayda değer,Noteworthy
 NOTE_GENERIC_DESC,Bu işte göze battı.,Stood out on this job.
 NOTE_GHOST_CREW,Hayalet ekip,Ghost crew
