@@ -1,11 +1,10 @@
 extends Node2D
-## Kapı yer tutucu görseli (US-005): kapalıyken boşluğu kapatan kanat, açıkken menteşe çevresinde 90° dönmüş
-## ince kanat. Yalnız ebeveyn Door'un durumunu okur (KR-003). Renkler etkin tondan (S9: ahşap = tezgâh rengi).
-## Hafıza (US-011b AC5; GDD §6.5 madde 7): seviyede yerel oyuncunun sisi varsa kapı yalnız karosu görülürken
-## (görünen ya da çevresel) güncellenir; görülmezken son görülen durumda (açık/kapalı) donar (VisionRules.Latch).
-## Mantık ve çarpışma etkilenmez. Sis yoksa canlı durum.
+## Door placeholder visual (US-005): closed = leaf covering the gap, open = thin leaf rotated 90 deg around the hinge. Only reads the
+## parent Door's state (KR-003). Colours from the active tone (S9: wood = counter colour). Memory (US-011b AC5; GDD §6.5 item 7): with
+## local fog the door updates only while its tile is seen (visible or peripheral); otherwise frozen at the last seen state
+## (VisionRules.Latch). Logic and collision unaffected. No fog: live state.
 
-## Kanat boyu (1 karo) ve kalınlığı; menteşe -x ucunda.
+## Leaf length (1 tile) and thickness; hinge at the -x end.
 const LENGTH := 32.0
 const THICKNESS := 6.0
 const OPEN_THICKNESS := 3.0
@@ -30,7 +29,7 @@ func _process(_delta: float) -> void:
 		queue_redraw()
 
 
-## Çizilen durum: görülürken canlı, görülmezken son görülen (hiç görülmediyse canlı).
+## Drawn state: live while seen, last seen otherwise (live if never seen).
 func shown_open() -> bool:
 	return bool(_memory.value()) if _memory.has_value() else _door.is_open
 
@@ -42,7 +41,7 @@ func _draw() -> void:
 	var half: float = LENGTH * 0.5
 	var rect: Rect2
 	if shown_open():
-		# Menteşe -x ucunda; açık kanat duvar boşluğunun kenarına (kasaya) yaslanır.
+		# Hinge at the -x end; the open leaf rests against the wall gap edge (frame).
 		rect = Rect2(Vector2(-half, -half), Vector2(OPEN_THICKNESS, LENGTH))
 	else:
 		rect = Rect2(Vector2(-half, -THICKNESS * 0.5), Vector2(LENGTH, THICKNESS))

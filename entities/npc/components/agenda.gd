@@ -1,43 +1,38 @@
 class_name Agenda
 extends Node
-## Ajanda bileşeni (US-008 AC1/AC2; GDD §9.2-9.3, mimari.md S11): NPC'nin görev listesi ({işaret, süre aralığı,
-## bakış yönü, koni daralması}; `AgendaTask`) tohumlu RNG ile sıralanır: ev görevi (tezgâh) ↔ diğer görevlerden
-## biri (aynı pencere görevi art arda gelmez). Görev süresi NPC işarete vardıktan sonra sayılır. Yalnız host'ta
-## anlamlıdır; beyin her adımda `step()` çağırır ve hedef konum/yön/koniyi buradan okur. Ağ yok, düğüm yok.
-##
-## Kesmeler (kesme/geri alma API'si): `interrupt(kind, …)` süren görevi duraklatır (kalan süresi korunur),
-## kesme bitince ya da `cancel_interrupt()` ile görev kaldığı yerden sürer. Öncelik (Karar ön önerisi):
-## GÖNDERİLDİ > MÜŞTERİ > KONUŞ > DİNLE > ZİL; düşük öncelikli kesme yüksek olanı kesmez, eşit olan yeniler. Kapı zili
-## `bell_interrupts = false` görevi (telefon) kesmez. KONUŞ (US-010 OYALA): oyuncu konuştukça sürer, bakılan nokta
-## `retarget_look` ile konuşana güncellenir.
-## Belirlenimcilik (I6): aynı görev listesi + tohum + aynı varış anları → aynı görev dizisi (`sequence`).
-##
-## Lineer rota kipi (US-016; oyun-yz tur 2 #12): `setup_route(tasks, …)` görevleri verilen sırayla birer kez
-## işletir (müşteri: kapı → raf noktaları → kuyruk → kapı; yoldan geçen: sokak noktaları + cam önü bakışları),
-## son görev bitince `finished` yayar ve durur. Süresi 0 olan görev ara noktadır (varınca sıradakine geçer).
-## Nokta rezervasyonu ajandada değil, çağıranda (`SpotRegistry`); rota görevleri tam işaret adı taşır. Kesmeler ve
-## `advance()` (süren görevi bitir) rota kipinde de çalışır. Ev ↔ uzak kipi (sahip) değişmez.
-## US-039 ekleri: `begin_task(ad)` adlı görevi hemen başlatır (alarm sonrası arka oda kontrolü), `arrived_for()` /
-## `interrupt_elapsed()` varıştan beri geçen süre, `interrupt_ended(kind, completed)` kesme bitti (süre doldu ya da
-## bırakıldı; servis sonucu).
+## Agenda component (US-008 AC1/AC2; GDD §9.2-9.3, S11): NPC task list ({marker, duration range, look direction, cone narrowing};
+## `AgendaTask`) ordered by a seeded RNG: home task (counter) alternating with one of the other tasks (same window task never repeats).
+## Task time counts after the NPC reaches the marker. Meaningful on the host only; the brain calls `step()` each step and reads target
+## position/direction/cone from here. No network, no nodes.
+## Interrupts: `interrupt(kind, ...)` pauses the running task (remaining time kept); when it ends or `cancel_interrupt()` is called the
+## task resumes. Priority (proposed): SENT > CUSTOMER > TALK > LISTEN > BELL; a lower-priority interrupt does not cut a higher one, an equal
+## one renews. The door bell does not interrupt a task with `bell_interrupts = false` (phone). TALK (US-010 STALL): lasts while the player
+## talks; the look point is updated to the talker with `retarget_look`. Determinism (I6): same task list + seed + same arrival times ->
+## same task sequence (`sequence`).
+## Linear route mode (US-016; oyun-yz round 2 #12): `setup_route(tasks, ...)` runs tasks once each in the given order (customer: door ->
+## shelf spots -> queue -> door; passerby: street points + window-gazing looks), emits `finished` after the last task and stops. A task
+## with duration 0 is a waypoint (moves on at arrival). Spot reservation is the caller's job (`SpotRegistry`); route tasks carry full
+## marker names. Interrupts and `advance()` (end the running task) also work in route mode. Home <-> away mode (owner) is unchanged.
+## US-039 additions: `begin_task(name)` starts a named task at once (backroom check after alarm), `arrived_for()` / `interrupt_elapsed()`
+## time since arrival, `interrupt_ended(kind, completed)` interrupt over (time elapsed or dropped; service result).
 
 signal task_changed(task_name: StringName)
-## Rota kipi: son görev bitti.
+## Route mode: last task finished.
 signal finished()
-## Kesme bitti: `completed` = süresi doldu (false: bırakıldı/yeniden başlatıldı).
+## Interrupt ended: `completed` = time elapsed (false: dropped/restarted).
 signal interrupt_ended(kind: Interrupt, completed: bool)
 
 enum Interrupt { NONE, BELL, LISTEN, TALK, CUSTOMER, SENT }
 
 const INTERRUPT_NAMES: Array[StringName] = [&"", &"bell", &"listen", &"talk", &"customer", &"sent"]
-## `sequence` geçmişinde tutulan en fazla görev adı.
+## Maximum task names kept in the `sequence` history.
 const MAX_SEQUENCE := 512
 
-## Geçilen görev adları (kesmeler dahil; en fazla MAX_SEQUENCE).
+## Task names passed (interrupts included; at most MAX_SEQUENCE).
 var sequence: Array[StringName] = []
 
 var _tasks: Array[AgendaTask] = []
-## func(marker: StringName) -> Array[Vector2]: işaret ya da dizi konumları (global).
+## func(marker: StringName) -> Array[Vector2]: marker or sequence positions (global).
 var _resolver: Callable = Callable()
 var _rng := RandomNumberGenerator.new()
 var _task: AgendaTask = null
@@ -52,18 +47,18 @@ var _int_spot: Vector2 = Vector2.INF
 var _int_look: Vector2 = Vector2.INF
 var _int_on_arrival: bool = false
 var _int_arrived: bool = false
-## Ajanda sesi (US-011b): o anki görevin temposu (görev değişince yeniden kurulur).
+## Agenda sound (US-011b): tempo of the current task (rebuilt when the task changes).
 var _noise_task: AgendaTask = null
 var _noise_cadence: NoiseRules.Cadence = null
-## Lineer rota kipi (US-016): sıradaki görev indisi; -1 = ev ↔ uzak kipi.
+## Linear route mode (US-016): index of the next task; -1 = home <-> away mode.
 var _route_index: int = -1
 var _route_done: bool = false
-## Varıştan beri geçen süre: görev ve kesme (US-039).
+## Time since arrival: task and interrupt (US-039).
 var _arrived_time: float = 0.0
 var _int_elapsed: float = 0.0
 
 
-## Listeyi ve tohumu kurar, ev görevinden başlar. `resolver`: func(marker) -> Array[Vector2].
+## Sets up the list and seed, starts at the home task. `resolver`: func(marker) -> Array[Vector2].
 func setup(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable) -> void:
 	_tasks = tasks.duplicate()
 	_resolver = resolver
@@ -76,7 +71,7 @@ func setup(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable) -> vo
 	_begin(_home())
 
 
-## Lineer rota kipi: görevler sırayla birer kez; son görev bitince `finished`. Tohum yalnız süre aralığı içindir.
+## Linear route mode: tasks once each in order; `finished` after the last. Seed only affects the duration range.
 func setup_route(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable) -> void:
 	_tasks = tasks.duplicate()
 	_resolver = resolver
@@ -89,22 +84,22 @@ func setup_route(tasks: Array[AgendaTask], agenda_seed: int, resolver: Callable)
 	_advance_route()
 
 
-## Rota kipinde mi.
+## Whether in route mode.
 func is_route() -> bool:
 	return _route_index >= 0 or _route_done
 
 
-## Rota bitti mi (rota kipi değilse false).
+## Whether the route is done (false if not in route mode).
 func is_finished() -> bool:
 	return _route_done
 
 
-## Rota indisi (sıradaki görevin listedeki yeri; rota değilse -1).
+## Route index (position of the next task in the list; -1 if not a route).
 func route_index() -> int:
 	return _route_index
 
 
-## Süren görevi şimdi bitirir: rota kipinde sıradakine, değilse ajandanın sıradaki görevine geçer (kesme sürer).
+## Ends the running task now: moves to the next route task in route mode, else to the agenda's next task (interrupt continues).
 func advance() -> void:
 	if _route_index >= 0:
 		_advance_route()
@@ -112,7 +107,7 @@ func advance() -> void:
 		_begin(_next())
 
 
-## Adlı görevi hemen başlatır (kesme bırakılır; ev ↔ uzak sırası sürer). Yoksa false.
+## Starts the named task at once (interrupt dropped; home <-> away order continues). False if missing.
 func begin_task(task_name: StringName) -> bool:
 	for t: AgendaTask in _tasks:
 		if t != null and t.name == task_name:
@@ -123,22 +118,22 @@ func begin_task(task_name: StringName) -> bool:
 	return false
 
 
-## Görev noktasına varıştan beri geçen süre (varılmadıysa 0; kesmede kesmeninki).
+## Time since reaching the task point (0 if not arrived; the interrupt's during an interrupt).
 func arrived_for() -> float:
 	return _int_elapsed if _interrupt != Interrupt.NONE else _arrived_time
 
 
-## Kesmenin sayılan süresi (varınca başlayan kesmede varıştan beri; kesme yoksa 0).
+## Counted time of the interrupt (since arrival for arrival-started interrupts; 0 if none).
 func interrupt_elapsed() -> float:
 	return _int_elapsed if _interrupt != Interrupt.NONE else 0.0
 
 
-## Göreve varıldı mı (kesmede kesmenin noktasına).
+## Whether the task point is reached (the interrupt's point during an interrupt).
 func has_arrived() -> bool:
 	return _int_arrived if _interrupt != Interrupt.NONE else _arrived
 
 
-## Bir adım: `at_goal` = NPC hedefe vardı (ya da gidemiyor: beyin donmasın diye vardı sayar, I7).
+## One step: `at_goal` = NPC reached the goal (or cannot move: counts as reached so the brain does not freeze, I7).
 func step(delta: float, at_goal: bool) -> void:
 	var dt: float = maxf(delta, 0.0)
 	if _interrupt != Interrupt.NONE:
@@ -164,8 +159,8 @@ func step(delta: float, at_goal: bool) -> void:
 				_begin(_next())
 
 
-## Bu adımda çıkan ajanda sesi (US-011b; görev noktasına varılmış, kesme yok, görevde `noise_kind` varsa
-## `noise_interval_sec` aralıkla; ilk ses varıştan bir aralık sonra). Ses yoksa boş. `step`ten sonra çağrılır.
+## Agenda sound produced this step (US-011b; task point reached, no interrupt, task has `noise_kind`, every `noise_interval_sec`;
+## first sound one interval after arrival). Empty if none. Call after `step`.
 func take_noise(delta: float) -> StringName:
 	var task: AgendaTask = _task if _interrupt == Interrupt.NONE and _arrived else null
 	var active: bool = task != null and not task.noise_kind.is_empty() and task.noise_interval_sec > 0.0
@@ -179,14 +174,14 @@ func take_noise(delta: float) -> StringName:
 	return _noise_task.noise_kind
 
 
-## Şu an gidilecek konum (global); INF = olduğu yerde dur.
+## Position to go to now (global); INF = stay where you are.
 func goal_position() -> Vector2:
 	if _interrupt != Interrupt.NONE:
 		return _int_spot
 	return _spot
 
 
-## Varınca bakılacak yön (`from` NPC konumu): kesmede bakılan nokta, görevde görevin yönü; sıfır = koru.
+## Direction to look on arrival (`from` NPC position): the interrupt's look point, else the task's direction; zero = keep.
 func goal_facing(from: Vector2) -> Vector2:
 	if _interrupt != Interrupt.NONE:
 		if _int_look.is_finite() and not from.is_equal_approx(_int_look):
@@ -195,14 +190,14 @@ func goal_facing(from: Vector2) -> Vector2:
 	return _task.facing.normalized() if _task != null else Vector2.ZERO
 
 
-## Koni yarım açısı (derece); 0 = NPC'nin varsayılanı.
+## Cone half angle (degrees); 0 = NPC default.
 func half_angle_deg() -> float:
 	if _interrupt != Interrupt.NONE or _task == null:
 		return 0.0
 	return _task.half_angle_deg
 
 
-## Şimdiki görevin (kesme varsa kesmenin) adı.
+## Name of the current task (the interrupt's if any).
 func task_name() -> StringName:
 	if _interrupt != Interrupt.NONE:
 		return INTERRUPT_NAMES[_interrupt]
@@ -217,13 +212,13 @@ func current_interrupt() -> Interrupt:
 	return _interrupt
 
 
-## Görev ya da kesme süresinden kalan (sn; varılmadıysa tam süre).
+## Remaining task or interrupt time (s; full duration if not arrived).
 func time_left() -> float:
 	return _int_left if _interrupt != Interrupt.NONE else _time_left
 
 
-## Kesme: `duration` sn; `spot` gidilecek nokta (INF = dur), `look_at` bakılacak nokta (INF = yok);
-## `count_on_arrival` ise süre varınca başlar. Kabul edilmezse (öncelik, zil kesmeyen görev) false.
+## Interrupt: `duration` s; `spot` where to go (INF = stay), `look_at` point to look at (INF = none); if `count_on_arrival` the time
+## starts on arrival. False if not accepted (priority, task that ignores the bell).
 func interrupt(kind: Interrupt, duration: float, spot: Vector2 = Vector2.INF, look_at: Vector2 = Vector2.INF,
 		count_on_arrival: bool = false) -> bool:
 	if kind == Interrupt.NONE or kind < _interrupt:
@@ -242,19 +237,19 @@ func interrupt(kind: Interrupt, duration: float, spot: Vector2 = Vector2.INF, lo
 	return true
 
 
-## Süren kesmenin bakılan noktasını değiştirir (KONUŞ: konuşan oyuncu yürüse de ona bakılır). Kesme yoksa etkisiz.
+## Changes the running interrupt's look point (TALK: the talker is looked at even as they walk). No effect without an interrupt.
 func retarget_look(look_at: Vector2) -> void:
 	if _interrupt != Interrupt.NONE:
 		_int_look = look_at
 
 
-## Süren kesmeyi bırakır; görev kaldığı yerden sürer.
+## Drops the running interrupt; the task resumes where it left off.
 func cancel_interrupt() -> void:
 	if _interrupt != Interrupt.NONE:
 		_end_interrupt(false)
 
 
-## Ajandayı ev görevinden yeniden başlatır (alarm sonrası dönüş); tohum dizisi sürer. Süren kesme bırakılmış sayılır.
+## Restarts the agenda from the home task (return after alarm); seed sequence continues. A running interrupt counts as dropped.
 func restart_home() -> void:
 	if _interrupt != Interrupt.NONE:
 		var kind: Interrupt = _interrupt
@@ -272,7 +267,7 @@ func _end_interrupt(completed: bool) -> void:
 	_int_left = 0.0
 	_int_spot = Vector2.INF
 	_int_look = Vector2.INF
-	_arrived = false  # görev noktasına geri yürür; kalan süre korunur
+	_arrived = false  # walks back to the task point; remaining time kept
 	_note(before)
 	interrupt_ended.emit(kind, completed)
 

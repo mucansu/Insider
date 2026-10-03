@@ -1,17 +1,13 @@
 class_name BagVisual
 extends Node2D
-## Çanta yer tutucu görseli (US-012): nakit renginde küçük çuval (taşınırken biraz küçük), altında alma/devir
-## ilerleme çizgisi. Yalnız ebeveyn Bag'in durumunu okur (KR-003). Renkler ThemeTokens'tan (S9; nakit rengi her
-## tonda aynı: GAMEPLAY_CASH).
-## Hafıza (US-011b AC5; GDD §6.5 madde 7): seviyede yerel oyuncunun sisi varsa çanta durumu (yerde nerede / alındı)
-## yalnız çanta ya da son görüldüğü yer görülürken (görünen/çevresel karo) güncellenir; görülmezken son görülen
-## durumda donar (VisionRules.Latch): yerde görülen çanta, gözden uzakta alınsa da o yer yeniden görülene dek yerde
-## çizilir. Taşınırken görülen çanta taşıyanla (ekip arkadaşı, sis üstünde) çizilir. Hiç görülmeyen çanta çizilmez.
-## Mantık etkilenmez. Sis yoksa canlı durum.
-## Taşıma (IS-085; KR-017): taşınan çanta taşıyanın kukla elinde (Puppet.hand_points) asılı çizilir; taraf, yumuşak
-## geçiş ve sarkaç salınımı BagCarry'de (düğümsüz). Sırt dönük taşıyanda çanta kuklanın arkasında, değilse önünde
-## (z = ABOVE_FOG_Z ∓ 1). Hareket azaltmada (Puppet.is_reduced_motion) salınım yok. Kuklası olmayan taşıyanda çanta
-## düğüm konumunda (Bag.CARRY_OFFSET). Her peer kendi kopyasında türetir; ağ ve kurallar değişmez.
+## Bag placeholder visual (US-012): small sack in cash colour (slightly smaller when carried) with a take/handoff progress line below.
+## Only reads the parent Bag's state (KR-003). Colours from ThemeTokens (S9; cash colour is GAMEPLAY_CASH in every tone).
+## Memory (US-011b AC5; GDD §6.5 item 7): with local fog, bag state updates only while the bag or its last seen spot is seen
+## (visible/peripheral tile); otherwise frozen at the last seen state (VisionRules.Latch). Never-seen bags are not drawn. Logic unaffected.
+## No fog: live state. Carry (IS-085; KR-017): a carried bag hangs from the carrier's puppet hand (Puppet.hand_points); side, smoothing
+## and sway live in BagCarry (node-free). Back-turned carrier: bag behind the puppet, else in front (z = ABOVE_FOG_Z -/+ 1).
+## Under reduced motion (Puppet.is_reduced_motion) no sway. Carrier without a puppet: bag at the node position (Bag.CARRY_OFFSET).
+## Each peer derives it locally; network and rules unchanged.
 
 const SIZE := Vector2(14.0, 12.0)
 const CARRIED_SCALE := 0.8
@@ -19,7 +15,7 @@ const NECK := Vector2(6.0, 3.0)
 const OUTLINE_WIDTH := 1.5
 const BAR_GAP := 4.0
 const BAR_HEIGHT := 3.0
-## Taşınırken taşıyana göre z farkı: önde / arkada (ikisi de sisin üstünde).
+## z offset relative to the carrier while carried: front / behind (both above fog).
 const CARRY_FRONT_Z := 1
 const CARRY_BACK_Z := -1
 
@@ -27,7 +23,7 @@ var _bag: Bag = null
 var _drawn: Array = []
 var _memory := VisionRules.Latch.new()
 var _carry := BagCarry.new()
-## Bu karede tutuş hesaplandı mı (taşıyanın kuklası var).
+## Whether the grip was computed this frame (carrier has a puppet).
 var _gripped: bool = false
 
 
@@ -42,12 +38,12 @@ func _process(delta: float) -> void:
 	refresh(delta)
 
 
-## Bir kare (her karede _process; testler doğrudan çağırır): sis hafızası, tutuş, katman, yeniden çizim.
+## One frame (_process each frame; tests call it directly): fog memory, grip, layer, redraw.
 func refresh(delta: float) -> void:
 	var live: Array = [_bag.global_position, _bag.is_carried()]
 	var seen: bool = FogView.is_seen(self, _bag.global_position)
 	if not seen and _memory.has_value() and not bool((_memory.value() as Array)[1]):
-		seen = FogView.is_seen(self, (_memory.value() as Array)[0] as Vector2)  # son görülen yer görülüyor
+		seen = FogView.is_seen(self, (_memory.value() as Array)[0] as Vector2)  # last seen spot is visible
 	_memory.update(seen, live)
 	_update_carry(delta)
 	var at: Vector2 = shown_position()
@@ -59,24 +55,24 @@ func refresh(delta: float) -> void:
 		queue_redraw()
 
 
-## Taşınırken z: taşıyanın önünde ya da arkasında (ikisi de sisin üstünde).
+## z while carried: in front of or behind the carrier (both above fog).
 func carry_z() -> int:
 	if not _gripped:
 		return VisionRules.ABOVE_FOG_Z
 	return VisionRules.ABOVE_FOG_Z + (CARRY_FRONT_Z if _carry.front else CARRY_BACK_Z)
 
 
-## Tutuş hesabı (okuma/test).
+## Grip computation (read/test).
 func carry() -> BagCarry:
 	return _carry
 
 
-## Çizim tutuşu kuklanın elinde mi (taşınıyor ve taşıyanın kuklası var).
+## Whether the drawn grip is on the puppet hand (carried and carrier has a puppet).
 func is_gripped() -> bool:
 	return _gripped
 
 
-## Çizilen konum (global): yerde son görülen yer, taşınıyorsa canlı konum; çizilmiyorsa INF.
+## Drawn position (global): last seen spot on the floor, live position when carried; INF if not drawn.
 func shown_position() -> Vector2:
 	if not _memory.has_value():
 		return Vector2.INF
@@ -88,7 +84,7 @@ func shown_position() -> Vector2:
 	return memory[0] as Vector2
 
 
-## Çizilen durum taşınıyor mu.
+## Whether the drawn state is carried.
 func shown_carried() -> bool:
 	return _memory.has_value() and bool((_memory.value() as Array)[1]) and _bag.is_carried()
 
@@ -105,7 +101,7 @@ func _draw() -> void:
 	var origin: Vector2 = to_local(at)
 	var rect := Rect2(origin - size * 0.5, size)
 	if carried and _gripped:
-		# Tutuş noktası çuvalın ağzında (boyun üstte, çuval altta; el bu bölgeyi tutar); sarkaç açısıyla döner.
+		# Grip point at the sack mouth (neck on top, sack below; the hand holds this area); rotates with the pendulum angle.
 		draw_set_transform(origin, _carry.angle)
 		rect = Rect2(Vector2(-size.x * 0.5, 0.0), size)
 	var neck := Rect2(Vector2(rect.position.x + (rect.size.x - NECK.x) * 0.5, rect.position.y - NECK.y), NECK)
@@ -119,7 +115,7 @@ func _draw() -> void:
 		draw_rect(Rect2(below + Vector2(0.0, BAR_GAP), Vector2(size.x * ratio, BAR_HEIGHT)), tone.fg_color)
 
 
-## Taşıyanın kuklasından tutuşu günceller; kukla yoksa ya da taşınmıyorsa sıfırlar (yeni taşıyanda anında kurulur).
+## Updates the grip from the carrier's puppet; resets if no puppet or not carried (snaps for a new carrier).
 func _update_carry(delta: float) -> void:
 	_gripped = false
 	var actor: Node2D = _bag.carrier_node() if _bag.is_carried() else null
@@ -146,7 +142,7 @@ func _grip_world() -> Vector2:
 	return actor.global_position + _carry.grip if actor != null else _bag.global_position
 
 
-## Taşıyanın kuklası (Player → Visual → Puppet); yoksa null.
+## Carrier's puppet (Player -> Visual -> Puppet); null if none.
 static func _puppet_of(actor: Node2D) -> Puppet:
 	if actor == null:
 		return null

@@ -1,18 +1,16 @@
 class_name Civilian
 extends CharacterBody2D
-## Sivil (US-016; GDD §9.2 "Mekân nüfusu"; mimari.md S2, S11): müşteri ya da yoldan geçen. Nüfus üreticisi
-## (`Population`, yalnız host) `PopulationSpawner` (MultiplayerSpawner, spawn_path = NPCs) ile üretir ve siler;
-## istemciler spawner'dan alır (geç katılan mevcut sivilleri ilk paketle görür). Kök CharacterBody2D (katman
-## npcs, maske world: oyuncuları itmez, oyuncular da onu itmez — AC7; iç içe geçince görsel yarı saydam). Bileşenler
-## `Perception` + `Suspicion` (sivil çarpan tablosu, `CivilianSenses.factor_for`), `Agenda` (lineer rota kipi),
-## `Mover`, `Senses`, `Brain` (CivilianBrain) ve görsel `Visual` (NpcVisual; "?"/"!" ve balon).
-##
-## Host: beyin + hareket + yayın. Çoğaltma (S11 kalıbı, 15 Hz): konum/yön/ölçer güvenilmez sürekli, durum
-## değişince güvenilir; rol ve sıra numarası spawn verisinde. Sonuç olayları (`customer_enter`, `customer_tell`,
-## `customer_flee`, `passerby_tell`, `passerby_flee`; AC5, SFX adları) güvenilir RPC ile her peer'da aynı sırada
-## `event_raised` sinyali olur (Population dökümü toplar). İstemci konumu yumuşatarak izler.
+## Civilian (US-016; GDD §9.2 "Venue population"; S2, S11): customer or passerby. The population spawner (`Population`, host only) spawns
+## and deletes it via `PopulationSpawner` (MultiplayerSpawner, spawn_path = NPCs); clients get it from the spawner (a late joiner sees
+## existing civilians in the first packet). Root CharacterBody2D (layer npcs, mask world: does not push players and players do not push it -
+## AC7; visual goes translucent on overlap). Components `Perception` + `Suspicion` (civilian multiplier table, `CivilianSenses.factor_for`),
+## `Agenda` (linear route mode), `Mover`, `Senses`, `Brain` (CivilianBrain) and visual `Visual` (NpcVisual; "?"/"!" and balloon).
+## Host: brain + movement + replication. Replication (S11 pattern, 15 Hz): position/facing/meter unreliable continuous, state reliable on
+## change; role and serial number in spawn data. Result events (`customer_enter`, `customer_tell`, `customer_flee`, `passerby_tell`,
+## `passerby_flee`; AC5, SFX names) become the `event_raised` signal in the same order on every peer via reliable RPC (Population collects
+## the dump). The client follows the position with smoothing.
 
-## Her peer'da: sonuç olayı (kind, ilgili oyuncu; yoksa 0).
+## On every peer: result event (kind, related player; 0 if none).
 signal event_raised(civilian: Civilian, kind: StringName, peer_id: int)
 
 const TUNING_PATH := "res://data/npc/population.tres"
@@ -25,25 +23,25 @@ const MAX_EVENTS := 32
 
 @export var tuning: PopulationTuning
 @export var civilian_tuning: CivilianTuning
-## false: testler `step()`'i elle sürer.
+## False: tests drive `step()` by hand.
 @export var auto_step: bool = true
 
-## Spawn verisi (her peer'da): rol (PopulationRules.Role) ve sıra numarası (registry sahibi kimliği).
+## Spawn data (every peer): role (PopulationRules.Role) and serial number (registry owner id).
 var role: int = PopulationRules.Role.CUSTOMER
 var serial: int = 0
-## Yalnız host: üretim siparişi ve plan (Population verir), sahip ve nüfus üreticisi.
+## Host only: spawn order and plan (Population supplies), owner and population spawner.
 var order: PopulationRules.Order = null
 var shop_spots: Array[StringName] = []
 var population: Node = null
 var store_owner: Node = null
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var net_position: Vector2 = Vector2.ZERO
 var net_facing: Vector2 = Vector2.DOWN
 var net_meter: float = 0.0
 var net_state: int = 0
 
-## Görselin okuduğu durum (her peer'da).
+## State the visual reads (on every peer).
 var facing: Vector2 = Vector2.DOWN
 var bubble: int = CivilianRules.Bubble.NONE
 var last_event: StringName = &""
@@ -63,7 +61,7 @@ var _bubbles: Array[int] = []
 
 
 func _ready() -> void:
-	_suspicion.set_physics_process(false)  # beyin sırayla işletir
+	_suspicion.set_physics_process(false)  # the brain runs it in order
 	if tuning == null:
 		tuning = load(TUNING_PATH) as PopulationTuning
 	if civilian_tuning == null:
@@ -134,7 +132,7 @@ func role_name() -> StringName:
 	return PopulationRules.role_name(role)
 
 
-## Çoğaltılan durumun adı (CivilianBrain.State).
+## Name of the replicated state (CivilianBrain.State).
 func state_name() -> StringName:
 	return CivilianBrain.STATE_NAMES[clampi(net_state, 0, CivilianBrain.STATE_NAMES.size() - 1)]
 
@@ -143,7 +141,7 @@ func is_customer() -> bool:
 	return role == PopulationRules.Role.CUSTOMER
 
 
-## Görselin konisi (derece, px): rolün konisi.
+## The visual's cone (degrees, px): the role's cone.
 func cone_half_angle() -> float:
 	return tuning.passerby_half_angle_deg if role == PopulationRules.Role.PASSERBY else tuning.customer_half_angle_deg
 
@@ -152,7 +150,7 @@ func cone_range() -> float:
 	return tuning.passerby_view_range if role == PopulationRules.Role.PASSERBY else tuning.customer_view_range
 
 
-## Host: sonuç olayını herkese yayar (her peer'da aynı sırada).
+## Host: broadcasts the result event to everyone (same order on every peer).
 func host_event(kind: StringName, peer_id: int) -> void:
 	if not _host_side() or not EVENT_KINDS.has(kind):
 		return
@@ -181,7 +179,7 @@ func dump_row() -> Dictionary:
 	return {"name": String(name), "role": role_name(), "state": state_name(), "events": _events.duplicate()}
 
 
-## En yakın Level API'li ata (S4; duck typing).
+## Nearest ancestor with the Level API (S4; duck typing).
 func _level() -> Node:
 	var node: Node = get_parent()
 	while node != null and not node.has_method(&"marker"):
@@ -189,6 +187,6 @@ func _level() -> Node:
 	return node
 
 
-## Host ya da çevrimdışı (S2; Net bayraklarından, Game ile aynı kalıp).
+## Host or offline (S2; from Net flags, same pattern as Game).
 static func _host_side() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0

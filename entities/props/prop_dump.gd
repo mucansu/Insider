@@ -1,8 +1,8 @@
 class_name PropDump
 extends RefCounted
-## Prop'ların ortak test dökümü (mimari.md S6: `"props"` anahtarı). Her prop `GROUP`'a girer ve
-## `dump_state() -> Dictionary` sunar; döküm anında gruptaki bütün prop'lar düğüm adıyla toplanır:
-## {"Register": {...}, "FrontDoor": {...}}. Sağlayıcı süreç başına bir kez kaydedilir (yalnız `--dump`).
+## Shared test dump for props (S6: `"props"` key). Each prop joins `GROUP` and exposes `dump_state() -> Dictionary`; at dump time all
+## props in the group are collected by node name: {"Register": {...}, "FrontDoor": {...}}. The provider registers once per process
+## (only with `--dump`).
 
 const KEY := "props"
 const GROUP := &"dump_props"
@@ -10,7 +10,7 @@ const GROUP := &"dump_props"
 static var _registered: bool = false
 
 
-## Prop `_ready`'de çağırır; `--dump` verilmediyse bir şey yapmaz.
+## Props call this in `_ready`; does nothing without `--dump`.
 static func register() -> void:
 	if _registered or Args.dump_path.is_empty():
 		return
@@ -29,6 +29,6 @@ static func collect() -> Dictionary:
 	return out
 
 
-## Duvar saati (sn; aynı makinedeki süreçler arasında karşılaştırılabilir): sonucun görünme gecikmesi ölçümü.
+## Wall clock (s; comparable across processes on one machine): measures the result's visible delay.
 static func wall_time() -> float:
 	return Time.get_unix_time_from_system()

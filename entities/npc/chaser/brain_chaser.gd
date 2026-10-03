@@ -1,13 +1,12 @@
 class_name ChaserBrain
 extends Node
-## Mahalleli (chaser) beyni (US-008 AC6/AC7; GDD §9.3; KR-019 K3). Yalnız host'ta; Chaser kökü her adımda
-## `step(delta)` çağırır, istenen hızı uygular. Durumlar: RUN (bağırış yerine koşar) → CHASE (en yakın görünen
-## serbest ya da tutulan oyuncu; 28 px + 0,5 sn temas, oyuncu konumu ON-03 ile ileri alınır → kalıcı yakalama,
-## kurtarma yok) → SEARCH (görüş yoksa son görülen konum, 15 sn) → WAIT (ön kapıda bekler). Görüş: koni yok
-## (aranan kişiye bakar), görüş hattı (world + vision_block, camlar geçirir) + menzil.
-## US-043 ekleri: iş sürerken (örtü izleniyor) mahalleli yalnız örtüsü bozuk oyuncuyu kovalar — örtüsü sağlam olan
-## "müşteri gibi" seyircidir (US-042). YÖNLENDİR: `mislead(nokta, sn)` → MISLED (gösterilen noktaya koşar, kimseyi
-## kovalamaz), süre bitince o noktada SEARCH. `listening` true iken (biri ona "o tarafa kaçtı" diyor) durur, yakalamaz.
+## Neighbour (chaser) brain (US-008 AC6/AC7; GDD §9.3; KR-019 K3). Host only; the Chaser root calls `step(delta)` each step and applies the
+## desired velocity. States: RUN (runs where the shout came from) -> CHASE (nearest visible free or held player; 28 px + 0.5 s contact, player
+## position advanced with ON-03 -> permanent catch, no rescue) -> SEARCH (last seen position if no sight, 15 s) -> WAIT (waits at the front
+## door). Sight: no cone (looks at the target), line of sight (world + vision_block, windows pass) + range.
+## US-043 additions: while the heist runs (cover tracked) the neighbour chases only players with broken cover - intact cover is a
+## "customer-like" bystander (US-042). REDIRECT: `mislead(point, s)` -> MISLED (runs to the shown point, chases nobody), then SEARCH at that
+## point. While `listening` is true (someone is telling them "they ran that way") it stands still and does not catch.
 
 enum State { RUN, CHASE, SEARCH, WAIT, MISLED }
 
@@ -20,18 +19,18 @@ const EDGES := {
 	State.MISLED: [State.SEARCH],
 }
 const ARRIVE_PX := 8.0
-## `player_caught {peer, by}` olayında yakalayan.
+## Catcher in the `player_caught {peer, by}` event.
 const CATCHER := &"chaser"
 
 var tuning: ChaserTuning
 var civilian_tuning: CivilianTuning
 var fsm := Fsm.new(State.RUN, EDGES)
-## Yakalanan peer'lar (döküm).
+## Peers caught (dump).
 var catches: Array[int] = []
-## US-043: biri YÖNLENDİR'i tutuyor (durur, yakalamaz); yanlış yöne koşu sayılan kez (döküm).
+## US-043: someone is holding REDIRECT (stands, does not catch); count of wrong-way runs (dump).
 var listening: bool = false
-## Örtü sorgusu `func(peer_id) -> bool` (sağlam mı; Chaser bağlar: sahibin duyusu — iş başından beri örtü olaylarını
-## dinler). Boşsa herkes kovalanır.
+## Cover query `func(peer_id) -> bool` (intact?; Chaser connects the owner's senses - listens to cover events since heist start).
+## Everyone is chased if empty.
 var cover_query: Callable = Callable()
 var misled_count: int = 0
 
@@ -65,7 +64,7 @@ func target_peer() -> int:
 	return _target
 
 
-## US-043 YÖNLENDİR: `sec` sn boyunca `point`a (gezinme ağının en yakın noktası) koşar, kimseyi kovalamaz.
+## US-043 REDIRECT: runs to `point` (nearest nav point) for `sec` s, chases nobody.
 func mislead(point: Vector2, sec: float) -> bool:
 	if not point.is_finite() or sec <= 0.0:
 		return false
@@ -131,7 +130,7 @@ func _chase(peer: int, delta: float) -> Vector2:
 	return _mover.desired_velocity(delta)
 
 
-## Hedefe git; varınca (ya da gidilemezse) `then` durumuna geç (−1 = kal).
+## Go to the target; on arrival (or if unreachable) switch to state `then` (-1 = stay).
 func _go(point: Vector2, delta: float, then: int) -> Vector2:
 	if not point.is_finite():
 		return Vector2.ZERO
@@ -143,7 +142,7 @@ func _go(point: Vector2, delta: float, then: int) -> Vector2:
 	return _mover.desired_velocity(delta)
 
 
-## En yakın görünen (menzil + görüş hattı) serbest ya da tutulan oyuncu; yoksa 0. Süren hedef önceliklidir.
+## Nearest visible (range + line of sight) free or held player; 0 if none. An ongoing target takes priority.
 func _visible_target() -> int:
 	var best: int = 0
 	var best_dist: float = INF
@@ -153,7 +152,7 @@ func _visible_target() -> int:
 		if player == null or not player.has_method(&"is_caught") or bool(player.call(&"is_caught")):
 			continue
 		if cover_query.is_valid() and bool(cover_query.call(player.get_multiplayer_authority())):
-			continue  # US-043: örtüsü sağlam = seyirci (iş yoksa cover_intact false: herkes kovalanır)
+			continue  # US-043: intact cover = bystander (no heist: cover_intact false: everyone is chased)
 		var pos: Vector2 = CivilianSenses.position_of(player)
 		var dist: float = here.distance_to(pos)
 		if dist > tuning.sight_range or not _perception.has_line_of_sight(here, pos):

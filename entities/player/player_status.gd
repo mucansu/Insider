@@ -1,38 +1,36 @@
 class_name PlayerStatus
 extends Node2D
-## Oyuncunun tutulma/yakalanma durumu (US-008 AC7; mimari.md S2, S3 eki, S7; GDD §9.3; KR-019 K3). Player'ın
-## `Status` alt düğümü. Oyuncu kökü istemci yetkilidir (kendi hareketi), bu alt ağaç ise **host yetkilidir**
-## (`_enter_tree`'de yetki 1'e çevrilir; her peer'da aynı): durum yalnız host'ta değişir ve kendi
-## MultiplayerSynchronizer'ı (değişince, güvenilir) ile yayılır. Görsel ve oyuncu yalnız durumu okur.
-##
-## - FREE → HELD (`host_hold(window)`: sahip tuttu; pencere dolunca CAUGHT) → FREE (`Rescue` tamamlandı: ekip
-##   arkadaşı 32 px içinde 1 sn "çek") ya da CAUGHT (kalıcı; `host_catch()`: mahalleli yakaladı, kurtarma yok).
-## - `Rescue` (Interactable, S7) yalnız HELD iken etkin; tamamlanınca host `rescued(rescuer)` yayar.
-## - Host olayları herkese `Game.raise_session_event` ile de gider (US-012 sonucu bunlardan kurar):
-##   `player_held {peer, window}`, `player_caught {peer, by}` (by: &"owner" | &"chaser"), `player_rescued {peer, by}`.
-## - ÇEK host'ta doğrulanır: kurtaran tutulanın kendisi olamaz ve serbest olmalıdır (tutulan/yakalanan reddedilir).
-## - Pencere sayacı host'ta; istemci `hold_left()`'i HELD'e geçtiği andan yerelde sayar (yalnız gösterim).
+## Player's held/caught state (US-008 AC7; S2, S3 addendum, S7; GDD §9.3; KR-019 K3). The player's `Status` child. The player root is
+## client-authoritative (own movement) but this subtree is **host-authoritative** (`_enter_tree` sets authority to 1; same on every peer):
+## state changes only on the host and replicates via its own MultiplayerSynchronizer (on change, reliable). Visual and player only read it.
+## - FREE -> HELD (`host_hold(window)`: owner held; CAUGHT when the window expires) -> FREE (`Rescue` done: teammate within 32 px holds
+##   "pull" 1 s) or CAUGHT (permanent; `host_catch()`: neighbour caught, no rescue).
+## - `Rescue` (Interactable, S7) is enabled only while HELD; on completion the host emits `rescued(rescuer)`.
+## - Host events also reach everyone via `Game.raise_session_event` (US-012 result is built from them): `player_held {peer, window}`,
+##   `player_caught {peer, by}` (by: &"owner" | &"chaser"), `player_rescued {peer, by}`.
+## - PULL is validated on the host: the rescuer cannot be the held player and must be free (held/caught are rejected).
+## - The window counter runs on the host; a client counts `hold_left()` locally from the moment it sees HELD (display only).
 
-## Her peer'da: durum değişti.
+## On every peer: state changed.
 signal changed(state: int)
-## Yalnız host'ta: tutulan oyuncu kurtarıldı (`rescuer` = çeken peer).
+## Host only: held player was rescued (`rescuer` = pulling peer).
 signal rescued(rescuer: int)
 
 enum State { FREE, HELD, CAUGHT }
 
 const SYNC_NAME := "StatusSync"
 const HOST_PEER := 1
-## ÇEK (GDD §9.3): ekip arkadaşı 32 px içinde 1 sn basılı tutar.
+## PULL (GDD §9.3): teammate within 32 px holds for 1 s.
 const RESCUE_KEY := "INTERACT_RESCUE"
 const RESCUE_RANGE := 32.0
 const RESCUE_HOLD_SEC := 1.0
-## Tutma penceresi dolunca yakalayan (tutmayı yalnız sahip yapar).
+## Catcher when the hold window expires (only the owner holds).
 const HOLD_CATCHER := &"owner"
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var state: int = State.FREE:
 	set = _set_state
-## Son tutmanın penceresi (sn; çoğaltılır, istemci sayacı buradan başlar).
+## Window of the last hold (s; replicated, the client counter starts from it).
 var hold_window: float = 0.0
 
 var _hold_left: float = 0.0
@@ -60,7 +58,7 @@ func _physics_process(delta: float) -> void:
 	step(delta)
 
 
-## Pencere sayacı: host'ta süre dolunca CAUGHT; istemcide yalnız gösterim sayacı.
+## Window counter: on the host, CAUGHT at expiry; on a client a display counter only.
 func step(delta: float) -> void:
 	if state != State.HELD:
 		return
@@ -82,22 +80,22 @@ func is_caught() -> bool:
 	return state == State.CAUGHT
 
 
-## Tutma penceresinden kalan (sn; HELD değilse 0).
+## Time left in the hold window (s; 0 if not HELD).
 func hold_left() -> float:
 	return _hold_left if state == State.HELD else 0.0
 
 
-## Yakalayan (host; yakalanmadıysa boş): &"owner" | &"chaser".
+## Catcher (host; empty if not caught): &"owner" | &"chaser".
 func caught_by() -> StringName:
 	return _caught_by
 
 
-## Bu oyunda kaç kez tutuldu (host).
+## Times held this game (host).
 func times_held() -> int:
 	return _times_held
 
 
-## Yalnız host: serbest oyuncuyu `window` sn tutar. Kabul edilmezse false.
+## Host only: holds a free player for `window` s. False if not accepted.
 func host_hold(window: float) -> bool:
 	if not _is_host() or state != State.FREE:
 		return false
@@ -107,7 +105,7 @@ func host_hold(window: float) -> bool:
 	return true
 
 
-## Yalnız host: kalıcı yakalama; `by` yakalayan (S3 eki: &"chaser" mahalleli, &"owner" tutma penceresi doldu).
+## Host only: permanent catch; `by` is the catcher (S3 addendum: &"chaser" neighbour, &"owner" hold window expired).
 func host_catch(by: StringName = &"") -> bool:
 	if not _is_host() or state == State.CAUGHT:
 		return false
@@ -116,12 +114,12 @@ func host_catch(by: StringName = &"") -> bool:
 	return true
 
 
-## ÇEK süzgeci (host): kurtaran tutulan oyuncunun kendisi olamaz; serbestlik Interactable'da (`not_free`).
+## PULL filter (host): the rescuer cannot be the held player; freeness is checked in Interactable (`not_free`).
 func _rescuer_allowed(peer_id: int, _actor: Node) -> bool:
 	return peer_id != _peer()
 
 
-## Yalnız host: tutulan oyuncuyu serbest bırakır (kurtarma).
+## Host only: releases the held player (rescue).
 func host_release() -> bool:
 	if not _is_host() or state != State.HELD:
 		return false
@@ -163,11 +161,11 @@ func _apply() -> void:
 
 
 func _raise(kind: StringName, data: Dictionary) -> void:
-	if _is_host() and Net.is_online():  # çevrimdışı (tek başına/test) oturum olayı yok
+	if _is_host() and Net.is_online():  # offline (solo/test): no session event
 		Game.raise_session_event(kind, data)
 
 
-## Sahibi oyuncunun peer'ı (oyuncu kökünün yetkisi).
+## Peer that owns the player (authority of the player root).
 func _peer() -> int:
 	var parent: Node = get_parent()
 	return parent.get_multiplayer_authority() if parent != null else 0
@@ -190,7 +188,7 @@ func _make_sync() -> MultiplayerSynchronizer:
 	return sync
 
 
-## Host ya da çevrimdışı (S2). Net bayraklarından okunur: kopuş anında (döküm, son kareler) kapanmış taşımaya
-## `multiplayer.is_server()` sorup hata basmasın (Game ile aynı kalıp).
+## Host or offline (S2). Read from Net flags: at disconnect (dump, last frames) asking `multiplayer.is_server()` on a closed transport
+## must not print an error (same pattern as Game).
 static func _host_side() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0

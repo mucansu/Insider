@@ -1,7 +1,7 @@
 extends Node2D
-## Kasa yer tutucu görseli (US-005): tezgâh üstünde çekmece; doluyken nakit rengi, boşken soluk; boşaltılırken
-## altında ilerleme çizgisi (her peer'da çoğaltılan ilerlemeden). Yalnız ebeveyn Register'ın durumunu okur
-## (KR-003). Renkler ThemeTokens'tan (S9; nakit rengi her tonda aynı: GAMEPLAY_CASH).
+## Register placeholder visual (US-005): drawer on the counter; cash colour when full, faded when empty; progress line below while emptying
+## (from replicated progress on every peer). Only reads the parent Register's state (KR-003). Colours from ThemeTokens (S9; cash colour
+## is GAMEPLAY_CASH in every tone).
 
 const SIZE := Vector2(18.0, 12.0)
 const OUTLINE_WIDTH := 1.5

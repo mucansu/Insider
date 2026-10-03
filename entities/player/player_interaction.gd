@@ -1,38 +1,35 @@
 class_name PlayerInteraction
 extends Node
-## Oyuncunun etkileşim tarafı (US-005; mimari.md S7): yalnız yerel oyuncuda çalışır. Player her fizik adımında
-## `tick` çağırır; bu düğüm yakındaki en yakın uygun Interactable'ı bulur (kurallar InteractionRules'ta,
-## toleranssız), `interact` basılınca (basılı tutmanın ön kenarı; bot `hold` adımı da) host'a istek yollar,
-## bırakınca ya da hedeften (+ S2 toleransı) uzaklaşınca iptal yollar. Sonuç host'tan gelir (S2): istemci
-## kendi başına sonuç üretmez. İlerleme yerelde hemen gösterilir (GDD §12): `started` basışta yayılır; host
-## reddederse ya da iptal ederse `finished(false)` (ceza yok, ilerleme sıfır).
-## Bırakma, sürenin son TIME_TOLERANCE payında olursa host'un kararı (tamam sayılabilir) beklenir; daha
-## erken bırakmada `finished(false)` hemen yayılır. Her istek bir sıra numarası taşır: geç gelen eski karar
-## yeni isteği bitirmez. Player sinyalleri (interaction_*; HUD sözleşmesi) bunlardan yayılır.
-## US-010 (istem satırları): her Interactable bir girdi eylemine bağlıdır (`input_action`: `interact` E, `intimidate`
-## Q). Hedef her eylem için ayrı seçilir (en yakın uygun); `target_changed` E satırını, `alt_target_changed` Q
-## satırını bildirir (iki satır). Aynı anda tek etkileşim sürer; süren etkileşim kendi eyleminin tuşu
-## bırakılınca biter.
+## Player's interaction side (US-005; S7): runs on the local player only. Player calls `tick` each physics step; this node finds the nearest
+## eligible nearby Interactable (rules in InteractionRules, no tolerance), sends a request to the host on `interact` press (leading edge of
+## the hold; bot `hold` step too), and a cancel on release or on leaving the target (+ S2 tolerance). The result comes from the host (S2):
+## the client produces no result itself. Progress shows locally at once (GDD §12): `started` fires on press; if the host rejects or
+## cancels, `finished(false)` (no penalty, zero progress). A release in the last TIME_TOLERANCE of the duration waits for the host's
+## decision (may count as done); an earlier release emits `finished(false)` at once. Each request carries a sequence number: a late old
+## decision does not finish a new request. Player signals (interaction_*; HUD contract) are emitted from these.
+## US-010 (prompt lines): each Interactable is bound to an input action (`input_action`: `interact` E, `intimidate` Q). The target is picked
+## per action (nearest eligible); `target_changed` reports the E line, `alt_target_changed` the Q line (two lines). One interaction runs at
+## a time; a running interaction ends when its own action's key is released.
 
 signal target_changed(action_key: String)
-## Q (`intimidate`) satırının hedefi değişti (boş = yok; US-010).
+## Target of the Q (`intimidate`) line changed (empty = none; US-010).
 signal alt_target_changed(action_key: String)
 signal started(action_key: String, duration: float)
 signal finished(success: bool)
 
-## Bırakıldıktan sonra host kararı bu kadar gecikirse (bağlantı sorunu) etkileşim başarısız sayılır.
+## If the host decision is this late after release (connection trouble) the interaction counts as failed.
 const VERDICT_TIMEOUT_SEC := 2.0
-## Bırakmada kararın bekleneceği pay, TIME_TOLERANCE'a ek (sn): host'un ilerlemesi yerel süreden ağ
-## titremesi kadar ileride olabilir; sınırda yerel "yarıda kaldı" ile host'un "tamam"ı çelişmesin.
+## Extra wait for the decision on release, on top of TIME_TOLERANCE (s): the host's progress may lead the local time by network jitter;
+## at the boundary local "aborted" must not contradict the host's "done".
 const RELEASE_MARGIN := 0.1
-## Q satırının girdi eylemi (S5; Interactable.input_action); diğer her eylem E satırıdır.
+## Input action of the Q line (S5; Interactable.input_action); every other action is the E line.
 const ALT_ACTION := &"intimidate"
 
 var _target: Interactable = null
 var _target_key: String = ""
 var _alt_target: Interactable = null
 var _alt_target_key: String = ""
-## Süren etkileşim Q ile mi başladı (bırakma o tuşla denetlenir).
+## Whether the running interaction was started with Q (release is checked on that key).
 var _active_alt: bool = false
 var _was_alt_held: bool = false
 var _active: Interactable = null
@@ -43,16 +40,16 @@ var _released: bool = false
 var _waited: float = 0.0
 var _was_held: bool = false
 var _started_at: float = 0.0
-## Döküm (S6 "interaction"): yollanan istek, başarı, başarısızlık; son başarının sonuç gecikmesi
-## (basıştan host kararına geçen süre − basılı tutma süresi ≈ RTT; ms).
+## Dump (S6 "interaction"): requests sent, successes, failures; result latency of the last success
+## (time from press to host decision minus hold time ~ RTT; ms).
 var _requests: int = 0
 var _successes: int = 0
 var _failures: int = 0
 var _result_delay_ms: float = -1.0
 
 
-## Yerel oyuncunun bir fizik adımı: `held` = interact basılı mı, `actor_pos` = global konum; `alt_held` = intimidate
-## (Q) basılı mı (US-010).
+## One physics step of the local player: `held` = interact held, `actor_pos` = global position; `alt_held` = intimidate
+## (Q) held (US-010).
 func tick(delta: float, held: bool, actor_pos: Vector2, peer_id: int, actor_tags: Dictionary = {},
 		alt_held: bool = false) -> void:
 	if _active != null and not is_instance_valid(_active):
@@ -77,17 +74,17 @@ func tick(delta: float, held: bool, actor_pos: Vector2, peer_id: int, actor_tags
 	_was_alt_held = alt_held
 
 
-## Etkileşim sürüyor mu (istek yollandı, karar gelmedi).
+## Whether an interaction is running (request sent, no decision yet).
 func is_active() -> bool:
 	return _active != null
 
 
-## Şu anki hedefin eylem anahtarı (boş = hedef yok).
+## Action key of the current target (empty = no target).
 func target_key() -> String:
 	return _target_key
 
 
-## Q satırının hedefinin eylem anahtarı (boş = yok; US-010).
+## Action key of the Q line's target (empty = none; US-010).
 func alt_target_key() -> String:
 	return _alt_target_key
 
@@ -112,7 +109,7 @@ func _select_target(actor_pos: Vector2, peer_id: int, actor_tags: Dictionary) ->
 	for node: Node in get_tree().get_nodes_in_group(Interactable.GROUP):
 		var item: Interactable = node as Interactable
 		if item == null or (actor != null and actor.is_ancestor_of(item)):
-			continue  # oyuncunun kendi bileşeni (ÇEK, US-008) kendisine hedef olmaz
+			continue  # the player's own component (PULL, US-008) is never its own target
 		if item.can_start(peer_id, actor_pos, actor_tags):
 			if item.input_action == ALT_ACTION:
 				alt_candidates.append(item)
@@ -148,16 +145,16 @@ func _start(target: Interactable, alt: bool) -> void:
 	_requests += 1
 	target.request_finished.connect(_on_verdict)
 	started.emit(target.action_key, maxf(target.hold_time, 0.0))
-	target.request_start(_seq)  # host'ta karar aynı çağrıda gelebilir (anlık eylem)
+	target.request_start(_seq)  # on the host the decision can come in the same call (instant action)
 
 
 func _release() -> void:
 	if _hold_time > 0.0:
 		_active.request_cancel(_seq)
 		if _active == null:
-			return  # host'ta karar aynı çağrıda geldi
+			return  # on the host the decision came in the same call
 	if InteractionRules.release_completes(_elapsed + RELEASE_MARGIN, _hold_time):
-		_released = true  # son pay: host tamam sayabilir, kararı bekle
+		_released = true  # last margin: host may count it done, wait for the decision
 		_waited = 0.0
 	else:
 		_finish(false)

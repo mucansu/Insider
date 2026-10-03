@@ -1,13 +1,12 @@
 class_name PuppetCloth
 extends RefCounted
-## Kuklanın ikincil hareketi (US-014; GDD §14.1): atkı verlet zinciri ve koşu adımı tozu. Düğümsüz; noktalar
-## dünya px'inde tutulur (oyuncu yürüdükçe atkı arkada savrulur, toz yerde kalır). PuppetRig her sabit adımda
-## çağırır; atkı bağlantısını ve ölçeği o verir.
+## Puppet secondary motion (US-014; GDD §14.1): scarf verlet chain and sprint step dust. Node-free; points are kept in world px (the scarf
+## trails behind as the player walks, dust stays on the ground). PuppetRig calls it each fixed step and supplies the scarf anchor and scale.
 
 const SCARF_ITERATIONS := 4
-## En kısa kısıt uzunluğu (sıfıra bölmeyi önler).
+## Shortest constraint length (avoids division by zero).
 const MIN_DISTANCE := 0.0001
-## Toz (kukla birimi): çıkış noktası (bakışın tersine), dağılma, hız, yükselme, yarıçap; sürüklenme (adım başına).
+## Dust (puppet units): spawn point (opposite the facing), spread, speed, rise, radius; drag (per step).
 const DUST_BEHIND := 5.0
 const DUST_DEPTH := 2.5
 const DUST_SCATTER := Vector2(2.5, 1.0)
@@ -18,7 +17,7 @@ const DUST_RADIUS := Vector2(1.5, 3.0)
 const DUST_DRAG := 0.96
 
 
-## Toz parçacığı (dünya px).
+## Dust particle (world px).
 class Dust extends RefCounted:
 	var position: Vector2 = Vector2.ZERO
 	var velocity: Vector2 = Vector2.ZERO
@@ -32,7 +31,7 @@ var _scarf_prev: PackedVector2Array = []
 var _dust: Array[Dust] = []
 
 
-## Atkı noktaları (dünya px; ilk nokta bağlantı). Atkı yoksa boş.
+## Scarf points (world px; first point is the anchor). Empty if no scarf.
 func scarf_points() -> PackedVector2Array:
 	return _scarf
 
@@ -45,7 +44,7 @@ func clear_dust() -> void:
 	_dust.clear()
 
 
-## Atkıyı bağlantıdan dümdüz aşağı, hızsız asar (`segments` 0 = atkı yok).
+## Hangs the scarf straight down from the anchor with no velocity (`segments` 0 = no scarf).
 func reset_scarf(anchor: Vector2, segments: int, segment_px: float) -> void:
 	_scarf.clear()
 	_scarf_prev.clear()
@@ -55,7 +54,7 @@ func reset_scarf(anchor: Vector2, segments: int, segment_px: float) -> void:
 		_scarf_prev.append(p)
 
 
-## Bir verlet adımı: sönümlü atalet + yerçekimi düşüşü (`fall` px), sonra parça boyu kısıtları.
+## One verlet step: damped inertia + gravity drop (`fall` px), then segment-length constraints.
 func step_scarf(anchor: Vector2, segments: int, segment_px: float, damping: float, fall: float) -> void:
 	if _scarf.size() != segments:
 		reset_scarf(anchor, segments, segment_px)
@@ -83,7 +82,7 @@ func step_scarf(anchor: Vector2, segments: int, segment_px: float, damping: floa
 		_scarf[0] = anchor
 
 
-## Koşu adımında ayak arkasından toz (`facing` birim bakış yönü, `scale` kukla ölçeği).
+## Dust behind the foot on a sprint step (`facing` unit facing, `scale` puppet scale).
 func emit_dust(origin: Vector2, facing: Vector2, count: int, life: Vector2, scale: float,
 		rng: RandomNumberGenerator) -> void:
 	for i: int in count:

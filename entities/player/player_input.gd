@@ -1,17 +1,15 @@
 class_name PlayerInput
 extends Node
-## Oyuncu girdisi soyutlaması (mimari.md S5, S6; US-004 AC3). Player her fizik adımının başında `poll(delta)`
-## çağırır, sonra yalnız buradan okur; oyuncu kodu `Input`'a doğrudan dokunmaz.
-## Kaynak `_ready`'de seçilir: uzak kopyada (yetki başka peer'da) girdi okunmaz; yerel oyuncuda `--bot`
-## verildiyse bot zaman çizelgesi (S6), yoksa klavye/gamepad (S5 eylemleri, analog dahil).
-## Oyun içi menü açıkken (`UiInput.is_gameplay_input_blocked()`, S5; §6'daki tek ui/ istisnası) cihaz girdisi
-## okunmaz, basılı eylemler bırakılmış sayılır; bot girdisi bundan etkilenmez.
-## `--bot` zaman çizelgesi süreç genelidir: seviye değişiminde yeniden doğan yerel oyuncu kaldığı yerden sürdürür
-## ("oyun başlangıcı" = süreçteki ilk yerel oyuncunun ilk fizik adımı).
-## Bakış (US-011b AC3; GDD §6.5): `look_vector(origin)` dünya yönü ya da ZERO (açık bakış yok → oyuncu hareket
-## yönüne yumuşak döner, klavye-yalnız). Cihazda son kullanılan bakış aygıtı geçerlidir: fare hareketi → fare
-## (oyuncudan imlece dünya yönü), sağ çubuk (`look_*`, S5) ölü bölge dışında → çubuk yönü; çubuk bırakılınca açık
-## bakış yok. Bot: zaman çizelgesinin `"look"` adımı (S6 eki).
+## Player input abstraction (S5, S6; US-004 AC3). Player calls `poll(delta)` at the start of each physics step and reads only from here;
+## player code never touches `Input` directly. Source is chosen in `_ready`: a remote copy (authority on another peer) reads no input;
+## the local player uses the `--bot` timeline (S6) if given, else keyboard/gamepad (S5 actions, analog included). While an in-game menu is
+## open (`UiInput.is_gameplay_input_blocked()`, S5; the only ui/ exception in §6) device input is not read and held actions count as
+## released; bot input is unaffected. The `--bot` timeline is process-wide: a local player respawned on a level change continues where it
+## left off ("game start" = first physics step of the first local player in the process).
+## Look (US-011b AC3; GDD §6.5): `look_vector(origin)` is a world direction or ZERO (no explicit look -> the player turns smoothly toward
+## movement, keyboard-only). On a device the last-used look device wins: mouse motion -> mouse (world direction from player to cursor),
+## right stick (`look_*`, S5) outside the dead zone -> stick direction; releasing the stick means no explicit look. Bot: the timeline's
+## `"look"` step (S6 addendum).
 
 enum Source { NONE, DEVICE, BOT }
 
@@ -19,16 +17,16 @@ const MOVE_LEFT := &"move_left"
 const MOVE_RIGHT := &"move_right"
 const MOVE_UP := &"move_up"
 const MOVE_DOWN := &"move_down"
-## Basılı / yeni basıldı durumu izlenen eylemler (S5).
+## Actions tracked for held / just pressed (S5).
 const ACTIONS: Array[StringName] = [&"sprint", &"sneak", &"interact", &"intimidate"]
 const LOOK_LEFT := &"look_left"
 const LOOK_RIGHT := &"look_right"
 const LOOK_UP := &"look_up"
 const LOOK_DOWN := &"look_down"
-## Cihazda son kullanılan bakış aygıtı.
+## Last-used look device.
 enum LookDevice { NONE, MOUSE, STICK }
 
-## `--bot` dosyasının süreç geneli zaman çizelgesi (ilk yerel oyuncuda yüklenir).
+## Process-wide timeline of the `--bot` file (loaded on the first local player).
 static var _process_bot: BotTimeline = null
 
 var _source: Source = Source.NONE
@@ -55,22 +53,22 @@ func source() -> Source:
 	return _source
 
 
-## Klavye/gamepad (S5).
+## Keyboard/gamepad (S5).
 func use_device() -> void:
 	_set_source(Source.DEVICE, null)
 
 
-## Verilen zaman çizelgesi (S6); testler kendi çizelgesini verebilir.
+## Given timeline (S6); tests may supply their own.
 func use_bot(timeline: BotTimeline) -> void:
 	_set_source(Source.BOT if timeline != null else Source.NONE, timeline)
 
 
-## Girdi yok (uzak kopya).
+## No input (remote copy).
 func use_none() -> void:
 	_set_source(Source.NONE, null)
 
 
-## Bu adımın girdisini okur; Player her fizik adımının başında bir kez çağırır.
+## Reads this step's input; Player calls it once at the start of each physics step.
 func poll(delta: float) -> void:
 	_move = Vector2.ZERO
 	_look = Vector2.ZERO
@@ -97,13 +95,12 @@ func poll(delta: float) -> void:
 				_just_pressed[action] = Input.is_action_just_pressed(action)
 
 
-## Hareket yönü; uzunluğu en fazla 1 (analog çubukta kısmi).
+## Movement direction; length <= 1 (partial on an analog stick).
 func move_vector() -> Vector2:
 	return _move
 
 
-## Bu adımın açık bakış yönü (dünya, birim) ya da ZERO. `origin`: oyuncunun dünya konumu (fare bakışı imlece
-## oradan yönelir).
+## Explicit look direction this step (world, unit) or ZERO. `origin`: player's world position (mouse look aims from there to the cursor).
 func look_vector(origin: Vector2) -> Vector2:
 	var mouse: bool = _source == Source.DEVICE and _look_device == LookDevice.MOUSE and is_inside_tree()
 	if mouse and not UiInput.is_gameplay_input_blocked():

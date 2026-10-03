@@ -1,21 +1,20 @@
 class_name PuppetLook
 extends Resource
-## Kuklanın görünümü (US-014; GDD §14.1, KR-017): rol silueti başlıktan, oran ve kostüm renkleri. Rol ayrı
-## sınıf değil, kozmetik parametredir (mimari S10). Oyuncu kimliği atkı rengindedir ve buradan değil
-## `ThemeTokens.PLAYER_COLORS[slot]`'tan gelir; görünüm atkının olup olmadığını söyler (sivil atkısız).
-##
-## Doku yuvaları: her parça için isteğe bağlı doku (ileride çizilmiş/üretilmiş parça görselleri). Boşsa parça
-## kodla çizilir; doluysa Puppet o parçanın çerçevesine dokuyu çizer (çerçeveler Puppet.part_rect()).
+## Puppet look (US-014; GDD §14.1, KR-017): role silhouette from the headgear, proportions and costume colours. Role is a cosmetic parameter,
+## not a separate class (S10). Player identity is the scarf colour from `ThemeTokens.PLAYER_COLORS[slot]`, not from here; the look
+## says whether there is a scarf (civilians have none).
+## Texture slots: optional texture per part (hand-drawn/generated part art later). If empty the part is drawn in code; if set, Puppet draws
+## the texture into the part's frame (frames from Puppet.part_rect()).
 
 enum Gear { NONE, HOOD, BEANIE, CAP, POLICE }
 
-## Başlık (rol silueti).
+## Headgear (role silhouette).
 @export var gear: Gear = Gear.NONE
-## Gövde genişlik çarpanı (Muscle geniş, Tech dar).
+## Body width multiplier (Muscle wide, Tech narrow).
 @export_range(0.5, 1.5, 0.01) var width: float = 1.0
-## Atkı (oyuncu kimliği) var mı.
+## Whether there is a scarf (player identity).
 @export var has_scarf: bool = true
-## Gövdede rozet (muhafız/polis).
+## Body badge (guard/police).
 @export var badge: bool = false
 
 @export_group("Renkler")
@@ -25,7 +24,7 @@ enum Gear { NONE, HOOD, BEANIE, CAP, POLICE }
 @export var shoe_color: Color = Color.BLACK
 @export var eye_color: Color = Color.BLACK
 @export var blush_color: Color = Color.TRANSPARENT
-## Başlık ana / koyu / vurgu rengi (kapüşon, bere bandı, kulaklık, siper, rozet).
+## Headgear main / dark / accent colour (hood, beanie band, headphones, visor, badge).
 @export var gear_color: Color = Color.BLACK
 @export var gear_dark_color: Color = Color.BLACK
 @export var gear_accent_color: Color = Color.WHITE

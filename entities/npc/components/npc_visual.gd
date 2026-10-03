@@ -1,23 +1,20 @@
 class_name NpcVisual
 extends Node2D
-## NPC yer tutucu görseli (US-008; KR-003, KR-012): daire gövde + bakış üçgeni + soluk görüş konisi + tepki
-## göstergesi ("?" / "!" çizilmiş işaret; ON-04: istemcide çoğaltılan ölçerden türetilir) + olay balonu
-## (`tr()` anahtarı, S9) + tutulan oyuncuya bağ. Yalnız ebeveynin durumunu okur (duck typing): `facing`,
-## `bubble` (CivilianRules.Bubble), `cone_half_angle()`/`cone_range()`, `last_event`/`last_event_age`,
-## `held_position()`. Kukla NPC başlıkları US-014'te bunun yerini alır. Renkler ThemeTokens'tan (§6 görsel istisnası).
-##
-## Görünürlük kapısı (US-011b AC5; GDD §6.5; KR-022/023): yalnız çizim — mantık, çarpışma ve çoğaltma etkilenmez;
-## her peer (host dahil) kendi yerel görüşüyle çizer. Seviyede yerel oyuncunun sisi (`Level.fog_layer()`, duck
-## typing) varsa her fizik adımında: tam görünür = sisin `can_see` (görünen karo ∧ görüş hattı); çevresel =
-## `is_peripheral_at` ∧ görüş hattı (yönlü kip). Karar `SightGate`'te (core): FULL tam çizim; SILHOUETTE soluk
-## siluet (MUTED α 0,5; koni, gösterge, balon, tutma bağı yok); görüşten çıkınca 0,2 sn tutma, sonra son görülen
-## konumda 1,5 sn hareketsiz hayalet (son 0,3 sn solar; hareket azaltmada solmaz), sonra gizli. İşaretler (koni,
-## "?"/"!", balonlar) yalnız FULL iken. Siluet ve hayalet sisin üstünde (VisionRules.ABOVE_FOG_Z) çizilir. Sis
-## yoksa her şey FULL. Dökümün `vision.visible_npcs` listesi `is_fully_visible()` olanlardan (grup
-## VisionRules.NPC_VISUAL_GROUP).
-## US-016 eki (yalnız ekleme): müşteri ve yoldan geçen rolleri (gövde rengi), sivil/keşif balonları; sivil bir
-## oyuncuyla iç içe geçince yarı saydam çizilir (GDD §9.2 "Engel": çarpışma yok, okunur kalsın).
-## IS-087: ebeveyn `is_listening()` true iken (sahip DİNLE'de) gösterge yoksa "?" çizilir.
+## NPC placeholder visual (US-008; KR-003, KR-012): circle body + look triangle + faint vision cone + reaction indicator (drawn "?" / "!"
+## glyph; ON-04: derived from the replicated meter on a client) + event balloon (`tr()` key, S9) + link to a held player. Only reads the
+## parent's state (duck typing): `facing`, `bubble` (CivilianRules.Bubble), `cone_half_angle()`/`cone_range()`, `last_event`/
+## `last_event_age`, `held_position()`. Puppet NPC headgear replaces this in US-014. Colours from ThemeTokens (§6 visual exception).
+## Visibility gate (US-011b AC5; GDD §6.5; KR-022/023): drawing only - logic, collision and replication unaffected; every peer (host
+## included) draws with its own local vision. If the level has the local player's fog (`Level.fog_layer()`, duck typing), each physics
+## step: fully visible = fog's `can_see` (visible tile AND line of sight); peripheral = `is_peripheral_at` AND line of sight (directional
+## mode). Decision lives in `SightGate` (core): FULL draws everything; SILHOUETTE a faint silhouette (MUTED alpha 0.5; no cone, indicator,
+## balloon, hold link); on leaving vision it holds 0.2 s, then a still ghost at the last seen position for 1.5 s (fades over the last 0.3 s;
+## no fade under reduced motion), then hidden. Markers (cone, "?"/"!", balloons) only while FULL. Silhouette and ghost draw above fog
+## (VisionRules.ABOVE_FOG_Z). Without fog everything is FULL. The dump's `vision.visible_npcs` lists those with `is_fully_visible()`
+## (group VisionRules.NPC_VISUAL_GROUP).
+## US-016 addition (additive): customer and passerby roles (body colour), civilian/discovery balloons; a civilian overlapping a player is
+## drawn translucent (GDD §9.2 "Obstacle": no collision, stay readable).
+## IS-087: while the parent's `is_listening()` is true (owner in LISTEN) and there is no indicator, "?" is drawn.
 
 enum Role { OWNER, CHASER, CUSTOMER, PASSERBY }
 
@@ -33,12 +30,12 @@ const GLYPH_WIDTH := 3.0
 const BALLOON_SEC := 2.5
 const BALLOON_OFFSET := Vector2(0.0, -46.0)
 const HOLD_RING := 16.0
-## Sivil oyuncuyla bu mesafeden yakınsa (px; iki gövde yarıçapı) yarı saydam, saydamlık.
+## Within this distance of a player (px; two body radii) a civilian is translucent, with this opacity.
 const OVERLAP_PX := 24.0
 const OVERLAP_ALPHA := 0.5
-## Çizilen koninin en geniş yarım açısı (derece; 180 tam daire, çokgen üçgenlenemez).
+## Widest half angle of the drawn cone (degrees; 180 = full circle, polygon cannot be triangulated).
 const MAX_CONE_DEG := 175.0
-## Olay → balon metni anahtarı (i18n/texts.csv).
+## Event -> balloon text key (i18n/texts.csv).
 const BALLOON_KEYS := {
 	&"owner_question": "OWNER_QUESTION",
 	&"owner_shrug": "OWNER_SHRUG",
@@ -96,7 +93,7 @@ func _physics_process(delta: float) -> void:
 	z_index = 0 if _gate.is_full() else VisionRules.ABOVE_FOG_Z
 
 
-## Bir oyuncu gövdesiyle iç içe mi (sivil yarı saydamlığı; yalnız çizim).
+## Whether overlapping a player body (civilian translucency; drawing only).
 func _overlaps_player(at: Vector2) -> bool:
 	for node: Node in get_tree().get_nodes_in_group(PhysicsLayers.ACTORS_GROUP):
 		var p: Node2D = node as Node2D
@@ -105,12 +102,12 @@ func _overlaps_player(at: Vector2) -> bool:
 	return false
 
 
-## Bu peer'da tam çiziliyor mu (işaretler dahil; döküm `visible_npcs`).
+## Whether fully drawn on this peer (markers included; dump `visible_npcs`).
 func is_fully_visible() -> bool:
 	return _gate.is_full()
 
 
-## Görünürlük kapısının çizim biçimi (SightGate.Mode).
+## Draw mode of the visibility gate (SightGate.Mode).
 func sight_mode() -> SightGate.Mode:
 	return _gate.mode()
 
@@ -177,7 +174,7 @@ func _draw() -> void:
 			_draw_exclaim(ThemeTokens.GAMEPLAY_ALERT)
 		_:
 			if _listening(p):
-				_draw_question(tone.fg_color)  # IS-087 AC4: DİNLE sırasında "?" (GDD §9.3)
+				_draw_question(tone.fg_color)  # IS-087 AC4: "?" while in LISTEN (GDD §9.3)
 	_draw_balloon(p, tone)
 
 
@@ -192,7 +189,7 @@ func _body_color(tone: Tone) -> Color:
 	return ThemeTokens.GAMEPLAY_ALERT.darkened(0.25)
 
 
-## Soluk siluet (çevresel bölge ve hayalet): gövde + bakış üçgeni, MUTED, kapının opaklığıyla; işaret yok.
+## Faint silhouette (peripheral area and ghost): body + look triangle, MUTED, with the gate's opacity; no markers.
 func _draw_silhouette(center: Vector2, face: Vector2, tone: Tone) -> void:
 	var color := Color(tone.muted_color, _gate.alpha())
 	if color.a <= 0.0:
@@ -203,7 +200,7 @@ func _draw_silhouette(center: Vector2, face: Vector2, tone: Tone) -> void:
 	draw_colored_polygon(PackedVector2Array([tip, center + face * RADIUS + side, center + face * RADIUS - side]), color)
 
 
-## Ebeveyn bir sesi dinliyor mu (duck typing `is_listening()`; sahip, IS-087 AC4).
+## Whether the parent is listening to a sound (duck typing `is_listening()`; owner, IS-087 AC4).
 static func _listening(p: Node) -> bool:
 	return p.has_method(&"is_listening") and bool(p.call(&"is_listening"))
 
@@ -219,20 +216,20 @@ func _draw_cone(face: Vector2, half_deg: float, reach: float, color: Color) -> v
 	if half_deg <= 0.0 or reach <= 0.0:
 		return
 	var points := PackedVector2Array([Vector2.ZERO])
-	var half: float = deg_to_rad(minf(half_deg, MAX_CONE_DEG))  # tam daire üçgenlenemez
+	var half: float = deg_to_rad(minf(half_deg, MAX_CONE_DEG))  # a full circle cannot be triangulated
 	for i: int in CONE_SEGMENTS + 1:
 		points.append(face.rotated(-half + 2.0 * half * i / CONE_SEGMENTS) * reach)
 	draw_colored_polygon(points, Color(color, CONE_ALPHA))
 
 
-## "!": dikey çubuk + nokta.
+## "!": vertical bar + dot.
 func _draw_exclaim(color: Color) -> void:
 	var top: Vector2 = GLYPH_OFFSET - Vector2(0.0, GLYPH_HEIGHT * 0.5)
 	draw_line(top, GLYPH_OFFSET + Vector2(0.0, GLYPH_HEIGHT * 0.2), color, GLYPH_WIDTH)
 	draw_circle(GLYPH_OFFSET + Vector2(0.0, GLYPH_HEIGHT * 0.5), GLYPH_WIDTH * 0.6, color)
 
 
-## "?": yarım yay + kısa sap + nokta.
+## "?": half arc + short stem + dot.
 func _draw_question(color: Color) -> void:
 	var r: float = GLYPH_HEIGHT * 0.3
 	var center: Vector2 = GLYPH_OFFSET - Vector2(0.0, GLYPH_HEIGHT * 0.25)

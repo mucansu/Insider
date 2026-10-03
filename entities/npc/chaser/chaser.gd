@@ -1,14 +1,13 @@
 class_name Chaser
 extends CharacterBody2D
-## Mahalleli (US-008 AC6; GDD §9.3; KR-021, ON-08): sahip bağırınca bakkalın uyarı yöneticisi (`StoreAlert`)
-## `NeighbourSpawn`'da üretir (MultiplayerSpawner, host; özel spawn_function konumu ve koşu hedefini verir).
-## Kök CharacterBody2D (katman npcs, maske world: oyuncuları itmez); bileşenler `Perception` (yalnız görüş
-## hattı), `Mover`, `Senses`, `Brain` (ChaserBrain) ve `Visual`. Host: beyin + ivmeli hareket + yayın (15 Hz,
-## konum/yön güvenilmez, durum güvenilir); istemci yumuşatarak izler. Görsel her zaman "!" gösterir.
-## Döküm: StoreAlert "chasers" anahtarında.
-## US-043: `Misdirect` Interactable (YÖNLENDİR "o tarafa kaçtı!"; sahibinkiyle aynı ayar, etiket `cover`); her peer'da
-## sahibin `misdirect_open()`ından etkin; tamamlanınca host sahibin `misdirect(peer)`ini çağırır. Tutulurken mahalleli
-## durur (beyin `listening`). `mislead(nokta, sn)` host API'si (sahip çağırır).
+## Neighbour (US-008 AC6; GDD §9.3; KR-021, ON-08): when the owner shouts, the shop's alert manager (`StoreAlert`) spawns it at
+## `NeighbourSpawn` (MultiplayerSpawner, host; custom spawn_function supplies position and run target). Root CharacterBody2D (layer npcs,
+## mask world: does not push players); components `Perception` (line of sight only), `Mover`, `Senses`, `Brain` (ChaserBrain) and `Visual`.
+## Host: brain + accelerated movement + replication (15 Hz, position/facing unreliable, state reliable); client follows with smoothing.
+## Visual always shows "!". Dump: StoreAlert under the "chasers" key.
+## US-043: `Misdirect` Interactable (REDIRECT "they ran that way!"; same tuning as the owner's, tag `cover`); enabled on every peer from
+## the owner's `misdirect_open()`; on completion the host calls the owner's `misdirect(peer)`. The neighbour stands still while held (brain
+## `listening`). `mislead(point, s)` host API (the owner calls it).
 
 const TUNING_PATH := "res://data/npc/chaser_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
@@ -19,15 +18,15 @@ const SNAP_PX := 96.0
 @export var civilian_tuning: CivilianTuning
 @export var auto_step: bool = true
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var net_position: Vector2 = Vector2.ZERO
 var net_facing: Vector2 = Vector2.LEFT
 var net_state: int = 0
 
-## Görselin okuduğu durum.
+## State the visual reads.
 var facing: Vector2 = Vector2.LEFT
 var bubble: int = CivilianRules.Bubble.ALARM
-## Koşu hedefi (spawn verisi; host).
+## Run target (spawn data; host).
 var goal: Vector2 = Vector2.INF
 
 @onready var _perception: Perception = $Perception
@@ -84,7 +83,7 @@ func brain() -> ChaserBrain:
 	return _brain
 
 
-## Host API (US-043): yanlış yöne koşturulur; kabul edilirse true.
+## Host API (US-043): sent running the wrong way; true if accepted.
 func mislead(point: Vector2, sec: float) -> bool:
 	return _brain.mislead(point, sec) if _host_side() else false
 
@@ -93,7 +92,7 @@ func misdirect_interactable() -> Interactable:
 	return _misdirect
 
 
-## Bakkal sahibi (S4 `npcs_root` altında `misdirect` sunan); yoksa null.
+## Shop owner (node under S4 `npcs_root` offering `misdirect`); null if none.
 func shop_owner() -> Node:
 	var parent: Node = get_parent()
 	if parent == null:
@@ -104,7 +103,7 @@ func shop_owner() -> Node:
 	return null
 
 
-## Oyuncunun örtüsü sağlam mı (sahibin duyusundan; sahip yoksa false: herkes kovalanır).
+## Whether the player's cover is intact (from the owner's senses; false if no owner: everyone is chased).
 func _cover_intact(peer_id: int) -> bool:
 	var o: Node = shop_owner()
 	if o == null or not o.has_method(&"senses"):
@@ -135,7 +134,7 @@ func _level() -> Node:
 	return node
 
 
-## Host ya da çevrimdışı (S2). Net bayraklarından okunur: kopuş anında (döküm, son kareler) kapanmış taşımaya
-## `multiplayer.is_server()` sorup hata basmasın (Game ile aynı kalıp).
+## Host or offline (S2). Read from Net flags: at disconnect (dump, last frames) asking `multiplayer.is_server()` on a closed transport
+## must not print an error (same pattern as Game).
 static func _host_side() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0

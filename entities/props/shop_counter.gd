@@ -1,19 +1,18 @@
 class_name ShopCounter
 extends Node2D
-## Tezgâh (US-010 AC1/AC2/AC4; GDD §9.3 "Oyuncunun araçları", KR-026; mimari.md S2, S7). Seviyede `Props/Counter`
-## (store_a `Counter` işareti: kasanın kuzeyindeki tezgâh karosu). İki Interactable, ikisi de müşteri tarafından:
-## - `Buy` (E, `interact`): SATIN AL, `data/props/counter_buy.tres` (2 sn tut). Host: sahibin `serve_player(peer)`
-##   servisi (US-016 SERVE akışı; servisin 2. sn'si `register_opened` → US-039 keşfi), kabul edilirse ekip nakdinden
-##   `buy_price` (nakit yetmezse bedava; `CivilianRules.purchase_cost`), oturum olayı `purchase` {peer}.
-## - `Send` (Q, `intimidate`; gamepad X): ARKA ODAYA GÖNDER, `data/props/counter_send.tres` (2 sn tut). Host: sahibin
-##   `send_to_backroom(peer)`; iş başına 1 (`sent_used`, çoğaltılır), oturum olayı `owner_sent` {peer}.
-## Görünürlük (her peer'da çoğaltılan durumdan): sahip yoksa/etkin değilse ikisi kapalı; sahip bağırmışsa
-## (`has_shouted`, çoğaltılır) ikisi gizli; GÖNDER kullanılınca Q satırı gizli. Host engeli (peer'lı
-## `start_blocker`, S7 eki): sahip o an kabul edemiyorsa (alarm, başka servis, gönderilmiş) istek `blocked`.
-## Etkileşimler masumdur (`Interactable.innocent`: sivil çarpan tablosunda kurcalama sayılmaz).
-## Sahibe yalnız S4 Level API'si (`npcs_root`) ve duck typing ile erişilir (`serve_player`, `send_to_backroom`,
-## `can_serve_player`, `can_send`, `has_shouted`, `is_active`).
-## Döküm (S6 "props"): {"purchases", "paid", "sent_used", "buy", "send"}.
+## Counter (US-010 AC1/AC2/AC4; GDD §9.3 "Player tools", KR-026; S2, S7). `Props/Counter` in the level (store_a `Counter` marker: the counter
+## tile north of the register). Two Interactables, both from the customer side:
+## - `Buy` (E, `interact`): BUY, `data/props/counter_buy.tres` (hold 2 s). Host: owner's `serve_player(peer)` service (US-016 SERVE flow;
+##   service sec 2 `register_opened` -> US-039 discovery); if accepted, `buy_price` from team cash (free if cash is short;
+##   `CivilianRules.purchase_cost`), session event `purchase` {peer}.
+## - `Send` (Q, `intimidate`; gamepad X): SEND TO BACKROOM, `data/props/counter_send.tres` (hold 2 s). Host: owner's `send_to_backroom(peer)`;
+##   1 per heist (`sent_used`, replicated), session event `owner_sent` {peer}.
+## Visibility (from replicated state on every peer): both off without an active owner; both hidden if the owner has shouted
+## (`has_shouted`, replicated); Q prompt hidden once SEND was used. Host blocker (peer-aware `start_blocker`, S7 addendum): request is
+## `blocked` if the owner cannot accept now (alarm, other service, already sent). Interactions are innocent (`Interactable.innocent`:
+## not tampering in the civilian multiplier table). The owner is reached only via the S4 Level API (`npcs_root`) and duck typing
+## (`serve_player`, `send_to_backroom`, `can_serve_player`, `can_send`, `has_shouted`, `is_active`).
+## Dump (S6 "props"): {"purchases", "paid", "sent_used", "buy", "send"}.
 
 const BUY_DEF_PATH := "res://data/props/counter_buy.tres"
 const SEND_DEF_PATH := "res://data/props/counter_send.tres"
@@ -24,9 +23,9 @@ const SENT_EVENT := &"owner_sent"
 @export var send_def: PropDef
 @export var tuning: StoreToolsTuning
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var sent_used: bool = false
-## Host sayaçları (döküm).
+## Host counters (dump).
 var purchases: int = 0
 var paid: int = 0
 
@@ -59,7 +58,7 @@ func _physics_process(_delta: float) -> void:
 	_refresh()
 
 
-## Sahip (S4 `npcs_root` altında `serve_player` sunan düğüm); yoksa null.
+## Owner (node under S4 `npcs_root` offering `serve_player`); null if none.
 func shop_owner() -> Node:
 	if _owner_node != null and is_instance_valid(_owner_node):
 		return _owner_node
@@ -94,7 +93,7 @@ func dump_state() -> Dictionary:
 	}
 
 
-## Her peer'da: istem satırları çoğaltılan durumdan (AC1).
+## On every peer: prompt lines from replicated state (AC1).
 func _refresh() -> void:
 	var o: Node = shop_owner()
 	var open: bool = o != null and bool(o.call(&"is_active")) and not bool(o.call(&"has_shouted"))
@@ -112,7 +111,7 @@ func _can_send(peer_id: int) -> bool:
 	return not sent_used and o != null and bool(o.call(&"can_send", peer_id))
 
 
-## Yalnız host (Interactable.completed).
+## Host only (Interactable.completed).
 func _on_buy(peer_id: int) -> void:
 	var o: Node = shop_owner()
 	if o == null or not bool(o.call(&"serve_player", peer_id)):
@@ -125,7 +124,7 @@ func _on_buy(peer_id: int) -> void:
 	Game.raise_session_event(PURCHASE_EVENT, {"peer": peer_id, "cost": cost})
 
 
-## Yalnız host (Interactable.completed).
+## Host only (Interactable.completed).
 func _on_send(peer_id: int) -> void:
 	var o: Node = shop_owner()
 	if sent_used or o == null or not bool(o.call(&"send_to_backroom", peer_id)):

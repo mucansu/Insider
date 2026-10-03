@@ -1,17 +1,16 @@
 class_name CivilianSenses
 extends Node
-## Sivil gözlemcinin oyuncu bağlamı (US-008 AC1/AC3/AC7; GDD §6.1, §9.3; mimari.md S2, S4, S11). Yalnız host'ta
-## anlamlıdır. Oyuncuların bölgesini (Level `Zones`: CustomerArea/StaffArea/Backroom), dükkân içi süresini
-## (oyalanma), sürdürdüğü etkileşimi (`Interactable.held_by`: kasa/nakit → CASH, basılı tutulan diğerleri →
-## TAMPER) ve çanta durumunu (`is_carrying_bag()` varsa) okuyup `CivilianRules` bağlamına çevirir;
-## `factor_for` algı bileşeninin `factor_query`'sidir. Ön kapıdan içeri/dışarı geçişte `door_crossed` (zil) yayar.
-## Konum her zaman eşitleyicinin en güncel konumu (`interaction_position()`, S7): aleyhte kararlar (AC8).
-## Seviyeye yalnız S4 Level API'siyle (duck typing: `zone`, `marker`, `marker_sequence`, `props_root`) erişir.
-## US-010 ekleri: oyalanma sayacı (`loiter_s`) dükkândan çıkınca sıfırlanır (GDD §9.3), dökümü `loiter_dump()`;
-## masum (sosyal) etkileşim (`Interactable.innocent`: satın al, konuş, gönder) kurcalama sayılmaz; dikkat dağıtma
-## kaynağı (`distraction_source(pos)`: o noktadaki `distraction_peer` sunan prop).
+## Civilian observer's player context (US-008 AC1/AC3/AC7; GDD §6.1, §9.3; S2, S4, S11). Meaningful on the host only. Reads players' zone
+## (Level `Zones`: CustomerArea/StaffArea/Backroom), in-shop time (loitering), ongoing interaction (`Interactable.held_by`: register/cash ->
+## CASH, other held ones -> TAMPER) and bag state (`is_carrying_bag()` if present) and turns them into a `CivilianRules` context;
+## `factor_for` is the perception component's `factor_query`. Emits `door_crossed` (bell) on entering/leaving via the front door.
+## Position is always the synchronizer's latest (`interaction_position()`, S7): decisions against the player (AC8). Reaches the level only
+## via the S4 Level API (duck typing: `zone`, `marker`, `marker_sequence`, `props_root`).
+## US-010 additions: loiter counter (`loiter_s`) resets on leaving the shop (GDD §9.3), dump `loiter_dump()`; innocent (social)
+## interaction (`Interactable.innocent`: buy, talk, send) is not tampering; distraction source (`distraction_source(pos)`: the prop at
+## that point offering `distraction_peer`).
 
-## Yalnız host: oyuncu ön kapı eşiğinden geçti (içeri/dışarı).
+## Host only: player crossed the front door threshold (in/out).
 signal door_crossed(peer_id: int, door_pos: Vector2)
 
 const ZONE_NAMES := {
@@ -19,45 +18,45 @@ const ZONE_NAMES := {
 	CivilianRules.Zone.STAFF: &"StaffArea",
 	CivilianRules.Zone.BACKROOM: &"Backroom",
 }
-## US-042 örtü bozulma oturum olayı (Game HEIST_EVENT_COVER).
+## US-042 cover-broken session event (Game HEIST_EVENT_COVER).
 const COVER_EVENT := &"cover_broken"
-## Arka oda nakdinin "alındı" sayıldığı prop yarıçapı (px; işaretten).
+## Prop radius (px; from marker) at which backroom cash counts as "taken".
 const CASH_PROP_RADIUS := 32.0
-## Dikkat dağıtma sesinin prop'u: ses prop konumunda yayılır (px payı).
+## Prop of a distraction sound: the sound is emitted at the prop position (px margin).
 const DISTRACTION_SOURCE_PX := 2.0
 
 var tuning: CivilianTuning
 var rules: CivilianRules.Params = null
-## Zil sayılan kapı işareti ve yarıçapı (0 = zil yok).
+## Door marker that counts as the bell, and its radius (0 = no bell).
 var bell_marker: StringName = &""
 var bell_radius: float = 0.0
-## Test/teşhis: RTT (ms) yerine bu değer kullanılır (< 0 = Net'ten ölçülen).
+## Test/diagnostics: this value is used instead of RTT (ms) (< 0 = measured from Net).
 var rtt_override_ms: int = -1
-## İçerideki müşteri sayısı sorgusu (US-016 örtü; func() -> int). Yalnız sahibin duyusuna nüfus üreticisi bağlar;
-## boşsa 0 (örtü yok).
+## Query for customers inside (US-016 cover; func() -> int). Only the population spawner connects it to the owner's senses;
+## 0 if empty (no cover).
 var customers_query: Callable = Callable()
-## Oyalanma süresi sorgusu (US-016; func(peer_id) -> float): sivil tanıklar sahibin sayacını okur (oyuncunun dükkân
-## içi süresi tanığın ne zaman doğduğuna bağlı olmasın). Boşsa bu duyunun kendi sayacı.
+## Loiter time query (US-016; func(peer_id) -> float): civilian witnesses read the owner's counter (the player's in-shop time must not
+## depend on when the witness spawned). If empty, this sense's own counter.
 var loiter_query: Callable = Callable()
-## US-044: vitrinden bakma süresi izlensin mi (yalnız sahip açar; siviller ve mahalleli için kapalı).
+## US-044: whether window-gazing time is tracked (only the owner enables it; off for civilians and neighbours).
 var track_window_stare: bool = false
-## Örtü sorgusu `func(peer_id) -> bool` (test/teşhis; verilirse oturum olaylarının yerine geçer).
+## Cover query `func(peer_id) -> bool` (test/diagnostics; replaces session events if given).
 var cover_query: Callable = Callable()
 
 var _level: Node = null
 var _zones: Dictionary = {}
 var _loiter: Dictionary = {}
 var _inside: Dictionary = {}
-## İşaret adı -> başta yanında duran prop'lar (prop_taken_near).
+## Marker name -> props initially next to it (prop_taken_near).
 var _watched: Dictionary = {}
-## US-044: vitrin (cam) dikdörtgenleri (global) ve peer -> kesintisiz bakma süresi (sn).
+## US-044: window (glass) rects (global) and peer -> continuous gazing time (s).
 var _windows: Array[Rect2] = []
 var _stare: Dictionary = {}
-## US-042/US-043: örtüsü bozulan peer'lar (her peer'da `cover_broken` oturum olayından).
+## US-042/US-043: peers whose cover broke (from the `cover_broken` session event on every peer).
 var _cover_lost: Dictionary = {}
 
 
-## Seviye (Level API'li ata) ve kurallar.
+## Level (ancestor with the Level API) and rules.
 func setup(level: Node, civilian: CivilianTuning, perception: PerceptionTuning) -> void:
 	_level = level
 	tuning = civilian
@@ -68,8 +67,7 @@ func setup(level: Node, civilian: CivilianTuning, perception: PerceptionTuning) 
 		Game.session_event.connect(_on_session_event)
 
 
-## Vitrin (cam) dikdörtgenleri (global): seviyedeki `see_through` grubundaki gövdelerin dikdörtgen şekilleri (S4 eki
-## `Window<n>`).
+## Window (glass) rects (global): rect shapes of bodies in the level's `see_through` group (S4 addendum `Window<n>`).
 static func window_rects(level: Node) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	if level == null or not level.is_inside_tree():
@@ -86,13 +84,13 @@ static func window_rects(level: Node) -> Array[Rect2]:
 	return out
 
 
-## Örtü (US-042) izleniyor mu: iş sürüyor (Game örtü durumu biliniyor). Değilse herkes "bozuk" sayılır (eski
-## davranış: mahalleli herkesi kovalar; örtü olayları gelmeyen test sahneleri).
+## Whether cover (US-042) is tracked: heist running (Game knows cover state). If not, everyone counts as "broken" (old behaviour:
+## neighbour chases everyone; test scenes with no cover events).
 func cover_known() -> bool:
 	return Game.cover_state() != -1
 
 
-## Oyuncunun örtüsü sağlam mı (US-043; iş yoksa false).
+## Whether the player's cover is intact (US-043; false if no heist).
 func cover_intact(peer_id: int) -> bool:
 	if cover_query.is_valid():
 		return bool(cover_query.call(peer_id))
@@ -104,12 +102,12 @@ func _on_session_event(kind: StringName, data: Dictionary) -> void:
 		_cover_lost[int(data["peer"])] = true
 
 
-## Vitrinden kesintisiz bakma süresi (sn; US-044, izlenmiyorsa 0).
+## Continuous window-gazing time (s; US-044, 0 if not tracked).
 func window_stare_of(peer_id: int) -> float:
 	return float(_stare.get(peer_id, 0.0))
 
 
-## Bölge dikdörtgenleri (global): Zone -> Array[Rect2]. Bölge yoksa boş (her yer dışarı).
+## Zone rects (global): Zone -> Array[Rect2]. Empty if the zone is missing (everywhere counts as outside).
 static func zone_rects(level: Node) -> Dictionary:
 	var out: Dictionary = {}
 	if level == null or not level.has_method(&"zone"):
@@ -129,7 +127,7 @@ static func zone_rects(level: Node) -> Dictionary:
 	return out
 
 
-## Bir adım: oyuncuların bölgesi, oyalanma süresi ve ön kapı geçişi.
+## One step: players' zones, loiter time and front-door crossing.
 func step(delta: float) -> void:
 	var door: Vector2 = marker_position(bell_marker)
 	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
@@ -142,7 +140,7 @@ func step(delta: float) -> void:
 		if inside:
 			_loiter[peer_id] = float(_loiter.get(peer_id, 0.0)) + maxf(delta, 0.0)
 		elif was != null and bool(was):
-			_loiter[peer_id] = 0.0  # dükkândan çıkış oyalanmayı sıfırlar (US-010, GDD §9.3)
+			_loiter[peer_id] = 0.0  # leaving the shop resets loitering (US-010, GDD §9.3)
 		_inside[peer_id] = inside
 		if track_window_stare:
 			_stare[peer_id] = (float(_stare.get(peer_id, 0.0)) + maxf(delta, 0.0)) \
@@ -152,7 +150,7 @@ func step(delta: float) -> void:
 			door_crossed.emit(peer_id, door)
 
 
-## Vitrinden bakıyor mu (US-044): bir vitrine `outside_stare_px` yakın, bakışı (`look_dir`) ona dönük, yavaş.
+## Whether gazing through a window (US-044): within `outside_stare_px` of a window, look (`look_dir`) toward it, slow.
 func _is_staring(target: Node2D, pos: Vector2) -> bool:
 	if target == null or _windows.is_empty() or tuning == null:
 		return false
@@ -174,7 +172,7 @@ func _is_staring(target: Node2D, pos: Vector2) -> bool:
 	return false
 
 
-## İçerideki müşteri sayısı (US-016 örtü ve keşif; sorgu yoksa 0).
+## Customers inside (US-016 cover and discovery; 0 if no query).
 func customers_inside() -> int:
 	return int(customers_query.call()) if customers_query.is_valid() else 0
 
@@ -189,12 +187,12 @@ func loiter_time(peer_id: int) -> float:
 	return float(_loiter.get(peer_id, 0.0))
 
 
-## Oyalanma sayacını sıfırlar (US-010 SATIN AL).
+## Resets the loiter counter (US-010 BUY).
 func reset_loiter(peer_id: int) -> void:
 	_loiter[peer_id] = 0.0
 
 
-## Döküm (US-010 `loiter_s`): peer (dize) -> dükkân içi süre (sn, 0,1 adım).
+## Dump (US-010 `loiter_s`): peer (string) -> in-shop time (s, 0.1 step).
 func loiter_dump() -> Dictionary:
 	var out: Dictionary = {}
 	for peer_id: int in _loiter:
@@ -202,7 +200,7 @@ func loiter_dump() -> Dictionary:
 	return out
 
 
-## Dikkat dağıtma sesinin kaynağı (US-010): `pos`taki, `distraction_peer(kind)` sunan prop; yoksa null.
+## Source of a distraction sound (US-010): the prop at `pos` offering `distraction_peer(kind)`; null if none.
 func distraction_source(pos: Vector2) -> Node2D:
 	if _level == null or not _level.has_method(&"props_root"):
 		return null
@@ -218,7 +216,7 @@ func distraction_source(pos: Vector2) -> Node2D:
 	return null
 
 
-## Hedefin bu andaki bağlamı.
+## Target's current context.
 func context_for(target: Node) -> CivilianRules.Context:
 	var ctx := CivilianRules.Context.new()
 	var peer_id: int = target.get_multiplayer_authority()
@@ -233,7 +231,7 @@ func context_for(target: Node) -> CivilianRules.Context:
 	return ctx
 
 
-## Algının `factor_query`'si: tutulan/yakalanan oyuncu 0 (hedef değil).
+## Perception's `factor_query`: a held/caught player is 0 (not a target).
 func factor_for(target: Node) -> float:
 	if target.has_method(&"is_free") and not bool(target.call(&"is_free")):
 		return 0.0
@@ -244,7 +242,7 @@ func behaviour_for(target: Node) -> CivilianRules.Behaviour:
 	return CivilianRules.behaviour(rules, context_for(target))
 
 
-## Oyuncunun sürdürdüğü etkileşimin türü (host'taki `busy_by`).
+## Kind of interaction the player is running (host's `busy_by`).
 func interaction_of(peer_id: int) -> CivilianRules.Interaction:
 	var item: Interactable = Interactable.held_by(get_tree(), peer_id)
 	if item == null or item.innocent:
@@ -255,7 +253,7 @@ func interaction_of(peer_id: int) -> CivilianRules.Interaction:
 	return CivilianRules.Interaction.TAMPER if item.hold_time > 0.0 else CivilianRules.Interaction.NONE
 
 
-## `interaction_actors` grubundaki o peer'ın oyuncusu (yoksa null).
+## That peer's player from the `interaction_actors` group (null if none).
 func player(peer_id: int) -> Node2D:
 	if peer_id == 0:
 		return null
@@ -265,7 +263,7 @@ func player(peer_id: int) -> Node2D:
 	return null
 
 
-## Host'un bildiği en güncel konum (S7); yoksa çizilen konum.
+## Latest host-known position (S7); the drawn position if none.
 static func position_of(target: Node2D) -> Vector2:
 	if target == null:
 		return Vector2.INF
@@ -276,7 +274,7 @@ static func position_of(target: Node2D) -> Vector2:
 	return target.global_position
 
 
-## ON-03: temas kararında konum hızı yönünde min(RTT/2, cap) ileri alınır (host'ta RTT o peer'ın ping'i).
+## ON-03: for contact decisions the position is advanced along velocity by min(RTT/2, cap) (on the host RTT is that peer's ping).
 func predicted(target: Node2D, cap_sec: float) -> Vector2:
 	if target == null:
 		return Vector2.INF
@@ -286,14 +284,14 @@ func predicted(target: Node2D, cap_sec: float) -> Vector2:
 	return CivilianRules.predicted_position(position_of(target), velocity, float(rtt), cap_sec)
 
 
-## Host'tan o peer'a RTT (ms; bilinmiyorsa 0).
+## RTT from the host to that peer (ms; 0 if unknown).
 func rtt_of(peer_id: int) -> int:
 	if rtt_override_ms >= 0:
 		return rtt_override_ms
 	return maxi(Net.get_ping_ms(peer_id), 0) if Net.is_online() else 0
 
 
-## İşaret konumu (global); yoksa INF.
+## Marker position (global); INF if missing.
 func marker_position(marker_name: StringName) -> Vector2:
 	if _level == null or marker_name.is_empty() or not _level.has_method(&"marker"):
 		return Vector2.INF
@@ -301,7 +299,7 @@ func marker_position(marker_name: StringName) -> Vector2:
 	return node.global_position if node != null else Vector2.INF
 
 
-## Sıralı işaret dizisinin adları (`<önek>1..N`; Level `marker_sequence`; US-016 sokak rotası, cam önleri).
+## Names of an ordered marker sequence (`<prefix>1..N`; Level `marker_sequence`; US-016 street route, window spots).
 func marker_names(prefix: StringName) -> Array[StringName]:
 	var out: Array[StringName] = []
 	if _level == null or prefix.is_empty() or not _level.has_method(&"marker_sequence"):
@@ -312,7 +310,7 @@ func marker_names(prefix: StringName) -> Array[StringName]:
 	return out
 
 
-## İçerinin (müşteri, personel, arka oda bölgeleri) dikdörtgenleri (global; US-016 camdan bakış yönü).
+## Rects of the interior (customer, staff, backroom zones; global; US-016 look through the window).
 func inside_rects() -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	for z: Variant in _zones:
@@ -321,7 +319,7 @@ func inside_rects() -> Array[Rect2]:
 	return out
 
 
-## Ajanda çözümleyicisi: `<ad>1..N` dizisi varsa onun konumları, yoksa tek işaret.
+## Agenda resolver: positions of the `<name>1..N` sequence if present, else the single marker.
 func marker_positions(marker_name: StringName) -> Array[Vector2]:
 	var out: Array[Vector2] = []
 	if _level == null:
@@ -337,9 +335,9 @@ func marker_positions(marker_name: StringName) -> Array[Vector2]:
 	return out
 
 
-## İşaretin yanında başlayan prop alındı mı (arka oda nakdi): çanta (US-012 Bag, duck typing `is_carried()`)
-## taşınıyor ya da yerinden oynamışsa; diğer prop'larda bool `taken`/`emptied` alanı. Prop'lar ilk sorguda
-## işaretin yanındakiler olarak hatırlanır (çanta taşınınca işaretten uzaklaşır).
+## Whether a prop that started next to the marker was taken (backroom cash): a bag (US-012 Bag, duck typing `is_carried()`) is carried
+## or moved; for other props a bool `taken`/`emptied` field. Props are remembered as the ones next to the marker on the first query
+## (a carried bag moves away from the marker).
 func prop_taken_near(marker_name: StringName) -> bool:
 	var at: Vector2 = marker_position(marker_name)
 	if not at.is_finite():
@@ -374,8 +372,8 @@ func _props_near(at: Vector2) -> Array[Node2D]:
 	return out
 
 
-## Tespit kaydı (AC8; muhafiz-davranisi §4): bant, kip, aydınlık, "?" ve tespit anı, RTT, mesafe, davranış;
-## `flagged` = ağ gecikmesi kaynaklı olabilir (t_detect − t_question < 0,5 + RTT).
+## Detection record (AC8; muhafiz-davranisi §4): band, mode, light, "?" and detection time, RTT, distance, behaviour;
+## `flagged` = possibly caused by network latency (t_detect - t_question < 0.5 + RTT).
 func detection_record(peer_id: int, obs: Perception.Observation, observer: Vector2, t_question: float,
 		t_detect: float) -> Dictionary:
 	var target: Node2D = player(peer_id)

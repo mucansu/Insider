@@ -1,40 +1,37 @@
 class_name BotTimeline
 extends RefCounted
-## Bot girdisi zaman çizelgesi (mimari.md S6; US-004 AC3). Adımlar `Args.load_bot` / `Args.parse_bot_step`
-## biçimindedir (`t` float, `move` Vector2, `dur` float). `advance(delta)` zamanı ilerletir ve vakti gelen
-## adımları uygular:
-##   {"t": SN, "move": [x, y]}                 hareket yönü (uzunluğu en fazla 1) bir sonraki move'a kadar
-##   {"t": SN, "hold": "sprint", "dur": SN}    eylem [t, t + dur) aralığında basılı; dur yoksa hep basılı
-##   {"t": SN, "press": "intimidate"}          eylem yalnız uygulandığı adımda "yeni basıldı" (ve basılı)
-##   {"t": SN, "look": [x, y]}                 bakış yönü (dünya yönü; US-011b) bir sonraki look'a kadar; [0, 0]
-##                                             bırakır (bakış hareket yönünü yumuşak izler, klavye-yalnız gibi)
-## `t` oyun başlangıcından beri geçen süredir (S6). Diğer alanlar (fikstür oyuncunun "game" çağrıları gibi)
-## yok sayılır.
+## Bot input timeline (S6; US-004 AC3). Steps follow `Args.load_bot` / `Args.parse_bot_step` (`t` float, `move` Vector2, `dur` float).
+## `advance(delta)` moves time forward and applies due steps; `t` is seconds since game start (S6); other fields are ignored:
+##   {"t": S, "move": [x, y]}               move direction (length <= 1) until the next move
+##   {"t": S, "hold": "sprint", "dur": S}  action held over [t, t + dur); held forever without dur
+##   {"t": S, "press": "intimidate"}        action is "just pressed" (and held) only in the step it is applied
+##   {"t": S, "look": [x, y]}               look direction (world; US-011b) until the next look; [0, 0] releases it
+##                                           (look then follows movement smoothly, like keyboard-only)
 
 var _steps: Array[Dictionary] = []
 var _next: int = 0
 var _time: float = 0.0
 var _move: Vector2 = Vector2.ZERO
 var _look: Vector2 = Vector2.ZERO
-## Eylem -> basılı kalacağı son an (hariç).
+## Action -> last moment it stays held (exclusive).
 var _hold_until: Dictionary = {}
-## Bu adımda yeni basılan eylemler.
+## Actions newly pressed in this step.
 var _pressed: Dictionary = {}
 var _last_frame: int = -1
 
 
-## Ayrıştırılmış adımlar (`Args.parse_bot_step` çıktısı); `t`'ye göre sıralanır.
+## Parsed steps (`Args.parse_bot_step` output); sorted by `t`.
 func _init(steps: Array[Dictionary] = []) -> void:
 	_steps = steps.duplicate(true)
 	_steps.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return float(a["t"]) < float(b["t"]))
 
 
-## Bot dosyasından (S6); okunamazsa boş zaman çizelgesi (uyarıyı Args basar).
+## From a bot file (S6); empty timeline if unreadable (Args prints the warning).
 static func from_file(path: String) -> BotTimeline:
 	return BotTimeline.new(Args.load_bot(path))
 
 
-## Ham adım listesinden (JSON'dan çözülmüş sözlükler); bozuk adımlar uyarıyla atlanır.
+## From a raw step list (dictionaries decoded from JSON); malformed steps are skipped with a warning.
 static func from_raw(raw_steps: Array) -> BotTimeline:
 	var steps: Array[Dictionary] = []
 	for item: Variant in raw_steps:
@@ -46,7 +43,7 @@ static func from_raw(raw_steps: Array) -> BotTimeline:
 	return BotTimeline.new(steps)
 
 
-## Zamanı `delta` kadar ilerletir ve vakti gelen adımları uygular.
+## Advances time by `delta` and applies due steps.
 func advance(delta: float) -> void:
 	_pressed.clear()
 	_time += delta
@@ -55,8 +52,8 @@ func advance(delta: float) -> void:
 		_next += 1
 
 
-## Aynı fizik karesinde yalnız bir kez ilerler (zaman çizelgesi süreç geneli paylaşılır; seviye değişiminde
-## eski ve yeni yerel oyuncu aynı karede sorabilir).
+## Advances only once per physics frame (the timeline is process-wide; on a level change the old and new local player may ask in the
+## same frame).
 func tick(frame: int, delta: float) -> void:
 	if frame == _last_frame:
 		return
@@ -72,7 +69,7 @@ func step_count() -> int:
 	return _steps.size()
 
 
-## Bütün adımlar uygulandı mı.
+## Whether all steps have been applied.
 func is_finished() -> bool:
 	return _next >= _steps.size()
 
@@ -81,7 +78,7 @@ func move_vector() -> Vector2:
 	return _move
 
 
-## Bot bakış yönü (birim ya da sıfır = açık bakış yok).
+## Bot look direction (unit, or zero = no explicit look).
 func look_vector() -> Vector2:
 	return _look
 
@@ -106,7 +103,7 @@ func _apply(step: Dictionary) -> void:
 		_pressed[StringName(str(step["press"]))] = true
 
 
-## `"look"` adımının değeri: [x, y] sayı çifti (ya da Vector2) → birim yön; sıfır/bozuk → ZERO (bozuksa uyarı).
+## Value of a `"look"` step: [x, y] number pair (or Vector2) -> unit direction; zero/malformed -> ZERO (warning if malformed).
 static func parse_look(value: Variant) -> Vector2:
 	var v: Vector2 = Vector2.ZERO
 	if value is Vector2:

@@ -1,26 +1,21 @@
 class_name Population
 extends Node
-## Mekân nüfusu üreticisi (US-016 AC1/AC5/AC8; GDD §9.2; oyun-yz tur 2 #13, #20; mimari.md S2, S11). Seviyede
-## `NPCs` altında durağan düğüm; kardeşleri `Owner` (StoreOwner), `StoreAlert` ve `PopulationSpawner`
-## (MultiplayerSpawner, spawn_path = NPCs). Yalnız host üretir/siler; istemciler spawner'dan alır (geç katılan
-## mevcut sivilleri kabulde görür). Zamanlama ve planlar `PopulationRules.Schedule`'da (tohumlu, belirlenimci),
-## nokta rezervasyonu `SpotRegistry`'de; ayarlar `data/npc/population.tres`.
-##
-## - Üretim: müşteri sokak noktasında (`customer_spawn_marker`), raf noktaları siparişin zarlarıyla boş noktalardan
-##   seçilip tutulur; yoldan geçen sokak rotasının ilk noktasında. Ad `Customer<n>` / `Passerby<n>` (n tek sayaç).
-## - Sınırlar: içeride (etkin) müşteri ≤ `customer_max`, sokakta ≤ `passerby_max`; toplam NPC (sahip + siviller +
-##   mahalleli) + komşu payı ≤ `max_npcs`; uyarı ≥ `pause_alert_level` iken yeni sivil gelmez. Uyarı yöneticisinin
-##   komşusu tavanda yer açılana kadar bekler (`StoreAlert.room_query`).
-## - Örtü: sahibin duyusuna içerideki müşteri sayısı bağlanır (`CivilianSenses.customers_query`; ×0,5 kuralı core'da);
-##   sivil tanıklar sahibin oyalanma sayacını okur.
-## - Dönüşüm (oyun-yz #20): sahip bağırınca (`OwnerBrain.shouted`) sahibe `convert_radius` içindeki yoldan geçenler
-##   silinir, aynı yerde mahalleli üretilir (`StoreAlert.spawn_chaser_at`; NPC sayısı değişmez).
-## - Kapatma: `active = false` (fikstür; ör. tests/fixtures/store_a_quiet.tscn, store_a_nopop.tscn) ya da sahip
-##   etkin değilse hiç üretmez.
-## Döküm "population" (S6 eki): her peer'da {npcs: [{name, role, state, events}], names (sıralı), seen, events,
-## event_peers}; host'ta
-## ayrıca {customers_inside, customers_spawned, passersby_spawned, served, tells, flees, looks, converted, cancelled,
-## arrivals}.
+## Venue population spawner (US-016 AC1/AC5/AC8; GDD §9.2; oyun-yz round 2 #13, #20; S2, S11). Static node under `NPCs` in the level; siblings
+## `Owner` (StoreOwner), `StoreAlert` and `PopulationSpawner` (MultiplayerSpawner, spawn_path = NPCs). Only the host spawns/deletes; clients get
+## them from the spawner (a late joiner sees existing civilians on join). Timing and plans in `PopulationRules.Schedule` (seeded, deterministic),
+## spot reservation in `SpotRegistry`; settings in `data/npc/population.tres`.
+## - Spawning: a customer at a street point (`customer_spawn_marker`), shelf spots picked from free ones with the order's dice and held;
+##   a passerby at the first point of the street route. Names `Customer<n>` / `Passerby<n>` (n a single counter).
+## - Limits: customers inside (active) <= `customer_max`, on the street <= `passerby_max`; total NPCs (owner + civilians + neighbours) +
+##   neighbour allowance <= `max_npcs`; no new civilian while alert >= `pause_alert_level`. The alert manager's neighbour waits for room under
+##   the cap (`StoreAlert.room_query`).
+## - Cover: the owner's senses get the customers-inside count (`CivilianSenses.customers_query`; x0.5 rule in core); civilian witnesses read the
+##   owner's loiter counter.
+## - Conversion (oyun-yz #20): when the owner shouts (`OwnerBrain.shouted`) passersby within `convert_radius` of the owner are deleted and a
+##   neighbour is spawned at the same spot (`StoreAlert.spawn_chaser_at`; NPC count unchanged).
+## - Off: `active = false` (fixture; e.g. tests/fixtures/store_a_quiet.tscn, store_a_nopop.tscn) or an inactive owner spawns nothing.
+## Dump "population" (S6 addendum): on every peer {npcs: [{name, role, state, events}], names (ordered), seen, events, event_peers}; on the host also
+## {customers_inside, customers_spawned, passersby_spawned, served, tells, flees, looks, converted, cancelled, arrivals}.
 
 const CIVILIAN_SCENE := "res://entities/npc/civilian/civilian.tscn"
 const TUNING_PATH := "res://data/npc/population.tres"
@@ -32,12 +27,12 @@ const MAX_SEEN := 128
 @export var owner_path: NodePath = ^"../Owner"
 @export var alert_path: NodePath = ^"../StoreAlert"
 @export var spawner_path: NodePath = ^"../PopulationSpawner"
-## false: testler `step()`'i elle sürer (sivilleri de).
+## False: tests drive `step()` by hand (civilians too).
 @export var auto_step: bool = true
-## false: hiç üretmez (fikstür).
+## False: spawns nothing (fixture).
 @export var active: bool = true
 
-## Host: nokta kayıtları ve zamanlayıcı.
+## Host: spot registry and timer.
 var registry := SpotRegistry.new()
 var schedule: PopulationRules.Schedule = null
 
@@ -46,13 +41,13 @@ var _alert: StoreAlert = null
 var _spawner: MultiplayerSpawner = null
 var _scene: PackedScene = null
 var _serial: int = 0
-## Host: sıra numarası -> sipariş/raf noktaları (spawn_function okur).
+## Host: serial number -> order/shelf spots (spawn_function reads).
 var _pending: Dictionary = {}
-## Her peer'da: görülen sivil adları ve olayları (sırayla).
+## On every peer: civilian names and events seen (in order).
 var _seen: Array[String] = []
 var _events: Array[StringName] = []
 var _event_peers: Array[int] = []
-## Host sayaçları.
+## Host counters.
 var _stats: Dictionary = {"customers_spawned": 0, "passersby_spawned": 0, "served": 0, "tells": 0, "flees": 0,
 	"looks": 0, "converted": 0}
 
@@ -84,7 +79,7 @@ func _physics_process(delta: float) -> void:
 		step(delta)
 
 
-## Bir adım (yalnız host): zamanlayıcı → üretim; elle sürülüyorsa (auto_step false) siviller de adımlanır.
+## One step (host only): timer -> spawn; if driven by hand (auto_step false) civilians are stepped too.
 func step(delta: float) -> void:
 	if not _enabled():
 		return
@@ -96,7 +91,7 @@ func step(delta: float) -> void:
 			civ.step(delta)
 
 
-## Anlık sayımlar (zamanlayıcı girdisi).
+## Current counts (timer input).
 func counts() -> PopulationRules.Counts:
 	var c := PopulationRules.Counts.new()
 	for civ: Civilian in civilians():
@@ -109,7 +104,7 @@ func counts() -> PopulationRules.Counts:
 	return c
 
 
-## Bütün NPC'ler (etkin sahip + siviller + mahalleli; silinmeyi bekleyenler hariç).
+## All NPCs (active owner + civilians + neighbours; excluding those pending deletion).
 func npc_count() -> int:
 	var n: int = 0
 	var root: Node = get_parent()
@@ -125,12 +120,12 @@ func npc_count() -> int:
 	return n
 
 
-## Tavanda yer var mı (uyarı yöneticisinin komşusu için; komşu payı dahil değil).
+## Whether there is room under the cap (for the alert manager's neighbour; neighbour allowance not included).
 func has_room() -> bool:
 	return npc_count() < tuning.max_npcs
 
 
-## Yaşayan siviller (ağaçtaki, silinmeyi beklemeyen).
+## Living civilians (in the tree, not pending deletion).
 func civilians() -> Array[Civilian]:
 	var out: Array[Civilian] = []
 	var root: Node = get_parent()
@@ -142,7 +137,7 @@ func civilians() -> Array[Civilian]:
 	return out
 
 
-## İçerideki müşteri sayısı (örtü; keşif boşta tetiği): bölgesi içeri olan müşteriler.
+## Customers inside (cover; discovery idle trigger): customers whose zone is inside.
 func customers_inside() -> int:
 	var n: int = 0
 	if _owner == null:
@@ -154,12 +149,12 @@ func customers_inside() -> int:
 	return n
 
 
-## Host: boş kuyruk noktasını tutar (sıra: QueueSpot1, QueueSpot2 …); yoksa boş.
+## Host: holds a free queue spot (order: QueueSpot1, QueueSpot2 ...); empty if none.
 func claim_queue(serial: int) -> StringName:
 	return registry.claim_first(_spots(tuning.queue_prefix), serial)
 
 
-## İşaret dizisi adları (`<önek>1..N`); dizi yoksa ve önek tek bir işaretse o (ör. fikstürde tek raf noktası).
+## Marker sequence names (`<prefix>1..N`); if there is no sequence and the prefix is a single marker, that one (e.g. a single shelf spot in a fixture).
 func _spots(prefix: StringName) -> Array[StringName]:
 	var senses: CivilianSenses = _owner.senses()
 	var out: Array[StringName] = senses.marker_names(prefix)
@@ -168,7 +163,7 @@ func _spots(prefix: StringName) -> Array[StringName]:
 	return out
 
 
-## Host: sivilin tuttuğu noktaları bırakır.
+## Host: releases the spots a civilian holds.
 func release_spots(serial: int) -> void:
 	registry.release(serial)
 
@@ -192,7 +187,7 @@ func dump_state() -> Dictionary:
 		out.merge(_stats.duplicate())
 		for civ: Civilian in civilians():
 			if civ.brain().served:
-				out["served"] = int(out["served"]) + 1  # servis olmuş, henüz çıkmamış
+				out["served"] = int(out["served"]) + 1  # served, not yet left
 		out["customers_inside"] = customers_inside()
 		out["cancelled"] = schedule.cancelled.size()
 		var arrivals: Array = []
@@ -233,13 +228,13 @@ func _spawn(order: PopulationRules.Order) -> void:
 	_pending.erase(_serial)
 
 
-## Spawner'ın spawn_function'ı (host'ta spawn() içinde, istemcide paket gelince).
+## Spawner's spawn_function (in spawn() on the host, when the packet arrives on a client).
 func _spawn_civilian(data: Variant) -> Node:
 	var d: Dictionary = data if data is Dictionary else {}
 	var civ: Civilian = _scene.instantiate() as Civilian
 	var n: int = int(d.get("n", 0))
 	civ.serial = n
-	civ.tuning = tuning  # nüfus profili (fikstür kendi profilini verebilir); her peer'da aynı
+	civ.tuning = tuning  # population profile (a fixture may give its own); same on every peer
 	civ.role = int(d.get("role", PopulationRules.Role.CUSTOMER))
 	civ.name = "%s%d" % ["Passerby" if civ.role == PopulationRules.Role.PASSERBY else "Customer", n]
 	if d.get("pos") is Vector2:
@@ -274,7 +269,7 @@ func _on_civilian_gone(civ: Civilian) -> void:
 
 func _despawn(civ: Civilian) -> void:
 	registry.release(civ.serial)
-	civ.queue_free()  # spawner istemcilerde de siler
+	civ.queue_free()  # spawner deletes on clients too
 
 
 func _on_civilian_event(_civ: Civilian, kind: StringName, peer_id: int) -> void:
@@ -289,7 +284,7 @@ func _on_civilian_event(_civ: Civilian, kind: StringName, peer_id: int) -> void:
 		_stats["flees"] = int(_stats["flees"]) + 1
 
 
-## Sahip bağırdı (host): menzildeki yoldan geçenler mahalleliye dönüşür (oyun-yz #20).
+## Owner shouted (host): passersby in range turn into neighbours (oyun-yz #20).
 func _on_owner_shouted(_late: bool) -> void:
 	if _alert == null or tuning.convert_radius <= 0.0:
 		return
@@ -308,6 +303,6 @@ func _enabled() -> bool:
 	return active and _host_side() and tuning != null and _owner != null and _owner.active and _spawner != null
 
 
-## Host ya da çevrimdışı (S2; Net bayraklarından, Game ile aynı kalıp).
+## Host or offline (S2; from Net flags, same pattern as Game).
 static func _host_side() -> bool:
 	return Net.is_host() or Net.local_peer_id() == 0

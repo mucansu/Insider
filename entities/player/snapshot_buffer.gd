@@ -1,26 +1,23 @@
 class_name SnapshotBuffer
 extends RefCounted
-## Uzak oyuncu ara değerleme tamponu (US-004 AC4; S2, GDD §12 "uzak oyuncular 100 ms interpolasyon tamponuyla").
-##
-## Yöntem: yetkili kopya her fizik adımında durumunu ve kendi saatindeki anı (`Player.net_time`) yazar,
-## eşitleyici 20 Hz yayar. Alıcı her paketi (gönderen anı, yerel varış anı, durum) `push` ile koyar; her karede
-## `sample(yerel_an)` gönderen saatinde `yerel_an - saat_farkı - delay` anını, o anı çevreleyen iki anlık görüntü
-## arasında doğrusal ara değerler (konum lerp, yön slerp, bakış açısı en kısa yoldan lerp — US-011b, kip öncekinden,
-## hız iki görüntü arası sabit).
-## Saat farkı (yerel varış - gönderen anı = tek yön gecikme + saat kayması) üstel ortalamayla izlenir: titreşim
-## (jitter) tamponda emilir ve çizim saati düzgün ilerler; 0,5 sn'den büyük sıçramada sıfırdan kurulur.
-## Varış anına göre değil gönderen anına göre çizildiği için paketler arası titreşim harekete yansımaz.
-## Sıra dışı ya da eski paket atılır. Tampon tükenirse (kayıp) son durumda beklenir; ileri tahmin yapılmaz
-## (dönüşte ya da duvar dibinde taşma olmasın).
+## Remote player interpolation buffer (US-004 AC4; S2, GDD §12 "remote players via 100 ms interpolation buffer").
+## Method: the authoritative copy writes its state and its own-clock time (`Player.net_time`) each physics step; the synchronizer sends at
+## 20 Hz. The receiver `push`es each packet (sender time, local arrival time, state); each frame `sample(local_time)` linearly
+## interpolates, on the sender clock, the instant `local_time - clock_offset - delay` between the two surrounding snapshots (position lerp,
+## facing slerp, look angle lerp along the shortest path - US-011b, mode from the earlier snapshot, velocity constant between snapshots).
+## Clock offset (local arrival - sender time = one-way delay + clock skew) is tracked by exponential averaging: jitter is absorbed in the
+## buffer and the draw clock advances smoothly; a jump over 0.5 s resets it. Drawing by sender time (not arrival time) keeps packet
+## jitter out of the motion. Out-of-order or stale packets are dropped. On underrun (loss) it waits at the last state; no extrapolation
+## (no overshoot while turning or against walls).
 
-## Ara değerlenmiş durum.
+## Interpolated state.
 class Frame extends RefCounted:
 	var time: float = 0.0
 	var position: Vector2 = Vector2.ZERO
 	var facing: Vector2 = Vector2.DOWN
 	var mode: int = 0
 	var velocity: Vector2 = Vector2.ZERO
-	## Bakış açısı (rad; US-011b).
+	## Look angle (rad; US-011b).
 	var look: float = 0.0
 
 	func _init(t: float = 0.0, pos: Vector2 = Vector2.ZERO, dir: Vector2 = Vector2.DOWN, kind: int = 0,
@@ -33,14 +30,14 @@ class Frame extends RefCounted:
 		look = look_angle
 
 
-## Tampondaki en çok anlık görüntü (20 Hz'de 1,6 sn).
+## Maximum snapshots in the buffer (1.6 s at 20 Hz).
 const MAX_FRAMES := 32
-## Saat farkı ortalamasında yeni ölçümün ağırlığı.
+## Weight of a new measurement in the clock offset average.
 const OFFSET_SMOOTHING := 0.05
-## Saat farkı bundan çok sıçrarsa (süreç durdu, saat değişti) ortalama sıfırdan kurulur (sn).
+## If the clock offset jumps by more than this (process stalled, clock changed) the average is rebuilt from scratch (s).
 const OFFSET_RESET_SEC := 0.5
 
-## Çizimin gönderen saatinde ne kadar geriden yapıldığı (sn).
+## How far behind on the sender clock drawing happens (s).
 var delay: float = 0.1
 
 var _frames: Array[Frame] = []
@@ -53,8 +50,8 @@ func _init(delay_sec: float = 0.1) -> void:
 	delay = delay_sec
 
 
-## Gelen anlık görüntü. Eskiyse (gönderen anı son görüntüden ileri değilse) ya da anlar/konum/yön/bakış sonlu
-## değilse (NaN/INF: bozuk paket saati ya da çizimi zehirlemesin) atılır ve false döner.
+## Incoming snapshot. Dropped (returns false) if stale (sender time not past the last snapshot) or if times/position/facing/look are not
+## finite (NaN/INF: a bad packet must not poison the clock or drawing).
 func push(sender_time: float, local_time: float, position: Vector2, facing: Vector2, mode: int,
 		look: float = 0.0) -> bool:
 	if not (is_finite(sender_time) and is_finite(local_time) and position.is_finite() and facing.is_finite()
@@ -74,17 +71,17 @@ func push(sender_time: float, local_time: float, position: Vector2, facing: Vect
 	return true
 
 
-## `local_time` anında çizilecek durum; tampon boşsa null.
+## State to draw at `local_time`; null if the buffer is empty.
 func sample(local_time: float) -> Frame:
 	if _frames.is_empty():
 		return null
 	var t: float = local_time - _offset - delay
 	while _frames.size() >= 2 and _frames[1].time <= t:
-		_frames.pop_front()  # artık gerekmeyen eski görüntüler
+		_frames.pop_front()  # old snapshots no longer needed
 	var a: Frame = _frames[0]
 	if _frames.size() == 1 or t <= a.time:
 		if _frames.size() == 1 and t > a.time:
-			_underruns += 1  # çizim anı en yeni görüntüyü geçti: veri geç kaldı ya da kayboldu
+			_underruns += 1  # draw time passed the newest snapshot: data late or lost
 		return Frame.new(t, a.position, a.facing, a.mode, Vector2.ZERO, a.look)
 	var b: Frame = _frames[1]
 	var span: float = b.time - a.time
@@ -97,13 +94,13 @@ func size() -> int:
 	return _frames.size()
 
 
-## Çizim anının en yeni görüntüyü geçtiği (beklenen) `sample` çağrısı sayısı; yetkili kopya 20 Hz'de hep
-## yayınladığından sağlıklı bağlantıda ısınmadan sonra 0 kalır (teşhis/döküm).
+## Number of (expected) `sample` calls where draw time passed the newest snapshot; the authoritative copy always sends at 20 Hz so
+## it stays 0 after warm-up on a healthy link (diagnostics/dump).
 func underrun_count() -> int:
 	return _underruns
 
 
-## İzlenen saat farkı (yerel - gönderen, sn); henüz paket yoksa 0.
+## Tracked clock offset (local - sender, s); 0 if no packet yet.
 func clock_offset() -> float:
 	return _offset
 

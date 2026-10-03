@@ -1,26 +1,23 @@
 class_name PlayerVisual
 extends Node2D
-## Oyuncunun görseli (US-004 AC1, US-014): prosedürel kukla (`Puppet`, KR-017) + ad etiketi + etkileşim rozeti.
-## Yalnız ebeveyn Player'ın durumunu okur (hız, yön, kip, etkileşim, yuva, ad) ve kuklaya aktarır; mantığa,
-## girdiye ve ağa dokunmaz (KR-003). Uzak kopyada Player bu durumu ara değerlenmiş tampondan üretir; kukla aynı
-## yoldan canlanır (girdiden değil).
-## Kip → kukla yürüyüşü eşlemesi burada (PlayerMotion.Mode → PuppetRig.Gait); kukla oyuncu betiklerini bilmez.
-## Renkler: atkı oyuncu rengi ThemeTokens.PLAYER_COLORS[slot] (her tonda aynı), görünüm (başlık) yuvaya göre
-## PuppetTuning.player_looks'tan (rol/loadout gelene kadar), etiket etkin tondan (mimari.md §6 görsel istisnası,
-## S9). Ad etiketi ve işaretler kuklanın üstünde sabit bağlantı noktasında, animasyondan bağımsız (GDD §14.1
-## kural 2). Ad etiketi oyuncunun adıdır: dinamik metin, otomatik çeviri kapalı; ad boşsa HUD ile aynı yedek,
-## tr("HUD_PLAYER_UNNAMED").
-## Görüş (US-011b AC4; GDD §6.5, §14.1): kukla baş ve gözleri `Player.look_dir`'i izler (gövde hareket yönünü);
-## ekip arkadaşı her zaman tam çizilir, sisin üstünde (`z_index` = VisionRules.ABOVE_FOG_Z > FogLayer 50); yönlü
-## kipte (`Player.is_directional_view()`) ekip arkadaşının çevresinde atkı renginde 32 px / 90° ince bakış yayı (α 0,25);
-## yerel oyuncuda ve 360° kipte yay yok.
+## Player visual (US-004 AC1, US-014): procedural puppet (`Puppet`, KR-017) + name label + interaction badge. Only reads the parent
+## Player's state (velocity, facing, mode, interaction, slot, name) and feeds the puppet; no logic, input or network (KR-003). On a remote
+## copy Player produces this state from the interpolated buffer; the puppet animates the same way (not from input).
+## Mode -> puppet gait mapping lives here (PlayerMotion.Mode -> PuppetRig.Gait); the puppet does not know player scripts.
+## Colours: scarf = player colour ThemeTokens.PLAYER_COLORS[slot] (same in every tone), look (hood) per slot from PuppetTuning.player_looks
+## (until role/loadout exists), label from the active tone (§6 visual exception, S9). Name label and badges sit at a fixed anchor above the
+## puppet, independent of animation (GDD §14.1 rule 2). The label is the player's name: dynamic text, auto-translate off; if empty, the
+## same fallback as the HUD, tr("HUD_PLAYER_UNNAMED").
+## Vision (US-011b AC4; GDD §6.5, §14.1): puppet head and eyes follow `Player.look_dir` (body follows movement); the teammate is always fully
+## drawn above fog (`z_index` = VisionRules.ABOVE_FOG_Z > FogLayer 50); in directional mode (`Player.is_directional_view()`) a thin 32 px /
+## 90 deg look arc in the scarf colour (alpha 0.25) surrounds the teammate; no arc on the local player or in 360 deg mode.
 
 const LABEL_WIDTH := 160.0
 const LABEL_GAP := 2.0
 const LABEL_OUTLINE := 4
-## Bu uzaklıktaki (px) en yakın ekip arkadaşına beklerken bakılabilir.
+## While idle, the puppet may look at the nearest teammate within this distance (px).
 const FRIEND_RANGE := 260.0
-## Ekip arkadaşının bakış yayı (GDD §6.5): yarıçap, açı, opaklık, kalınlık.
+## Teammate look arc (GDD §6.5): radius, angle, opacity, thickness.
 const LOOK_ARC_RADIUS := 32.0
 const LOOK_ARC_DEG := 90.0
 const LOOK_ARC_ALPHA := 0.25
@@ -35,7 +32,7 @@ var _arc_angle: float = INF
 @onready var _label: Label = $NameLabel
 
 
-## Oyuncunun hareket kipinin kukla karşılığı.
+## Puppet equivalent of the player's movement mode.
 static func gait_for(mode: int) -> PuppetRig.Gait:
 	match mode:
 		PlayerMotion.Mode.SNEAK:
@@ -77,8 +74,8 @@ func _process(_delta: float) -> void:
 	_puppet.set_friend(friend.global_position if friend != null else Vector2.ZERO, friend != null)
 
 
-## Tepki balonu ve tepkisi (ör. oyuncu fark edilince "!": sıçrama + göz büyümesi); NPC'ler de aynı API'yi
-## kullanır (Puppet.react).
+## Reaction balloon and reaction (e.g. "!" when the player is noticed: hop + eye widen); NPCs use the same API
+## (Puppet.react).
 func react(kind: PuppetRig.Reaction) -> void:
 	_puppet.react(kind)
 
@@ -87,7 +84,7 @@ func puppet() -> Puppet:
 	return _puppet
 
 
-## Bakış yayı çiziliyor mu: ekip arkadaşı (yerel değil) ve yönlü görüş kipi.
+## Whether the look arc is drawn: teammate (not local) and directional vision mode.
 func shows_look_arc() -> bool:
 	return _player != null and not _player.is_local() and _player.is_directional_view()
 
@@ -100,28 +97,28 @@ func _draw() -> void:
 		Color(_color, LOOK_ARC_ALPHA), LOOK_ARC_WIDTH, true)
 
 
-## Etkileşim göstergesi (kuklanın üstünde rozet) son çizim durumunda var mı; yerel ve uzak oyuncuda aynı yol
+## Whether the interaction indicator (badge above the puppet) exists in the last drawn state; same path for local and remote players
 ## (Player.is_interacting()).
 func shows_interaction() -> bool:
 	return _puppet.shows_interaction()
 
 
-## Etkileşim rozetinin dolgu rengi (etkin tondan; S9).
+## Fill colour of the interaction badge (from the active tone; S9).
 func interaction_marker_color() -> Color:
 	return _puppet.interaction_marker_color()
 
 
-## Çizimde kullanılan oyuncu rengi (atkı ve rozet halkası).
+## Player colour used for drawing (scarf and badge ring).
 func body_color() -> Color:
 	return _color
 
 
-## Ad etiketindeki metin.
+## Text on the name label.
 func label_text() -> String:
 	return _label.text
 
 
-## Renk, görünüm ve ad Player'ın yuva/ad bilgisinden (Game.players(), S3).
+## Colour, look and name from the Player's slot/name info (Game.players(), S3).
 func _refresh_identity() -> void:
 	var colors: Array[Color] = ThemeTokens.PLAYER_COLORS
 	_color = colors[posmod(_player.slot(), colors.size())]
@@ -135,7 +132,7 @@ func _refresh_identity() -> void:
 	queue_redraw()
 
 
-## Kardeş oyuncu kopyalarından en yakını (FRIEND_RANGE içinde); yalnız konum okunur.
+## Nearest sibling player copy (within FRIEND_RANGE); only position is read.
 func _nearest_friend() -> Node2D:
 	var root: Node = _player.get_parent()
 	if root == null:

@@ -1,21 +1,20 @@
 class_name PuppetEyes
 extends RefCounted
-## Kuklanın gözleri (US-014; GDD §14.1): gidilen yöne bakış, beklerken bakınma (etrafa ve ekip arkadaşına;
-## %35 yeniden ileri), göz kırpma, şaşkınlıkta büyüme (fark edilince). Düğümsüz; PuppetRig her sabit adımda
-## çağırır. Sapmalar kukla birimidir.
+## Puppet eyes (US-014; GDD §14.1): look toward travel, idle glances (around and at a teammate; 35% back to forward), blinking, growing
+## when startled (on notice). Node-free; PuppetRig calls it each fixed step. Offsets are in puppet units.
 
 enum Look { FORWARD, ANGLE, FRIEND }
 
-## Bakış sapması (birim), sızarken büyüme; yaylar (Hz, sönüm).
+## Look offset (units), growth when sneaking; springs (Hz, damping).
 const RANGE := Vector2(3.3, 1.6)
 const SNEAK_FACTOR := 1.15
 const FREQUENCY := 6.0
 const DAMPING := 0.7
 const SIZE_FREQUENCY := 5.0
 const SIZE_DAMPING := 0.35
-## Arkadaş bu uzaklıktan (px²) yakınsa yönü belirsiz sayılır.
+## Teammate closer than this (px^2): direction counts as undefined.
 const FRIEND_MIN_DISTANCE_SQ := 1.0
-## İlk kırpma ve bakınma zamanlayıcısı aralığı (sn).
+## Interval of the first blink and glance timers (s).
 const FIRST_BLINK := Vector2(1.0, 4.0)
 const FIRST_LOOK := Vector2(1.0, 3.0)
 
@@ -23,7 +22,7 @@ var tuning: PuppetTuning = null
 var x: PuppetSpring = PuppetSpring.new(0.0)
 var y: PuppetSpring = PuppetSpring.new(0.0)
 var size: PuppetSpring = PuppetSpring.new(1.0)
-## Kalan kırpma süresi (sn); > 0 iken göz kapalı.
+## Remaining blink time (s); eye closed while > 0.
 var blink: float = 0.0
 
 var _rng: RandomNumberGenerator = null
@@ -48,7 +47,7 @@ func is_blinking() -> bool:
 	return blink > 0.0
 
 
-## Bakış yönüne hızsız oturur.
+## Settles on the look direction with no velocity.
 func settle(face: float) -> void:
 	x.settle(cos(face) * RANGE.x)
 	y.settle(sin(face) * RANGE.y)
@@ -56,12 +55,12 @@ func settle(face: float) -> void:
 	_look = Look.FORWARD
 
 
-## Göz büyümesi (yay hızına darbe).
+## Eye growth (impulse to the spring velocity).
 func widen(impulse: float) -> void:
 	size.v += impulse
 
 
-## `idle`: beklerken bakınır; `from`/`friend`: dünya px (arkadaş yoksa has_friend false).
+## `idle`: glances around when waiting; `from`/`friend`: world px (has_friend false if no teammate).
 func step(h: float, face: float, idle: bool, sneaking: bool, from: Vector2, friend: Vector2,
 		has_friend: bool) -> void:
 	var look: float = face

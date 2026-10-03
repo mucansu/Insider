@@ -1,48 +1,43 @@
 class_name Puppet
 extends Node2D
-## Prosedürel karakter kuklası (US-014; GDD §14.1, KR-017): iri baş + yüz (gözler, parıltı, yanak), başlık
-## yuvası, küçük gövde, iki el, atkı (verlet zinciri), ayaklar ve gölge. Hesap PuppetRig'de (düğümsüz); bu düğüm
-## yalnız çizer. Durumu dışarıdan alır (`set_state`): oyuncuda PlayerVisual, ileride NPC görselleri besler.
-## Mantığa, girdiye, çarpışmaya ve ağa dokunmaz (KR-003); kendi konumunu değiştirmez.
-##
-## Çizim: parçalar PuppetMesh tamponunda toplanır ve kukla başına tek komutla (koşu tozu varsa iki) gönderilir
-## (mekân nüfusu: 9+ kukla).
-## Parça başına çizim fonksiyonu: `_draw_body`, `_draw_head`, `_draw_headgear`, `_draw_hands` …; PuppetLook'ta o
-## parçanın dokusu varsa (`*_texture`) parça `part_rect()` çerçevesine doku olarak çizilir (gözler kodla kalır;
-## her doku bir komut daha ekler).
-## Oyun bilgisi işaretleri (tepki balonu, etkileşim rozeti) `Markers` alt düğümünde, animasyondan bağımsız
-## sabit bağlantı noktasındadır (GDD §14.1 kural 2). Renkler: atkı = verilen oyuncu rengi
-## (ThemeTokens.PLAYER_COLORS), gölge, parıltı ve rozet etkin tondan, kostüm PuppetLook'tan (S9; kostüm S10
-## kozmetik verisi).
+## Procedural character puppet (US-014; GDD §14.1, KR-017): big head + face (eyes, glint, cheeks), headgear slot, small body, two hands,
+## scarf (verlet chain), feet and shadow. Computation is in PuppetRig (node-free); this node only draws. State comes from outside
+## (`set_state`): PlayerVisual feeds it for players, NPC visuals later. No logic, input, collision or network (KR-003); never moves itself.
+## Drawing: parts collect in a PuppetMesh buffer and go out as one command per puppet (two with run dust) (population: 9+ puppets).
+## One draw function per part (`_draw_body`, `_draw_head`, `_draw_headgear`, `_draw_hands` ...); if PuppetLook has a texture for a part
+## (`*_texture`) it is drawn into the `part_rect()` frame (eyes stay in code; each texture adds one command).
+## Game-info markers (reaction balloon, interaction badge) live in the `Markers` child at a fixed anchor independent of animation
+## (GDD §14.1 rule 2). Colours: scarf = given player colour (ThemeTokens.PLAYER_COLORS); shadow, glint and badge from the active tone;
+## costume from PuppetLook (S9; costume is S10 cosmetic data).
 
 enum Part { HEAD, HEADGEAR, BODY, HAND }
 
 const TUNING_PATH := "res://data/puppet_tuning.tres"
-## Gölge saydamlığı (ton zemin rengiyle).
+## Shadow opacity (with the tone's ground colour).
 const SHADOW_ALPHA := 0.42
-## Gövde üst parlaklık kavisi.
+## Highlight curve on top of the body.
 const RIM_ALPHA := 0.06
 const RIM_WIDTH := 1.0
-## Göz parıltısı saydamlığı ve kırpmada göz yüksekliği oranı.
+## Eye glint opacity and eye height ratio when blinking.
 const SPARKLE_ALPHA := 0.9
 const BLINK_SQUEEZE := 0.12
-## Bu göz ölçeğinin üstünde ağız "o" olur (şaşkınlık).
+## Above this eye scale the mouth becomes an "o" (surprise).
 const SURPRISED_EYES := 1.2
-## Atkı kalınlığı (birim): kök ve parça başına incelme; en ince (px).
+## Scarf thickness (units): root and per-segment taper; thinnest (px).
 const SCARF_WIDTH := 4.4
 const SCARF_TAPER := 0.55
 const SCARF_MIN_WIDTH := 0.5
-## Boyna sarılı atkı bandı (birim; çene altında): oyuncu rengi her yönden görünsün (GDD §14.1 kural 4).
+## Scarf band wrapped around the neck (units; below the chin): player colour stays visible from every direction (GDD §14.1 rule 4).
 const SCARF_WRAP_CENTER := Vector2(0.0, -16.5)
 const SCARF_WRAP_RADIUS := Vector2(8.0, 2.6)
-## Toz rengi saydamlığı ve büyümesi.
+## Dust colour opacity and growth.
 const DUST_ALPHA := 0.35
 const DUST_GROWTH := 1.6
-## Ekran ölçeği bu adıma yuvarlanır (yakınlaştırma salınımı topolojiyi/indeks önbelleğini oynatmasın).
+## Screen scale is rounded to this step (zoom oscillation must not shift topology/index cache).
 const PIXEL_RATIO_STEP := 0.25
-## Toz dairesi kenar noktası (sabit: toz ayrı komutta, sayısı değişse de indeks önbelleği tutar).
+## Dust circle edge point count (fixed: dust is a separate command; the index cache holds even if the count changes).
 const DUST_SEGMENTS := 8
-## Rozet (muhafız/polis) yarıçapları (birim).
+## Badge (guard/police) radii (units).
 const BODY_BADGE_RADIUS := 1.6
 const HAT_BADGE_RADIUS := 1.8
 
@@ -59,15 +54,15 @@ var _facing: Vector2 = Vector2.DOWN
 var _gait: PuppetRig.Gait = PuppetRig.Gait.WALK
 var _interacting: bool = false
 var _look: Vector2 = Vector2.ZERO
-## Ağaca girmeden (rig kurulmadan) istenen tepki; _ready'de uygulanır.
+## Reaction requested before entering the tree (rig not built); applied in _ready.
 var _pending_reaction: PuppetRig.Reaction = PuppetRig.Reaction.NONE
-## Son çizimin komut ve üçgen sayısı (ölçüm/test).
+## Command and triangle count of the last draw (measurement/test).
 var _stats: Dictionary = {"commands": 0, "textures": 0, "triangles": 0}
 
 @onready var _markers: PuppetMarkers = $Markers
 
 
-## Hareket azaltma (ayar API'si; arayüz sonra bağlar): sekme, eğilme ve toz kapanır, balonlar kalır.
+## Reduced motion (settings API; UI wires it later): bob, lean and dust off, balloons stay.
 static func set_reduced_motion(on: bool) -> void:
 	_reduced_motion = on
 
@@ -76,7 +71,7 @@ static func is_reduced_motion() -> bool:
 	return _reduced_motion
 
 
-## Parça çerçevesi (birim; gövde dönüşümünde). Doku yuvası bu çerçeveye çizilir.
+## Part frame (units; in body transform). A texture slot is drawn into this frame.
 static func part_rect(part: Part, body_width: float = 1.0) -> Rect2:
 	match part:
 		Part.HEAD:
@@ -112,7 +107,7 @@ func _process(delta: float) -> void:
 	queue_redraw()
 
 
-## Görünüm ve vurgu (atkı) rengi.
+## Look and accent (scarf) colour.
 func configure(new_look: PuppetLook, accent: Color) -> void:
 	look = new_look
 	_accent = accent
@@ -121,7 +116,7 @@ func configure(new_look: PuppetLook, accent: Color) -> void:
 	queue_redraw()
 
 
-## Gözlenen durum (her karede): hız (px/sn), bakış yönü, kip, etkileşim.
+## Observed state (every frame): velocity (px/s), look direction, mode, interaction.
 func set_state(velocity: Vector2, facing: Vector2, gait: PuppetRig.Gait, interacting: bool) -> void:
 	_velocity = velocity
 	_facing = facing
@@ -129,12 +124,12 @@ func set_state(velocity: Vector2, facing: Vector2, gait: PuppetRig.Gait, interac
 	_interacting = interacting
 
 
-## Baş ve gözlerin bakış yönü (US-011b; dünya yönü). ZERO: baş gövdeyle aynı yöne bakar (NPC'ler, eski davranış).
+## Look direction of head and eyes (US-011b; world direction). ZERO: head faces the same way as the body (NPCs, old behaviour).
 func set_look(direction: Vector2) -> void:
 	_look = direction
 
 
-## Beklerken bakınılabilecek ekip arkadaşı (dünya px); `active` false ise yok.
+## Teammate to glance at while idle (world px); none if `active` is false.
 func set_friend(world_position: Vector2, active: bool) -> void:
 	if _rig == null:
 		return
@@ -142,7 +137,7 @@ func set_friend(world_position: Vector2, active: bool) -> void:
 	_rig.has_friend = active
 
 
-## Tepki balonu: QUESTION "?" (şüphe), ALERT "!" (fark edildi: sıçrama + göz büyümesi), NONE kaldırır.
+## Reaction balloon: QUESTION "?" (suspicion), ALERT "!" (noticed: hop + eye widen), NONE removes it.
 func react(kind: PuppetRig.Reaction) -> void:
 	if _rig == null:
 		_pending_reaction = kind
@@ -162,13 +157,13 @@ func accent_color() -> Color:
 	return _accent
 
 
-## Oyun bilgisi işaretlerinin sabit bağlantı noktası (yerel px).
+## Fixed anchor of game-info markers (local px).
 func marker_anchor() -> Vector2:
 	return Vector2(0.0, -tuning.marker_anchor_height)
 
 
-## Taşıma bağlantı noktaları (IS-085): iki elin dünya konumu (px), PuppetBody.hands sırasıyla [sol, sağ]. `rest`
-## true ise yürüme salınımı ve iş/sızma pozu olmadan duruş eli (hareket azaltma). Rig yoksa boş.
+## Carry anchors (IS-085): world positions of both hands (px), in PuppetBody.hands order [left, right]. If `rest` is true, the standing hand
+## without walk sway or work/sneak pose (reduced motion). Empty if no rig.
 func hand_points(rest: bool = false) -> PackedVector2Array:
 	var out: PackedVector2Array = []
 	if _rig == null:
@@ -181,7 +176,7 @@ func hand_points(rest: bool = false) -> PackedVector2Array:
 	return out
 
 
-## Etkileşim rozeti son durumda çiziliyor mu.
+## Whether the interaction badge is drawn in the last state.
 func shows_interaction() -> bool:
 	return _markers.shows_interaction()
 
@@ -190,7 +185,7 @@ func interaction_marker_color() -> Color:
 	return _markers.interaction_marker_color()
 
 
-## Son çizim: {"commands": gönderilen komut (tampon + doku), "textures": doku, "triangles": üçgen}.
+## Last draw: {"commands": commands sent (buffer + textures), "textures": textures, "triangles": triangles}.
 func draw_stats() -> Dictionary:
 	return _stats.duplicate()
 
@@ -227,7 +222,7 @@ func _draw() -> void:
 	_stats = {"commands": _mesh.submissions() + textures, "textures": textures, "triangles": _mesh.triangles()}
 
 
-# --- parçalar (birim koordinat; dönüşüm _mesh.transform) ---
+# --- parts (unit coordinates; transform via _mesh.transform) ---
 
 func _draw_dust(tone: Tone) -> void:
 	_mesh.transform = Transform2D.IDENTITY
@@ -270,7 +265,7 @@ func _draw_scarf_wrap() -> void:
 		_mesh.ellipse(SCARF_WRAP_CENTER, SCARF_WRAP_RADIUS * Vector2(_rig.width, 1.0), _accent)
 
 
-## Doku çizildiyse 1 döner (komut sayımı).
+## Returns 1 if a texture was drawn (command count).
 func _draw_body(tone: Tone, back: bool) -> int:
 	var used: int = 0
 	if look.body_texture != null:
@@ -369,7 +364,7 @@ func _draw_headgear(back: bool, tone: Tone) -> int:
 	return 0
 
 
-## Doku yuvası: tamponu gönderir (sıra korunur), dokuyu parça çerçevesine mevcut dönüşümle çizer; 1 döner.
+## Texture slot: flushes the buffer (order kept), draws the texture into the part frame with the current transform; returns 1.
 func _texture(texture: Texture2D, rect: Rect2) -> int:
 	_mesh.flush(get_canvas_item())
 	draw_set_transform_matrix(_mesh.transform)

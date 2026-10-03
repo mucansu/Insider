@@ -1,49 +1,47 @@
 class_name BagCarry
 extends RefCounted
-## Taşınan çantanın görsel tutuşu (IS-085; GDD §14.1, KR-017 tatlı/akıcı hareket): düğümsüz hesap (KR-003).
-## Girdi = taşıyanın kukla durumu (gövde bakışı, iki elin taşıyana göre konumu, sırt dönük mü, hız); çıktı =
-## tutuş noktası (`grip`, taşıyana göre px), sarkaç açısı (`angle`, rad) ve çizim katmanı (`front`).
-## Mantığa, ağa ve çanta kurallarına dokunmaz: her peer kendi kopyasında, kendi gördüğü kukladan türetir.
-##
-## - Taraf: çanta yakın elde (sağa bakarken sağ el, sola bakarken sol el); bakış dikeye yakınken son taraf korunur
-##   (titreme yok). Tutuş elin biraz üstünde: çanta kalça hizasında, ayak hizasında değil.
-## - Yumuşak geçiş: tutuş hedefe üstel yaklaşır (taraf değişimi ~0,15 sn); ışınlanma/yeni taşıyan anında kurulur.
-## - Salınım: kukla elinin yürüme salınımına ve taşıyanın yatay hızına bağlı sönümlü sarkaç; dururken söner. Hareket azaltmada
-##   salınım yok (açı 0) ve el salınımsız duruş pozundan okunur (çağıran `rest` eller verir).
+## Visual grip of the carried bag (IS-085; GDD §14.1, KR-017 smooth movement): node-free computation (KR-003).
+## Input = carrier's puppet state (body facing, both hands relative to carrier, back turned, velocity); output = grip point (`grip`,
+## px), pendulum angle (`angle`, rad) and draw layer (`front`). No logic/network/bag rules: each peer derives it from the puppet it sees.
+## - Side: bag in the near hand (right hand facing right, left facing left); near-vertical facing keeps the last side (no jitter).
+##   Grip sits slightly above the hand (hip height, not foot height).
+## - Smooth transition: grip approaches target exponentially (~0.15 s side swap); teleport/new carrier snaps instantly.
+## - Sway: damped pendulum driven by puppet hand swing and carrier horizontal speed; decays at rest. Under reduced motion there is
+##   no sway (angle 0) and the hand is read from the swing-free rest pose (caller passes `rest` hands).
 
-## Bakışın yatay bileşeni bu eşiği geçince taraf değişir; altında son taraf korunur.
+## Side flips when the horizontal facing component passes this threshold; below it the last side is kept.
 const SIDE_THRESHOLD := 0.35
-## Tutuş noktası elden bu kadar yukarıda (px).
+## Grip point this far above the hand (px).
 const GRIP_LIFT := 3.0
-## Tutuşun hedefe üstel yaklaşma hızı (1/sn).
+## Exponential approach rate of the grip to its target (1/s).
 const FOLLOW_RATE := 18.0
-## Sarkaç hedef açısı (rad) = kukla elinin taşıyana göre yatay hızı × SWING_GAIN + taşıyanın yatay hızı ×
-## DRAG_GAIN (rad / (px/sn)), en çok SWAY_MAX: yürüme salınımı küçük sallanma, yürüyüş hafif geride kalma.
+## Pendulum target angle (rad) = puppet hand horizontal speed x SWING_GAIN + carrier horizontal speed x DRAG_GAIN
+## (rad / (px/s)), capped at SWAY_MAX: walk swing gives a small sway, walking drags the bag slightly behind.
 const SWING_GAIN := 0.004
 const DRAG_GAIN := 0.0006
 const SWAY_MAX := 0.3
 const SWAY_STIFFNESS := 90.0
 const SWAY_DAMPING := 7.0
-## Tek güncellemede işlenen en uzun süre (sn) ve iç adım (sn): takılan karede yay patlamasın.
+## Longest time handled per update (s) and inner step (s): a hitched frame must not blow up the spring.
 const MAX_DELTA := 0.25
 const STEP := 1.0 / 120.0
-## Tutuş hedefe bundan uzaksa (px) ışınlanma sayılır: anında kurulur.
+## Grip farther than this (px) from its target counts as a teleport: snaps instantly.
 const SNAP_DISTANCE := 48.0
 
-## Taşıyan el: +1 sağ, -1 sol.
+## Carrying hand: +1 right, -1 left.
 var side: int = 1
-## Tutuş noktası (taşıyanın merkezine göre px).
+## Grip point (px relative to carrier center).
 var grip: Vector2 = Vector2.ZERO
-## Sarkaç açısı (rad; pozitif: çantanın altı sola, yani sağa giderken geride kalır).
+## Pendulum angle (rad; positive: bag bottom to the left, i.e. lags behind when moving right).
 var angle: float = 0.0
 var angular_velocity: float = 0.0
-## Taşıyanın önünde mi çizilir (sırt dönükken arkada).
+## Drawn in front of the carrier (behind when back is turned).
 var front: bool = true
 
 var _built: bool = false
 
 
-## Bakış yönüne göre taşıyan el: yatay bileşen eşiği geçince o yön, değilse `current`.
+## Carrying hand from facing: that direction once the horizontal component passes the threshold, else `current`.
 static func pick_side(face: Vector2, current: int) -> int:
 	if face.x > SIDE_THRESHOLD:
 		return 1
@@ -52,7 +50,7 @@ static func pick_side(face: Vector2, current: int) -> int:
 	return current
 
 
-## Elin dizisi PuppetBody.hands sırasıyla [sol, sağ]; taraf → dizin.
+## Hands array in PuppetBody.hands order [left, right]; side -> index.
 static func hand_index(which_side: int) -> int:
 	return 1 if which_side > 0 else 0
 
@@ -61,13 +59,13 @@ func is_built() -> bool:
 	return _built
 
 
-## Bir sonraki güncelleme anında kurar (taşıyan değişti, çanta düştü).
+## Snaps at the next update (carrier changed, bag dropped).
 func reset() -> void:
 	_built = false
 
 
-## Bir kare. `face` gövde bakışı (birim), `hands` taşıyana göre px [sol, sağ], `back` sırt dönük,
-## `carrier_velocity` taşıyan hızı (px/sn), `reduced` hareket azaltma.
+## One frame. `face` body facing (unit), `hands` px relative to carrier [left, right], `back` back turned,
+## `carrier_velocity` carrier speed (px/s), `reduced` reduced motion.
 func update(delta: float, face: Vector2, hands: PackedVector2Array, back: bool, carrier_velocity: Vector2,
 		reduced: bool) -> void:
 	if hands.size() < 2:
