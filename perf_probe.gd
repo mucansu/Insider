@@ -1,33 +1,27 @@
 class_name PerfProbe
 extends Node
-## Çizim/performans ölçümü (IS-067; mimari.md S6 `--perf`, `--perf-seconds=N`). main.gd yalnız `--perf` verilince
-## çocuk olarak ekler; döküm "render" anahtarı `report()`'tan gelir (şema: core/perf_report.gd).
+## Render/performance measurement (IS-067; mimari.md S6 `--perf`, `--perf-seconds=N`). main.gd adds it as a child only with `--perf`;
+## the dump's "render" key comes from `report()` (schema: core/perf_report.gd).
 ##
-## Ne ölçülür, nasıl:
-## - Kare süresi: ardışık `SceneTree.process_frame` sinyalleri arası duvar saati (ms).
-## - process_ms: `process_frame` (SceneTree işlemesinin başı) → bu düğümün `_process`'i. Düğüm en büyük
-##   `process_priority` ile en son işlenir, yani aralık o karedeki tüm `_process` geri çağrılarıdır.
-## - physics_ms: karedeki her fizik adımı için `physics_frame` → bu düğümün `_physics_process`'i (en büyük
-##   `process_physics_priority`), adımlar toplanır (karede adım yoksa 0). Fizik sunucusu adımı dahil değildir.
-## - process_total_ms (yalnız pencereli): `process_frame` → `RenderingServer.frame_pre_draw`; işleme adımının
-##   tamamı: geri çağrılar + ertelenmiş çağrılar (MessageQueue) + `queue_redraw` sonrası `_draw` komut kaydı +
-##   motorun çizim öncesi senkronu. Headless'ta çizim döngüsü yok (sinyal gelmez). Bir kare gecikmeyle yazılır.
-##   `Performance.TIME_PROCESS`/`TIME_PHYSICS_PROCESS` kare başı değildir: motor saniyede bir günceller ve son
-##   saniyenin EN KÖTÜ karesini tutar; bu yüzden ayrı alan olarak `process_max_1s_ms`/`physics_max_1s_ms`.
-## - Renderer monitörleri (draw call, nesne, ilkel, viewport render CPU/GPU, frame setup): her karede okunur
-##   (değer bir önceki çizilen kareye aittir).
-## Her monitörün 0,25 sn'lik aralık ortalaması ve en büyüğü ayrı halka tamponlara yazılır (seyrek tekil örnek uzun
-## kareyi kayırırdı); tamponlar son `seconds` saniyeyi tutar. Ölçüm yalnız seviye yüklüyken, yüklemeden sonraki
-## `warmup_sec` hariç. Pencereli koşuda otomasyonun 60 FPS sınırı kaldırılır (vsync proje ayarında kalır).
+## What is measured:
+## - Frame time: wall clock between consecutive `SceneTree.process_frame` signals (ms).
+## - process_ms: `process_frame` → this node's `_process` (it runs last via the highest `process_priority`, so the span covers all `_process` callbacks).
+## - physics_ms: per physics step `physics_frame` → this node's `_physics_process`, summed per frame (0 if no step); excludes the physics server step.
+## - process_total_ms (windowed only): `process_frame` → `RenderingServer.frame_pre_draw`: callbacks + deferred calls + `_draw` recording + pre-draw sync.
+##   No draw loop headless (signal never fires); written one frame late. `Performance.TIME_PROCESS`/`TIME_PHYSICS_PROCESS` are not per-frame
+##   (updated once a second, hold the WORST frame), hence the separate `process_max_1s_ms`/`physics_max_1s_ms` fields.
+## - Renderer monitors (draw calls, objects, primitives, viewport render CPU/GPU, frame setup): read every frame (value belongs to the previous drawn frame).
+## Each monitor's 0.25 s interval mean and max go to separate ring buffers (sparse single samples would favour long frames) holding the last `seconds`.
+## Measured only while a level is loaded, excluding `warmup_sec` after loading. In windowed runs automation's 60 FPS cap is lifted (vsync stays per project settings).
 
 const INTERVAL_SEC := 0.25
-## Seviye yüklendikten sonra ölçülmeyen süre (yükleme/ilk fizik karesi sıçramaları).
+## Time not measured after a level loads (load / first physics frame spikes).
 const DEFAULT_WARMUP_SEC := 1.0
-## Kare tamponu kapasitesi = seconds × bu (1000 FPS'e kadar tam pencere; rapor son N saniyeye kırpar).
+## Frame buffer capacity = seconds × this (full window up to 1000 FPS; the report trims to the last N seconds).
 const FRAMES_PER_SEC_CAP := 1000
 const _LAST := 2147483647
 
-## Ölçümün açık olup olmadığını söyler (testler değiştirebilir; varsayılan: Game'de seviye yüklü mü).
+## Whether measurement is on (tests may override; default: a level is loaded in Game).
 var level_query: Callable = func() -> bool: return Game.current_level() != null
 var warmup_sec: float = DEFAULT_WARMUP_SEC
 
@@ -35,8 +29,8 @@ var _seconds: float = 10.0
 var _render: bool = false
 var _viewport: RID = RID()
 var _frames: FrameStats = null
-var _means: Array[FrameStats] = []  # PerfReport.MONITOR_KEYS sırasıyla aralık ortalamaları
-var _peaks: Array[FrameStats] = []  # aralık en büyükleri
+var _means: Array[FrameStats] = []  # interval means, in PerfReport.MONITOR_KEYS order
+var _peaks: Array[FrameStats] = []  # interval maxima
 var _sum: PackedFloat64Array = []
 var _max: PackedFloat64Array = []
 var _acc_frames: int = 0
@@ -57,7 +51,7 @@ func _init() -> void:
 	set_physics_process(false)
 
 
-## Ölçümü başlatır: `seconds` pencere, `render` = renderer var (pencereli). Düğüm ağaçta olmalı.
+## Starts measuring: `seconds` window, `render` = a renderer exists (windowed). The node must be in the tree.
 func begin(seconds: float, render: bool) -> void:
 	_seconds = seconds
 	_render = render
@@ -143,7 +137,7 @@ func _process(_delta: float) -> void:
 	_acc_frames = 0
 
 
-## Bu karenin değerleri (PerfReport.MONITOR_KEYS sırası; süreler ms).
+## This frame's values (PerfReport.MONITOR_KEYS order; times in ms).
 func _read(process_ms: float, physics_ms: float) -> PackedFloat64Array:
 	var out: PackedFloat64Array = [
 		process_ms,
@@ -153,8 +147,8 @@ func _read(process_ms: float, physics_ms: float) -> PackedFloat64Array:
 		0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 	]
 	if not _viewport.is_valid():
-		return out  # headless: RENDER_* ölçülmez (raporda 0)
-	out[4] = _total_ms  # önceki karenin işleme adımı
+		return out  # headless: RENDER_* not measured (0 in the report)
+	out[4] = _total_ms  # previous frame's process step
 	out[5] = Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
 	out[6] = Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
 	out[7] = Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
@@ -164,7 +158,7 @@ func _read(process_ms: float, physics_ms: float) -> PackedFloat64Array:
 	return out
 
 
-## Döküm "render" bölümü. `begin` çağrılmadıysa da şema tam (sayımlar 0).
+## Dump "render" section. The schema is complete even if `begin` was never called (counts 0).
 func report() -> Dictionary:
 	var means: Dictionary = {}
 	var peaks: Dictionary = {}

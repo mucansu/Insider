@@ -1,25 +1,21 @@
 extends Node
-## Gürültü (autoload `NoiseBus`, sözleşme S8 — docs/notes/mimari.md; US-009). Yarıçaplar ve türler
-## `data/noise_profile.tres` (NoiseProfile), kurallar `core/noise_rules.gd` (NoiseRules, düğümsüz).
+## Noise (autoload `NoiseBus`, contract S8 — docs/notes/mimari.md; US-009). Radii and kinds come from
+## `data/noise_profile.tres` (NoiseProfile), rules from `core/noise_rules.gd` (NoiseRules, nodeless).
 ##
-## Akış: `emit_noise` host'ta doğrudan yayılır; istemcide host'a güvenilir RPC ile iletilir (S2). Host istemci
-## isteğini `host_request` ile doğrular: gönderen = `get_remote_sender_id()`, kaynak 0 ya da gönderenin kendisi
-## (başka peer adına ses yok), tür yalnız hareket sesi (NoiseProfile.MOVEMENT_KINDS), yarıçap host'un tanımından
-## (istemcinin yarıçapına güvenilmez), konum host'un bildiği aktör konumuna NoiseRules.POSITION_TOLERANCE içinde,
-## aynı göndericinin son kabul edilen isteğinden en az `step_interval × CLIENT_RATE_FACTOR` sn sonra (yoksa `rate`).
-## Yayılan ses: host `noise_listener` grubundaki düğümlerin `hear_noise(pos, radius, kind)` metodunu çağırır
-## (duck typing; dinleyici kendi mesafe/duvar kuralını uygular) ve herkese görsel halka olayı yollar
-## (`authority`, güvenilmez: yalnız görsel). Her peer halka olayında `noise_shown` yayar ve geçerli seviyenin
-## altına halka görseli ekler (`RING_SCENE`, yol dizesinden `load()`: derleme bağımlılığı yok).
-## Döküm (S6, yalnız `--dump`): "noise" anahtarı — `stats()`.
+## Flow: `emit_noise` spreads directly on the host; a client forwards it to the host via reliable RPC (S2). The host validates it in
+## `host_request`: sender = `get_remote_sender_id()`, source 0 or the sender itself, movement kinds only, radius taken from the host's
+## definition, position within NoiseRules.POSITION_TOLERANCE of the host-known actor position, rate-limited per sender.
+## Spreading: the host calls `hear_noise(pos, radius, kind)` on `noise_listener` group nodes (duck typing) and sends a visual ring event to
+## everyone (`authority`, unreliable, visual only); each peer emits `noise_shown` and adds a ring visual (`RING_SCENE`, loaded by path).
+## Dump (S6, `--dump` only): "noise" key — `stats()`.
 
-## Halka olayı (her peer'da; host'ta yerel yayılımla birlikte).
+## Ring event (on every peer; on the host together with local spreading).
 signal noise_shown(pos: Vector2, radius: float, kind: StringName)
 
 const LISTENER_GROUP := PhysicsLayers.NOISE_LISTENER_GROUP
 const LISTENER_METHOD := &"hear_noise"
-## Etkileşim aktörleri grubu (S7 `Interactable.ACTOR_GROUP`): `interaction_position()` host'un bildiği en güncel
-## konumu verir. Autoload entities/'i bilmez; ad core/'daki tek kaynaktan (PhysicsLayers, §6, duck typing).
+## Interaction actor group (S7 `Interactable.ACTOR_GROUP`): `interaction_position()` gives the host's latest known position.
+## The autoload does not know entities/; the name comes from the single source in core/ (PhysicsLayers, §6, duck typing).
 const ACTOR_GROUP := PhysicsLayers.ACTORS_GROUP
 const ACTOR_POSITION_METHOD := &"interaction_position"
 const RING_SCENE := "res://entities/fx/noise_ring.tscn"
@@ -27,8 +23,8 @@ const DUMP_KEY := "noise"
 
 var _profile: NoiseProfile = null
 var _ring_scene: PackedScene = null
-## Sayaçlar (döküm): bu süreçte yayılması istenen ses (yerel çağrı), host'ta kabul edilen istemci isteği ve
-## nedene göre ret, host'ta dinleyicilere dağıtılan ses ve dinleyici çağrısı, bu peer'da görülen halka olayı.
+## Counters (dump): sounds requested locally, client requests accepted/rejected-by-reason on the host,
+## sounds dispatched to listeners and listener calls on the host, ring events seen on this peer.
 var _emitted: int = 0
 var _accepted: int = 0
 var _rejected: Dictionary = {}
@@ -36,7 +32,7 @@ var _dispatched: int = 0
 var _delivered: int = 0
 var _rings: int = 0
 var _ring_kinds: Dictionary = {}
-## Host: gönderen peer -> son kabul edilen isteğin anı (sn; tempo sınırı).
+## Host: sender peer -> time of its last accepted request (seconds; rate limit).
 var _last_accept: Dictionary = {}
 
 
@@ -46,10 +42,10 @@ func _ready() -> void:
 		Game.register_dump_provider(DUMP_KEY, stats)
 
 
-## İstemciden çağrılırsa host'a iletilir; host `noise_listener` grubundaki düğümlerin
-## `hear_noise(pos, radius, kind)` metodunu çağırır ve herkese görsel halka olayı yollar.
-## Sıfır yarıçaplı ses yayılmaz. İstemcide `radius` yalnız yerel ön süzgeçtir: host türün tanımdaki yarıçapını
-## kullanır. `source_peer` sesi çıkaranın peer kimliği (0 = dünya).
+## Called on a client it forwards to the host; the host calls `hear_noise(pos, radius, kind)` on `noise_listener`
+## group nodes and sends a visual ring event to everyone.
+## Zero-radius sounds are not spread. On a client `radius` is only a local pre-filter: the host uses the kind's radius from the profile.
+## `source_peer` is the emitter's peer id (0 = world).
 func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void:
 	if radius <= 0.0 or not pos.is_finite():
 		return
@@ -61,8 +57,8 @@ func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int 
 		_rpc_request.rpc_id(1, pos, kind, source_peer)
 
 
-## Yalnız host'ta: `sender`'ın gürültü isteğini doğrular ve kabul edilirse yayar (RPC gövdesi; testler de bu
-## yolu kullanır). Host değilse etkisizdir ve NO_ACTOR döner. `now`: isteğin anı (sn; < 0 ise saat; testler verir).
+## Host only: validates `sender`'s noise request and spreads it if accepted (RPC body; tests use this path too).
+## No-op returning NO_ACTOR if not the host. `now`: request time (seconds; < 0 = use the clock; tests pass it).
 func host_request(sender: int, pos: Vector2, kind: StringName, source_peer: int,
 		now: float = -1.0) -> NoiseRules.Result:
 	if not _is_host():
@@ -91,7 +87,7 @@ func host_request(sender: int, pos: Vector2, kind: StringName, source_peer: int,
 	return result
 
 
-## Döküm/teşhis sayaçları (S6 "noise").
+## Dump/diagnostic counters (S6 "noise").
 func stats() -> Dictionary:
 	var rejected_total: int = 0
 	for reason: String in _rejected:
@@ -108,7 +104,7 @@ func stats() -> Dictionary:
 	}
 
 
-# --- RPC (S2: istemci→host any_peer + gönderen doğrulaması; host→herkes authority, görsel: güvenilmez) ---
+# --- RPC (S2: client→host any_peer + sender validation; host→all authority, visual: unreliable) ---
 
 @rpc("any_peer", "call_remote", "reliable")
 func _rpc_request(pos: Vector2, kind: StringName, source_peer: int) -> void:
@@ -142,7 +138,7 @@ func _actor(peer_id: int) -> Node:
 	return null
 
 
-# --- her peer ---
+# --- every peer ---
 
 func _show_ring(pos: Vector2, radius: float, kind: StringName) -> void:
 	_rings += 1
