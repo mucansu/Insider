@@ -1,26 +1,21 @@
 class_name PopulationRules
 extends RefCounted
-## Mekân nüfusu kuralları (US-016 AC1/AC2/AC4/AC5; GDD §9.2 tablo; oyun-yz tur 2 #13). Düğümsüz: geliş zamanları,
-## üst sınırlar, müşteri/yoldan geçen planları ve sokak rotası hesabı burada; sahne ağacını bilmez (KR-003).
-## Nüfus üreticisi (`entities/npc/population.gd`, yalnız host) her adımda `Schedule.tick` çağırır, dönen siparişleri
-## üretir. Belirlenimcilik (I6): aynı tohum + aynı sayımlar → aynı geliş anları ve planlar (tek RNG, sabit sıra:
-## önce müşteri, sonra yoldan geçen; plan geliş anında aynı RNG'den çekilir).
+## Venue population rules (US-016 AC1/AC2/AC4/AC5; GDD §9.2 table; oyun-yz round 2 #13). Node-free: arrival times, caps, customer/passer-by plans and street route maths; no scene tree (KR-003).
+## The population spawner (`entities/npc/population.gd`, host only) calls `Schedule.tick` each step and spawns the returned orders. Deterministic (I6): same seed + same counts -> same arrivals and plans
+## (single RNG, fixed order: customer first, then passer-by; the plan is drawn from the same RNG at arrival).
 ##
-## - Müşteri: ilk geliş [first_min, first_max], sonra aralık ± sapma. Geliş anında içeride (etkin müşteri) üst
-##   sınırdaysa, NPC tavanı doluysa ya da uyarı `pause_alert_level` ve üstündeyse gelmez, rota iptal: bir sonraki
-##   aralık çekilir.
-## - Yoldan geçen: aralık ± sapma (ilk geliş de bir aralık), sokakta üst sınır; aynı iptal kuralı.
-## - NPC tavanı: toplam NPC (sahip, müşteri, yoldan geçen, mahalleli) + komşuya ayrılan yer < `max_npcs`.
-## - Müşteri planı: kalış [stay_min, stay_max]; raf noktası 1-2 ([min_spots, max_spots]), her biri
-##   [shop_min, shop_max] sn; iki nokta + servis + yürüme payı kalışı aşıyorsa tek nokta.
-## - Yoldan geçen planı: her cam parçası için `look_chance` olasılıkla `look_sec` içeri bakış.
+## - Customer: first arrival in [first_min, first_max], then interval +/- jitter. At arrival, if the inside cap (active customers) or NPC cap is full or alert >= `pause_alert_level`, nobody comes and the route is cancelled: the next interval is drawn.
+## - Passer-by: interval +/- jitter (the first arrival is also an interval), street cap; same cancel rule.
+## - NPC cap: total NPCs (owner, customers, passers-by, neighbours) + space reserved for the neighbour < `max_npcs`.
+## - Customer plan: stay [stay_min, stay_max]; 1-2 shelf spots ([min_spots, max_spots]), each [shop_min, shop_max] s; if two spots + service + walk margin exceed the stay, one spot.
+## - Passer-by plan: for each window pane, a `look_chance` chance of a `look_sec` look inside.
 
 enum Role { CUSTOMER, PASSERBY }
 
 const ROLE_NAMES: Array[StringName] = [&"customer", &"passerby"]
 
 
-## Ayarlar (değer nesnesi; `data/npc/population.tres` doldurur, varsayılanlar nötr).
+## Settings (value object; `data/npc/population.tres` fills it, defaults neutral).
 class Params:
 	extends RefCounted
 	var customer_first_min: float = 0.0
@@ -41,46 +36,46 @@ class Params:
 	var passerby_max: int = 0
 	var look_chance: float = 0.0
 	var look_sec: float = 0.0
-	## Cam parçası (WindowLook*) sayısı: yoldan geçen planı bu kadar bakış zarı taşır.
+	## Window pane (WindowLook*) count: the passer-by plan carries this many look dice.
 	var window_count: int = 0
 	var max_npcs: int = 0
-	## Komşuya (mahalleli) ayrılan yer: nüfus tavanın bu kadar altında durur.
+	## Space reserved for the neighbour (chaser): the population stays this far below the cap.
 	var reserve: int = 0
-	## Bu uyarı kademesinden itibaren yeni sivil gelmez (0 = hiç durmaz).
+	## From this alert level on no new civilians arrive (0 = never pauses).
 	var pause_alert_level: int = 0
 
 
-## Anlık sayımlar (üretici her adımda doldurur).
+## Current counts (the spawner fills them each step).
 class Counts:
 	extends RefCounted
 	var customers: int = 0
 	var passersby: int = 0
-	## Bütün NPC'ler (sahip + siviller + mahalleli).
+	## All NPCs (owner + civilians + neighbour).
 	var npcs: int = 0
 	var alert_level: int = 0
 
 
-## Bir üretim siparişi: rol + plan + geliş anı.
+## A spawn order: role + plan + arrival time.
 class Order:
 	extends RefCounted
 	var role: Role = Role.CUSTOMER
 	var at: float = 0.0
-	## Müşteri: kalış (sn), raf noktası süreleri (sn) ve seçim zarları (0..1, `pick` ile boş noktaya çevrilir).
+	## Customer: stay (s), shelf spot durations (s) and pick dice (0..1, turned into a free spot by `pick`).
 	var stay_sec: float = 0.0
 	var dwell: Array[float] = []
 	var picks: Array[float] = []
-	## Yoldan geçen: cam başına bakış (true = bakar).
+	## Passer-by: look per window pane (true = looks).
 	var looks: Array[bool] = []
 
 
-## Geliş zamanlayıcısı (tohumlu).
+## Arrival scheduler (seeded).
 class Schedule:
 	extends RefCounted
 	var params: Params
 	var clock: float = 0.0
 	var next_customer: float = INF
 	var next_passerby: float = INF
-	## Üretilen ve iptal edilen gelişler (döküm, testler).
+	## Arrivals spawned and cancelled (dump, tests).
 	var spawned: Array[Order] = []
 	var cancelled: Array[Dictionary] = []
 	var _rng := RandomNumberGenerator.new()
@@ -94,8 +89,8 @@ class Schedule:
 		if p.passerby_interval > 0.0:
 			next_passerby = _interval(p.passerby_interval, p.passerby_jitter)
 
-	## Saat `delta` ilerler; vadesi gelen gelişler için siparişler (müşteri önce). `counts` sipariş başına
-	## güncellenir (aynı adımda iki geliş tavanı birlikte aşmasın).
+	## Time advances by `delta`; returns orders for due arrivals (customer first). `counts` is updated per order
+	## (two arrivals in one step must not exceed the cap together).
 	func tick(delta: float, counts: Counts) -> Array[Order]:
 		var out: Array[Order] = []
 		clock += maxf(delta, 0.0)
@@ -149,7 +144,7 @@ class Schedule:
 		return o
 
 
-## Geliş yapılabilir mi: rol üst sınırı, NPC tavanı (komşu payı dahil) ve uyarı duraklaması.
+## Whether an arrival may happen: role cap, NPC cap (neighbour reserve included) and alert pause.
 static func may_spawn(p: Params, counts: Counts, role: Role) -> bool:
 	if p.pause_alert_level > 0 and counts.alert_level >= p.pause_alert_level:
 		return false
@@ -163,27 +158,27 @@ static func may_spawn(p: Params, counts: Counts, role: Role) -> bool:
 	return false
 
 
-## İki raf noktası + servis + yürüme payı kalışı aşıyorsa noktalar sondan atılır (en az bir nokta kalır).
+## If two shelf spots + service + walk margin exceed the stay, spots are dropped from the end (at least one remains).
 static func fit_stay(o: Order, p: Params) -> void:
 	while o.dwell.size() > 1 and _sum(o.dwell) + p.serve_sec + p.walk_margin_sec > o.stay_sec:
 		o.dwell.pop_back()
 		o.picks.pop_back()
 
 
-## Zar (0..1) → boş adaylardan biri (yoksa boş).
+## Roll (0..1) -> one of the free candidates (empty if none).
 static func pick(free: Array[StringName], roll: float) -> StringName:
 	if free.is_empty():
 		return &""
 	return free[clampi(floori(clampf(roll, 0.0, 0.999999) * free.size()), 0, free.size() - 1)]
 
 
-## Sokak rotası: rota noktaları sırayla; her bakış noktası, en yakın olduğu rota parçasına parça üzerindeki
-## izdüşüm sırasıyla yerleşir. Dönüş: [{"pos": Vector2, "look": int}] (look = bakış indisi, rota noktasında -1).
+## Street route: route points in order; each look point goes onto the route segment it is nearest to, ordered by projection along the segment.
+## Returns [{"pos": Vector2, "look": int}] (look = look index, -1 at a route point).
 static func street_route(route: Array[Vector2], looks: Array[Vector2]) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if route.is_empty():
 		return out
-	## parça indisi -> [[t, bakış indisi], ...]
+	## segment index -> [[t, look index], ...]
 	var on_segment: Dictionary = {}
 	for li: int in looks.size():
 		var best: int = -1
@@ -213,8 +208,8 @@ static func street_route(route: Array[Vector2], looks: Array[Vector2]) -> Array[
 	return out
 
 
-## Camdan içeri bakış yönü: bakış noktasından içerinin (bölge dikdörtgenleri) en yakın noktasına birim yön; nokta
-## içerideyse ya da bölge yoksa sıfır.
+## Direction to look inside from a window: unit direction from the look point to the nearest point of the inside (zone rects);
+## zero if the point is inside or there are no zones.
 static func look_facing(from: Vector2, inside: Array[Rect2]) -> Vector2:
 	var best: Vector2 = Vector2.INF
 	var best_d: float = INF

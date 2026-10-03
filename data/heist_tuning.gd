@@ -1,35 +1,31 @@
 class_name HeistTuning
 extends Resource
-## Soygun sonucu ayarları (US-040 eli boş çekilme, US-041 kefalet / KR-029, US-042 örtü ve tanık sorgusu;
-## mimari.md S10 ayar dosyası kalıbı).
-## Değerlerin tek kaynağı `data/heist_tuning.tres`; buradaki varsayılanlar nötrdür. Kurallar düğümsüz
-## `HeistRules`'ta (core/heist_rules.gd); Game (host) iş başında bu kaynağı okuyup kurala verir.
+## Heist result tuning (US-040 empty-handed abort, US-041 bail / KR-029, US-042 cover and witness questioning; mimari.md S10 tuning-file pattern).
+## Single source is `data/heist_tuning.tres`; defaults here are neutral. Rules are node-free in `HeistRules` (core/heist_rules.gd); Game (host) reads this resource at job start and passes it to the rules.
 
 const PATH := "res://data/heist_tuning.tres"
 
-## Eli boş çekilme: yakalanmamış herkes ganimetsiz kaçış bölgesinde bu kadar kesintisiz kalınca iş `aborted`
-## sonucuyla biter (sn).
+## Empty-handed abort: seconds all uncaught players stay in the escape zone with no loot before the job ends as `aborted`.
 @export_range(0.0, 30.0, 0.1, "suffix:s") var abort_hold_s: float = 0.0
-## Kefalet: mekân kademesi -> iş sonunda yakalanan her oyuncu için ekip kasasından düşen tutar. Tabloda olmayan
-## kademe en yakın alt kademenin tutarını kullanır (HeistRules.bail_for_tier).
+## Bail: venue tier -> amount deducted from team cash for each player caught at job end.
+## A tier not in the table uses the nearest lower tier's amount (HeistRules.bail_for_tier).
 @export var bail_by_tier: Dictionary[int, int] = {}
 
 @export_group("Örtü ve tanık sorgusu (US-042)")
-## İlişkilendirme penceresi: arkadaş bu kadar sn önce işaretlendiyse (sahip bağırdı/tuttu, maske) onunla görülen
-## yakın etkileşim örtüyü bozar.
+## Association window: if a friend was marked this many seconds ago (owner shouted/held, mask), a close interaction seen with them breaks cover.
 @export_range(0.0, 60.0, 0.1, "suffix:s") var cover_mark_window_s: float = 0.0
-## İlişkilendirme mesafesi: etkileşen iki oyuncu arası en fazla (px).
+## Association distance: max distance between the two interacting players (px).
 @export_range(0.0, 256.0, 1.0, "suffix:px") var association_radius_px: float = 0.0
-## İlişkilendirmeyi gören gözlemcinin o oyuncuya şüphe artışı (müşteri-tanık yolu ile aynı: population.tres
+## Suspicion gained against that player by an observer who saw the association (same as the customer-witness path: population.tres
 ## tell_suspicion).
 @export_range(0.0, 100.0, 1.0) var association_suspicion: float = 0.0
-## Tanık sorgusuyla serbest bırakılan her oyuncu için ekip ısısı.
+## Team heat for each player released by witness questioning.
 @export_range(0, 50) var witness_heat: int = 0
 
 static var _default: HeistTuning = null
 
 
-## `data/heist_tuning.tres` (süreç başına bir kez yüklenir).
+## `data/heist_tuning.tres` (loaded once per process).
 static func load_default() -> HeistTuning:
 	if _default == null:
 		_default = load(PATH) as HeistTuning

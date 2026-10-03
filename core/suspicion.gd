@@ -1,52 +1,45 @@
 class_name SuspicionMeter
 extends RefCounted
-## Bir gözlemcinin bir hedefe karşı şüphe ölçeri (US-006 AC1; mimari.md S2, S11, GDD §6.1/§12, KR-019).
-## Düğümsüz; dolum hızı (`PerceptionRules.rate_for`) ve adım süresiyle ilerler, sabit adımdan bağımsızdır.
+## One observer's suspicion meter against one target (US-006 AC1; mimari.md S2, S11, GDD §6.1/§12, KR-019).
+## Node-free; advances by fill rate (`PerceptionRules.rate_for`) and step time, independent of the fixed step.
 ##
-## - Değer 0..MAX_VALUE; eşikler (KR-019: "?" 30, inceleme 60, tespit 100) düzeyi verir: 0 sakin, 1..N eşik sırası.
-## - Görülürken (dolum > 0) değer `fill × sn` artar; görülmezken (görüş hattı kesik, koni dışı, karanlık)
-##   `decay_per_sec` ile azalır, düzey de değerle birlikte iner.
-## - Görülme dizisi: görülen adımlar ve aralarındaki `gap_tolerance`'tan kısa kesintiler tek dizidir
-##   (`seen_for` dizinin süresi, kesinti dahil). Kısa kesintide dolum o anda durur ama dizi sürer ve boşalma
-##   başlamaz: kenarda kıpırdayarak bakma (11/1, 9/3 kare) ya da 20 Hz eşitleme titremesi ölçeri sıfırlamaz,
-##   tespitten sonra tek karelik kayıp düzeyi düşürmez. Kesinti toleransı aşınca dizi biter, boşalma toleransın
-##   ötesindeki süre için işler (gerçek saklanma).
-## - Oyuncu lehine pay (S2, GDD §12: host oyuncuyu ~100-175 ms eski konumda görür): dizinin ilk `grace` sn'sinde
-##   dolum yok ("görüldü" başlangıcı geç başlar); görüş hattından çıkışta dolum o anda durur. Sonuç: `grace`'ten
-##   kısa bakış iz bırakmaz, host'un eski görüntüsüyle saklanan oyuncunun son ~0,2 sn'lik görüntüsü tespite
-##   yetişmez. Sürekli görülen hedefte tespit = grace + MAX / dolum (koşan, yakın bant: 0,2 + 1,0 sn; KR kararı
-##   US-006 t2). Pay süresince değer ne dolar ne boşalır.
-## - `step()` bu adımda yukarı doğru geçilen eşik düzeylerini sırayla döndürür (bileşen sinyale çevirir).
+## - Value 0..MAX_VALUE; thresholds (KR-019: "?" 30, inspect 60, detect 100) give the level: 0 calm, 1..N threshold order.
+## - While seen (fill > 0) the value grows by `fill x s`; while unseen (line of sight cut, outside cone, dark) it decays at `decay_per_sec` and the level falls with the value.
+## - Seen sequence: seen steps and gaps shorter than `gap_tolerance` between them form one sequence (`seen_for` = sequence length, gaps included). In a short gap the fill stops but the sequence continues and decay does not start:
+##   fidgeting at the cone edge (11/1, 9/3 frames) or 20 Hz sync jitter does not reset the meter, and a one-frame loss after detection does not drop the level. Beyond the tolerance the sequence ends and decay runs for the time past it (real hiding).
+## - Player-favouring slack (S2, GDD §12: the host sees the player at a ~100-175 ms old position): no fill in the first `grace` s of a sequence; on leaving line of sight the fill stops at once.
+##   So a look shorter than `grace` leaves no trace, and the last ~0.2 s of a player hiding from the host's stale view never reaches detection. Continuously seen: detect = grace + MAX / fill
+##   (sprinting, near band: 0.2 + 1.0 s; KR decision US-006 t2). During the slack the value neither fills nor decays.
+## - `step()` returns the threshold levels crossed upward this step in order (the component turns them into signals).
 
-## Ölçer tavanı (GDD §6.1: 0-100).
+## Meter cap (GDD §6.1: 0-100).
 const MAX_VALUE := 100.0
-## Eşik karşılaştırmasında kayan nokta payı (adım toplamının 99,9999'da kalmaması için).
+## Float margin for threshold comparison (so a step sum does not stall at 99.9999).
 const EPSILON := 0.0001
 
 
-## Ölçer ayarları (değer nesnesi; bileşen tuning'den doldurur).
+## Meter settings (value object; the component fills it from tuning).
 class Params:
 	extends RefCounted
-	## Görülmezken boşalma (birim/sn).
+	## Decay while unseen (units/s).
 	var decay_per_sec: float = 0.0
-	## Artan eşikler; düzey = geçilen eşik sayısı.
+	## Rising thresholds; level = number of thresholds crossed.
 	var thresholds: PackedFloat32Array = PackedFloat32Array()
-	## Oyuncu lehine pay (sn).
+	## Player-favouring slack (s).
 	var grace: float = 0.0
-	## Görülme dizisini bozmayan kesinti süresi (sn; 0 = her kesinti diziyi bitirir).
+	## Gap length that does not break a seen sequence (s; 0 = every gap ends it).
 	var gap_tolerance: float = 0.0
 
 
 var value: float = 0.0
 var level: int = 0
-## Süren görülme dizisinin süresi (sn; tolere edilen kesintiler dahil; dizi yoksa 0).
+## Length of the ongoing seen sequence (s; tolerated gaps included; 0 if none).
 var seen_for: float = 0.0
-## Süren kesintinin süresi (sn; görülürken 0).
+## Length of the ongoing gap (s; 0 while seen).
 var gap_for: float = 0.0
 
 
-## Bir adım ilerletir. `fill_rate` > 0 ise hedef bu adım boyunca görüldü sayılır. Yukarı geçilen düzeyler
-## (küçükten büyüğe) döner; düzey inişleri döndürülmez.
+## Advances one step. If `fill_rate` > 0 the target counts as seen this step. Returns the levels crossed upward (ascending); level drops are not returned.
 func step(params: Params, fill_rate: float, delta: float) -> PackedInt32Array:
 	var dt: float = maxf(delta, 0.0)
 	if fill_rate > 0.0:
@@ -78,7 +71,7 @@ func step(params: Params, fill_rate: float, delta: float) -> PackedInt32Array:
 	return reached
 
 
-## Değerin düzeyi: geçilen (≥, EPSILON payıyla) eşik sayısı.
+## Level of a value: number of thresholds crossed (>=, with EPSILON margin).
 static func level_for(params: Params, amount: float) -> int:
 	var out: int = 0
 	for t: float in params.thresholds:

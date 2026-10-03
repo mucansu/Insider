@@ -1,32 +1,28 @@
 class_name Fsm
 extends RefCounted
-## Küçük durum makinesi (US-008 AC1; mimari.md S11, KR-018). Düğümsüz: durumlar tamsayı (beynin enum'u), izinli
-## geçişler isteğe bağlı bir kenar tablosuyla verilir. NPC beyinleri (`brain_owner`, `brain_chaser`) ve mekânın
-## uyarı merdiveni (I4: bakkal kümesi {0→1, 1→2, 2→3, 3→5, 2→1, 1→0}) aynı sınıfı kullanır.
+## Small state machine (US-008 AC1; mimari.md S11, KR-018). Node-free: states are ints (the brain's enum); allowed
+## transitions come from an optional edge table. NPC brains and the venue alert ladder (I4: grocery {0→1, 1→2, 2→3, 3→5, 2→1, 1→0}) share it.
 ##
-## - `go(to)`: izinli geçişse durumu değiştirir, durumdaki süre sıfırlanır, `changed` yayılır, geçmişe yazılır.
-##   Kenar tablosu boşsa her geçiş izinlidir; aynı duruma geçiş yok sayılır (false).
-## - `route(to)`: kenarlar üzerinden en kısa durum dizisi (şimdiki hariç, `to` dahil); ulaşılamazsa boş.
-##   Uyarı merdiveninde "0'dan 2'ye" isteği 0→1→2 olarak yürünür, atlama olmaz.
-## - `step(delta)`: durumdaki süreyi ve makinenin saatini (`clock`) ilerletir (beyin her adımda çağırır).
-## - Geçmiş zaman damgalı: `history[i]` durumuna `history_times[i]` saatinde (sn, `clock`) girildi; döküm geçiş
-##   sırasını ve süresini kanıtlar.
+## - `go(to)`: switches if allowed, resets time in state, emits `changed`, logs history; an empty table allows all, same-state is a no-op (false).
+## - `route(to)`: shortest state path over the edges (current excluded, `to` included); empty if unreachable (no ladder skipping).
+## - `step(delta)`: advances time in state and the machine `clock` (brains call it every step).
+## - History is timestamped: `history[i]` entered at `history_times[i]` (s, `clock`); dumps prove transition order and duration.
 
 signal changed(from: int, to: int)
 
-## Geçmişte tutulan en fazla geçiş (döküm/test; eskiler düşer).
+## Max transitions kept in history (dump/tests; oldest dropped).
 const MAX_HISTORY := 256
 
 var state: int = 0
-## Şimdiki durumda geçen süre (sn).
+## Time in the current state (s).
 var time_in_state: float = 0.0
-## Makinenin saati (sn; `step` toplamı).
+## Machine clock (s; sum of `step`).
 var clock: float = 0.0
-## Geçilen durumlar (ilk durum dahil; en fazla MAX_HISTORY) ve giriş anları (`clock`).
+## Visited states (incl. initial; at most MAX_HISTORY) and entry times (`clock`).
 var history: PackedInt32Array = PackedInt32Array()
 var history_times: PackedFloat64Array = PackedFloat64Array()
 
-## from -> PackedInt32Array (izinli hedefler); boş = serbest.
+## from -> PackedInt32Array (allowed targets); empty = free.
 var _edges: Dictionary = {}
 
 
@@ -67,7 +63,7 @@ func step(delta: float) -> void:
 	clock += maxf(delta, 0.0)
 
 
-## Geçmiş, döküm biçiminde: [[durum, giriş anı (sn, 3 basamak)], …]; `names` verilirse durum adı.
+## History as dump rows: [[state, entry time (s, 3 decimals)], ...]; state name if `names` given.
 func history_rows(names: Array = []) -> Array:
 	var out: Array = []
 	for i: int in history.size():
@@ -76,12 +72,12 @@ func history_rows(names: Array = []) -> Array:
 	return out
 
 
-## Şimdiki durumdan `to`'ya en kısa izinli dizi (şimdiki hariç). Aynı durum ya da ulaşılamaz: boş.
+## Shortest allowed sequence from the current state to `to` (current excluded); empty if same state or unreachable.
 func route(to: int) -> PackedInt32Array:
 	return shortest_path(_edges, state, to)
 
 
-## Kenar tablosunda `from` → `to` en kısa yol (from hariç). Tablo boşsa doğrudan [to].
+## Shortest `from` -> `to` path in an edge table (from excluded); [to] directly if the table is empty.
 static func shortest_path(edges: Dictionary, from: int, to: int) -> PackedInt32Array:
 	if from == to:
 		return PackedInt32Array()
@@ -107,7 +103,7 @@ static func shortest_path(edges: Dictionary, from: int, to: int) -> PackedInt32A
 	return out
 
 
-## Dizi (ilk öğe başlangıç) yalnız izinli geçişlerden mi oluşuyor (yinelenen ardışık durum geçiş sayılmaz).
+## Whether the sequence (first element = start) uses only allowed transitions (repeated consecutive states are not transitions).
 static func is_valid_sequence(edges: Dictionary, sequence: PackedInt32Array) -> bool:
 	for i: int in range(1, sequence.size()):
 		var from: int = sequence[i - 1]

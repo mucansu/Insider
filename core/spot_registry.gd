@@ -1,15 +1,13 @@
 class_name SpotRegistry
 extends RefCounted
-## Nokta rezervasyonu (US-016 AC1; oyun-yz tur 2 #12; GDD §9.2). Düğümsüz: işaret adı (StringName) → tutan
-## sahip kimliği (int, ör. NPC sıra numarası). Aynı noktayı iki sahip aynı anda tutamaz (iki müşteri aynı rafa ya
-## da kuyruk noktasına gelmez). Sahip görevi bitince/kesmede ya da silinince `release` ile bırakır. Yalnız host'ta
-## kullanılır (nüfus üreticisi tek kayıt tutar, NPC'lere verir); ağ yok.
+## Spot reservation (US-016 AC1; oyun-yz round 2 #12; GDD §9.2). Node-free: marker name (StringName) -> holder id (int, e.g. NPC index). Two holders cannot hold the same spot at once
+## (two customers never go to the same shelf or queue point). A holder releases when its task ends, is cut or the NPC is removed. Host only (the population spawner keeps the single registry); no networking.
 
-## spot -> holder (0 = yok; kayıtta tutulmaz).
+## spot -> holder (0 = none; not stored in the registry).
 var _holders: Dictionary = {}
 
 
-## `spot`'u `holder` için tutar. Boşsa ya da zaten onunsa true; başkasınınsa false. Geçersiz girdi false.
+## Holds `spot` for `holder`. True if free or already theirs; false if someone else's. Invalid input is false.
 func claim(spot: StringName, holder: int) -> bool:
 	if spot.is_empty() or holder == 0:
 		return false
@@ -20,7 +18,7 @@ func claim(spot: StringName, holder: int) -> bool:
 	return true
 
 
-## `holder`'ın tuttuğu noktaları bırakır; `spot` verilirse yalnız onu (başkasınınsa dokunmaz).
+## Releases the spots `holder` holds; if `spot` is given only that one (untouched if someone else's).
 func release(holder: int, spot: StringName = &"") -> void:
 	if not spot.is_empty():
 		if int(_holders.get(spot, 0)) == holder:
@@ -35,12 +33,12 @@ func is_free(spot: StringName) -> bool:
 	return not _holders.has(spot)
 
 
-## Noktayı tutan (0 = boş).
+## Holder of the spot (0 = free).
 func holder_of(spot: StringName) -> int:
 	return int(_holders.get(spot, 0))
 
 
-## `holder`'ın tuttuğu noktalar (ada göre sıralı).
+## Spots held by `holder` (sorted by name).
 func spots_of(holder: int) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for key: StringName in _holders:
@@ -50,7 +48,7 @@ func spots_of(holder: int) -> Array[StringName]:
 	return out
 
 
-## Adaylardan boş olanlar (aday sırası korunur).
+## Free ones among the candidates (candidate order kept).
 func free_of(candidates: Array[StringName]) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for spot: StringName in candidates:
@@ -59,7 +57,7 @@ func free_of(candidates: Array[StringName]) -> Array[StringName]:
 	return out
 
 
-## Adaylardan ilk boşunu `holder` için tutar; yoksa boş StringName.
+## Holds the first free candidate for `holder`; empty StringName if none.
 func claim_first(candidates: Array[StringName], holder: int) -> StringName:
 	for spot: StringName in candidates:
 		if claim(spot, holder):

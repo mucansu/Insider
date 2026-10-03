@@ -1,8 +1,7 @@
 class_name FrameStats
 extends RefCounted
-## Sabit kapasiteli halka tampon + saf istatistik (IS-067, çizim ölçümü; mimari.md S6 `--perf`).
-## Düğümsüz ve motor tekillerine bağımsız: değerleri çağıran verir (kare süresi ms, draw call sayısı …).
-## Tampon doluyken en eski değerin üstüne yazar; `values()` eskiden yeniye sıralı kopya döner.
+## Fixed-capacity ring buffer + pure statistics (IS-067, draw measurement; mimari.md S6 `--perf`).
+## Node-free; callers supply the values (frame ms, draw calls, ...). When full it overwrites the oldest; `values()` returns a copy oldest-first.
 
 var _buf: PackedFloat32Array = []
 var _head: int = 0
@@ -32,7 +31,7 @@ func push(value: float) -> void:
 	_count = mini(_count + 1, _buf.size())
 
 
-## Eskiden yeniye sıralı kopya.
+## Copy ordered oldest to newest.
 func values() -> PackedFloat32Array:
 	var out: PackedFloat32Array = []
 	out.resize(_count)
@@ -42,8 +41,8 @@ func values() -> PackedFloat32Array:
 	return out
 
 
-## Toplamı `limit`i aşmayan en uzun son ek (ör. kare süreleri ms → son N saniyenin kareleri). Son öğe tek başına
-## sınırı aşsa da döner (boş olmayan dizide en az bir öğe); `limit` <= 0 ise tüm dizi.
+## Longest suffix whose sum does not exceed `limit` (e.g. frame ms -> frames of the last N seconds). The last element is
+## always returned (non-empty input yields at least one); `limit` <= 0 returns the whole array.
 static func tail_within(values: PackedFloat32Array, limit: float) -> PackedFloat32Array:
 	if limit <= 0.0 or values.is_empty():
 		return values.duplicate()
@@ -58,7 +57,7 @@ static func tail_within(values: PackedFloat32Array, limit: float) -> PackedFloat
 	return values.slice(start)
 
 
-## Sıralı dizide en yakın sıra yöntemiyle yüzdelik (p 0..100): p=0 en küçük, p=100 en büyük; boşsa 0.
+## Nearest-rank percentile of a sorted array (p 0..100): p=0 min, p=100 max; 0 if empty.
 static func percentile_sorted(sorted_values: PackedFloat32Array, p: float) -> float:
 	var n: int = sorted_values.size()
 	if n == 0:
@@ -67,7 +66,7 @@ static func percentile_sorted(sorted_values: PackedFloat32Array, p: float) -> fl
 	return sorted_values[clampi(rank - 1, 0, n - 1)]
 
 
-## {"count", "min", "avg", "p50", "p95", "p99", "max"}; boş dizide hepsi 0.
+## {"count", "min", "avg", "p50", "p95", "p99", "max"}; all 0 for an empty array.
 static func summarize(values: PackedFloat32Array) -> Dictionary:
 	var n: int = values.size()
 	if n == 0:
@@ -88,8 +87,8 @@ static func summarize(values: PackedFloat32Array) -> Dictionary:
 	}
 
 
-## Kare süreleri (ms) → FPS özeti: ortalama (kare sayısı / toplam süre), en düşük (en uzun kareden) ve
-## "%1 düşük" (p99 kare süresinden; en yavaş %1 karenin eşiği). Boşsa hepsi 0.
+## Frame ms -> FPS summary: average (frames / total time), minimum (longest frame) and "1% low" (p99 frame time).
+## All 0 if empty.
 static func fps_summary(frame_ms: PackedFloat32Array) -> Dictionary:
 	var s: Dictionary = summarize(frame_ms)
 	return {
@@ -103,6 +102,6 @@ static func _fps(ms: float) -> float:
 	return _r(1000.0 / ms) if ms > 0.0 else 0.0
 
 
-## Dökümde okunur kalsın diye 3 ondalık.
+## 3 decimals to keep dumps readable.
 static func _r(v: float) -> float:
 	return snappedf(v, 0.001)
