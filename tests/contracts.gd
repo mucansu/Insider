@@ -60,6 +60,8 @@ const LINES := {
 		"func abort_left() -> float",
 		# S3 addition (US-042, cover): local player's cover (1 intact, 0 broken, -1 no job); read-only.
 		"func cover_state() -> int",
+		# S3 addition (IS-058b): session seed of the current job (host decides; a client reads 0).
+		"func session_seed() -> int",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
@@ -90,6 +92,8 @@ const LINES := {
 		"var run_seed: int",
 		"var run_seed_given: bool",
 		"var quit_on_heist_end: float",
+		# IS-058b: brain loop.
+		"var brain_loop: float",
 	],
 	# S6 addition (IS-015a): bot brain surface the statistics runner (IS-015b) relies on (entities/player/bot_brain.gd; checked in
 	# tests/unit/test_bot_brain.gd). Dump section "brain": strategy, seed, role, phase, phase_log, stuck_s (+ counters).
@@ -100,6 +104,9 @@ const LINES := {
 		"func spec_from_file(path: String) -> Dictionary",
 		"func tick(player: Player, frame: int, delta: float) -> void",
 		"func dump_state() -> Dictionary",
+		# IS-058b: fair sight / brain loop (dump additions omni, run, sight, runs).
+		"func is_omni() -> bool",
+		"func runs() -> Array[Dictionary]",
 	],
 }
 

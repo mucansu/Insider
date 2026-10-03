@@ -3,7 +3,7 @@ extends Node
 ## User args follow `--`: --host · --join=ADDR · --port=N · --name=NAME · --level=res://... · --bot=PATH.json · --dump=PATH.json
 ## · --quit-after=SEC · --player-scene=res://... (test only) · --screenshot-at=SEC[,SEC…] · --screenshot-dir=PATH · --window-size=WxH (IS-022)
 ## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump)
-## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file).
+## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file) · --brain-loop=SEC (IS-058b).
 ## Parsed from `OS.get_cmdline_user_args()` at startup (tests may call `parse()` with their own list). Unknown args go to `unknown`
 ## without a warning (e.g. the test runner's --filter); a recognised key with a bad value warns and keeps the default.
 
@@ -335,6 +335,9 @@ static func parse_perf_seconds(value: String) -> float:
 # no session seed yet (IS-058) and may bind to the same argument later.
 # `--quit-on-heist-end`: SEC seconds after the job ends (Game.heist_finished) the process writes the dump (exit_reason "heist_end") and
 # exits 0 (statistics runner); independent of `--quit-after`, whichever comes first.
+# `--seed` also fixes the NPC session seed (IS-058b, Game.session_seed()).
+# `--brain-loop` (IS-058b): SEC seconds after the job ends the host's brain asks "Again" (Game.request_restart) and every brain starts
+# a new run (dump brain.runs[]); endurance runs. Do not combine with `--quit-on-heist-end` (that quits on the first job end).
 
 ## Brain strategy (lower case); empty = no brain.
 var brain: String = ""
@@ -344,6 +347,8 @@ var run_seed: int = 0
 var run_seed_given: bool = false
 ## Seconds after the job ends to dump and quit; < 0 = off.
 var quit_on_heist_end: float = -1.0
+## Seconds after the job ends until the host's brain restarts the job; < 0 = off (IS-058b).
+var brain_loop: float = -1.0
 
 
 func _parse_brain_args() -> void:
@@ -351,6 +356,7 @@ func _parse_brain_args() -> void:
 	run_seed = 0
 	run_seed_given = false
 	quit_on_heist_end = -1.0
+	brain_loop = -1.0
 	var rest: PackedStringArray = []
 	for raw: String in unknown:
 		var arg: String = raw.strip_edges()
@@ -364,8 +370,8 @@ func _parse_brain_args() -> void:
 				if BotRules.is_valid_strategy(value):
 					brain = value.to_lower()
 				else:
-					push_warning("Args: geçersiz --brain '%s' (%s, isteğe bağlı %s eki)"
-						% [value, "|".join(PackedStringArray(BotRules.STRATEGIES)), BotRules.BAG_SUFFIX])
+					push_warning("Args: geçersiz --brain '%s' (%s, isteğe bağlı %s / %s ekleri)"
+						% [value, "|".join(PackedStringArray(BotRules.STRATEGIES)), BotRules.BAG_SUFFIX, BotRules.OMNI_SUFFIX])
 			"--seed":
 				if not _need_value(key, value, eq >= 0):
 					continue
@@ -381,6 +387,13 @@ func _parse_brain_args() -> void:
 					quit_on_heist_end = value.to_float()
 				else:
 					push_warning("Args: geçersiz --quit-on-heist-end '%s' (SN >= 0)" % value)
+			"--brain-loop":
+				if not _need_value(key, value, eq >= 0):
+					continue
+				if value.is_valid_float() and is_finite(value.to_float()) and value.to_float() >= 0.0:
+					brain_loop = value.to_float()
+				else:
+					push_warning("Args: geçersiz --brain-loop '%s' (SN >= 0)" % value)
 			_:
 				rest.append(raw)
 	unknown = rest

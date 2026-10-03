@@ -11,11 +11,23 @@ extends RefCounted
 ## same strategy + same observed world = same decision sequence. Stops when the job ends (`Game.heist_result()` not empty).
 ## Dump (S6, only with `--dump`): "brain" = {"strategy", "seed", "role", "phase", "phase_log": [[t, phase], ...], "stuck_s", "unsticks",
 ## "wait_timeouts", "retreats", "failures", "time_s"} (t = brain clock, s since the first step with a local player).
+## IS-058b additions: fair sight by default - the owner is read only while the local player really sees it (the fog's `can_see`, the
+## same query NpcVisual draws with; no fog -> seen), otherwise the brain uses its last sighting (`BotRules.Sighting`); the shout is
+## heard. `+omni` = the old all-knowing view. Brain loop (`--brain-loop=SEC` or bot file key "brain_loop"): SEC s after the job ends
+## the host's brain calls `Game.request_restart()`; on the new level every brain starts a new run (new Mind, run seed = seed + run
+## index, memory forgotten). Dump additions: "omni", "run" (index), "sight" {"owner_seen_s", "owner_sightings"} (current run),
+## "runs": [{"outcome", "time_s", "strategy", "seed", "phase", "duration_s", "stuck_s", "wait_timeouts", "retreats", "failures",
+## "owner_seen_s"}] (finished runs; outcome "unfinished" if the level changed before the job ended). Top-level phase, phase_log and
+## counters describe the current run; "time_s" is the whole brain clock.
 
 const DUMP_KEY := "brain"
 ## Bot file keys selecting a brain.
 const SPEC_BRAIN_KEY := "brain"
 const SPEC_SEED_KEY := "seed"
+## Bot file key of the brain loop (s; IS-058b; `--brain-loop` overrides).
+const SPEC_LOOP_KEY := "brain_loop"
+## Run outcome when the level changed before the job ended.
+const RUN_UNFINISHED := "unfinished"
 ## Waypoint switch distance (px) and slow-down radius before the final spot.
 const WAYPOINT_PX := 10.0
 const SLOW_PX := 24.0
@@ -49,6 +61,7 @@ var _mind: BotRules.Mind = null
 var _rng := RandomNumberGenerator.new()
 var _player: Player = null
 var _level: Node = null
+var _level_id: int = 0
 var _grid: AStarGrid2D = null
 var _doors: Dictionary = {}
 var _register: Register = null
@@ -63,6 +76,7 @@ var _held: Dictionary = {}
 var _pressed: Dictionary = {}
 var _pressing: bool = false
 var _press_tag: int = -1
+var _press_action: StringName = &""
 var _finished_since_press: bool = false
 var _no_start: int = 0
 var _result: int = BotRules.RESULT_NONE
@@ -76,15 +90,24 @@ var _stuck := BotRules.StuckMeter.new()
 var _unsticks: int = 0
 var _escape_jitter: Vector2 = Vector2.ZERO
 var _dump_registered: bool = false
+## IS-058b: fair sight memory of the owner and its counters (current run).
+var _owner_mem := BotRules.Sighting.new()
+var _owner_seen_s: float = 0.0
+var _owner_sightings: int = 0
+var _owner_was_seen: bool = false
+## IS-058b brain loop: seconds after the job end until the host restarts (< 0 off), runs.
+var loop_s: float = -1.0
+var _run: int = 0
+var _run_start: float = 0.0
+var _run_recorded: bool = false
+var _restart_at: float = INF
+var _runs: Array[Dictionary] = []
 
 
 func _init(strategy_name: String, seed_value: int) -> void:
 	_strategy = strategy_name.strip_edges().to_lower()
 	_seed = seed_value
-	_mind = BotRules.Mind.new(_strategy, seed_value)
-	_rng.seed = hash("%d:%s:move" % [seed_value, _strategy])
-	_escape_jitter = Vector2(_rng.randf_range(-ESCAPE_JITTER_PX, ESCAPE_JITTER_PX),
-		_rng.randf_range(-ESCAPE_JITTER_PX, ESCAPE_JITTER_PX))
+	_start_mind(seed_value)
 
 
 ## Whether the process asked for a brain (`--brain`, or a `--bot` file that selects one).
@@ -93,17 +116,24 @@ static func requested() -> bool:
 
 
 ## Brain from the arguments: `--brain` (+ `--seed`), else the bot file's spec (`--seed` overrides the file's seed). Null if none.
+## Loop: `--brain-loop`, else the bot file's "brain_loop".
 static func from_args() -> BotBrain:
+	var brain: BotBrain = null
+	var spec: Dictionary = {}
 	if not Args.brain.is_empty():
-		return BotBrain.new(Args.brain, Args.run_seed)
-	var spec: Dictionary = spec_from_file(Args.bot_path)
-	if spec.is_empty():
-		return null
-	var seed_value: int = Args.run_seed if Args.run_seed_given else int(spec[SPEC_SEED_KEY])
-	return BotBrain.new(str(spec[SPEC_BRAIN_KEY]), seed_value)
+		brain = BotBrain.new(Args.brain, Args.run_seed)
+	else:
+		spec = spec_from_file(Args.bot_path)
+		if spec.is_empty():
+			return null
+		var seed_value: int = Args.run_seed if Args.run_seed_given else int(spec[SPEC_SEED_KEY])
+		brain = BotBrain.new(str(spec[SPEC_BRAIN_KEY]), seed_value)
+	brain.loop_s = Args.brain_loop if Args.brain_loop >= 0.0 else float(spec.get(SPEC_LOOP_KEY, -1.0))
+	return brain
 
 
-## Brain spec of a bot file: {"brain": String, "seed": int} if the file has a valid "brain" key, else {} (timeline file or unreadable).
+## Brain spec of a bot file: {"brain": String, "seed": int} if the file has a valid "brain" key, else {} (timeline file or unreadable);
+## plus "brain_loop": float if the file sets a valid one (>= 0).
 static func spec_from_file(path: String) -> Dictionary:
 	if path.is_empty() or not FileAccess.file_exists(path):
 		return {}
@@ -117,7 +147,11 @@ static func spec_from_file(path: String) -> Dictionary:
 		return {}
 	var seed_raw: Variant = data.get(SPEC_SEED_KEY, 0)
 	var seed_value: int = int(seed_raw) if typeof(seed_raw) == TYPE_INT or typeof(seed_raw) == TYPE_FLOAT else 0
-	return {SPEC_BRAIN_KEY: strategy_name, SPEC_SEED_KEY: seed_value}
+	var spec: Dictionary = {SPEC_BRAIN_KEY: strategy_name, SPEC_SEED_KEY: seed_value}
+	var loop_raw: Variant = data.get(SPEC_LOOP_KEY, null)
+	if (typeof(loop_raw) == TYPE_INT or typeof(loop_raw) == TYPE_FLOAT) and float(loop_raw) >= 0.0:
+		spec[SPEC_LOOP_KEY] = float(loop_raw)
+	return spec
 
 
 func strategy() -> String:
@@ -137,6 +171,21 @@ func time() -> float:
 	return _time
 
 
+## Whether the owner is read all-knowing (`+omni`) instead of through the local player's eyes.
+func is_omni() -> bool:
+	return _mind.omni
+
+
+## Finished runs (IS-058b brain loop; dump "runs").
+func runs() -> Array[Dictionary]:
+	return _runs.duplicate(true)
+
+
+## Index of the current run (0 = first job).
+func run_index() -> int:
+	return _run
+
+
 ## One physics step (once per frame; the brain is process-wide). `player`: the local player (null -> no input).
 func tick(player: Player, frame: int, delta: float) -> void:
 	if frame == _last_frame:
@@ -154,8 +203,11 @@ func tick(player: Player, frame: int, delta: float) -> void:
 	if not _ensure_world():
 		return
 	var view: BotRules.View = _view()
+	if view.owner_seen and view.owner_present:
+		_owner_seen_s += delta
 	var intent: BotRules.Intent = _mind.decide(view)
 	_act(view, intent, delta)
+	_loop_step(view)
 
 
 func move_vector() -> Vector2:
@@ -188,6 +240,10 @@ func dump_state() -> Dictionary:
 		"retreats": _mind.retreats,
 		"failures": _mind.failures,
 		"time_s": snappedf(_time, 0.01),
+		"omni": _mind.omni,
+		"run": _run,
+		"sight": {"owner_seen_s": snappedf(_owner_seen_s, 0.01), "owner_sightings": _owner_sightings},
+		"runs": _runs.duplicate(true),
 	}
 
 
@@ -210,7 +266,10 @@ func _ensure_world() -> bool:
 		return false
 	if level == _level and _grid != null:
 		return true
+	if _level_id != 0 and level.get_instance_id() != _level_id:  # (a freed level compares equal to null)
+		_next_run()  # IS-058b: a new job (restart / level change)
 	_level = level
+	_level_id = level.get_instance_id()
 	_grid = null
 	_doors.clear()
 	_register = null
@@ -256,11 +315,14 @@ func _view() -> BotRules.View:
 	_result = BotRules.RESULT_NONE
 	if _owner != null and is_instance_valid(_owner):
 		v.owner_present = true
-		v.owner_pos = _owner.global_position
-		v.owner_facing = _owner.net_facing
-		v.owner_state = _owner.net_state
-		v.owner_task = _owner.net_task
-		v.owner_shouted = _owner.net_shouted
+		v.owner_shouted = _owner.net_shouted  # heard (alert ladder), not seen
+		var seen: bool = _mind.omni or _sees(_owner)
+		if seen:
+			_owner_mem.observe(_time, _owner.global_position, _owner.net_facing, _owner.net_state, _owner.net_task)
+			if not _owner_was_seen:
+				_owner_sightings += 1
+		_owner_was_seen = seen
+		_owner_mem.fill(v, _time, seen)
 	if _register != null and is_instance_valid(_register):
 		v.register_pos = _register.global_position
 		v.register_emptied = _register.emptied
@@ -331,6 +393,68 @@ func _nearest_shelf(v: BotRules.View) -> Vector2:
 		if best == Vector2.INF or shelf.global_position.distance_to(v.pos) < best.distance_to(v.pos):
 			best = shelf.global_position
 	return best
+
+
+## Whether the local player really sees `node` now: the local fog's `can_see` (visible tile and line of sight; NpcVisual's query).
+## No fog (no local observer) -> seen, like NpcVisual.
+func _sees(node: Node2D) -> bool:
+	var fog: Object = FogView.fog_of(node)
+	return fog == null or bool(fog.call(&"can_see", node.global_position))
+
+
+## Brain loop (IS-058b): records the run when the job ends; the host restarts the job `loop_s` s later.
+func _loop_step(v: BotRules.View) -> void:
+	if v.heist_over and not _run_recorded:
+		_record_run(Game.heist_result())
+		if loop_s >= 0.0 and Net.is_host():
+			_restart_at = _time + loop_s
+	if _time >= _restart_at:
+		_restart_at = INF
+		Game.request_restart.call_deferred()  # not inside the player's own physics step (the restart frees it)
+
+
+func _record_run(result: Dictionary) -> void:
+	_run_recorded = true
+	_runs.append({
+		"outcome": str(result.get("outcome", RUN_UNFINISHED)),
+		"time_s": snappedf(_time - _run_start, 0.01),
+		"strategy": _strategy,
+		"seed": _mind.seed_value,
+		"phase": _mind.phase_name(),
+		"duration_s": snappedf(float(result.get("duration_s", -1.0)), 0.01),
+		"stuck_s": snappedf(_stuck.total_s, 0.01),
+		"wait_timeouts": _mind.wait_timeouts,
+		"retreats": _mind.retreats,
+		"failures": _mind.failures,
+		"owner_seen_s": snappedf(_owner_seen_s, 0.01),
+	})
+
+
+## New run on a new level: the previous one is recorded (unfinished if the job had not ended), the Mind restarts with seed + run index.
+func _next_run() -> void:
+	if not _run_recorded:
+		_record_run({})
+	_run += 1
+	_start_mind(_seed + _run)
+
+
+func _start_mind(seed_value: int) -> void:
+	_mind = BotRules.Mind.new(_strategy, seed_value)
+	_rng.seed = hash("%d:%s:move" % [seed_value, _strategy])
+	_escape_jitter = Vector2(_rng.randf_range(-ESCAPE_JITTER_PX, ESCAPE_JITTER_PX),
+		_rng.randf_range(-ESCAPE_JITTER_PX, ESCAPE_JITTER_PX))
+	_owner_mem.forget()
+	_owner_seen_s = 0.0
+	_owner_sightings = 0
+	_owner_was_seen = false
+	_stuck = BotRules.StuckMeter.new()
+	_unsticks = 0
+	_run_start = _time
+	_run_recorded = false
+	_restart_at = INF
+	_pressing = false
+	_result = BotRules.RESULT_NONE
+	_nudge_until = -1.0
 
 
 func _marker_pos(marker_name: StringName) -> Vector2:
@@ -441,6 +565,7 @@ func _press(action: StringName, tag: int) -> void:
 	_pressed[action] = true
 	_pressing = true
 	_press_tag = tag
+	_press_action = action
 	_finished_since_press = false
 
 
@@ -453,3 +578,5 @@ func _on_finished(success: bool) -> void:
 	_no_start = 0
 	if _press_tag != PRESS_DOOR and _press_tag == int(_mind.phase):
 		_result = BotRules.RESULT_OK if success else BotRules.RESULT_FAIL
+	if success and _press_tag == BotRules.Phase.LURE and _press_action == BotRules.ACTION_ALT:
+		_owner_mem.infer(_time, BotRules.TASK_SENT)  # own SEND TO BACKROOM went through: the owner heads for the back room
