@@ -140,9 +140,11 @@ func test_caught_all() -> void:
 
 func test_police_catches_everyone_inside() -> void:
 	var t := HeistRules.Tracker.new()
-	var views: Dictionary = {A: _view(false), B: _view(false, 450, false, true), C: _view(true)}
+	var inside: Dictionary = _view(false)
+	inside["staff_side"] = true  # örtüsü bozuk (US-042): tanık sorgusu yok
+	var views: Dictionary = {A: inside, B: _view(false, 450, false, true), C: _view(true)}
 	t.arrive_police(views)
-	is_true(t.is_caught(A), "içeride kalan yakalanır")
+	is_true(t.is_caught(A), "içeride kalan (örtüsü bozuk) yakalanır")
 	is_true(t.is_caught(B), "tutulan da yakalanır")
 	is_false(t.is_caught(C), "kaçış bölgesindeki yakalanmaz")
 	eq(t.evaluate(views), &"police", "kaçan ganimetsiz: polis (kayıp)")
@@ -194,9 +196,11 @@ func test_result_shape_and_shares() -> void:
 	eq(result["heat"], 5)
 	var players: Dictionary = result["players"]
 	eq(players.size(), 3)
-	eq(players[str(A)], {"name": "Ayşe", "slot": 0, "escaped": true, "caught": false, "loot": 150, "bail": 0})
+	eq(players[str(A)], {"name": "Ayşe", "slot": 0, "escaped": true, "caught": false, "loot": 150, "bail": 0,
+		"witness_released": false, "recognized": 0})
 	eq(players[str(B)]["loot"], 450)
-	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": true, "loot": 0, "bail": 0})
+	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": true, "loot": 0, "bail": 0,
+		"witness_released": false, "recognized": 0})
 	eq(t.cash_grabbed(), 150)
 
 
@@ -436,3 +440,142 @@ func test_bail_per_caught_player() -> void:
 	r = t.build_result(&"win", {A: _view(true), B: _view(true)}, two, 100, -200)
 	eq(r["payout"], 405)
 	eq(r["cash_after"], 205, "-200 + 405: borç kapandı")
+
+
+# --- US-042 örtü ve tanık sorgusu ---
+
+static func _with(view: Dictionary, extra: Dictionary) -> Dictionary:
+	var out: Dictionary = view.duplicate()
+	out.merge(extra, true)
+	return out
+
+
+func test_cover_breakers() -> void:
+	eq(HeistRules.cover_breaker(_view(false)), &"", "dışarıda yürüyen: sağlam")
+	eq(HeistRules.cover_breaker(_with(_view(false), {"move_mode": HeistRules.MOVE_WALK})), &"")
+	eq(HeistRules.cover_breaker(_with(_view(false), {"masked": true})), &"mask")
+	eq(HeistRules.cover_breaker(_view(false, 450)), &"bag", "çanta elde")
+	eq(HeistRules.cover_breaker(_with(_view(false), {"holding_cash": true})), &"cash", "kasa/nakit tutuyor")
+	eq(HeistRules.cover_breaker(_with(_view(false), {"staff_side": true})), &"staff", "personel tarafı / arka oda")
+	eq(HeistRules.cover_breaker(_view(false, 0, false, false, true)), &"run", "koşuyor")
+	eq(HeistRules.cover_breaker(_with(_view(false), {"move_mode": HeistRules.MOVE_SNEAK})), &"sneak", "sızıyor")
+	eq([HeistRules.MOVE_WALK, HeistRules.MOVE_SNEAK, HeistRules.MOVE_SPRINT],
+		[PlayerMotion.Mode.WALK, PlayerMotion.Mode.SNEAK, PlayerMotion.Mode.SPRINT], "kip değerleri PlayerMotion ile aynı")
+
+
+func test_cover_breaks_permanently() -> void:
+	var t := HeistRules.Tracker.new()
+	t.observe({A: _view(false), B: _view(false)}, 0.1)
+	is_true(t.cover_intact(A) and t.cover_intact(B), "başta sağlam")
+	eq(t.cover_events, [] as Array[Dictionary])
+	t.observe({A: _with(_view(false), {"staff_side": true}), B: _view(false)}, 0.1)
+	is_false(t.cover_intact(A), "personel tarafına geçti: bozuldu")
+	eq(t.cover_events, [{"peer": A, "reason": &"staff"}] as Array[Dictionary], "yeni bozulma olayı")
+	t.cover_events.clear()
+	t.observe({A: _view(false), B: _view(false)}, 0.1)
+	is_false(t.cover_intact(A), "müşteri tarafına dönse de geri gelmez")
+	eq(t.cover_events, [] as Array[Dictionary], "ikinci kez olay yok")
+	eq(t.cover_broken[A], &"staff", "ilk neden kalır")
+	t.note_bag(B)
+	is_false(t.cover_intact(B), "çanta alma/devralma bozar")
+	eq(t.cover_broken[B], &"bag")
+
+
+func test_association_window_and_radius() -> void:
+	is_true(HeistRules.associates(0.0, 30.0, true, 10.0, 48.0))
+	is_true(HeistRules.associates(9.9, 48.0, true, 10.0, 48.0), "pencere içinde, sınırda")
+	is_false(HeistRules.associates(10.1, 30.0, true, 10.0, 48.0), "10 sn geçti")
+	is_false(HeistRules.associates(-1.0, 30.0, true, 10.0, 48.0), "arkadaş hiç işaretlenmedi")
+	is_false(HeistRules.associates(2.0, 49.0, true, 10.0, 48.0), "48 px dışı")
+	is_false(HeistRules.associates(2.0, 30.0, false, 10.0, 48.0), "gözlemci görmedi")
+	var t := HeistRules.Tracker.new()
+	is_false(t.associate(A, B, 30.0, true, 48.0), "B işaretsiz: ilişkilendirme yok")
+	t.mark_target(B)
+	t.observe({A: _view(false), B: _view(false)}, 4.0)
+	is_true(t.associate(A, B, 30.0, true, 48.0), "4 sn önce bağırılan arkadaşla görüldü")
+	is_false(t.cover_intact(A))
+	eq(t.cover_broken[A], &"seen_with")
+	t = HeistRules.Tracker.new()
+	t.mark_target(B)
+	t.observe({A: _view(false), B: _view(false)}, 10.5)
+	is_false(t.associate(A, B, 30.0, true, 48.0), "10 sn penceresi doldu")
+	is_true(t.cover_intact(A))
+	t.cover_mark_window_s = 12.0
+	is_true(t.associate(A, B, 30.0, true, 48.0), "pencere veriden (Game verir)")
+
+
+func test_police_releases_witness_with_intact_cover() -> void:
+	var t := HeistRules.Tracker.new()
+	t.add_cash(B, 150)
+	var views: Dictionary = {A: _view(false), B: _view(true), C: _with(_view(false), {"staff_side": true})}
+	t.observe(views, 0.5)
+	t.set_alert(5)
+	t.arrive_police(views)
+	is_false(t.is_caught(A), "örtüsü sağlam, ganimetsiz: yakalanmaz")
+	is_true(t.is_released(A), "tanık sorgusuyla serbest")
+	is_true(t.is_caught(C), "örtüsü bozuk: yakalandı")
+	eq(t.evaluate(views), &"win", "serbest bırakılan bölge koşuluna girmez: B ganimetle bölgede → kazanma")
+	var r: Dictionary = t.build_result(&"win", views, _roster(), 100, 0)
+	eq(r["outcome"], &"hot")
+	var a: Dictionary = r["players"][str(A)]
+	eq([a["escaped"], a["caught"], a["witness_released"], a["recognized"], a["bail"], a["loot"]],
+		[false, false, true, 1, 0, 0], "kaçmadı, yakalanmadı, tanındı, kefalet yok")
+	eq(r["players"][str(C)]["bail"], 100)
+	eq(r["bail"], 100, "yalnız yakalanan kefalet öder")
+	eq(r["payout"], HeistRules.payout(150, 70), "kalanın kısmi ödemesi (yakalananın payı 0; tanık yakalanmadı)")
+	eq(r["heat"], HeistRules.HEAT_HOT + 2, "tanık başına ekip ısısı +2")
+
+
+func test_police_witness_branches() -> void:
+	is_true(HeistRules.witness_released(true, 0, false))
+	is_false(HeistRules.witness_released(false, 0, false), "örtü bozuk")
+	is_false(HeistRules.witness_released(true, 150, false), "ganimet taşıyor")
+	is_false(HeistRules.witness_released(true, 0, true), "tutuluyor")
+	var t := HeistRules.Tracker.new()
+	t.add_cash(A, 150)  # kasayı boşaltıp müşteri tarafına dönen: nakit üzerinde
+	var views: Dictionary = {A: _view(false), B: _view(false, 0, false, true)}
+	t.arrive_police(views)
+	is_true(t.is_caught(A), "nakit taşıyan yakalanır")
+	is_true(t.is_caught(B), "tutulan yakalanır")
+	eq(t.evaluate(views), &"police")
+	t = HeistRules.Tracker.new()
+	views = {A: _view(false), B: _view(false)}
+	t.arrive_police(views)
+	eq(t.evaluate(views), &"police", "herkes serbest: iş polisle biter (kimse kaçmadı)")
+	var r: Dictionary = t.build_result(&"police", views, {A: _roster()[A], B: _roster()[B]}, 100, 0)
+	eq(r["bail"], 0, "tanıkların kefaleti yok")
+	eq(r["heat"], HeistRules.HEAT_POLICE + 4)
+	t.witness_heat = 3
+	eq(t.build_result(&"police", views, {A: _roster()[A]})["heat"], HeistRules.HEAT_POLICE + 3, "ısı veriden")
+
+
+func test_strategy_class_rules() -> void:
+	var mixed: Dictionary = {"1": true, "2": false}
+	eq(HeistRules.strategy_class(3, true, 2, mixed), &"gürültü", "uyarı ≥ 3 önce")
+	eq(HeistRules.strategy_class(2, true, 2, mixed), &"arka_kapı")
+	eq(HeistRules.strategy_class(1, false, 1, mixed), &"sosyal")
+	eq(HeistRules.strategy_class(0, false, 0, mixed), &"örtü", "biri müşteri gibi, öteki iş başında")
+	eq(HeistRules.strategy_class(0, false, 0, {"1": false, "2": false}), &"zaman", "herkesin örtüsü bozuk")
+	eq(HeistRules.strategy_class(0, false, 0, {"1": true}), &"zaman", "kimse bozmadı")
+	eq(HeistRules.strategy_class(0, false, 0, {}), &"zaman")
+
+
+func test_strategy_dump_fields() -> void:
+	var t := HeistRules.Tracker.new()
+	t.observe({A: _view(false), B: _view(false)}, 2.0)
+	t.add_cash(A, 150)
+	t.note_interaction(A)
+	t.observe({A: _with(_view(false), {"staff_side": true}), B: _view(false)}, 3.0)
+	t.note_bag(A)
+	t.note_interaction(A)
+	t.note_interaction(0)  # NPC: sayılmaz
+	var s: Dictionary = t.build_result(&"win", {A: _view(true, 450), B: _view(true)},
+		{A: _roster()[A], B: _roster()[B]})["strategy"]
+	eq(s, {
+		"class": &"örtü", "interactions": 2, "max_alert": 0, "back_door_used": false,
+		"cover_intact": {str(A): false, str(B): true},
+		"register_emptied_at_s": 2.0, "cash_bag_taken_at_s": 5.0,
+	})
+	t.back_door_used = true
+	eq(t.strategy({A: {}})["class"], &"arka_kapı")
+	eq(HeistRules.Tracker.new().strategy({})["register_emptied_at_s"], -1.0, "olmayan an −1")

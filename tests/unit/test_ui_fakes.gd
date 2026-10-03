@@ -141,6 +141,12 @@ class FakeGame extends FakeGameBase:
 	func abort_left() -> float:
 		return abort
 
+	## US-042 yerel örtü: 1 sağlam, 0 bozuk, -1 iş yok.
+	var cover: int = -1
+
+	func cover_state() -> int:
+		return cover
+
 
 ## S3 + S3 eki + görüş eki (mimari.md, US-011b/c): maruziyet, oyuncu dünya konumu, host'un görüş kipi.
 class FakeVisionGame extends FakeGame:

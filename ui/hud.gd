@@ -26,8 +26,9 @@ const PLAYER_NAME_MAX_WIDTH := 170.0
 const EVENT_KEY_PREFIX := "EVENT_"
 ## Kalıp dışı olay metni anahtarları (tür -> anahtar).
 const EVENT_KEY_OVERRIDES := {&"owner_discover": "EVENT_OWNER_DISCOVERED"}
-## Bildirim gösterilmeyen olaylar: başka HUD öğesi zaten gösterir (alert_level → uyarı merdiveni, US-013).
-const SILENT_EVENTS: Array[StringName] = [&"alert_level"]
+## Bildirim gösterilmeyen olaylar: başka HUD öğesi zaten gösterir (alert_level → uyarı merdiveni, US-013;
+## cover_broken → kaçış panelindeki örtü satırı, US-042).
+const SILENT_EVENTS: Array[StringName] = [&"alert_level", &"cover_broken"]
 ## Olay verisinde oyuncuyu belirten alan (S3 eki, US-008: player_held/caught/rescued {peer}); metne {name} olarak girer.
 const EVENT_PEER_FIELD := "peer"
 const EVENT_NAME_FIELD := "name"

@@ -1,0 +1,154 @@
+{
+  "_doc": "US-042 örtü + tanık sorgusu: sahipsiz bakkal (tests/fixtures/store_a_quiet.tscn), host + c1 (c1 3 sn sonra katılır: kapıda çarpışmasınlar). c1 ön kapıdan girip müşteri tarafında bekler (müşteri gibi: örtü sağlam). Host tezgâh ucundan personel tarafına geçer (örtü bozulur; `cover_broken` olayı her peer'a gider, HUD sessiz) ve orada bekler. t=14'te polis gelir: kaçış bölgesinde kimse yok; host (örtüsü bozuk) yakalanır, kefalet 100; c1 tanık sorgusuyla serbest (yakalanmadı, kaçmadı, kefalet yok, tanındı 1); ısı 15 + 2; ekip kasası 0 → -100. Strateji etiketi `örtü` (biri müşteri gibi, öteki iş başında). Sonuç ve örtü durumu iki peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 19,
+  "start_delay": {
+    "c1": 3.0
+  },
+  "bots": {
+    "host": "res://tests/net/bots/witness_host.json",
+    "c1": "res://tests/net/bots/witness_c1.json"
+  },
+  "expect": [
+    {
+      "eq": [
+        "*.level",
+        "res://tests/fixtures/store_a_quiet.tscn"
+      ]
+    },
+    {
+      "len": [
+        "*.player_nodes",
+        2
+      ]
+    },
+    {
+      "eq": [
+        "*.heist.result.outcome",
+        "police"
+      ]
+    },
+    {
+      "all_equal": "heist.result"
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$host.caught",
+        true
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$host.bail",
+        100
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$host.witness_released",
+        false
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$c1.caught",
+        false
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$c1.escaped",
+        false
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$c1.witness_released",
+        true
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$c1.recognized",
+        1
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.players.$c1.bail",
+        0
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.bail",
+        100
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.heat",
+        17
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.cash_after",
+        -100
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.strategy.class",
+        "örtü"
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.strategy.cover_intact.$c1",
+        true
+      ]
+    },
+    {
+      "eq": [
+        "host.heist.result.strategy.cover_intact.$host",
+        false
+      ]
+    },
+    {
+      "all_equal": "heist.cover"
+    },
+    {
+      "eq": [
+        "*.heist.cover.$host",
+        false
+      ]
+    },
+    {
+      "eq": [
+        "*.heist.cover.$c1",
+        true
+      ]
+    },
+    {
+      "eq": [
+        "*.team_cash",
+        -100
+      ]
+    },
+    {
+      "eq": [
+        "*.player_states.$host.wall_frames",
+        0
+      ]
+    },
+    {
+      "eq": [
+        "*.player_states.$c1.wall_frames",
+        0
+      ]
+    }
+  ]
+}

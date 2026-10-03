@@ -19,6 +19,16 @@ extends RefCounted
 ## - Kefalet (US-041, KR-029): iş sonunda yakalanan her oyuncu için ekip kasasından mekân kademesinin tutarı
 ##   (data/heist_tuning.tres) düşer; kasa eksiye düşebilir (borç), sonraki ödeme doğal olarak kapatır.
 ##   Ekip kasası = iş öncesi + ödeme − kefalet.
+## - Örtü (US-042; GDD §9.3): oyuncu başına "müşteri gibi" durumu host'ta. Sağlam: maskesiz + elde çanta/alet yok +
+##   müşteri bölgesinde ya da dışarıda + yürüme/bekleme + son `cover_mark_window_s` (10 sn) içinde işaretli
+##   (maskeli ya da sahibin bağırdığı/tuttuğu) arkadaşla bir gözlemcinin gördüğü yakın (48 px) etkileşim (ÇEK, çanta
+##   devri) yok. Bozanlar (`cover_breaker`): maske, çanta, kasa/nakit tutma, personel tarafı, koşma, sızma; çanta
+##   alma/devralma; görülen ilişkilendirme (gözlemcinin o oyuncuya şüphesi +60, Game uygular). Bozulan örtü iş
+##   boyunca geri gelmez.
+## - Tanık sorgusu (US-042): polis geldiğinde kaçış bölgesi dışında kalan, örtüsü sağlam, ganimetsiz ve tutulmayan
+##   oyuncu yakalanmaz: `witness_released` (kaçmadı, yakalanmadı; kefalet yok; tanındı +1; ekip ısısı +2).
+##   Kararda serbest bırakılan bölge koşuluna girmez: kalanlar ganimetle bölgedeyse iş (sıcak) kazanılır.
+## - Strateji etiketi (US-042 AC4, test-2 ölçümü): `strategy_class` (açık sıralı kurallar) + `Tracker.strategy`.
 ## - Çanta: koşulan her tam saniyede %25 düşer (gürültü 160); devir 0,3 sn; alma süresi data/props/bag.tres.
 
 const OUTCOME_CLEAN := &"clean"
@@ -53,6 +63,29 @@ const HEAT_ABORTED_SHOUTED := 5
 const ABORT_HOLD_S := 3.0
 ## Kayan nokta birikimi için tolerans (60 Hz adımların toplamı 3,0'ı 1e-9 ıskalamasın).
 const ABORT_EPS := 1e-6
+
+## Örtü (US-042). Yedek değerler: asıl değerler data/heist_tuning.tres (Game verir).
+const COVER_MARK_WINDOW_S := 10.0
+const WITNESS_HEAT := 2
+## Oyuncu hareket kipi (PlayerMotion.Mode ile aynı değerler; core entities'e bağlanmasın diye burada).
+const MOVE_WALK := 0  # bilgi: kip yürüme
+const MOVE_SNEAK := 1
+const MOVE_SPRINT := 2  # bilgi: koşu kararı "sprinting" (hareketli) alanından
+## Örtü bozma nedenleri (döküm/olay verisi).
+const COVER_MASK := &"mask"
+const COVER_BAG := &"bag"
+const COVER_CASH := &"cash"
+const COVER_STAFF := &"staff"
+const COVER_RUN := &"run"
+const COVER_SNEAK := &"sneak"
+const COVER_SEEN_WITH := &"seen_with"
+
+## Strateji sınıfları (US-042 AC4; döküm değerleri).
+const STRATEGY_TIME := &"zaman"
+const STRATEGY_SOCIAL := &"sosyal"
+const STRATEGY_NOISE := &"gürültü"
+const STRATEGY_BACK_DOOR := &"arka_kapı"
+const STRATEGY_COVER := &"örtü"
 
 ## Çanta (GDD §9.3; kart US-012).
 const BAG_GROUP := &"loot_bags"
@@ -112,6 +145,55 @@ static func ratio_pct(outcome: StringName, shouted: bool) -> int:
 	return 0
 
 
+## Örtüyü bozan neden (yoksa &""): `view` = {"masked", "bag_value", "holding_cash", "staff_side", "sprinting"
+## (hareket ederek koşuyor), "move_mode" (MOVE_SNEAK = sızma)} (eksik alan bozmaz). Sıra: maske, çanta, nakit,
+## personel tarafı, koşma, sızma.
+static func cover_breaker(view: Dictionary) -> StringName:
+	if bool(view.get("masked", false)):
+		return COVER_MASK
+	if int(view.get("bag_value", 0)) > 0:
+		return COVER_BAG
+	if bool(view.get("holding_cash", false)):
+		return COVER_CASH
+	if bool(view.get("staff_side", false)):
+		return COVER_STAFF
+	if bool(view.get("sprinting", false)):
+		return COVER_RUN
+	if int(view.get("move_mode", MOVE_WALK)) == MOVE_SNEAK:
+		return COVER_SNEAK
+	return &""
+
+
+## İlişkilendirme (US-042): etkileşilen arkadaş son `window_s` içinde işaretlendi (`marked_age_s` ≥ 0; işaretsiz
+## −1), ikisi `radius` içinde ve en az bir gözlemci gördü.
+static func associates(marked_age_s: float, distance: float, observed: bool, window_s: float, radius: float) -> bool:
+	return observed and marked_age_s >= 0.0 and marked_age_s <= window_s and distance <= radius
+
+
+## Tanık sorgusu (US-042 AC2): polis geldiğinde bölge dışında kalan oyuncu serbest mi.
+static func witness_released(cover_intact: bool, loot: int, held: bool) -> bool:
+	return cover_intact and loot <= 0 and not held
+
+
+## Baskın strateji sınıfı (US-042 AC4), sırayla ilk uyan: uyarı ≥ ALERT_HOT → gürültü; arka kapı (BackDoor)
+## oyuncu tarafından açıldı → arka_kapı; sosyal eylem (SATIN AL/oyala/gönder; US-010) > 0 → sosyal; en az bir
+## oyuncunun örtüsü sağlam ve en az birininki bozuk (biri müşteri gibi, öteki iş başında) → örtü; değilse zaman.
+static func strategy_class(max_alert: int, back_door_used: bool, social_actions: int, cover_intact: Dictionary) -> StringName:
+	if max_alert >= ALERT_HOT:
+		return STRATEGY_NOISE
+	if back_door_used:
+		return STRATEGY_BACK_DOOR
+	if social_actions > 0:
+		return STRATEGY_SOCIAL
+	var intact: int = 0
+	for peer: Variant in cover_intact:
+		if bool(cover_intact[peer]):
+			intact += 1
+	if intact > 0 and intact < cover_intact.size():
+		return STRATEGY_COVER
+	return STRATEGY_TIME
+
+
 ## Isı değişimi; `max_alert` yalnız eli boş çekilmede (bağırış olduysa +5) kullanılır.
 static func heat_for(outcome: StringName, max_alert: int = 0) -> int:
 	match outcome:
@@ -158,7 +240,7 @@ static func abort_ready(players: Dictionary) -> bool:
 	var free: int = 0
 	for peer: Variant in players:
 		var p: Dictionary = players[peer]
-		if bool(p.get("caught", false)):
+		if bool(p.get("caught", false)) or bool(p.get("released", false)):
 			continue
 		free += 1
 		if not bool(p.get("in_zone", false)) or int(p.get("loot", 0)) > 0:
@@ -169,6 +251,7 @@ static func abort_ready(players: Dictionary) -> bool:
 ## İşin durumu. `players`: peer -> {"caught": bool, "in_zone": bool, "loot": int} (loot: yakalanmamışın kaçırdığı
 ## ganimet). `police`: polis geldi (bölge dışındakiler çağıran tarafından zaten yakalanmış işaretlenir).
 ## `abort_due`: eli boş çekilme sayacı doldu (AbortClock.done); yalnız koşul hâlâ sağlanıyorsa `aborted`.
+## `"released": true` (tanık sorgusuyla serbest, US-042) yakalanmış gibi bölge koşuluna girmez.
 static func decide(players: Dictionary, police: bool, abort_due: bool = false) -> StringName:
 	if players.is_empty():
 		return DECISION_NONE
@@ -177,7 +260,7 @@ static func decide(players: Dictionary, police: bool, abort_due: bool = false) -
 	var loot: int = 0
 	for peer: Variant in players:
 		var p: Dictionary = players[peer]
-		if bool(p.get("caught", false)):
+		if bool(p.get("caught", false)) or bool(p.get("released", false)):
 			continue
 		free += 1
 		all_in_zone = all_in_zone and bool(p.get("in_zone", false))
@@ -348,6 +431,22 @@ class Tracker:
 	var sprint_s: Dictionary = {}
 	## Eli boş çekilme sayacı (US-040); Game `abort.hold_s`'i data/heist_tuning.tres'ten verir.
 	var abort: HeistRules.AbortClock = HeistRules.AbortClock.new()
+	## Örtü (US-042): peer -> bozan neden (yoksa sağlam). Bir kez bozulan geri gelmez.
+	var cover_broken: Dictionary = {}
+	## Yeni bozulan örtüler (Game her adımda boşaltır ve olay yayar): [{"peer", "reason"}].
+	var cover_events: Array[Dictionary] = []
+	## peer -> işaretlendiği an (`elapsed`; sahip bağırdı/tuttu, maske): ilişkilendirme penceresi.
+	var marked_at: Dictionary = {}
+	var cover_mark_window_s: float = HeistRules.COVER_MARK_WINDOW_S
+	## Tanık sorgusuyla serbest bırakılanlar (peer -> true; US-042 AC2).
+	var released: Dictionary = {}
+	var witness_heat: int = HeistRules.WITNESS_HEAT
+	## Strateji etiketi girdileri (US-042 AC4).
+	var interactions: int = 0
+	var social_actions: int = 0
+	var back_door_used: bool = false
+	var register_emptied_at_s: float = -1.0
+	var cash_bag_taken_at_s: float = -1.0
 
 	func set_alert(level: int) -> void:
 		max_alert = maxi(max_alert, level)
@@ -371,6 +470,8 @@ class Tracker:
 	func add_cash(peer: int, amount: int) -> void:
 		if peer > 0 and amount > 0:
 			cash[peer] = int(cash.get(peer, 0)) + amount
+			if register_emptied_at_s < 0.0:
+				register_emptied_at_s = snappedf(elapsed, 0.01)
 
 	## Ekip nakdine iş sırasında giren toplam ganimet nakdi (bitişte ödemeyle değiştirilir).
 	func cash_grabbed() -> int:
@@ -382,14 +483,68 @@ class Tracker:
 	func note_bag(peer: int) -> void:
 		if peer > 0:
 			bags[peer] = int(bags.get(peer, 0)) + 1
+			break_cover(peer, HeistRules.COVER_BAG)
+			if cash_bag_taken_at_s < 0.0:
+				cash_bag_taken_at_s = snappedf(elapsed, 0.01)
 
-	## Polis geldi: kaçış bölgesi dışındaki yakalanmamış herkes yakalanır (tutulanlar dahil).
+	## Oyuncunun tamamladığı bir etkileşim (strateji etiketi; US-042 AC4).
+	func note_interaction(peer: int) -> void:
+		if peer > 0:
+			interactions += 1
+
+	## Sosyal eylem (SATIN AL / oyala / gönder; US-010 bağlar).
+	func note_social(peer: int) -> void:
+		if peer > 0:
+			social_actions += 1
+
+	# --- örtü (US-042) ---
+
+	func cover_intact(peer: int) -> bool:
+		return not cover_broken.has(peer)
+
+	## Örtüyü bozar; yeni bozulduysa true ve `cover_events`'e eklenir.
+	func break_cover(peer: int, reason: StringName) -> bool:
+		if peer <= 0 or cover_broken.has(peer):
+			return false
+		cover_broken[peer] = reason
+		cover_events.append({"peer": peer, "reason": reason})
+		return true
+
+	## Sahip bağırdı/tuttu (ya da maske): ilişkilendirme penceresi bu andan sayılır.
+	func mark_target(peer: int) -> void:
+		if peer > 0:
+			marked_at[peer] = elapsed
+
+	## İşaretlenmeden bu yana geçen süre (sn); hiç işaretlenmediyse −1.
+	func marked_age(peer: int) -> float:
+		return elapsed - float(marked_at[peer]) if marked_at.has(peer) else -1.0
+
+	## İlişkilendirme denemesi: `actor`, işaretli `other` ile `distance` px'te etkileşti; `observed` = bir gözlemci
+	## gördü. Kural uyarsa örtü bozulur ve true (Game gözlemcilere +60 verir).
+	func associate(actor: int, other: int, distance: float, observed: bool, radius: float) -> bool:
+		if not HeistRules.associates(marked_age(other), distance, observed, cover_mark_window_s, radius):
+			return false
+		break_cover(actor, HeistRules.COVER_SEEN_WITH)
+		return true
+
+	func is_released(peer: int) -> bool:
+		return released.has(peer)
+
+	## Polis geldi: kaçış bölgesi dışındaki yakalanmamış herkes yakalanır (tutulanlar dahil); örtüsü sağlam,
+	## ganimetsiz ve tutulmayan olan tanık sorgusuyla serbest bırakılır (US-042 AC2).
 	func arrive_police(views: Dictionary) -> void:
 		police = true
 		for peer: Variant in views:
 			var v: Dictionary = views[peer]
-			if not bool(v.get("in_zone", false)):
-				mark_caught(int(peer), HeistRules.CAUGHT_BY_POLICE)
+			var id: int = int(peer)
+			if bool(v.get("in_zone", false)) or is_caught(id):
+				continue
+			var loot: int = int(cash.get(id, 0)) + int(v.get("bag_value", 0))
+			if HeistRules.witness_released(cover_intact(id) and HeistRules.cover_breaker(v).is_empty(), loot,
+					bool(v.get("held", false))):
+				released[id] = true
+			else:
+				mark_caught(id, HeistRules.CAUGHT_BY_POLICE)
 
 	## Bir zaman adımı: süre, koşu süreleri; oyuncu API'sinin bildirdiği yakalanmalar kalıcı kaydedilir
 	## (held kaydedilmez: tutulan oyuncu yakalanmış değildir).
@@ -401,6 +556,10 @@ class Tracker:
 				mark_caught(int(peer))
 			if bool(v.get("sprinting", false)):
 				sprint_s[int(peer)] = float(sprint_s.get(int(peer), 0.0)) + maxf(delta, 0.0)
+			if not is_caught(int(peer)) and cover_intact(int(peer)):
+				var reason: StringName = HeistRules.cover_breaker(v)
+				if not reason.is_empty():
+					break_cover(int(peer), reason)
 		abort.step(not police and HeistRules.abort_ready(players_state(views)), delta, caught.size())
 
 	## Kural girdisi: peer -> {"caught", "in_zone", "loot"}.
@@ -412,6 +571,7 @@ class Tracker:
 			var is_caught_now: bool = is_caught(id) or bool(v.get("caught", false))
 			out[id] = {
 				"caught": is_caught_now,
+				"released": released.has(id) and not is_caught_now,
 				"in_zone": bool(v.get("in_zone", false)),
 				"loot": 0 if is_caught_now else int(cash.get(id, 0)) + int(v.get("bag_value", 0)),
 			}
@@ -434,13 +594,18 @@ class Tracker:
 		var slots: Dictionary = {}
 		var loot_total: int = 0
 		var bail_total: int = 0
+		var witnesses: int = 0
 		for key: Variant in roster:
 			var id: int = int(key)
 			var entry: Dictionary = roster[key]
-			var s: Dictionary = state.get(id, {"caught": is_caught(id), "in_zone": false, "loot": 0})
+			var s: Dictionary = state.get(id, {"caught": is_caught(id), "released": is_released(id), "in_zone": false,
+				"loot": 0})
 			var escaped: bool = got_away and not bool(s["caught"]) and bool(s["in_zone"])
 			var loot: int = int(s["loot"]) if escaped and win else 0
 			var bail: int = maxi(bail_each, 0) if bool(s["caught"]) else 0
+			var witness: bool = bool(s.get("released", false))
+			if witness:
+				witnesses += 1
 			loot_total += loot
 			bail_total += bail
 			slots[id] = int(entry.get("slot", 0))
@@ -451,6 +616,8 @@ class Tracker:
 				"caught": bool(s["caught"]),
 				"loot": loot,
 				"bail": bail,
+				"witness_released": witness,
+				"recognized": 1 if witness else 0,
 			}
 		var pct: int = HeistRules.ratio_pct(outcome, shouted())
 		var caught_now: Dictionary = {}
@@ -469,9 +636,26 @@ class Tracker:
 			"duration_s": snappedf(elapsed, 0.01),
 			"players": players,
 			"notes": HeistRules.pick_notes(HeistRules.note_candidates(stats)),
-			"heat": HeistRules.heat_for(outcome, max_alert),
+			"heat": HeistRules.heat_for(outcome, max_alert) + witnesses * maxi(witness_heat, 0),
 			"max_alert": max_alert,
 			"bail": bail_total,
 			"cash_before": cash_before,
 			"cash_after": HeistRules.cash_after(cash_before, paid, bail_total),
+			"strategy": strategy(roster),
+		}
+
+	## Strateji etiketi (US-042 AC4): {class, interactions, max_alert, back_door_used, cover_intact {peer: bool},
+	## register_emptied_at_s, cash_bag_taken_at_s} (olmayan an −1).
+	func strategy(roster: Dictionary) -> Dictionary:
+		var intact: Dictionary = {}
+		for key: Variant in roster:
+			intact[str(int(key))] = cover_intact(int(key))
+		return {
+			"class": HeistRules.strategy_class(max_alert, back_door_used, social_actions, intact),
+			"interactions": interactions,
+			"max_alert": max_alert,
+			"back_door_used": back_door_used,
+			"cover_intact": intact,
+			"register_emptied_at_s": register_emptied_at_s,
+			"cash_bag_taken_at_s": cash_bag_taken_at_s,
 		}

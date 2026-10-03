@@ -9,6 +9,8 @@ extends Control
 ## US-040: `aborted` (eli boş çekilme) kayıp değildir: normal başlık. US-041 (KR-029): yakalanan satırında kefalet,
 ## ödeme altında "− Kefalet" (toplam > 0 ise) ve "Ekip kasası a → b" (sonuçta `cash_before`/`cash_after` varsa);
 ## eksi tutar uyarı renginde.
+## US-042: tanık sorgusuyla serbest bırakılan (`witness_released`) oyuncu satırında END_STATUS_WITNESS; yerel oyuncu
+## ise başlık altında END_WITNESS_RELEASED (soluk).
 
 ## "Bir daha" (host): seviyeyi yeniden başlatma isteği; Game.request_restart() çağrıldıktan sonra yayılır.
 signal retry_requested()
@@ -209,6 +211,7 @@ func player_entries() -> Array[Dictionary]:
 			"caught": bool(info.get("caught", false)),
 			"loot": int(info.get("loot", 0)),
 			"bail": int(info.get("bail", 0)),
+			"witness": bool(info.get("witness_released", false)),
 		})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["peer"] < b["peer"])
@@ -232,6 +235,8 @@ func _fill_players() -> void:
 		elif bool(p["escaped"]):
 			status_key = &"END_STATUS_ESCAPED"
 			status_style = &""
+		elif bool(p["witness"]):
+			status_key = &"END_STATUS_WITNESS"
 		var status: String = tr(status_key)
 		if int(p["bail"]) > 0:
 			status = tr(&"END_STATUS_WITH_BAIL") % [status, _cash(int(p["bail"]))]
@@ -275,8 +280,21 @@ func local_cause_text() -> String:
 	return ""
 
 
+## Yerel oyuncu tanık sorgusuyla serbest bırakıldı mı (US-042).
+func local_witness() -> bool:
+	var local_id: int = int(net.call(&"local_peer_id")) if net != null else 0
+	for p: Dictionary in player_entries():
+		if int(p["peer"]) == local_id:
+			return bool(p["witness"])
+	return false
+
+
 func _fill_cause() -> void:
 	_cause_note.text = local_cause_text()
+	_cause_note.theme_type_variation = &"AlertLabel"
+	if _cause_note.text.is_empty() and local_witness():
+		_cause_note.text = tr(&"END_WITNESS_RELEASED")
+		_cause_note.theme_type_variation = &"MutedLabel"
 	_cause_note.visible = not _cause_note.text.is_empty()
 
 

@@ -8,8 +8,10 @@ extends PanelContainer
 ##   kaçış renginde. Kazanma kuralı (herkes aynı anda bölgede, ganimet > 0) host'ta, HeistRules.
 ## - Eli boş çekilme (US-040): Game.abort_left() ≥ 0 iken "Eli boş çekiliyorsunuz… n" (n = kalan tam saniye,
 ##   yukarı yuvarlanır). İsteğe bağlı üye: Game taşımıyorsa satır hiç görünmez. Karar host'ta; sonuç heist_finished.
+## - Örtü (US-042): Game.cover_state() ≥ 0 iken (iş sürüyor) yerel oyuncuya "Müşteri gibisin" (soluk) ya da
+##   "Örtün bozuldu" (uyarı rengi). İsteğe bağlı üye; −1 iken satır yok.
 ## Game'den yalnız S3 eki okunur: alert_level(), alert_timer_left(), escape_status() (US-038 adayı), abort_left()
-## (US-040). Game ilk üçünü taşımıyorsa panel gizli kalır. HUD `bind(game)` ile bağlar, her karede `advance()`.
+## (US-040), cover_state() (US-042). Game ilk üçünü taşımıyorsa panel gizli kalır. HUD `bind(game)` ile bağlar, her karede `advance()`.
 
 ## Hedef satırının göründüğü en düşük uyarı kademesi (bakkal: 2 = bağırdı).
 const OBJECTIVE_LEVEL := 2
@@ -22,6 +24,8 @@ var game: Object = null
 @onready var _count: Label = %Count
 ## Eli boş çekilme satırı (US-040): sahnede değil, burada kurulur (sayım satırının altında).
 var _abort: Label = null
+## Örtü satırı (US-042): burada kurulur (en altta).
+var _cover: Label = null
 
 
 func _ready() -> void:
@@ -32,6 +36,13 @@ func _ready() -> void:
 	_abort.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_abort.visible = false
 	_count.get_parent().add_child(_abort)
+	_cover = Label.new()
+	_cover.name = "Cover"
+	_cover.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_cover.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_cover.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_cover.visible = false
+	_count.get_parent().add_child(_cover)
 	hide()
 
 
@@ -65,6 +76,16 @@ static func lines(alert: int, timer_left: float, in_zone: int, free: int, abort_
 	}
 
 
+## Örtü satırı (US-042): [metin anahtarı, tema varyasyonu]; durum −1 (iş yok) ise boş anahtar.
+static func cover_line(state: int) -> Array[StringName]:
+	var out: Array[StringName] = [&"", &""]
+	if state > 0:
+		out = [&"HUD_COVER_INTACT", &"MutedLabel"]
+	elif state == 0:
+		out = [&"HUD_COVER_BROKEN", &"AlertLabel"]
+	return out
+
+
 ## Eli boş çekilme satırındaki saniye: kalan süre yukarı yuvarlanır (3 → 2 → 1; dolunca 0).
 static func abort_seconds(abort_left: float) -> int:
 	return maxi(ceili(abort_left), 0)
@@ -92,7 +113,12 @@ func refresh() -> void:
 	_abort.visible = show["abort"]
 	if _abort.visible:
 		_abort.text = tr(&"HUD_ESCAPE_ABORT") % abort_seconds(abort_left)
-	visible = _objective.visible or _police.visible or _count.visible or _abort.visible
+	var cover: Array[StringName] = cover_line(int(game.call(&"cover_state")) if game.has_method(&"cover_state") else -1)
+	_cover.visible = not cover[0].is_empty()
+	if _cover.visible:
+		_cover.text = tr(cover[0])
+		_cover.theme_type_variation = cover[1]
+	visible = _objective.visible or _police.visible or _count.visible or _abort.visible or _cover.visible
 
 
 func objective_label() -> Label:
@@ -109,3 +135,7 @@ func count_label() -> Label:
 
 func abort_label() -> Label:
 	return _abort
+
+
+func cover_label() -> Label:
+	return _cover

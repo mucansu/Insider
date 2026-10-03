@@ -1,0 +1,33 @@
+{
+  "_doc": "witness.json c1 botu (US-042): owner_window rotasının başı — ön kapıdan girer ve müşteri tarafında yürüyüp durur (koşmaz, sızmaz, hiçbir şeye dokunmaz): örtü sağlam.",
+  "steps": [
+    {
+      "t": 0.2,
+      "move": [
+        -1,
+        0
+      ]
+    },
+    {
+      "t": 1.6,
+      "move": [
+        1,
+        0
+      ]
+    },
+    {
+      "t": 4.0,
+      "move": [
+        0,
+        -1
+      ]
+    },
+    {
+      "t": 4.672,
+      "move": [
+        0,
+        0
+      ]
+    }
+  ]
+}
