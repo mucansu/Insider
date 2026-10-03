@@ -1,14 +1,13 @@
 extends TestCase
-## US-005 AC7: etkileşim kuralları (core/interaction_rules.gd, düğümsüz): menzil + S2 toleransı (+24 px),
-## taraf kısıtı (kasa yalnız tezgâh arkasından), etiket, meşguliyet, tekrar beklemesi, süre + S2 zaman payı
-## (0,25 sn), en yakın hedef. Bileşen/prop davranışı: test_interaction_props.gd; ağ: tests/net/{register_empty,
-## door_sync,contention}.json.
+## US-005 AC7: interaction rules (core/interaction_rules.gd, no node): range + S2 tolerance (+24 px), side constraint
+## (register only from behind the counter), tag, busy state, retry cooldown, duration + S2 time margin (0.25 s), nearest
+## target. Component/prop behaviour: test_interaction_props.gd; network: tests/net/{register_empty,door_sync,contention}.json.
 
 const CORE_DIR := "res://core"
 const Deps := preload("res://tests/unit/test_deps.gd")
 const R := InteractionRules.Result
 const TUNING_PATH := "res://data/player_tuning.tres"
-## Host'un istemci konumunu geriden bildiği süre (S2: tek yön gecikme + eşitleme aralığı, ~0,1 sn).
+## How far behind the host knows the client position (S2: one-way delay + sync interval, ~0.1 s).
 const HOST_LAG_SEC := 0.1
 
 
@@ -19,7 +18,7 @@ func _target(at: Vector2 = Vector2.ZERO, interact_range: float = 40.0) -> Intera
 	return t
 
 
-## Kasa: personel tarafı +x, tezgâh kenarı 16 px (data/props/register.tres ile aynı).
+## Register: staff side +x, counter edge 16 px (same as data/props/register.tres).
 func _register_target() -> InteractionRules.Target:
 	var t: InteractionRules.Target = _target(Vector2(560, 368))
 	t.side = Vector2.RIGHT
@@ -85,7 +84,7 @@ func test_check_order_and_results() -> void:
 
 func test_host_check_tolerance_and_cooldown() -> void:
 	var t: InteractionRules.Target = _register_target()
-	# İstemci toleranssız reddeder, host +24 px pay verir (S2).
+	# The client rejects without tolerance, the host gives a +24 px margin (S2).
 	var lagging := Vector2(560 + 60, 368)
 	eq(InteractionRules.check(t, 1, lagging, {}), R.OUT_OF_RANGE)
 	eq(InteractionRules.host_check(t, 1, lagging, {}, 0.0), R.OK, "host menzile +24 px pay verir")
@@ -97,9 +96,9 @@ func test_host_check_tolerance_and_cooldown() -> void:
 	is_false(InteractionRules.keeps_going(t, Vector2(560 + 64.5, 368)), "menzil + tolerans dışı: iptal")
 
 
-## Host taraf eşiğine pay verir (S2/GDD §12 oyuncu lehine): istemcinin istem gördüğü an host konumu ~0,1 sn
-## geriden bilir: yürürken ~14 px, koşarken ~22 px (hızlar data/player_tuning.tres). Müşteri tarafı (tezgâh
-## 546..574, yarıçap 12 → en fazla -26 px) yine red.
+## The host gives margin to the side threshold (S2/GDD §12 in the player's favour): when the client sees the prompt the host
+## knows the position ~0.1 s behind: ~14 px walking, ~22 px running (speeds from data/player_tuning.tres). The customer side
+## (counter 546..574, radius 12 -> at most -26 px) is still rejected.
 func test_host_side_tolerance() -> void:
 	var t: InteractionRules.Target = _register_target()
 	var tuning: PlayerTuning = load(TUNING_PATH) as PlayerTuning
@@ -112,7 +111,7 @@ func test_host_side_tolerance() -> void:
 		eq(InteractionRules.check(t, 1, host_sees, {}), R.WRONG_SIDE, "toleranssız olsaydı reddedilirdi (%s)" % speed)
 		eq(InteractionRules.host_check(t, 1, host_sees, {}, 0.0), R.OK,
 			"(a) host %.0f px/sn × %.1f sn geriden görse de kabul" % [speed, HOST_LAG_SEC])
-	# (b) Gerçek müşteri tarafı konumları: tezgâha yaslanan (en yakın, x = 534) ve kasa menzilindeki diğerleri.
+	# (b) Real customer-side positions: leaning on the counter (nearest, x = 534) and others within register range.
 	for y: float in [336.0, 350.0, 368.0, 386.0, 395.0]:
 		var customer := Vector2(534, y)
 		if customer.distance_to(t.position) > t.interact_range + InteractionRules.RANGE_TOLERANCE:
@@ -131,7 +130,7 @@ func test_hold_time_and_release() -> void:
 	is_false(InteractionRules.is_complete(2.99, 3.0))
 	is_true(InteractionRules.is_complete(0.0, 0.0), "süre 0: anlık")
 	eq(InteractionRules.advance(-1.0, -0.5), 0.0, "negatifler sıfırlanır")
-	# Bırakma: son 0,25 sn içinde tamam (S2 zaman payı), daha erken iptal (ilerleme sıfırlanır).
+	# Release: OK within the last 0.25 s (S2 time margin), cancelled earlier (progress resets).
 	is_true(InteractionRules.release_completes(2.75, 3.0))
 	is_false(InteractionRules.release_completes(2.74, 3.0))
 	is_false(InteractionRules.release_completes(2.0, 3.0), "yarıda bırakma")
@@ -156,8 +155,8 @@ func test_result_names() -> void:
 	eq(InteractionRules.result_name(R.BLOCKED), "blocked")
 
 
-## IS-014: host engeli (ör. kapı boşluğunda gövde) yalnız host doğrulamasında; istemci süzgeci bakmaz (istem
-## görünür kalır). Diğer retler önce gelir; engel kalkınca kabul.
+## IS-014: a host obstruction (e.g. a body in the doorway) applies only in host validation; the client filter ignores it (the
+## prompt stays visible). Other rejections come first; accepted once the obstruction clears.
 func test_blocked_is_host_only() -> void:
 	var t: InteractionRules.Target = _target(Vector2(368, 464))
 	var closer := Vector2(368, 498)
@@ -170,7 +169,7 @@ func test_blocked_is_host_only() -> void:
 	eq(InteractionRules.host_check(t, 1, closer, {}, 0.0), R.OK)
 
 
-## Kanat (32×8, merkez kapı işaretinde) ile gövde dairesi (yarıçap 12): teğet temas örtüşme değil; dönüş uyar.
+## Wing (32x8, centred on the door marker) vs body circle (radius 12): tangent contact is not overlap; rotation is respected.
 func test_circle_overlaps_box() -> void:
 	var door := Vector2(368, 464)
 	var half := Vector2(16, 4)
@@ -180,13 +179,13 @@ func test_circle_overlaps_box() -> void:
 	is_false(InteractionRules.circle_overlaps_box(door + Vector2(0, 28), 12.0, door, half, 0.0), "kapatan oyuncu (28 px)")
 	is_true(InteractionRules.circle_overlaps_box(door + Vector2(27, 0), 12.0, door, half, 0.0), "kanat ucunun yanı")
 	is_false(InteractionRules.circle_overlaps_box(door + Vector2(24, 14), 12.0, door, half, 0.0), "köşe çaprazı dışarıda")
-	# Dikey duvarda (90°): kanat y boyunca uzanır.
+	# On a vertical wall (90 deg): the wing extends along y.
 	is_true(InteractionRules.circle_overlaps_box(door + Vector2(0, 27), 12.0, door, half, PI / 2), "90°: uç")
 	is_false(InteractionRules.circle_overlaps_box(door + Vector2(16, 0), 12.0, door, half, PI / 2), "90°: teğet")
 	is_false(InteractionRules.circle_overlaps_box(door, 0.0, door, half, 0.0), "yarıçap 0: örtüşme yok")
 
 
-## KR-018/§6: core/ düğümsüz ve proje dizinlerini bilmez (3D'ye taşınabilirlik).
+## KR-018/§6: core/ has no nodes and knows no project dirs (portability to 3D).
 func test_core_is_nodeless() -> void:
 	var forbidden: Array[String] = [
 		"\\bNode2D\\b", "\\bNode3D\\b", "\\bNode\\b", "get_tree", "res://", "\\bpreload\\(", "\\bload\\(",

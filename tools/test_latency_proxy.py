@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""tools/latency_proxy.py birim testleri (US-001 AC6). Yalnız standart kütüphane.
+"""tools/latency_proxy.py unit tests (US-001 AC6). Standard library only.
 
-Koşu: python3 tools/test_latency_proxy.py   (ya da python3 -m unittest tools/test_latency_proxy.py)
-Windows'ta `python3` yoksa `python` ya da `py -3`; tools/ci_local.sh `tools` adımı yorumlayıcıyı kendisi bulur.
-Ölçülen gidiş-dönüş gecikmesi beklenenin ±15 ms içinde olmalı.
+Run: python3 tools/test_latency_proxy.py   (or python3 -m unittest tools/test_latency_proxy.py)
+If `python3` is missing on Windows use `python` or `py -3`; the tools/ci_local.sh `tools` step finds the interpreter itself.
+The measured round-trip delay must be within +-15 ms of the expected.
 """
 
 from __future__ import annotations
@@ -25,13 +25,13 @@ import latency_proxy  # noqa: E402
 from latency_proxy import LatencyProxy, parse_addr  # noqa: E402
 
 TOLERANCE_MS = 15.0
-# Windows'ta SIGTERM gönderilemez (terminate = TerminateProcess, çıkış 1): proxy kendi süreç grubunda başlatılır
-# ve CTRL_BREAK_EVENT ile (SIGBREAK) zarif kapatılır. POSIX'te SIGTERM.
+# SIGTERM cannot be sent on Windows (terminate = TerminateProcess, exit 1): the proxy is started in its own process group
+# and shut down gracefully with CTRL_BREAK_EVENT (SIGBREAK). SIGTERM on POSIX.
 WINDOWS = os.name == "nt"
 
 
 class EchoServer:
-    """Gelen her paketi göndereni + yükü ile geri yollar; görülen kaynak adresleri tutar."""
+    """Echoes every incoming packet back with sender + payload; keeps the source addresses seen."""
 
     def __init__(self) -> None:
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -68,7 +68,7 @@ def client_socket(timeout: float = 1.0) -> socket.socket:
 
 
 def measure_rtts(sock: socket.socket, port: int, count: int, tag: bytes = b"p") -> list[float]:
-    """Sıralı ping-pong; her paket için ms cinsinden RTT (yanıt gelmeyen atlanır)."""
+    """Sequential ping-pong; RTT in ms for each packet (unanswered ones are skipped)."""
     out: list[float] = []
     for i in range(count):
         payload = tag + b":" + str(i).encode()
@@ -113,7 +113,7 @@ class LatencyProxyTest(unittest.TestCase):
         self.assertLess(statistics.mean(rtts), TOLERANCE_MS)
 
     def test_delay_per_direction(self) -> None:
-        # yön başına 50 ms -> RTT 100 ms (±15)
+        # 50 ms per direction -> RTT 100 ms (+-15)
         with LatencyProxy(target=("127.0.0.1", self.echo.port), delay_ms=50) as proxy:
             with client_socket() as s:
                 rtts = measure_rtts(s, proxy.port, 15)
@@ -122,7 +122,7 @@ class LatencyProxyTest(unittest.TestCase):
         self.assertGreaterEqual(min(rtts), 100.0 - 2.0, "gecikme yön başına uygulanmalı (RTT >= 2 x delay)")
 
     def test_rtt_150_like_net_smoke(self) -> None:
-        # net_smoke.py --latency-ms 150 -> yön başına 75 ms
+        # net_smoke.py --latency-ms 150 -> 75 ms per direction
         with LatencyProxy(target=("127.0.0.1", self.echo.port), delay_ms=75) as proxy:
             with client_socket() as s:
                 rtts = measure_rtts(s, proxy.port, 8)
@@ -134,7 +134,7 @@ class LatencyProxyTest(unittest.TestCase):
             with client_socket() as a, client_socket() as b:
                 ra = measure_rtts(a, proxy.port, 5, b"a")
                 rb = measure_rtts(b, proxy.port, 5, b"b")
-                # Aynı anda gönderim: her istemci yalnız kendi yanıtını alır.
+                # Simultaneous sends: each client gets only its own reply.
                 a.sendto(b"a:x", ("127.0.0.1", proxy.port))
                 b.sendto(b"b:x", ("127.0.0.1", proxy.port))
                 self.assertEqual(a.recvfrom(65535)[0], b"a:x")
@@ -185,7 +185,7 @@ class LatencyProxyTest(unittest.TestCase):
             with client_socket() as s:
                 self.assertEqual(len(measure_rtts(s, proxy.port, 3)), 3)
             self.assertGreater(len(proxy._last_due), 0)
-            # İş parçacığını durdurup süpürmeyi elle, boşta kalma süresi geçmiş gibi koştur.
+            # Stop the thread and run the sweep by hand as if the idle time had passed.
             proxy._stop.set()
             assert proxy._wake_w is not None and proxy._thread is not None
             proxy._wake_w.send(b"x")
@@ -198,8 +198,8 @@ class LatencyProxyTest(unittest.TestCase):
 
     @unittest.skipUnless(WINDOWS, "Windows güç kısıtlaması (EcoQoS)")
     def test_windows_power_throttling_opt_out(self) -> None:
-        # IS-012: kısıtlanan süreçte timeBeginPeriod(1) yok sayılır ve paketler ~11 ms geç çıkar. Proxy çalışırken
-        # süreç kısıtlamadan çıkmış olmalı (iç içe proxy'lerde sayılır); son proxy durunca sisteme geri verilir.
+        # IS-012: under throttling timeBeginPeriod(1) is ignored and packets come out ~11 ms late. While the proxy runs the
+        # process must be out of throttling (counted across nested proxies); handed back to the system when the last proxy stops.
         def control_mask() -> int:
             k32 = ctypes.WinDLL("kernel32")
             k32.GetCurrentProcess.restype = ctypes.c_void_p
@@ -230,7 +230,7 @@ class LatencyProxyTest(unittest.TestCase):
             self.assertEqual(proxy.stats["dropped"], 5)
 
     def test_partial_loss_rate(self) -> None:
-        # Her yönde %20 kayıp -> gidiş-dönüş başarı ~0.64.
+        # 20% loss each way -> round-trip success ~0.64.
         with LatencyProxy(target=("127.0.0.1", self.echo.port), loss=0.2, seed=3) as proxy:
             with client_socket(timeout=0.05) as s:
                 rtts = measure_rtts(s, proxy.port, 200)

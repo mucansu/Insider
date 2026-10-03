@@ -1,12 +1,12 @@
 extends TestCase
-## IS-087: sahibin kapı davranışı (store_a; tohum 7: tezgâh ~31 sn, sonra ARKA ODA; nüfus kapalı; iç kapı D sahnedeki
-## gibi kapalı). AC1 kendi kapı sesini duymaz (başkasınınkini duyar); AC2 iç kapıyı arkasından kapatır (NPC kapatma
-## API'si `Door.host_close_by_npc`); AC3 arka kapı açıkken caddeden dolaşmaz (kısa yol: kapalı D'yi açar);
-## AC4 DİNLE sırasında "?" (`is_listening`).
+## IS-087: the owner's door behaviour (store_a; seed 7: counter ~31 s, then BACK ROOM; population off; inner door D closed as in the
+## scene). AC1 does not hear their own door sound (hears others'); AC2 closes the inner door behind them (NPC close API
+## `Door.host_close_by_npc`); AC3 with the back door open does not go around via the street (shortcut: opens the closed D);
+## AC4 "?" while LISTEN (`is_listening`).
 
 const FIXTURE := "res://tests/fixtures/store_a_backroom_first.tscn"
 const DT := 1.0 / 60.0
-## store_a iç kenarı: x ≤ 22 karo (doğu duvarı), y ≥ 4 karo (kuzey duvarı) — sahip binadan çıkmaz.
+## store_a inner edge: x <= 22 tiles (east wall), y >= 4 tiles (north wall) - the owner does not leave the building.
 const INSIDE_MAX_X := 704.0
 const INSIDE_MIN_Y := 128.0
 
@@ -19,7 +19,7 @@ func _hearing(o: StoreOwner) -> Hearing:
 	return o.get_node_or_null(^"Hearing") as Hearing
 
 
-## Sahibin arka oda görevine varmasını bekler (en çok `limit` sn); her adımda `probe`.
+## Waits for the owner to reach the back room task (at most `limit` s); calls `probe` each step.
 func _until_backroom(stage: NpcStage, limit: float, probe: Callable) -> bool:
 	var o: StoreOwner = stage.owner()
 	for i: int in roundi(limit / DT):
@@ -55,7 +55,7 @@ func test_owner_opens_backroom_door_closes_it_behind_and_ignores_own_door_noise(
 	var hearing: Hearing = _hearing(o)
 	if is_true(hearing != null, "sahibin işitmesi var"):
 		is_true(hearing.ignored_own_count() >= 2, "açma + kapama sesi kendi sesi sayıldı (%d)" % hearing.ignored_own_count())
-	# Geri dönüş: görev bitince tezgâha D'den döner ve yine kapatır.
+	# Return: after the task ends goes back to the counter through D and closes it again.
 	for i: int in roundi(30.0 / DT):
 		stage.run(DT, probe)
 		if o.agenda().task_name() == &"counter" and o.agenda().has_arrived():
@@ -92,7 +92,7 @@ func test_shortcut_rule_needs_a_clear_saving() -> void:
 	await stage.enter(FIXTURE)
 	var mover: NpcMover = stage.owner().brain().mover
 	near(NpcMover.path_length(PackedVector2Array([Vector2.ZERO, Vector2(30, 40), Vector2(30, 140)])), 150.0, 0.001)
-	# Tezgâhtan satış alanına açık yol kısa: kapalı kapı kısa yol olmaz.
+	# The open path from the counter to the sales floor is short: a closed door is not a shortcut.
 	stage.run(0.5)
 	mover.move_to(stage.marker(&"RestockSpot3"), 100.0)
 	stage.run(1.0)
@@ -112,7 +112,7 @@ func test_foreign_door_noise_is_heard_and_listening_shows_question() -> void:
 	if not is_true(hearing != null, "sahibin işitmesi var"):
 		stage.leave()
 		return
-	# Kendi eylemi sırasında aynı noktadaki kapı sesi duyulmaz.
+	# A door sound at the same point during their own action is not heard.
 	hearing.ignore_own(d.global_position, NoiseProfile.KIND_DOOR, func() -> bool:
 		NoiseBus.emit_noise(d.global_position, radius, NoiseProfile.KIND_DOOR, 0)
 		return true)
@@ -120,7 +120,7 @@ func test_foreign_door_noise_is_heard_and_listening_shows_question() -> void:
 	eq(o.agenda().task_name(), &"counter", "kendi sesi: DİNLE yok")
 	is_false(o.is_listening())
 	eq(hearing.ignored_own_count(), 1)
-	# Başkasının (oyuncu) kapı sesi aynen işler.
+	# Another's (player's) door sound works as usual.
 	NoiseBus.emit_noise(d.global_position, radius, NoiseProfile.KIND_DOOR, 2)
 	stage.run(DT)
 	eq(o.agenda().task_name(), &"listen", "oyuncunun kapı sesi: DİNLE")
@@ -140,7 +140,7 @@ func test_door_npc_close_api() -> void:
 	is_true(d.is_open)
 	is_true(d.host_close_by_npc(at + Vector2(0, 50)), "menzilde kapatır")
 	is_false(d.is_open)
-	# NPC'nin anlık kullanımı (host_use_by_npc) açık kapıyı yine kapatmaz (yalnız açar; US-008 t2).
+	# An NPC's instant use (host_use_by_npc) still does not close an open door (only opens; US-008 t2).
 	d.is_open = true
 	var item: Interactable = d.get_node(^"Interactable") as Interactable
 	stage.run(0.5)

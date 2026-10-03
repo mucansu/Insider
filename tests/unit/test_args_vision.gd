@@ -1,5 +1,5 @@
 extends TestCase
-## Args `--vision-mode=peripheral|directional` (US-011d; S6 eki, GDD §6.5, KR-023).
+## Args `--vision-mode=peripheral|directional` (US-011d; S6 addition, GDD §6.5, KR-023).
 
 const ArgsScript := preload("res://autoload/args.gd")
 
@@ -55,5 +55,5 @@ func test_unknown_order_kept() -> void:
 
 
 func test_autoload_default_in_test_run() -> void:
-	# Test koşucusu --vision-mode vermez; autoload varsayılanda olmalı.
+	# The test runner passes no --vision-mode; the autoload must be at its default.
 	eq(Args.vision_mode, "peripheral")

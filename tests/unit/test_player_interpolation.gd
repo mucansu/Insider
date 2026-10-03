@@ -1,6 +1,6 @@
 extends TestCase
-## US-004 AC4: SnapshotBuffer — uzak kopya ~100 ms geriden, gönderen saatine göre ara değerlenir; titreşim
-## (jitter) emilir, eski paket atılır, tampon tükenince beklenir (ileri tahmin yok).
+## US-004 AC4: SnapshotBuffer - the remote copy is interpolated ~100 ms behind, by sender clock; jitter is absorbed, old packets
+## dropped, waits when the buffer runs out (no extrapolation).
 
 const DELAY := 0.1
 const SEND_INTERVAL := 0.05
@@ -9,11 +9,11 @@ const SPEED := 140.0
 
 func test_interpolates_between_snapshots() -> void:
 	var buffer := SnapshotBuffer.new(DELAY)
-	# Gönderen saati 0'dan, yerel saat 10'dan: saat farkı 10 sn (ağ gecikmesi 0).
+	# Sender clock from 0, local clock from 10: clock offset 10 s (network latency 0).
 	for i: int in 3:
 		buffer.push(i * SEND_INTERVAL, 10.0 + i * SEND_INTERVAL, Vector2(7.0 * i, 0), Vector2.RIGHT, PlayerMotion.Mode.WALK)
 	near(buffer.clock_offset(), 10.0, 0.0001)
-	var frame: SnapshotBuffer.Frame = buffer.sample(10.175)  # gönderen anı 0,075
+	var frame: SnapshotBuffer.Frame = buffer.sample(10.175)  # sender time 0.075
 	near(frame.position, Vector2(10.5, 0), 0.0001, "0,05 ile 0,10 arası ortada")
 	near(frame.velocity, Vector2(SPEED, 0), 0.001, "hız iki görüntü arası")
 	eq(frame.facing, Vector2.RIGHT)
@@ -69,7 +69,7 @@ func test_non_finite_snapshots_are_dropped() -> void:
 		is_false(buffer.push(float(row[0]), float(row[1]), row[2] as Vector2, row[3] as Vector2, 0), str(row[4]))
 	eq(buffer.size(), 1, "bozuk paketler tampona girmez")
 	near(buffer.clock_offset(), 10.0, 0.0001, "saat farkı bozulmaz")
-	# INF gönderen anı sonraki geçerli paketleri "eski" saydırmaz; çizim sonlu kalır.
+	# An INF sender time does not make later valid packets count as "old"; the draw stays finite.
 	is_true(buffer.push(1.05, 11.05, Vector2(17, 0), Vector2.RIGHT, 0), "ardından gelen geçerli paket kabul")
 	var frame: SnapshotBuffer.Frame = buffer.sample(11.125)
 	is_true(frame.position.is_finite() and frame.velocity.is_finite() and frame.facing.is_finite())
@@ -85,13 +85,13 @@ func test_clock_offset_resets_on_large_jump() -> void:
 	near(buffer.clock_offset(), 11.9, 0.0001, "0,5 sn üstü sıçramada yeniden kurulur")
 
 
-## 20 Hz gönderim, 75 ms ± 30 ms titreşimli varış (GDD §12 sert ağ, tek yön), 60 Hz çizim: çizim düzgün ve
-## tek yönlü ilerler, hız gerçeğe yakın, gecikme ~ ortalama ağ gecikmesi + tampon, ısınmadan sonra tükenme yok.
+## 20 Hz send, arrivals at 75 ms +-30 ms jitter (GDD §12 hard network, one way), 60 Hz draw: the draw advances smoothly and
+## one-directionally, speed near the truth, delay ~ mean network delay + buffer, no starvation after warm-up.
 func test_jitter_is_absorbed() -> void:
 	var buffer := SnapshotBuffer.new(DELAY)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 4004
-	var arrivals: Array = []  # [yerel varış, gönderen anı]
+	var arrivals: Array = []  # [local arrival, sender time]
 	for i: int in 120:
 		var sent: float = i * SEND_INTERVAL
 		arrivals.append([100.0 + sent + 0.075 + rng.randf_range(-0.03, 0.03), sent])

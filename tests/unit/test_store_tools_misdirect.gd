@@ -1,11 +1,11 @@
 extends TestCase
-## US-010 izi (OYALA söndürmesi −40/−20/0, kararlar), US-043 YÖNLENDİR "o tarafa kaçtı!" ve US-044 vitrinden bakma
-## (store_a, sabit adım, tek süreç = host; NpcStage). Örtü (US-042) testte `senses().cover_query` ile verilir
-## (NpcStage Game'in işini kurmaz).
+## US-010 trace (LOITER decay -40/-20/0, decisions), US-043 MISDIRECT "ran that way!" and US-044 looking through the shop window
+## (store_a, fixed step, single process = host; NpcStage). Cover (US-042) is supplied in the test via `senses().cover_query`
+## (NpcStage does not set up Game's job).
 
 const DT := 1.0 / 60.0
 const TALK_SPOT := Vector2(532, 404)
-## Sahibe (ClerkSpot) 56 px: YÖNLENDİR menzili (64) içinde.
+## 56 px from the owner (ClerkSpot): within MISDIRECT range (64).
 const NEAR_OWNER := Vector2(536, 368)
 
 
@@ -27,7 +27,7 @@ func _chaser(stage: NpcStage, at: Vector2) -> Chaser:
 	return c
 
 
-# --- kurallar ---
+# --- rules ---
 
 func test_rules_soothe_and_misdirect_point() -> void:
 	var steps: Array[float] = [40.0, 20.0, 0.0]
@@ -55,7 +55,7 @@ func test_rules_window_stare_row() -> void:
 	eq(CivilianRules.factor(p, ctx), 0.0, "içeride vitrin satırı yok")
 
 
-# --- OYALA söndürmesi ---
+# --- LOITER decay ---
 
 func test_talk_soothes_looking_owner_forty_twenty_then_refuses() -> void:
 	var stage := NpcStage.new(self)
@@ -88,7 +88,7 @@ func test_talk_soothes_looking_owner_forty_twenty_then_refuses() -> void:
 	stage.leave()
 
 
-# --- YÖNLENDİR (US-043) ---
+# --- MISDIRECT (US-043) ---
 
 func test_misdirect_owner_sends_chasers_wrong_way_once() -> void:
 	var stage := NpcStage.new(self)
@@ -146,11 +146,11 @@ func test_chaser_spares_intact_cover_and_halts_while_misdirected() -> void:
 	stage.run(4.0)
 	is_false(bystander.is_caught(), "örtüsü sağlam: mahalleli kovalamaz")
 	is_true(thief.is_caught(), "örtüsü bozuk: yakalanır")
-	# Konuşulurken (YÖNLENDİR tutulurken) mahalleli durur.
+	# The neighbour stops while being talked to (MISDIRECT held).
 	var bystander2: Player = stage.player(4, Vector2(500, 420))
 	o.senses().cover_query = func(_peer_id: int) -> bool: return false
 	c.global_position = Vector2(560, 420)
-	c.misdirect_interactable().host_start(2, 1)  # 2 menzil dışında: reddedilir, durmaz
+	c.misdirect_interactable().host_start(2, 1)  # out of range 2: rejected, does not stop
 	stage.run(0.1)
 	c.global_position = bystander2.global_position + Vector2(40, 0)
 	o.senses().cover_query = func(peer_id: int) -> bool: return peer_id == 4
@@ -163,7 +163,7 @@ func test_chaser_spares_intact_cover_and_halts_while_misdirected() -> void:
 	stage.leave()
 
 
-# --- vitrinden bakma (US-044) ---
+# --- looking through the shop window (US-044) ---
 
 func test_window_stare_slow_fill_question_at_door_no_shout() -> void:
 	var stage := NpcStage.new(self)
@@ -175,7 +175,7 @@ func test_window_stare_slow_fill_question_at_door_no_shout() -> void:
 	stage.run(1.0)
 	var at: Vector2 = stage.marker(&"WindowLook2")
 	var p: Player = stage.player(2, at)
-	p.look_dir = Vector2.UP  # vitrine (kuzey) bakar
+	p.look_dir = Vector2.UP  # looks at the window (north)
 	var meter: Array[float] = []
 	var shouted: Array[bool] = [false]
 	var t: Array[float] = [0.0]
@@ -206,12 +206,12 @@ func test_walking_past_or_looking_away_is_free() -> void:
 	var o: StoreOwner = stage.owner()
 	stage.run(1.0)
 	var p: Player = stage.player(2, stage.marker(&"WindowLook2"))
-	p.look_dir = Vector2.DOWN  # sokağa bakar
+	p.look_dir = Vector2.DOWN  # looks at the street
 	stage.run(15.0)
 	eq(o.senses().window_stare_of(2), 0.0, "vitrine bakmıyor")
 	eq(o.suspicion().value_of(2), 0.0)
 	p.look_dir = Vector2.UP
-	p.velocity = Vector2(100, 0)  # yürüyerek geçiyor
+	p.velocity = Vector2(100, 0)  # walking past
 	stage.run(10.0)
 	eq(o.senses().window_stare_of(2), 0.0, "yürürken sayılmaz")
 	eq(o.suspicion().value_of(2), 0.0)

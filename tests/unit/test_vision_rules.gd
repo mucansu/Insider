@@ -1,8 +1,8 @@
 extends TestCase
-## US-011b core kuralları (düğümsüz, saat enjeksiyonuyla): NPC görünürlük kapısı `SightGate` (AC5: 0,2 sn tutma,
-## 1,5 sn hareketsiz hayalet son görülen konumda, son 0,3 sn solma, hareket azaltmada solma yok, çevresel siluet
-## α 0,5), maruziyet eşikleri ve yazma yetkisi (AC7: 0/1/2, ≥ 30 görüldü, istemcide yazma etkisiz), görüş kipi host
-## kuralı (AC2: yalnız host, seviye başlamadan; çoğaltılan kip), ses halkası çizim koşulu (AC6) ve hafıza mandalı.
+## US-011b core rules (no node, clock injection): NPC visibility gate `SightGate` (AC5: 0.2 s hold, 1.5 s still ghost at the last
+## seen position, last 0.3 s fade, no fade with reduced motion, peripheral silhouette alpha 0.5), exposure thresholds and write
+## authority (AC7: 0/1/2, >= 30 seen, writes ineffective on a client), vision mode host rule (AC2: host only, before the level
+## starts; replicated mode), sound ring draw condition (AC6) and the memory latch.
 
 const DT := 1.0 / 60.0
 
@@ -23,7 +23,7 @@ func test_gate_hold_then_ghost_then_hidden() -> void:
 	eq(gate.step(true, false, Vector2(10, 0), DT), SightGate.Mode.FULL, "görünen karo ∧ görüş hattı → tam")
 	is_true(gate.is_full())
 	eq(gate.alpha(), 1.0)
-	# Görüşten çıkar: 0,2 sn tutma (tam çizim sürer), NPC bu arada yürür.
+	# Leaves sight: 0.2 s hold (full draw continues), the NPC walks meanwhile.
 	eq(gate.step(false, false, Vector2(20, 0), 0.1), SightGate.Mode.FULL, "0,1 sn: tutma")
 	eq(gate.step(false, false, Vector2(30, 0), 0.09), SightGate.Mode.FULL, "0,19 sn: tutma")
 	eq(gate.step(false, false, Vector2(40, 0), 0.02), SightGate.Mode.GHOST, "0,21 sn: hayalet")
@@ -33,7 +33,7 @@ func test_gate_hold_then_ghost_then_hidden() -> void:
 	eq(gate.step(false, false, Vector2(90, 0), 1.0), SightGate.Mode.GHOST, "1,21 sn")
 	eq(gate.ghost_position(), Vector2(10, 0), "hareketsiz")
 	near(gate.alpha(), 0.5, 0.0001, "solma son 0,3 sn'de başlar")
-	gate.step(false, false, Vector2(90, 0), 0.34)  # 1,55 sn: hayalet sonuna 0,15 sn
+	gate.step(false, false, Vector2(90, 0), 0.34)  # 1.55 s: 0.15 s left of the ghost
 	near(gate.alpha(), 0.25, 0.01, "solma yarıda")
 	eq(gate.step(false, false, Vector2(90, 0), 0.16), SightGate.Mode.HIDDEN, "0,2 + 1,5 sn sonra gizli")
 	eq(gate.alpha(), 0.0)
@@ -71,7 +71,7 @@ func test_gate_peripheral_silhouette_and_reduce_motion() -> void:
 	eq(SightGate.FADE_SEC, 0.3)
 
 
-# --- maruziyet (AC7) ---
+# --- exposure (AC7) ---
 
 func test_exposure_thresholds() -> void:
 	eq(VisionRules.exposure_level(false, 0.0), 0, "gizli")
@@ -101,7 +101,7 @@ func test_session_exposure_write_authority_and_changes() -> void:
 	eq(s.exposures(), {})
 
 
-## t2: ayrılan peer'ın maruziyeti ve geçmişi silinir; kalanınki korunur; 0 iken değişim bildirilmez.
+## t2: a leaving peer's exposure and history are deleted; the remaining one's is kept; no change is reported while 0.
 func test_session_forget_departed_peer() -> void:
 	var s := VisionRules.Session.new()
 	s.write({2: 1, 3: 2}, true)
@@ -132,7 +132,7 @@ func test_session_mode_host_rule() -> void:
 	eq(VisionRules.Session.new(9).mode(), 1, "kurucu kenetler")
 
 
-# --- ses halkası (AC6) ve hafıza ---
+# --- sound ring (AC6) and memory ---
 
 func test_ring_shown_rule() -> void:
 	is_true(VisionRules.ring_shown(true, 999.0, 10.0, false, 0.5), "kaynak görülüyorsa hep")

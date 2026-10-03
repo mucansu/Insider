@@ -1,23 +1,23 @@
 extends TestCase
-## US-011a AC1 (core): `VisionGrid` düğümsüz görüş ızgarası. Görüş hattı burada test haritasından örneklenen
-## sahte bir Callable'dır (fizik yok): `#` duvar ve `S` raf keser (katı), `w` cam geçirir (geçit), `d` kapalı kapı
-## keser (geçit), `.` zemin. Gerçek fizik sorgusuyla (store_a) aynı kurallar test_fog_layer.gd'de.
-## Sayılar `data/vision_tuning.tres` başlangıç değerleridir (288 / 128 / 45° / 90° / 192 / 64).
+## US-011a AC1 (core): `VisionGrid` no-node vision grid. The sight line here is a fake Callable sampled from the test map (no
+## physics): `#` wall and `S` shelf block (solid), `w` glass passes (passage), `d` closed door blocks (passage), `.` floor.
+## The same rules with a real physics query (store_a) are in test_fog_layer.gd.
+## Numbers are the `data/vision_tuning.tres` starting values (288 / 128 / 45 deg / 90 deg / 192 / 64).
 
 const T := 32.0
 
-## 20 × 12 test haritası. Satır/sütun numaraları yorumda.
-##            0123456789012345678 9
+## 20 x 12 test map. Row/column numbers are in the comment.
+## 0123456789012345678 9
 const MAP: Array[String] = [
 	"####################",  # 0
 	"#..................#",  # 1
 	"#..................#",  # 2
 	"#..................#",  # 3
-	"#....#.............#",  # 4  tek duvar karosu (5,4)
+	"#....#.............#",  # 4  single wall tile (5,4)
 	"#..................#",  # 5
-	"#........S.........#",  # 6  raf (9,6)
+	"#........S.........#",  # 6  shelf (9,6)
 	"#..................#",  # 7
-	"#####w####d#########",  # 8  cam (5,8), kapalı kapı (10,8)
+	"#####w####d#########",  # 8  glass (5,8), closed door (10,8)
 	"#..................#",  # 9
 	"#..................#",  # 10
 	"####################",  # 11
@@ -38,7 +38,7 @@ static func _cells(rows: Array[String]) -> PackedByteArray:
 	return out
 
 
-## Haritadan görüş hattı: parça 1 px adımla örneklenir; `#`, `S`, `d` karosuna giren örnek keser.
+## Sight line from the map: the segment is sampled at 1 px steps; a sample entering a `#`, `S` or `d` tile blocks.
 static func _sight_for(rows: Array[String]) -> Callable:
 	return func(from: Vector2, to: Vector2) -> bool:
 		var steps: int = maxi(ceili(from.distance_to(to)), 1)
@@ -104,7 +104,7 @@ func test_starts_unknown() -> void:
 	eq(g.state_at(Vector2i(-1, 3)), VisionGrid.State.UNKNOWN, "ızgara dışı bilinmeyen")
 
 
-## Tek duvar karosunun arkası (aynı doğrultu) hiçbir zaman görünen olmaz; duvarın kendisi komşuluktan görünür.
+## Behind a single wall tile (same direction) is never visible; the wall itself is visible by adjacency.
 func test_single_wall_shadow_never_visible() -> void:
 	var g: VisionGrid = _grid()
 	var sight: Callable = _sight_for(MAP)
@@ -114,7 +114,7 @@ func test_single_wall_shadow_never_visible() -> void:
 		eq(g.state_at(Vector2i(5, 4)), VisionGrid.State.VISIBLE, "duvar karosu komşuluktan görünür")
 		for behind: int in [6, 7, 8]:
 			ne(g.state_at(Vector2i(behind, 4)), VisionGrid.State.VISIBLE, "duvar arkası (%d,4), gözlemci x=%d" % [behind, x])
-	# Bütün görünen açık karolara görüş hattı açık olmalı (komşuluk kuralı yalnız katı/geçit karolara).
+	# A sight line to all visible open tiles must be open (the adjacency rule applies only to solid/passage tiles).
 	var origin: Vector2 = _at(Vector2i(2, 4))
 	g.update(origin, Vector2.RIGHT, sight)
 	for y: int in 12:
@@ -144,7 +144,7 @@ func test_shelf_blocks() -> void:
 	ne(g.state_at(Vector2i(9, 7)), VisionGrid.State.VISIBLE, "raf arkası görünmez (K1)")
 
 
-## Komşuluk kuralı zincirlenmez: komşuluktan görünen duvar, arkasındaki rafı açmaz.
+## The adjacency rule does not chain: a wall visible by adjacency does not reveal the shelf behind it.
 func test_solid_behind_solid_not_chained() -> void:
 	var rows: Array[String] = [
 		"##########",
@@ -162,14 +162,14 @@ func test_solid_behind_solid_not_chained() -> void:
 		ne(g.state_at(Vector2i(x, 4)), VisionGrid.State.VISIBLE, "duvar arkasındaki raf (%d,4)" % x)
 
 
-## Görüşten çıkan karo 2 → 1 olur ve sonraki güncellemelerde 1 kalır; `reset` siler.
+## A tile leaving sight goes 2 -> 1 and stays 1 on later updates; `reset` clears it.
 func test_memory_persists_until_reset() -> void:
 	var g: VisionGrid = _grid()
 	var sight: Callable = _sight_for(MAP)
 	g.update(_at(Vector2i(5, 9)), Vector2.UP, sight)
 	eq(g.state_at(Vector2i(5, 9)), VisionGrid.State.VISIBLE)
 	eq(g.state_at(Vector2i(8, 10)), VisionGrid.State.VISIBLE)
-	# Duvarın öbür yanına geç: alt koridor artık görüşte değil.
+	# Cross to the other side of the wall: the lower corridor is no longer in sight.
 	for i: int in 5:
 		g.update(_at(Vector2i(14, 2)), Vector2.UP, sight)
 		eq(g.state_at(Vector2i(8, 10)), VisionGrid.State.MEMORY, "hafıza kalır (güncelleme %d)" % i)
@@ -217,7 +217,7 @@ func test_changed_signal_lists_diff() -> void:
 	eq(got.size(), 1, "değişim yoksa yayın yok")
 
 
-## Yönlü kip: net koni 90° / 288, çevresel 180° / 192, yakın halka 64, arkası görünmez.
+## Directional mode: net cone 90 deg / 288, peripheral 180 deg / 192, near ring 64, behind invisible.
 func test_directional_zones() -> void:
 	var rows: Array[String] = []
 	rows.append("#".repeat(31))
@@ -244,7 +244,7 @@ func test_directional_zones() -> void:
 			if (s == VisionGrid.State.VISIBLE or s == VisionGrid.State.PERIPHERAL) and rows[y][x] == ".":
 				var off: Vector2 = _at(c) - _at(me)
 				is_true(off.x >= 0.0 or off.length() <= 64.0 + 0.001, "arkada görünen karo %s" % c)
-	# Dönünce arkası (eski önü) hafızada, yeni önü görünen.
+	# After turning, behind (the old front) is in memory, the new front visible.
 	g.update(_at(me), Vector2.LEFT, _sight_for(rows))
 	eq(g.state_at(me + Vector2i(8, 0)), VisionGrid.State.MEMORY, "dönünce eski ön hafıza")
 	eq(g.state_at(me + Vector2i(-6, 0)), VisionGrid.State.VISIBLE, "yeni ön görünen")
@@ -267,7 +267,7 @@ func test_peripheral_mode_sees_all_around() -> void:
 	eq(g.count(VisionGrid.State.PERIPHERAL), 0, "çevresel kipte durum 3 yok")
 
 
-## AC9: ışın bütçesi ≤ 320 / güncelleme (açık alan, en kötü durum).
+## AC9: ray budget <= 320 / update (open area, worst case).
 func test_ray_budget() -> void:
 	var rows: Array[String] = []
 	for i: int in 40:
@@ -287,7 +287,7 @@ func test_ray_budget() -> void:
 	is_true(directional.last_ray_count <= 160, "yönlü ışın %d ≤ 160 (≈140)" % directional.last_ray_count)
 
 
-## Karanlık karo görüş hattında bile hafıza; gözlemci karanlıkta: yarıçap 128 ve yakın karanlık karo görünen.
+## A dark tile is memory even in the sight line; observer in the dark: radius 128 and a near dark tile is visible.
 func test_dark_cells() -> void:
 	var rows: Array[String] = []
 	for i: int in 20:

@@ -1,37 +1,25 @@
 #!/usr/bin/env python3
-"""GDScript uyarı sayımı ve kapısı (IS-047). Hiçbir dosyayı değiştirmez. Yalnız Python standart kütüphanesi.
+"""GDScript warning count and gate (IS-047). Modifies no file. Python standard library only.
 
-Kullanım:
+Usage:
     python tools/warn_count.py [--gate] [--json build/warn_count.json] [--top 10] [--timeout 300] [--quiet | --brief]
 
-Kapı (--gate): project.godot'ta düzeyi 2 (hata) olan türlerde tek uyarı bile varsa çıkış kodu 2 ve yerleri
-stderr'e basılır; düzeyi 0/1 olan türler yalnız bilgi olarak sayılır. Düzey 2 ihlali `-d` olmadan da betiği
-yüklenemez yapar (Parse Error), ama `--import` bunu göstermez ve hiçbir testin yüklemediği betik ancak
-çalışırken düşer; kapı bütün betikleri tarar.
+Gate (--gate): any warning of a kind at level 2 (error) in project.godot exits with code 2 and prints the locations to
+stderr; kinds at level 0/1 are only counted as information. Two Godot runs (tools/warn_count.gd):
+  1) Scan without the debugger (`-- --gate-only`): `SCRIPT ERROR: Parse Error: ... (Warning treated as error.)` lines are
+     level-2 violations (the gate); any other `SCRIPT ERROR` line is a script error. If either exists run 2 is skipped (under
+     `-d` an analysis error stops the local debugger and the process hangs; on "Debugger Break" the process is killed at once).
+  2) Count (`-d`): Godot 4.7 `--import` / `--check-only` print no GDScript warnings, so tools/warn_count.gd re-analyses all .gd
+     files with every warning kind set to 1 in memory and emits one `@@WC_JSON {...}` line, which this tool counts by kind and file:
+  - per kind: the project.godot level (0 off / 1 warn / 2 error) and production / test / other counts; level-0 kinds are listed
+    separately as "off (info)" (how many warnings they would give if enabled).
+  - groups: production = autoload, core, entities, levels, ui, data and root scripts; test = tests/; other = the rest (e.g. tools/).
+  - the --top files with the most warnings (only kinds at level >= 1 count).
+The JSON report (--json, default build/warn_count.json; build/ is gitignored) has all the data and every warning's line.
 
-İki Godot koşusu (tools/warn_count.gd):
-  1) Hata ayıklayıcısız tarama (`-- --gate-only`): bütün betikler proje ayarlarıyla yüklenir; motorun
-     `SCRIPT ERROR: Parse Error: ... (Warning treated as error.)` satırları düzey 2 ihlalidir (kapı), başka
-     `SCRIPT ERROR` satırı betik hatasıdır. Biri varsa 2. koşu atlanır (`-d` altında çözümleme hatası yerel hata
-     ayıklayıcıyı durdurur ve süreç takılır; "Debugger Break" görülürse süreç hemen öldürülür).
-  2) Sayım (`-d`).
-Godot 4.7 `--import` ve `--check-only` GDScript uyarılarını basmaz (yalnız hataları). Bu yüzden sayım
-tools/warn_count.gd ile yapılır: `godot --headless -d --path . -s res://tools/warn_count.gd` bütün .gd
-dosyalarını (addons/build/docs ve gizli dizinler hariç) bellekte bütün uyarı türleri 1'e (uyar) çekilmiş
-olarak yeniden çözümler ve Logger'a gelen uyarıları kod adıyla (ör. unsafe_method_access) toplar; sonuç tek
-`@@WC_JSON {...}` satırıdır. Bu araç o satırı okur, türe ve dosyaya göre sayar:
-  - Her tür için project.godot düzeyi (0 kapalı / 1 uyar / 2 hata) ve üretim / test / diğer sayıları.
-    Düzeyi 0 olan türler "kapalı (bilgi)" olarak ayrı listelenir: açılsalar kaç uyarı verirlerdi.
-  - Gruplar: üretim = autoload, core, entities, levels, ui, data ve kök dizindeki betikler; test = tests/;
-    diğer = geri kalan (ör. tools/).
-  - En çok uyarı veren --top dosya (yalnız düzeyi >= 1 olan türler sayılır).
-JSON raporu (--json, varsayılan build/warn_count.json; build/ gitignore'da) aynı verinin tamamını ve her
-uyarının satırını içerir. Metin özeti stdout'a basılır.
-
-Çıkış kodu: 0 sayım alındı (ve --gate ile kapı geçti); 1 Godot koşusu başarısız, zaman aşımı, hata ayıklayıcı
-durdu, betik hatası ya da @@WC_JSON satırı yok (--gate yokken düzey 2 ihlali de); 2 kapı (--gate): düzeyi 2
-olan türde uyarı var.
-Godot: GODOT ortam değişkeni, yoksa tools/get_godot.sh. Süreç zaman aşımında ağacıyla öldürülür.
+Exit code: 0 count taken (and with --gate the gate passed); 1 Godot run failed, timed out, debugger stopped, script error or no
+@@WC_JSON line (also a level-2 violation without --gate); 2 gate (--gate): a warning of a level-2 kind exists.
+Godot: GODOT environment variable, else tools/get_godot.sh. On timeout the process tree is killed.
 """
 
 from __future__ import annotations
@@ -66,7 +54,7 @@ DEBUG_BREAK = "Debugger Break"
 
 
 def group_of(path: str) -> str:
-    """res:// yolunun grubu: uretim (PRODUCTION_DIRS ya da kök dizindeki betik), test (tests/) ya da diger."""
+    """Group of a res:// path: production (PRODUCTION_DIRS or a root script), test (tests/) or other."""
     rel = path[len("res://"):] if path.startswith("res://") else path
     parts = rel.split("/")
     if len(parts) == 1:
@@ -79,7 +67,7 @@ def group_of(path: str) -> str:
 
 
 def extract_payload(lines: list[str]) -> dict[str, Any] | None:
-    """Godot çıktısındaki son `@@WC_JSON {...}` satırını çözer (ANSI kodları temizlenir); yoksa None."""
+    """Parses the last `@@WC_JSON {...}` line of Godot output (ANSI codes stripped); None if absent."""
     payload = None
     for raw in lines:
         line = ANSI.sub("", raw).strip()
@@ -89,7 +77,7 @@ def extract_payload(lines: list[str]) -> dict[str, Any] | None:
 
 
 def aggregate(payload: dict[str, Any], top: int = 10) -> dict[str, Any]:
-    """warn_count.gd çıktısından rapor: türe göre (düzey + grup sayıları), dosyaya göre, en çok uyarı verenler."""
+    """Report from warn_count.gd output: by kind (level + group counts), by file, top offenders."""
     levels: dict[str, int] = {str(k): int(v) for k, v in payload.get("levels", {}).items()}
     files: list[str] = list(payload.get("files", []))
     warnings: list[dict[str, Any]] = list(payload.get("warnings", []))
@@ -139,7 +127,7 @@ def aggregate(payload: dict[str, Any], top: int = 10) -> dict[str, Any]:
 
 
 def render_text(report: dict[str, Any]) -> str:
-    """Kısa metin özeti: etkin türler, kapalı türler (bilgi), en çok uyarı veren dosyalar, yükleme hataları."""
+    """Short text summary: active kinds, off kinds (info), files with the most warnings, load errors."""
     n = report["dosya_sayisi"]
     out = [
         f"Uyarı sayımı ({report['godot']}): {sum(n.values())} betik "
@@ -181,7 +169,7 @@ def render_text(report: dict[str, Any]) -> str:
 
 
 def render_brief(report: dict[str, Any]) -> str:
-    """Tek satır özet (--brief, IS-090): betik sayısı, etkin/kapalı uyarı toplamları, yükleme hatası sayısı."""
+    """One-line summary (--brief, IS-090): script count, active/off warning totals, load error count."""
     n = report["dosya_sayisi"]
     on, off = report["etkin_toplam"], report["kapali_toplam"]
     line = (f"Uyarı sayımı: {sum(n.values())} betik; etkin {on['toplam']} (üretim {on['uretim']}), "
@@ -192,16 +180,16 @@ def render_brief(report: dict[str, Any]) -> str:
 
 
 def gate_violations(report: dict[str, Any]) -> list[dict[str, Any]]:
-    """Kapı: project.godot'ta düzeyi 2 (hata) olan türlerin uyarıları (bütün gruplar); boşsa kapı geçer."""
+    """Gate: warnings of kinds at level 2 (error) in project.godot (all groups); the gate passes if empty."""
     hard = {k for k, t in report["turler"].items() if t["level"] >= 2}
     return [w for w in report["uyarilar"] if str(w["type"]) in hard]
 
 
 def parse_script_errors(lines: list[str]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Hata ayıklayıcısız koşunun `SCRIPT ERROR:` satırları (+ ardındaki `at: ... (res://yol:satır)`).
-    Dönüş (sert, diğer): sert = "(Warning treated as error.)" ile biten çözümleme hataları (düzeyi 2 olan uyarı);
-    diğer = geri kalan betik hataları. Aynı (dosya, satır, ileti) bir kez sayılır (yüklenemeyen betik her
-    başvuruda yeniden çözümlenir)."""
+    """`SCRIPT ERROR:` lines of the run without the debugger (+ the following `at: ... (res://path:line)`).
+    Returns (hard, other): hard = analysis errors ending in "(Warning treated as error.)" (a level-2 warning);
+    other = remaining script errors. The same (file, line, message) counts once (a script that fails to load is
+    re-analysed on every reference)."""
     hard: list[dict[str, Any]] = []
     other: list[dict[str, Any]] = []
     seen: set[tuple[str, int, str]] = set()
@@ -229,9 +217,9 @@ def parse_script_errors(lines: list[str]) -> tuple[list[dict[str, Any]], list[di
 
 
 def run_godot(godot: str, timeout: float, debug: bool) -> tuple[int | None, list[str], bool]:
-    """warn_count.gd'yi koşar: debug ise `-d` ile sayım, değilse `-- --gate-only` tarama.
-    Dönüş (çıkış kodu ya da öldürüldüyse None, çıktı satırları, hata ayıklayıcı durdu mu). `-d` altında
-    "Debugger Break" görülürse süreç beklenmeden öldürülür (yerel hata ayıklayıcı stdin bekleyip takılır)."""
+    """Runs warn_count.gd: with debug a `-d` count, otherwise a `-- --gate-only` scan.
+    Returns (exit code or None if killed, output lines, whether the debugger stopped). Under `-d` on "Debugger Break"
+    the process is killed without waiting (the local debugger waits on stdin and hangs)."""
     cmd = [godot, "--headless", *(["-d"] if debug else []), "--path", ROOT, "-s", SCRIPT]
     if not debug:
         cmd += ["--", "--gate-only"]
@@ -277,7 +265,7 @@ def run_godot(godot: str, timeout: float, debug: bool) -> tuple[int | None, list
 
 
 def run_failure(code: int | None, payload: dict[str, Any] | None, broke: bool) -> str:
-    """Godot koşusu neden kullanılamaz; kullanılabilirse boş dize."""
+    """Why the Godot run cannot be used; empty string if it can."""
     if broke:
         return "hata ayıklayıcı durdu (Debugger Break)"
     if code is None:
@@ -305,7 +293,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     godot = find_godot()
 
-    # 1) Hata ayıklayıcısız tarama: düzey 2 ihlalleri ve çözümleme hataları (-d altında bunlar süreci takar).
+    # 1) Scan without the debugger: level-2 violations and analysis errors (under -d these hang the process).
     code, lines, broke = run_godot(godot, args.timeout, debug=False)
     hard, other = parse_script_errors(lines)
     if hard or other:
@@ -323,7 +311,7 @@ def main(argv: list[str] | None = None) -> int:
     if reason:
         return _fail(reason, lines)
 
-    # 2) Sayım: -d ile, bütün türler bellekte 1'e çekilmiş yeniden çözümleme.
+    # 2) Count: with -d, re-analysis with all kinds set to 1 in memory.
     code, lines, broke = run_godot(godot, args.timeout, debug=True)
     payload = extract_payload(lines)
     reason = run_failure(code, payload, broke)

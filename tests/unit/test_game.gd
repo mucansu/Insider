@@ -1,7 +1,7 @@
 extends TestCase
-## Game (autoload/game.gd, S3) tek süreçli birim testleri (US-001 AC5/AC7): döküm birleştirme, JSON çevirisi,
-## host oturumu (oyuncu kaydı, nakit, olaylar, seviye + PlayerSpawner, yerel oyuncu), oturum sonu temizliği.
-## İstemci/geç katılma davranışı çok süreçli: tests/net/*.json.
+## Game (autoload/game.gd, S3) single-process unit tests (US-001 AC5/AC7): dump merging, JSON conversion, host session
+## (player registry, cash, events, level + PlayerSpawner, local player), end-of-session cleanup.
+## Client/late-join behaviour is multi-process: tests/net/*.json.
 
 const LEVEL := "res://tests/fixtures/empty_level.tscn"
 const LEVEL_B := "res://tests/fixtures/empty_level_b.tscn"
@@ -49,8 +49,8 @@ func test_to_json_value() -> void:
 func test_dump_merges_providers() -> void:
 	Game.register_dump_provider("unit_custom", func() -> Dictionary: return {"pos": Vector2(1, 2), "tag": &"t"})
 	Game.register_dump_provider("unit_list", func() -> Array: return [1, 2])
-	Game.register_dump_provider("peers", func() -> int: return 99)  # taban anahtar: reddedilir
-	Game.register_dump_provider("", func() -> int: return 1)  # geçersiz anahtar
+	Game.register_dump_provider("peers", func() -> int: return 99)  # base key: rejected
+	Game.register_dump_provider("", func() -> int: return 1)  # invalid key
 	var dump: Dictionary = Game.collect_dump()
 	for key: String in Game.BASE_DUMP_KEYS:
 		has(dump, key)
@@ -58,7 +58,7 @@ func test_dump_merges_providers() -> void:
 	eq(dump["unit_list"], [1, 2])
 	eq(dump["peers"], [], "taban anahtar sağlayıcıyla ezilemez")
 	is_false(dump.has(""))
-	# Aynı anahtar yeniden kaydedilince son kayıt geçerli.
+	# Re-registering the same key keeps the last registration.
 	Game.register_dump_provider("unit_list", func() -> String: return "yeni")
 	eq(Game.collect_dump()["unit_list"], "yeni")
 	Game._dump_providers.erase("unit_custom")
@@ -88,7 +88,7 @@ func test_sanitize_name() -> void:
 
 
 func test_sanitize_long_name_is_bounded() -> void:
-	# Ağdan gelen dev ad (inceleme t2-3: 100k karakter host'u 642 ms donduruyordu) sabit sürede kırpılmalı.
+	# A giant name from the network (review t2-3: a 100k-char name froze the host for 642 ms) must be truncated in constant time.
 	var huge: String = "ş".repeat(300000)
 	var t0: int = Time.get_ticks_usec()
 	var out: String = Game._sanitize_name(huge)
@@ -119,7 +119,7 @@ func test_host_session_flow() -> void:
 	var players: Dictionary = Game.players()
 	eq(players.keys(), [1])
 	eq(players[1], {"name": "Birim", "slot": 0}, "S3: ad ve katılım yuvası (renk yok)")
-	# players() kopya döner.
+	# players() returns a copy.
 	(players[1] as Dictionary)["name"] = "değişti"
 	eq(Game.players()[1]["name"], "Birim")
 
@@ -152,7 +152,7 @@ func test_host_session_flow() -> void:
 		is_true(Game.local_player() == me)
 		eq(_locals.size(), 1)
 
-	# Sahte ad değişikliği: RPC dışı çağrıda gönderen 0 -> bilinmeyen peer, yok sayılır.
+	# Fake name change: a call outside an RPC has sender 0 -> unknown peer, ignored.
 	Game._rpc_set_name("sahte")
 	eq(Game.players()[1]["name"], "Birim")
 
@@ -172,13 +172,13 @@ func test_host_session_flow() -> void:
 		{"kind": "alarm", "data": {}},
 	])
 
-	# Aynı seviyeyi yeniden başlatmak eskisini kaldırır, oyuncuyu yeniden üretir.
+	# Restarting the same level removes the old one and respawns the player.
 	Game.start_level(LEVEL)
 	eq(_levels, 2)
 	is_true(Game.current_level() != level)
 	is_true(Game.current_level().get_node_or_null("Players/1") != null)
 
-	# Oturum sonu: bir sonraki karede seviye, oyuncular, nakit ve olaylar temizlenir.
+	# Session end: on the next frame the level, players, cash and events are cleared.
 	Net.leave()
 	await tree().process_frame
 	await tree().process_frame
@@ -225,9 +225,9 @@ func test_session_event_keeps_own_copy() -> void:
 
 
 func test_leave_during_handshake_cleans_up() -> void:
-	# İnceleme t2-2: hello alınıp seviye yüklendikten sonra kabulden önce ayrılınca seviye kalmamalı ve
-	# sonraki katılma el sıkışması zaman aşımına (10 sn) düşmemeli. Sahte host ayrı bir SceneMultiplayer'da
-	# (/root/FakeHost dalı) koşar: hello yollar; `accept` false iken el sıkışmasını bitirmez.
+	# Review t2-2: if the peer leaves after the hello is received and the level is loaded but before acceptance, no level must
+	# remain and the next join handshake must not hit the timeout (10 s). The fake host runs in a separate SceneMultiplayer
+	# (/root/FakeHost branch): sends hello; does not finish the handshake while `accept` is false.
 	var fake_root: Node = Node.new()
 	fake_root.name = "FakeHost"
 	tree().root.add_child(fake_root)
@@ -277,8 +277,8 @@ func test_leave_during_handshake_cleans_up() -> void:
 	is_true(Game.current_level() == null)
 	server.close()
 	api.multiplayer_peer = OfflineMultiplayerPeer.new()
-	# IS-029: iki lambda da `api`yi yakalıyor ve `api` üzerinde saklanıyor (döngü); kırılmazsa
-	# SceneMultiplayer, test örneği ve betikleri çıkışta sızar ("leaked"/"still in use").
+	# IS-029: both lambdas capture `api` and are stored on `api` (a cycle); if it is not broken
+	# SceneMultiplayer, the test instance and scripts leak at exit ("leaked"/"still in use").
 	api.auth_callback = Callable()
 	api.peer_authenticating.disconnect(on_authenticating)
 	tree().set_multiplayer(null, fake_root.get_path())
@@ -287,9 +287,9 @@ func test_leave_during_handshake_cleans_up() -> void:
 
 
 func test_player_slots_reuse_freed_slot() -> void:
-	# KR-018: players() yalnız {"name", "slot"} taşır; host boştaki en küçük yuvayı verir.
+	# KR-018: players() carries only {"name", "slot"}; the host assigns the smallest free slot.
 	eq(Net.host(free_udp_port()), OK)
-	await tree().process_frame  # oturum Game'in karesinde açılır (host = yuva 0)
+	await tree().process_frame  # session opens on Game's frame (host = slot 0)
 	Game._add_player(5, "b")
 	Game._add_player(6, "c")
 	var players: Dictionary = Game.players()
@@ -305,7 +305,7 @@ func test_player_slots_reuse_freed_slot() -> void:
 
 
 func test_players_rpc_sanitizes_slot() -> void:
-	# İstemci tarafı: host'tan gelen liste yalnız ad + negatif olmayan int slot olarak saklanır.
+	# Client side: the list from the host is stored only as name + non-negative int slot.
 	Game._rpc_players({
 		1: {"name": " A ", "slot": 2}, 2: {"name": "B", "slot": "x"}, 3: {"name": "C", "color": Color.RED},
 		4: {"name": "D", "slot": -3}, "bozuk": {"name": "E", "slot": 1}, 5: "bozuk",
@@ -319,7 +319,7 @@ func test_players_rpc_sanitizes_slot() -> void:
 
 
 func test_spawn_uses_level_api() -> void:
-	# Doğma noktası Level.spawn_position'dan (SpawnPoints kaydırılmış fikstür: Spawn1 = (200, 120) + (400, 0)).
+	# Spawn point from Level.spawn_position (SpawnPoints-shifted fixture: Spawn1 = (200, 120) + (400, 0)).
 	var previous_scene: PackedScene = Game.player_scene
 	Game.player_scene = load(PLAYER) as PackedScene
 	eq(Net.host(free_udp_port()), OK)
@@ -337,17 +337,17 @@ func test_spawn_uses_level_api() -> void:
 
 
 func test_rejects_level_without_level_root() -> void:
-	# S4: kök Level değilse ya da Players yoksa seviye yüklenmez; Game düğüm adıyla Players kurmaz.
+	# S4: if the root is not a Level or Players is missing, the level is not loaded; Game does not create Players by node name.
 	allow_errors()
-	var bare := Node2D.new()  # Players var, kök Level değil
+	var bare := Node2D.new()  # Players present, root not a Level
 	var players := Node2D.new()
 	players.name = "Players"
 	bare.add_child(players)
 	players.owner = bare
-	var no_players: Level = Level.new()  # kök Level, Players yok
+	var no_players: Level = Level.new()  # root Level, no Players
 	var roots: Array[Node2D] = [bare, no_players]
 	for i: int in roots.size():
-		var path: String = "user://test_game_bad_level_%d.tscn" % i  # ayrı yol: yükleme önbelleği karışmasın
+		var path: String = "user://test_game_bad_level_%d.tscn" % i  # separate path: do not mix the load cache
 		var packed := PackedScene.new()
 		eq(packed.pack(roots[i]), OK)
 		eq(ResourceSaver.save(packed, path), OK)
@@ -371,5 +371,5 @@ func test_default_player_scene() -> void:
 	if ResourceLoader.exists(Game.DEFAULT_PLAYER_SCENE):
 		is_true(Game.player_scene != null and Game.player_scene.resource_path == Game.DEFAULT_PLAYER_SCENE)
 	else:
-		# US-004 öncesi: varsayılan sahne yok -> güvenle null (testler --player-scene ile ezer).
+		# Before US-004: no default scene -> safely null (tests override with --player-scene).
 		is_true(Game.player_scene == null, "varsayılan oyuncu sahnesi yokken null")

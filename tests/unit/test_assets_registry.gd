@@ -1,7 +1,7 @@
 extends TestCase
-## Dış varlık kaydı (IS-024; docs/notes/assetler.md): `assets/` altındaki her dış dosya (içe aktarma yan
-## dosyaları hariç) kayıtta bir tablo satırında geçer; kayıttaki her `assets/...` yolu var (eski satır yok);
-## her lisans kopyası kayıtta anılır; katalogda yer tutucu işaretli sesin satırı "yer tutucu" yazar.
+## External asset registry (IS-024; docs/notes/assetler.md): every external file under `assets/` (except import sidecars)
+## has a table row in the registry; every `assets/...` path in the registry exists (no stale rows); every license copy is
+## mentioned; a sound marked placeholder in the catalog has "yer tutucu" in its row.
 
 const REGISTRY := "res://docs/notes/assetler.md"
 const ASSETS_DIR := "res://assets"
@@ -13,7 +13,7 @@ func _registry() -> String:
 	return FileAccess.get_file_as_string(REGISTRY)
 
 
-## Kayıttaki tablo satırları (| ile başlayan).
+## Table rows in the registry (starting with |).
 func _rows() -> PackedStringArray:
 	var out: PackedStringArray = []
 	for line: String in _registry().split("\n"):

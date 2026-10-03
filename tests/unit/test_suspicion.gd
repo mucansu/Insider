@@ -1,12 +1,11 @@
 extends TestCase
-## US-006 AC1/AC4: şüphe ölçeri (core/suspicion.gd, düğümsüz) — sabit adımlı, zamandan bağımsız simülasyon.
-## Tespit süreleri (koşan yakın/uzak bant, sızan uzak bant), "?" (30) tespitten ≥ 0,5 sn önce, oyuncu lehine
-## 0,2 sn ("görüldü" başlangıcı ve görüş hattından çıkış), kısa kesinti toleransı (0,2 sn; kenarda kıpırdama
-## ve eşitleme titremesi ölçeri sıfırlamaz, tespit düzeyi titremez), boşalma 20/sn, eşik düzeyleri, adım boyundan
-## bağımsızlık. Dolumlar KR-019 tablosundan (PerceptionRules + data/npc/perception_tuning.tres).
-##
-## Süre okuması (US-006 t2 kararı): tespit anı = 0,2 sn oyuncu lehine pay + 100 / dolum; Faz 2 çıkış ölçütündeki
-## "koşan yakın bantta ≤ 1 sn" dolum süresidir, 0,2 sn ağ payı (S2) bunun üstüne eklenir.
+## US-006 AC1/AC4: suspicion meter (core/suspicion.gd, no node) - fixed-step, time-independent simulation. Detection times (running
+## near/far band, sneaking far band), "?" (30) >= 0.5 s before detection, 0.2 s in the player's favour ("seen" start and leaving
+## the sight line), short interruption tolerance (0.2 s; fidgeting at an edge and sync jitter do not reset the meter, detection level
+## does not flicker), drain 20/s, threshold levels, independence from step size. Fills from the KR-019 table (PerceptionRules +
+## data/npc/perception_tuning.tres).
+## Time reading (US-006 t2 decision): detection moment = 0.2 s player-favour margin + 100 / fill; the Phase 2 exit criterion
+## "running in the near band <= 1 s" is the fill time, and the 0.2 s network margin (S2) is added on top.
 
 const TUNING := "res://data/npc/perception_tuning.tres"
 const B := PerceptionRules.Band
@@ -27,7 +26,7 @@ func _rate(which: PerceptionRules.Band, stance: PerceptionRules.Stance) -> float
 	return PerceptionRules.fill_rate(p, which, stance, false, true)
 
 
-## Hedef `rate` ile kesintisiz görülür; her düzeyin ilk ulaşıldığı an (sn, adım sonu) döner: {düzey: an}.
+## Seen continuously at target `rate`; returns the moment each level is first reached (s, end of step): {level: moment}.
 func _level_times(rate: float, dt: float = DT, max_t: float = 20.0) -> Dictionary:
 	var meter := SuspicionMeter.new()
 	var params: SuspicionMeter.Params = _params()
@@ -40,7 +39,7 @@ func _level_times(rate: float, dt: float = DT, max_t: float = 20.0) -> Dictionar
 	return out
 
 
-## `seconds` boyunca `rate` ile adımlar.
+## Steps at `rate` for `seconds`.
 static func _run(meter: SuspicionMeter, params: SuspicionMeter.Params, rate: float, seconds: float,
 		dt: float = DT) -> PackedInt32Array:
 	var reached := PackedInt32Array()
@@ -87,7 +86,7 @@ func test_notice_precedes_detection_by_half_second() -> void:
 			is_true(float(times[1]) < float(times[2]) and float(times[2]) < float(times[3]), "düzey sırası")
 			is_true(float(times[3]) - float(times[1]) >= 0.5,
 				"\"?\" tespitten ≥ 0,5 sn önce (bant %s, durum %s: %.3f)" % [which, stance, float(times[3]) - float(times[1])])
-	# En hızlı durum (koşan, yakın): "?" 0,3 sn dolumda, tespit 1,0 → 0,7 sn pencere.
+	# Fastest case (running, near): "?" at 0.3 s of fill, detection 1.0 -> 0.7 s window.
 	var fast: Dictionary = _level_times(_rate(B.NEAR, S.SPRINT))
 	near(float(fast[3]) - float(fast[1]), 0.7, DT)
 
@@ -100,7 +99,7 @@ func test_step_size_independent() -> void:
 		near(float(times.get(1, INF)), grace + 0.3, dt + 0.0001, "dt %.4f \"?\"" % dt)
 		var sneak: Dictionary = _level_times(_rate(B.FAR, S.SNEAK), dt)
 		near(float(sneak.get(3, INF)), grace + 8.0, dt + 0.0001, "dt %.4f sızma" % dt)
-	# Tek büyük adım da aynı değeri verir (pay adım içinde bölünür).
+	# A single large step gives the same value (the margin is split within the step).
 	var a := SuspicionMeter.new()
 	var b := SuspicionMeter.new()
 	a.step(_params(), 50.0, 1.0)
@@ -112,7 +111,7 @@ func test_step_size_independent() -> void:
 func test_blocked_line_of_sight_never_accrues() -> void:
 	var meter := SuspicionMeter.new()
 	var p: PerceptionRules.Params = Perception.params_for(_tuning(), Perception.Observer.GUARD)
-	# Raf arkası: koni içinde, yakın, koşuyor ama görüş hattı kesik (visible=false).
+	# Behind a shelf: inside the cone, near, running but the sight line is cut (visible=false).
 	var rate: float = PerceptionRules.rate_for(p, Vector2.ZERO, Vector2.RIGHT, Vector2(60, 0), false, S.SPRINT, false)
 	var reached: PackedInt32Array = _run(meter, _params(), rate, 30.0)
 	eq(meter.value, 0.0, "raf arkası hiç birikmez")
@@ -133,7 +132,7 @@ func test_dark_zone_and_sneak_effect() -> void:
 	near(sneak.value, 12.5, 0.01, "sızma yarı hız")
 
 
-## Oyuncu lehine 0,2 sn: "görüldü" başlangıcı. Paydan kısa bakış iz bırakmaz; pay süresince ne dolum ne boşalma.
+## 0.2 s in the player's favour: the "seen" start. A glance shorter than the margin leaves no trace; neither fill nor drain during the margin.
 func test_grace_on_first_sight() -> void:
 	var params: SuspicionMeter.Params = _params()
 	var rate: float = _rate(B.NEAR, S.SPRINT)
@@ -145,14 +144,14 @@ func test_grace_on_first_sight() -> void:
 	eq(meter.value, 0.0, "tolerans (0,2 sn) aşan kesinti payı yeniden başlatır")
 	_run(meter, params, rate, 0.12)
 	near(meter.value, 10.0, 0.5, "0,3 sn kesintisiz: 0,1 sn × 100")
-	# Toleranstan kısa kesinti diziyi bozmaz; kesinti süresi paya sayılır, dolum yalnız görülürken.
+	# An interruption shorter than the tolerance does not break the sequence; interruption time counts toward the margin, fill only while seen.
 	var short := SuspicionMeter.new()
 	_run(short, params, rate, 0.1)
 	_run(short, params, 0.0, 0.1)
 	eq(short.value, 0.0)
 	_run(short, params, rate, 0.1)
 	near(short.value, 10.0, 0.5, "0,1 görülme + 0,1 kesinti + 0,1 görülme: pay dolmuş, 0,1 sn × 100")
-	# Bilinen değerden: pay süresince değer sabit (boşalma yok), sonra dolar.
+	# From a known value: constant during the margin (no drain), then fills.
 	var held := SuspicionMeter.new()
 	held.value = 50.0
 	_run(held, params, rate, 0.15)
@@ -161,8 +160,8 @@ func test_grace_on_first_sight() -> void:
 	near(held.value, 60.0, 0.5)
 
 
-## Oyuncu lehine 0,2 sn: görüş hattından çıkış. Host'un eski görüntüsündeki son ~0,2 sn tespite yetişmez:
-## dolumla 1,0 sn'de tespit edilecek koşan, 1,15 sn görülüp saklanırsa tespit edilmez.
+## 0.2 s in the player's favour: leaving the sight line. The last ~0.2 s of the host's old view does not reach detection:
+## a runner who would be detected at 1.0 s with fill is not detected if seen for 1.15 s and then hidden.
 func test_grace_on_leaving_line_of_sight() -> void:
 	var params: SuspicionMeter.Params = _params()
 	var rate: float = _rate(B.NEAR, S.SPRINT)
@@ -178,7 +177,7 @@ func test_grace_on_leaving_line_of_sight() -> void:
 	_run(meter, params, 0.0, 0.5 - DT)
 	near(meter.value, top - params.decay_per_sec * (0.5 - params.gap_tolerance), 0.001,
 		"gerçek saklanma: tolerans aşınca boşalır")
-	# Aynı koşan 1,25 sn görülürse tespit edilir.
+	# The same runner seen for 1.25 s is detected.
 	var late := SuspicionMeter.new()
 	has(_run(late, params, rate, 1.25), 3)
 
@@ -209,11 +208,11 @@ func test_threshold_events() -> void:
 	eq(events, PackedInt32Array([1, 2, 3]), "her eşik bir kez, sırayla")
 	_run(meter, params, 100.0, 1.0)
 	eq(meter.value, SuspicionMeter.MAX_VALUE, "tavan 100")
-	# Büyük adım birden çok eşiği geçer: hepsi sırayla döner.
+	# A large step crosses several thresholds: all are returned in order.
 	var jump := SuspicionMeter.new()
 	jump.seen_for = 1.0
 	eq(jump.step(params, 100.0, 0.7), PackedInt32Array([1, 2]))
-	# İnip yeniden çıkınca eşik yeniden bildirilir.
+	# When it drops and rises again the threshold is reported again.
 	var again := SuspicionMeter.new()
 	again.value = 35.0
 	again.level = 1
@@ -226,7 +225,7 @@ func test_threshold_events() -> void:
 	eq(again.seen_for, 0.0)
 
 
-## `on`/`off` saniyelik görülme/kesinti deseninde koşan, yakın bant hedefin tespit anı (yoksa INF).
+## Detection moment of a running, near-band target in an `on`/`off` seconds seen/interrupted pattern (INF if none).
 func _pattern_detect_time(on: float, off: float, dt: float = DT, max_t: float = 10.0) -> float:
 	var meter := SuspicionMeter.new()
 	var params: SuspicionMeter.Params = _params()
@@ -241,7 +240,7 @@ func _pattern_detect_time(on: float, off: float, dt: float = DT, max_t: float = 
 	return INF
 
 
-## Kenarda kıpırdayarak bakma / 20 Hz eşitleme titremesi: kısa kesintiler ölçeri sıfırlamaz (should-fix t2).
+## Looking while fidgeting at an edge / 20 Hz sync jitter: short interruptions do not reset the meter (should-fix t2).
 func test_short_gaps_still_detect() -> void:
 	var params: SuspicionMeter.Params = _params()
 	near(params.gap_tolerance, 0.2, 0.0001, "tuning: kesinti toleransı 0,2 sn")
@@ -253,13 +252,13 @@ func test_short_gaps_still_detect() -> void:
 
 
 func test_short_gaps_step_size_independent() -> void:
-	# 0,15 sn görülme / 0,05 sn kesinti: pay 0,2 sn'de dolar, her 0,2 sn'lik döngüde 0,15 sn × 100 dolum →
-	# 6 döngü (90) + 0,1 sn → 1,5 sn.
+	# 0.15 s seen / 0.05 s interrupted: the margin fills at 0.2 s, each 0.2 s cycle fills 0.15 s x 100 ->
+	# 6 cycles (90) + 0.1 s -> 1.5 s.
 	for dt: float in [1.0 / 60.0, 1.0 / 120.0, 1.0 / 240.0, 0.05]:
 		near(_pattern_detect_time(0.15, 0.05, dt), 1.5, dt + 0.0001, "dt %.4f" % dt)
 
 
-## Tespitten sonra kısa kesintiler düzey 3'ü düşürmez ve tespiti yeniden yaydırmaz ("!" titremez).
+## After detection short interruptions do not drop level 3 and do not re-emit detection ("!" does not flicker).
 func test_detection_survives_short_gaps() -> void:
 	var params: SuspicionMeter.Params = _params()
 	var rate: float = _rate(B.NEAR, S.SPRINT)
@@ -268,15 +267,15 @@ func test_detection_survives_short_gaps() -> void:
 		return
 	var events := PackedInt32Array()
 	var min_level: int = 3
-	for cycle: int in 100:  # 15/3 kare deseni, 30 sn
+	for cycle: int in 100:  # 15/3 frame pattern, 30 s
 		for i: int in 18:
 			events.append_array(meter.step(params, rate if i < 15 else 0.0, DT))
 			min_level = mini(min_level, meter.level)
 	eq(events.size(), 0, "tespit yeniden yayılmaz")
 	eq(min_level, 3, "düzey 3'te kalır")
 	eq(meter.value, SuspicionMeter.MAX_VALUE)
-	# Tek karelik kayıp (host'un kendi oyuncusu) da düşürmez; gerçek saklanma (≥ tolerans) düşürür.
-	meter.step(params, rate, DT)  # desen 3 karelik kesintiyle bitti; görülerek kesinti sayacı sıfırlanır
+	# A single-frame loss (the host's own player) does not drop it either; a real hide (>= tolerance) does.
+	meter.step(params, rate, DT)  # pattern ended with a 3-frame interruption; being seen resets the interruption counter
 	meter.step(params, 0.0, DT)
 	eq(meter.level, 3)
 	_run(meter, params, 0.0, 0.3)

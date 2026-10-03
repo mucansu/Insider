@@ -1,9 +1,9 @@
 extends TestCase
-## US-008 AC7 (+ ON-03, I3): sahip TUT (28 px + 0,5 sn temas) → oyuncu tutuldu (donar, girdi kesilir, 6 sn
-## pencere) → pencere dolunca yakalandı; ÇEK (ekip arkadaşı 32 px içinde 1 sn, Interactable) → ikisi serbest,
-## sahip SENDELE tam 2 sn, kurtarana şüphe 100; aynı oyuncu ikinci kez tutulursa pencere 3 sn. ON-03: temas
-## kararında oyuncu konumu hızı yönünde min(RTT/2, 0,1 sn) ileri alınır (kaçan oyuncu lehine); ileri almayan
-## varyant sınırda tutar (düşer). Tek süreç = host; NpcStage sabit adım.
+## US-008 AC7 (+ ON-03, I3): owner HOLD (28 px + 0.5 s contact) -> player held (freezes, input cut, 6 s window) -> caught when the
+## window ends; PULL (teammate within 32 px for 1 s, Interactable) -> both freed, owner STAGGERS exactly 2 s, rescuer gets suspicion 100;
+## if the same player is held a second time the window is 3 s. ON-03: in the contact decision the player position is advanced along
+## its velocity by min(RTT/2, 0.1 s) (in the fleeing player's favour); a variant that does not advance holds at the boundary (fails).
+## Single process = host; NpcStage fixed step.
 
 const DT := 1.0 / 60.0
 const STAFF_FRONT := Vector2(560, 400)
@@ -65,14 +65,14 @@ func test_rescue_frees_staggers_and_second_hold_is_short() -> void:
 	eq(o.suspicion().value_of(3), 100.0, "kurtarana şüphe 100")
 	eq(o.brain().rescues.size(), 1)
 	rescuer.position = Vector2(656, 176)
-	var stagger: float = o.brain().fsm.time_in_state  # kurtarma adımın ortasında oldu
+	var stagger: float = o.brain().fsm.time_in_state  # the rescue happened mid-step
 	for i: int in roundi(3.0 / DT):
 		stage.run(DT)
 		if o.brain().state() != OwnerBrain.State.STAGGER:
 			break
 		stagger += DT
 	near(stagger, 2.0, DT + 0.001, "I3: SENDELE tam 2 sn (±1 kare)")
-	# Aynı oyuncu ikinci kez: pencere 3 sn.
+	# The same player a second time: window 3 s.
 	for i: int in roundi(4.0 / DT):
 		stage.run(DT)
 		if p.is_held() or rescuer.is_held():
@@ -83,8 +83,8 @@ func test_rescue_frees_staggers_and_second_hold_is_short() -> void:
 	stage.leave()
 
 
-## ON-03: kaçan oyuncu (host'un gördüğü konum temas sınırında, hızı sahipten uzağa) RTT/2 kadar ileri alınınca
-## tutulmaz; ileri almayan (hatalı) varyant aynı durumda tutar.
+## ON-03: a fleeing player (host-seen position at the contact boundary, velocity away from the owner) advanced by RTT/2 is not
+## held; the non-advancing (faulty) variant holds in the same situation.
 func test_lead_prediction_favours_fleeing_player() -> void:
 	for case: Array in [[150, false], [0, true]]:
 		var stage := NpcStage.new(self)
@@ -99,7 +99,7 @@ func test_lead_prediction_favours_fleeing_player() -> void:
 		if not is_true(o.brain().state() == OwnerBrain.State.CHASE, "kovalama başladı"):
 			stage.leave()
 			continue
-		# Host'un gördüğü konum: sahipten 24 px (temas içinde), oyuncu 140 px/sn uzaklaşıyor ama eşitleme gecikiyor.
+		# Host-seen position: 24 px from the owner (inside contact), the player moves away at 140 px/s but sync lags.
 		var away: Vector2 = (STAFF_FRONT - o.global_position).normalized()
 		var held: bool = false
 		for i: int in roundi(1.0 / DT):
@@ -111,7 +111,7 @@ func test_lead_prediction_favours_fleeing_player() -> void:
 		stage.leave()
 
 
-## Tutulan yerel oyuncu donar: hareket ve etkileşim girdisi kesilir; serbest kalınca yeniden yürür.
+## A held local player freezes: movement and interaction input are cut; walks again once freed.
 func test_held_local_player_freezes() -> void:
 	var player: Player = (load(PLAYER_SCENE) as PackedScene).instantiate() as Player
 	player.name = "1"

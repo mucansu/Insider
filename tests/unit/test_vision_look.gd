@@ -1,9 +1,9 @@
 extends TestCase
-## US-011b AC3/AC4 (GDD §6.5, §2b; S2, S6): bakış yönü. LookRules (8 bit niceleme 1,4° adım, dönüş tavanı
-## 240°/sn, klavye-yalnız yumuşak dönüş k = 9), bot `"look"` adımı, SnapshotBuffer'da açı ara değerlemesi (en kısa
-## yol), oyuncunun yerel bakışı (girdi → tavanlı dönüş → 8 bit yayın; tutulunca donar) ve uzak kopyada aynı tavanla
-## izleme, kukla baş/göz bakışı (gövde hareket yönünde), ekip bakış yayı yalnız yönlü kipte ve ekip arkadaşında.
-## Ağ davranışı: tests/net/look_sync.json (0 ve 150 ms).
+## US-011b AC3/AC4 (GDD §6.5, §2b; S2, S6): facing direction. LookRules (8-bit quantisation 1.4 deg step, turn ceiling 240 deg/s,
+## keyboard-only smooth turn k = 9), bot `"look"` step, angle interpolation in SnapshotBuffer (shortest path), the player's local
+## facing (input -> capped turn -> 8-bit broadcast; freezes when held) and tracking with the same cap on a remote copy, puppet
+## head/eye gaze (body in the movement direction), crew look arc only in directional mode and on a teammate.
+## Network behaviour: tests/net/look_sync.json (0 and 150 ms).
 
 const SCENE := "res://entities/player/player.tscn"
 const DT := 1.0 / 60.0
@@ -48,7 +48,7 @@ func test_turn_is_capped_at_240_deg_per_sec() -> void:
 	a = LookRules.turn(deg_to_rad(170.0), deg_to_rad(-170.0), 0.1, MAX_TURN)
 	near(rad_to_deg(angle_difference(deg_to_rad(170.0), a)), 20.0, 0.001, "en kısa yoldan (±180 sarar)")
 	near(LookRules.turn(0.0, deg_to_rad(10.0), 0.1, MAX_TURN), deg_to_rad(10.0), 0.0001, "yakın hedefe tam varır")
-	# Tam tur 1,5 sn: 180° dönüş 0,75 sn'den önce bitmez.
+	# A full turn in 1.5 s: a 180 deg turn does not finish before 0.75 s.
 	var t: float = 0.0
 	var angle: float = 0.0
 	while absf(angle_difference(angle, PI * 0.999)) > 0.001 and t < 2.0:
@@ -58,24 +58,24 @@ func test_turn_is_capped_at_240_deg_per_sec() -> void:
 
 
 func test_keyboard_only_smooth_turn_k9() -> void:
-	# Tek adımda üstel yaklaşım: fark × (1 − e^(−9·dt)), tavanın altında.
+	# Exponential approach in one step: difference x (1 - e^(-9*dt)), below the cap.
 	var one: float = LookRules.step_look(0.0, Vector2.ZERO, Vector2.from_angle(deg_to_rad(20.0)), DT, MAX_TURN)
 	near(rad_to_deg(one), 20.0 * (1.0 - exp(-9.0 * DT)), 0.0001, "k = 9 yumuşatma")
-	# ≈0,33 sn'de %95 (3/k).
+	# 95% at ~0.33 s (3/k).
 	var angle: float = 0.0
 	for i: int in roundi(0.333 / DT):
 		angle = LookRules.step_look(angle, Vector2.ZERO, Vector2.from_angle(deg_to_rad(20.0)), DT, MAX_TURN)
 	near(rad_to_deg(angle), 20.0 * 0.95, 0.4)
-	# Büyük farkta tavan yine geçerli.
+	# The cap still applies for a large difference.
 	var big: float = LookRules.step_look(0.0, Vector2.ZERO, Vector2.LEFT, 0.1, MAX_TURN)
 	is_true(absf(rad_to_deg(big)) <= 24.0001, "klavyede de 240°/sn tavanı")
-	# Açık bakış (fare/çubuk/bot) varsa hareket yönü yok sayılır.
+	# If there is an explicit look (mouse/stick/bot) the movement direction is ignored.
 	var look: float = LookRules.step_look(0.0, Vector2.DOWN, Vector2.LEFT, 0.05, MAX_TURN)
 	near(rad_to_deg(look), 12.0, 0.001, "açık bakış: tavanla hedefe, yumuşatmasız")
 	eq(LookRules.step_look(1.0, Vector2.ZERO, Vector2.ZERO, DT, MAX_TURN), 1.0, "girdi yok: açı korunur")
 
 
-# --- bot "look" adımı (S6 eki) ---
+# --- bot "look" step (S6 addition) ---
 
 func test_bot_look_step_parses_holds_and_releases() -> void:
 	var bot: BotTimeline = _bot([{"t": 0.0, "look": [0, -2]}, {"t": 1.0, "look": [0, 0]}, {"t": 2.0, "look": [3]},
@@ -93,18 +93,18 @@ func test_bot_look_step_parses_holds_and_releases() -> void:
 	eq(BotTimeline.parse_look("x"), Vector2.ZERO)
 
 
-# --- SnapshotBuffer açı ara değerlemesi ---
+# --- SnapshotBuffer angle interpolation ---
 
 func test_buffer_interpolates_look_along_shortest_arc() -> void:
 	var buffer := SnapshotBuffer.new(0.1)
 	buffer.push(1.0, 1.0, Vector2.ZERO, Vector2.DOWN, 0, deg_to_rad(170.0))
 	buffer.push(1.1, 1.1, Vector2.ZERO, Vector2.DOWN, 0, deg_to_rad(-170.0))
-	var frame: SnapshotBuffer.Frame = buffer.sample(1.15)  # çizim anı 1,15 − 0,1 = 1,05: ortada
+	var frame: SnapshotBuffer.Frame = buffer.sample(1.15)  # draw time 1.15 - 0.1 = 1.05: in the middle
 	near(absf(rad_to_deg(frame.look)), 180.0, 0.5, "170° → −170° ortası 180° (350° değil)")
 	is_false(buffer.push(1.2, 1.2, Vector2.ZERO, Vector2.DOWN, 0, NAN), "NaN bakış atılır")
 
 
-# --- oyuncu: yerel bakış ve yayın ---
+# --- player: local look and broadcast ---
 
 func test_local_player_turns_toward_bot_look_with_cap_and_publishes_8_bit() -> void:
 	var player: Player = _spawn(1)
@@ -145,7 +145,7 @@ func test_keyboard_only_look_follows_movement() -> void:
 	near(rad_to_deg(player.look_angle()), 0.0, 1.0, "açık bakış yok: hareket yönüne yumuşak döner")
 
 
-# --- uzak kopya: ara değerleme + aynı tavan ---
+# --- remote copy: interpolation + same cap ---
 
 func test_remote_copy_follows_look_with_same_cap() -> void:
 	var player: Player = _spawn(2)
@@ -157,7 +157,7 @@ func test_remote_copy_follows_look_with_same_cap() -> void:
 	await tree().process_frame
 	await tree().process_frame
 	near(player.look_angle(), 0.0, 0.0001, "ilk veride döndürmeden oturur")
-	# 180° sıçrayan veri: çizilen açı tavanla döner (ilk 0,1 sn'de ≤ 24° + kare payı).
+	# Data jumping 180 deg: the drawn angle turns with the cap (<= 24 deg in the first 0.1 s + a frame margin).
 	for k: int in range(1, 30):
 		player.net_time = sender + 0.05 * k
 		player.net_look = LookRules.quantize(PI * 0.99)
@@ -173,12 +173,12 @@ func test_remote_copy_follows_look_with_same_cap() -> void:
 		"hedefe yakınsar")
 
 
-# --- kukla ve ekip yayı (AC4) ---
+# --- puppet and crew arc (AC4) ---
 
 func test_puppet_head_follows_look_body_follows_motion() -> void:
 	var rig := PuppetRig.new(load(Puppet.TUNING_PATH) as PuppetTuning)
 	rig.target_look = Vector2.UP
-	rig.update(DT, Vector2.ZERO, Vector2.ZERO, Vector2.RIGHT, PuppetRig.Gait.WALK, false)  # ilk kurulum
+	rig.update(DT, Vector2.ZERO, Vector2.ZERO, Vector2.RIGHT, PuppetRig.Gait.WALK, false)  # first setup
 	near(rig.head_direction(), Vector2.UP, 0.0001, "kurulumda baş bakışta")
 	near(rig.face_direction(), Vector2.RIGHT, 0.0001, "gövde hareket yönünde")
 	is_true(rig.head_is_back() and not rig.is_back(), "baş arkaya, gövde yana")

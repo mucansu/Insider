@@ -1,19 +1,18 @@
 extends TestCase
-## US-011b store_a'da yerel görüş sisiyle (Level.attach_fog; gözlemci bir oyuncu kopyası) çizim kapıları:
-## AC5 NPC görünürlük kapısı (tam / çevresel siluet / tutma → hayalet → gizli; işaretler yalnız tamken; siluet ve
-## hayalet sis üstünde), kapı ve çanta görseli hafızada son görülen durumda donar ve görülünce güncellenir;
-## AC6 ses halkası yalnız kaynak görülüyorsa ya da yerel oyuncu duyuyorsa (duvar ×0,5) çizilir; sahibin ajanda
-## sesleri (telefon 160 / 3 sn, raf 96 / 2 sn, zil 160) NoiseBus'a girer, sahip kendi seslerine tepki vermez.
-## Mantık etkilenmez (yalnız çizim). Ağ: tests/net/look_sync.json.
+## US-011b draw gates with the local vision fog in store_a (Level.attach_fog; the observer is a player copy): AC5 NPC visibility gate
+## (full / peripheral silhouette / hold -> ghost -> hidden; markers only when full; silhouette and ghost above the fog), door and bag
+## visuals freeze in memory at the last seen state and update when seen; AC6 sound ring drawn only if the source is seen or the
+## local player hears it (wall x0.5); the owner's agenda sounds (phone 160 / 3 s, shelf 96 / 2 s, bell 160) enter NoiseBus, the
+## owner does not react to their own sounds. Logic is unaffected (draw only). Network: tests/net/look_sync.json.
 
 const STREET := Vector2(48, 528)
 const STAFF_FRONT := Vector2(560, 400)
-## Personel tarafı (19,13): sahibe 71 px, yakın halkanın (64) dışında, çevresel menzilde (192).
+## Staff side (19,13): 71 px from the owner, outside the near ring (64), within peripheral range (192).
 const STAFF_SIDE := Vector2(624, 432)
 const BACKROOM := Vector2(496, 176)
-## Arka kapının (20,3) hemen içi (20,5).
+## Just inside the back door (20,3): (20,5).
 const BACK_DOOR_VIEW := Vector2(656, 176)
-## Kaldırım (19,15): kuzeyinde düz duvar (19,14), içerisi (19,13) 64 px, (19,12) 96 px.
+## Sidewalk (19,15): plain wall to the north (19,14), interior (19,13) 64 px, (19,12) 96 px.
 const SIDEWALK := Vector2(624, 496)
 const RING := "res://entities/fx/noise_ring.tscn"
 
@@ -42,14 +41,14 @@ func _move(fog: FogLayer, to: Vector2) -> void:
 	await _frames(2)
 
 
-# --- AC5: NPC görünürlük kapısı ---
+# --- AC5: NPC visibility gate ---
 
 func test_owner_hidden_until_seen_then_holds_ghosts_and_hides() -> void:
 	var stage: NpcStage = _stage()
 	await stage.enter()
 	var visual: NpcVisual = _owner_visual(stage)
 	var fog: FogLayer = _observe(stage, STREET)
-	await _frames(110)  # sis kurulmadan (sahipsiz) tam çizilmişti: tutma + hayalet süresi dolar
+	await _frames(110)  # was fully drawn before fog was set up (no owner): hold + ghost time expires
 	eq(visual.sight_mode(), SightGate.Mode.HIDDEN, "duvar arkasındaki sahip çizilmez")
 	is_false(visual.is_fully_visible())
 	is_true(visual.is_in_group(VisionRules.NPC_VISUAL_GROUP))
@@ -78,7 +77,7 @@ func test_directional_peripheral_silhouette() -> void:
 	var fog: FogLayer = _observe(stage, STAFF_SIDE)
 	fog.set_mode(VisionGrid.Mode.DIRECTIONAL)
 	var to_owner: Vector2 = stage.owner().global_position - STAFF_SIDE
-	fog.set_look_dir(to_owner.rotated(deg_to_rad(70.0)))  # sahip 70°: net koninin (45°) dışı, çevresel (90°) içi
+	fog.set_look_dir(to_owner.rotated(deg_to_rad(70.0)))  # owner 70 deg: outside the net cone (45 deg), inside peripheral (90 deg)
 	await _move(fog, STAFF_SIDE)
 	eq(fog.state_at_position(stage.owner().global_position), VisionGrid.State.PERIPHERAL, "fikstür: çevresel karo")
 	eq(visual.sight_mode(), SightGate.Mode.SILHOUETTE, "çevresel bölgede soluk siluet")
@@ -99,7 +98,7 @@ func test_no_fog_everything_visible() -> void:
 	stage.leave()
 
 
-# --- AC5: prop hafızası ---
+# --- AC5: prop memory ---
 
 func test_door_visual_freezes_in_memory() -> void:
 	var stage: NpcStage = _stage()
@@ -145,7 +144,7 @@ func test_bag_visual_keeps_last_seen_floor_spot() -> void:
 	stage.leave()
 
 
-# --- AC6: ses halkası ---
+# --- AC6: sound ring ---
 
 func _ring(stage: NpcStage, at: Vector2, radius: float) -> NoiseRing:
 	var ring: NoiseRing = (load(RING) as PackedScene).instantiate() as NoiseRing
@@ -183,7 +182,7 @@ func test_noise_ring_without_fog_always_shown() -> void:
 	stage.leave()
 
 
-# --- AC6: sahibin ajanda sesleri ---
+# --- AC6: owner's agenda sounds ---
 
 func test_agenda_task_noise_cadence() -> void:
 	var phone := AgendaTask.new()
@@ -200,7 +199,7 @@ func test_agenda_task_noise_cadence() -> void:
 	var times: Array[float] = []
 	var t: float = 0.0
 	for i: int in 540:
-		var at_goal: bool = t >= 1.0  # 1 sn yürür, sonra varır
+		var at_goal: bool = t >= 1.0  # walks 1 s, then arrives
 		agenda.step(1.0 / 60.0, at_goal)
 		var kind: StringName = agenda.take_noise(1.0 / 60.0)
 		t += 1.0 / 60.0
@@ -261,7 +260,7 @@ func test_owner_phone_and_bell_noises_reach_noise_bus() -> void:
 		near(phones[0][2] as Vector2, o.global_position, 8.0, "sahibin konumunda")
 	eq(o.agenda().task_name(), &"phone", "sahip kendi telefon sesine tepki vermez (dinle kesmesi yok)")
 	eq(int(o.brain().agenda_noises.get(&"phone", 0)), phones.size())
-	# Kapı zili: oyuncu ön kapıdan içeri girer → zil sesi kapıda (160).
+	# Door bell: the player enters through the front door -> bell sound at the door (160).
 	_shown.clear()
 	var p: Player = stage.player(2, Vector2(368, 496))
 	stage.run(0.1)

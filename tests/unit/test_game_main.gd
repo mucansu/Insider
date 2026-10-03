@@ -1,6 +1,6 @@
 extends TestCase
-## main.gd açılış kipi (US-001 AC7): argümansız açılışta menü varsa menü, yoksa uyarılı menüsüz açılış.
-## Sahne ağaca eklenmez (_ready otomasyonu koşmaz); yalnız karar fonksiyonu sınanır.
+## main.gd startup mode (US-001 AC7): with no arguments, the menu if present, else a menu-less start with a warning.
+## The scene is not added to the tree (no _ready automation); only the decision function is tested.
 
 const MainScript := preload("res://main.gd")
 
@@ -19,7 +19,7 @@ func test_start_mode_without_arguments() -> void:
 	var m: MainScript = _main()
 	m.menu_scene = "res://tests/fixtures/yok_menu.tscn"
 	eq(m.start_mode(false, ""), &"none", "menü yoksa menüsüz açılış (uyarı)")
-	m.menu_scene = "res://tests/fixtures/empty_level.tscn"  # var olan herhangi bir sahne
+	m.menu_scene = "res://tests/fixtures/empty_level.tscn"  # any existing scene
 	eq(m.start_mode(false, ""), &"menu", "menü varsa menüye geçilir")
 	m.menu_scene = MainScript.MAIN_MENU
 	eq(m.start_mode(false, ""), &"menu" if ResourceLoader.exists(MainScript.MAIN_MENU) else &"none")

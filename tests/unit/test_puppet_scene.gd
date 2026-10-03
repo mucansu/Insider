@@ -1,27 +1,26 @@
 extends TestCase
-## US-014 kukla sahnesi: oyuncu sahnesinde yer tutucunun yerini alır (AC1), yalnız durum okur — yerelde
-## Player'ın durumundan, uzak kopyada ara değerlenmiş tampon durumundan (AC3), çarpışma yarıçapı değişmez,
-## işaretler (ad, balon, rozet) sabit bağlantı noktasında ve ≥ 22 px (GDD §14.1 kural 2), uzak kopyada konum
-## sıçrayınca "pop" yok (kural 6), hareket azaltma API'si (AC4), bağımlılık yönü (kukla mantık/ağ betiklerine
-## başvurmaz). Hesap testleri: test_puppet.gd.
+## US-014 puppet scene: replaces the placeholder in the player scene (AC1), only reads state - locally from the Player's state, on
+## a remote copy from the interpolated buffer state (AC3), collision radius unchanged, markers (name, balloon, badge) at a fixed
+## anchor and >= 22 px (GDD §14.1 rule 2), no "pop" when a remote copy's position jumps (rule 6), reduced motion API (AC4),
+## dependency direction (the puppet does not reference logic/network scripts). Maths tests: test_puppet.gd.
 
 const SCENE := "res://entities/player/player.tscn"
 const PUPPET_DIR := "res://entities/player/puppet"
 const TUNING_SCRIPT := "res://data/puppet_tuning.gd"
 const Deps := preload("res://tests/unit/test_deps.gd")
 const Rules := preload("res://tests/unit/test_player_rules.gd")
-## Kukla betiklerinde yasak başvurular: girdi, ağ, oturum, hareket/oyuncu mantığı, NPC/etkileşim kuralları.
+## Forbidden references in puppet scripts: input, network, session, movement/player logic, NPC/interaction rules.
 const FORBIDDEN: Array[String] = [
 	"\\bInput\\.", "\\bPlayerInput\\b", "\\bmultiplayer\\b", "\\brpc", "\\bNet\\.", "\\bGame\\.", "\\bArgs\\.",
 	"\\bNoiseBus\\b", "move_and_slide", "\\bPlayer\\b", "\\bPlayerMotion\\b", "\\bPlayerInteraction\\b",
 	"\\bSnapshotBuffer\\b", "\\bInteractable\\b", "\\bPlayerVisual\\b", "\\bCharacterBody2D\\b",
 	"res://(autoload|core|levels)/",
 ]
-## Düğüm betikleri kendi konumunu/dönüşümünü değiştirmez; diğer kukla betikleri düğümsüz hesap/veridir.
+## Node scripts do not change their own position/transform; other puppet scripts are no-node maths/data.
 const NODE_SCRIPTS: Array[String] = ["puppet.gd", "puppet_markers.gd"]
-## (Başka nesnenin alanına yazmak, ör. `_mesh.transform = …`, serbest.)
+## (Writing to another object's field, e.g. `_mesh.transform = ...`, is allowed.)
 const NODE_WRITES := "(^|[^.\\w]|self\\.)(global_)?(position|rotation|scale|transform)\\s*[-+*/]?=[^=]"
-## Düğümsüz betikler (rig, gövde, gözler, atkı, yay, görünüm) düğüm ve tema bilmez.
+## No-node scripts (rig, body, eyes, scarf, spring, look) know no nodes or theme.
 const RIG_FORBIDDEN: Array[String] = ["\\bNode2?D?\\b", "get_node", "\\bThemeTokens\\b", "get_tree", "\\$"]
 
 
@@ -49,7 +48,7 @@ func _physics(count: int) -> void:
 		await tree().physics_frame
 
 
-# --- AC1: sahne ---
+# --- AC1: scene ---
 
 func test_player_scene_has_puppet() -> void:
 	var player: Player = autofree((load(SCENE) as PackedScene).instantiate()) as Player
@@ -64,7 +63,7 @@ func test_player_scene_has_puppet() -> void:
 	var label: Node = visual.get_node_or_null("NameLabel")
 	is_true(label is Label, "ad etiketi korunur")
 	is_true(label != null and label.get_index() > puppet.get_index(), "ad etiketi kuklanın üstünde çizilir")
-	# Görselde çarpışma yok; gövde yarıçapı 12 (AC3).
+	# No collision in the visual; body radius 12 (AC3).
 	for node: Node in visual.find_children("*", "", true, false):
 		is_false(node is CollisionObject2D or node is CollisionShape2D or node is CollisionPolygon2D,
 			"görselde çarpışma düğümü yok: %s" % node.name)
@@ -87,7 +86,7 @@ func test_colors_and_looks_from_identity() -> void:
 	Game._rpc_players(before)
 
 
-# --- AC3: yalnız durum okur ---
+# --- AC3: only reads state ---
 
 func test_local_puppet_follows_player_state() -> void:
 	var player: Player = _spawn(1, Vector2.ZERO)
@@ -127,8 +126,8 @@ func test_remote_puppet_reads_interpolated_state() -> void:
 	eq((player.get_node("PlayerInput") as PlayerInput).source(), PlayerInput.Source.NONE, "uzakta girdi yok")
 
 
-## Tampon boşken konumu dışarıdan yazılan (Game yetiştirmesi) ya da tamponu sıfırlanan uzak kopya: konum
-## sıçrayınca kukla sessizce yeniden kurulur; atkı savrulmaz, ölçek sıçramaz.
+## A remote copy whose position is written from outside while the buffer is empty (Game catch-up) or whose buffer is reset: when the
+## position jumps the puppet is silently rebuilt; the scarf is not flung, the scale does not jump.
 func test_remote_teleport_has_no_pop() -> void:
 	var player: Player = _spawn(4, Vector2(100, 100))
 	await _frames(5)
@@ -148,7 +147,7 @@ func test_remote_teleport_has_no_pop() -> void:
 		near(rig.squash_y(), sq, 0.05, "ölçek sıçramaz")
 
 
-# --- işaretler (kural 2) ---
+# --- markers (rule 2) ---
 
 func test_markers_fixed_anchor_and_size() -> void:
 	var player: Player = _spawn(1, Vector2.ZERO)
@@ -175,14 +174,14 @@ func test_markers_fixed_anchor_and_size() -> void:
 		eq(markers.badge_center(), badge)
 		eq(markers.position, Vector2.ZERO)
 	is_true(hopped, "sıçrama oldu ama işaretler oynamadı")
-	# 1280×720'de ≥ 22 px (kamera yakınlaştırması ≥ 1; canvas_items ölçeği 1280×720 tabanında 1).
+	# >= 22 px at 1280x720 (camera zoom >= 1; canvas_items scale is 1 at the 1280x720 base).
 	var zoom: float = player.tuning.camera_zoom
 	is_true(PuppetMarkers.BUBBLE_SIZE * zoom >= 22.0, "balon ≥ 22 px")
 	is_true(PuppetMarkers.BADGE_RADIUS * 2.0 * zoom >= 22.0, "rozet ≥ 22 px")
 	eq(markers.interaction_marker_color(), ThemeTokens.tone().bg_color, "rozet dolgusu tondan (S9)")
 
 
-# --- AC4: hareket azaltma ---
+# --- AC4: reduced motion ---
 
 func test_reduced_motion_setting_api() -> void:
 	is_false(Puppet.is_reduced_motion(), "varsayılan kapalı")
@@ -197,11 +196,11 @@ func test_reduced_motion_setting_api() -> void:
 	near(rig.lean.x, 0.0, 1e-6)
 	is_true(rig.dust_particles().is_empty())
 	Puppet.set_reduced_motion(false)
-	await _frames(2)  # process_frame sinyali düğümlerin _process'inden önce gelir
+	await _frames(2)  # the process_frame signal comes before the nodes' _process
 	is_false(rig.reduced_motion, "kapatma da geçer")
 
 
-# --- bağımlılık yönü ---
+# --- dependency direction ---
 
 func test_puppet_dependency_direction() -> void:
 	var files: PackedStringArray = Rules.scripts_under(PUPPET_DIR)
@@ -241,7 +240,7 @@ func test_dependency_scanner_detects_mutations() -> void:
 	eq(violations(rig_script, "\tposition = pos").size(), 0, "rig kendi alanını yazar (düğüm değil)")
 
 
-## `source` içindeki yasak başvurular (yorumlar hariç).
+## Forbidden references in `source` (comments excluded).
 static func violations(path: String, source: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var patterns: Array[String] = FORBIDDEN.duplicate()
@@ -260,7 +259,7 @@ static func violations(path: String, source: String) -> PackedStringArray:
 	return out
 
 
-# --- çizim maliyeti ve doku yuvası (t2) ---
+# --- draw cost and texture slot (t2) ---
 
 func _bare_puppet(at: Vector2) -> Puppet:
 	var puppet: Puppet = (load("res://entities/player/puppet/puppet.tscn") as PackedScene).instantiate() as Puppet
@@ -270,8 +269,8 @@ func _bare_puppet(at: Vector2) -> Puppet:
 	return puppet
 
 
-## Kukla başına komut sayısı (mekân nüfusu: 6 NPC + 3 oyuncu): kodla çizimde tek komut, koşu tozu varsa bir
-## komut daha; hedef ≤ 40.
+## Command count per puppet (venue population: 6 NPCs + 3 players): one command when drawn in code, one more if there is run dust;
+## target <= 40.
 func test_draw_cost_per_puppet() -> void:
 	var tuning: PuppetTuning = load("res://data/puppet_tuning.tres") as PuppetTuning
 	var puppets: Array[Puppet] = []
@@ -295,7 +294,7 @@ func test_draw_cost_per_puppet() -> void:
 	is_false(puppets[0].rig().dust_particles().is_empty(), "koşuda toz var (ölçüm anlamlı)")
 
 
-## Doku yuvaları: dolu parça dokuyla çizilir (her doku bir komut), boş parça kodla; sıra korunur, hata yok.
+## Texture slots: a filled part is drawn with its texture (each texture one command), an empty part in code; order kept, no error.
 func test_texture_slots_draw() -> void:
 	var tuning: PuppetTuning = load("res://data/puppet_tuning.tres") as PuppetTuning
 	var look: PuppetLook = tuning.player_looks[0].duplicate() as PuppetLook
@@ -314,7 +313,7 @@ func test_texture_slots_draw() -> void:
 	is_true(int(stats["commands"]) > int(stats["textures"]), "kodla kalan parçalar (gölge, ayak, göz, atkı) ayrıca")
 	is_true(int(stats["commands"]) <= 40, "komut sınırı: %s" % stats)
 	near(Puppet.part_rect(Puppet.Part.BODY, 1.16).size.x, PuppetBody.BODY_RADIUS.x * 2.0 * 1.16, 0.001, "gövde çerçevesi genişlikle")
-	# Yalnız gövde dokusu: tek bölünme.
+	# Body texture only: a single split.
 	var only_body: PuppetLook = tuning.player_looks[0].duplicate() as PuppetLook
 	only_body.body_texture = texture
 	p.configure(only_body, ThemeTokens.PLAYER_COLORS[0])

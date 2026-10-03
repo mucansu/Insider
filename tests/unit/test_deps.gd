@@ -1,27 +1,26 @@
 extends TestCase
-## mimari.md §6 katman matrisi (KR-018; IS-010, IS-038). Kaynak dizindeki her `.gd` betiğinin başka proje
-## dizinlerine başvuruları taranır ve RULES tablosuyla karşılaştırılır. Başvuru:
-##  - proje sınıf adı (`class_name`, ProjectSettings genel sınıf listesi) ya da autoload adı (Game, Net, Args,
-##    NoiseBus); kodda (dize dışı) ya da StringName dizesinin tamamı olarak (&"ThemeTokens"); `.` ardından gelen ad
-##    (iç enum/sınıf erişimi) ve dosyanın kendi bildirdiği ad (ör. Suspicion'daki `enum Level`) sayılmaz;
-##  - dize içindeki proje yolu (`res://<dizin>/...` ya da dizenin başında `<dizin>/...`; dinamik başvuru da
-##    bağımlılıktır);
-##  - dize içindeki `uid://`: ResourceUID ile yola çözülür; çözülemeyen uid (gizli/bayat başvuru) her zaman ihlal (IS-005).
-## Kendi dizini her zaman izinli; hedef yalnız RULES'taki izinli dizin/dosya ya da gerekçeli EXCEPTIONS satırı
-## ile geçer. Yorumlar taranmaz. Sınır: çok satırlı (""") dize içindeki `#` yorum sayılır; `.tscn` sahne
-## bağımlılıkları (ör. seviyeye yerleştirilen prop sahneleri) kapsam dışıdır.
+## mimari.md §6 layer matrix (KR-018; IS-010, IS-038). References from every `.gd` script in a source dir to other
+## project dirs are scanned and compared with the RULES table. A reference is:
+## - a project class name (`class_name`, ProjectSettings global class list) or autoload name (Game, Net, Args,
+## NoiseBus), in code (outside strings) or as a whole StringName string (&"ThemeTokens"); a name after `.` (inner
+## enum/class access) or one the file declares itself (e.g. `enum Level` in Suspicion) does not count;
+## - a project path inside a string (`res://<dir>/...` or `<dir>/...` at string start; dynamic references count too);
+## - `uid://` inside a string: resolved to a path via ResourceUID; an unresolvable uid (hidden/stale reference) is always a violation (IS-005).
+## A dir may always reference itself; a target passes only via an allowed dir/file in RULES or a justified EXCEPTIONS
+## row. Comments are not scanned. Limit: a `#` inside a multi-line (""") string counts as a comment; `.tscn` scene
+## dependencies (e.g. prop scenes placed in a level) are out of scope.
 
-## Kaynak dizin -> izinli hedefler (dizin ya da tek dosya, res:// göreli). §6 ile birebir.
+## Source dir -> allowed targets (dir or single file, res:// relative). Matches §6 exactly.
 const RULES := {
-	"core": [],  # hiçbir proje dizini (3D'ye taşınabilirlik)
-	"autoload": ["core", "data", "levels/level.gd"],  # Level yalnız S4 API'siyle
+	"core": [],  # no project dir (portability to 3D)
+	"autoload": ["core", "data", "levels/level.gd"],  # Level only via the S4 API
 	"entities": ["core", "autoload", "data"],
 	"levels": ["core", "data"],
-	"ui": ["autoload", "data"],  # autoload sözleşmeleri; data salt okunur Resource (IS-024 ses kataloğu)
+	"ui": ["autoload", "data"],  # autoload contracts; data is a read-only Resource (IS-024 sound catalog)
 }
-## Bilinçli istisnalar. from: kaynak dosya ya da dizin öneki ("/" ile biter); to: hedef dosyalar.
-## line: yalnız bu satırda (baştaki/sondaki boşluk hariç birebir); token: başvuru bu metinle başlamalı.
-## flag: §6 metninde yazmayan, bugünkü ağaçta bulunup gerekçeyle geçirilen istisna (raporda "Karar gereken").
+## Deliberate exceptions. from: source file or dir prefix (ends with "/"); to: target files.
+## line: this line only (exact except leading/trailing whitespace); token: the reference must start with this text.
+## flag: an exception not in the §6 text, found in today's tree and passed with justification (reported under "Karar gereken").
 const EXCEPTIONS: Array[Dictionary] = [
 	{"from": "autoload/game.gd", "to": ["ui/hud.tscn"], "line": "const HUD_SCENE := \"res://ui/hud.tscn\"",
 		"why": "§6/S3: HUD yol dizesinden load() ile eklenir; derleme bağımlılığı yok"},
@@ -79,7 +78,7 @@ func test_layer_matrix_holds() -> void:
 		is_true(used.has(i), "kullanılmayan (bayat) istisna: %s" % EXCEPTIONS[i])
 
 
-## Her kural için: gerçek bir dosyanın kopyasına tek ihlal eklenince yakalanır; izinli başvuru temiz kalır.
+## Each rule: adding a single violation to a copy of a real file is caught; an allowed reference stays clean.
 func test_each_rule_catches_injected_violation() -> void:
 	var cases := {
 		"res://core/noise_rules.gd": [
@@ -132,7 +131,7 @@ func test_each_rule_catches_injected_violation() -> void:
 			eq(violations(path, source + "\n" + line + "\n").size(), int(c[1]), "%s + `%s`" % [path, line.strip_edges()])
 
 
-## IS-010 vakaları: core/ ve autoload/ ui/'ye başvurmaz (game.gd kopyası üzerinde).
+## IS-010 cases: core/ and autoload/ do not reference ui/ (on a copy of game.gd).
 func test_scanner_detects_ui_mutations() -> void:
 	var caught: Array[String] = [
 		"var c: Color = ThemeTokens.BG",
@@ -164,7 +163,7 @@ func test_scanner_detects_ui_mutations() -> void:
 	]
 	for line: String in clean:
 		eq(violations(GAME, line).size(), 0, "temiz sayılmalı: " + line)
-	# Gerçek dosyaya mutasyon: game.gd'ye eklenen tek bir ui başvurusu yakalanır.
+	# Mutation on a real file: a single ui reference added to game.gd is caught.
 	var source: String = FileAccess.get_file_as_string(GAME)
 	eq(violations(GAME, source).size(), 0)
 	eq(violations(GAME, source + "\nvar _mut: Color = ThemeTokens.PLAYER_COLORS[0]\n").size(), 1)
@@ -182,8 +181,8 @@ func test_scanner_resolves_uid_references() -> void:
 		"var hud: PackedScene = load(\"%s\")" % ui_uid,
 		"const HUD := preload(\"%s\")" % ui_uid,
 		"var u := \"%s\"  # yorum" % ui_uid,
-		"var level: PackedScene = load(\"%s\")" % level_uid,  # autoload → levels sahnesi (yalnız level.gd izinli)
-		"var stale := load(\"uid://zzzzzzzzzzzzz\")",  # çözülemeyen uid
+		"var level: PackedScene = load(\"%s\")" % level_uid,  # autoload -> levels scene (only level.gd allowed)
+		"var stale := load(\"uid://zzzzzzzzzzzzz\")",  # unresolvable uid
 	]
 	for line: String in caught:
 		eq(violations(GAME, line).size(), 1, "yakalanmalı: " + line)
@@ -194,17 +193,17 @@ func test_scanner_resolves_uid_references() -> void:
 	for line: String in clean:
 		eq(violations(GAME, line).size(), 0, "temiz sayılmalı: " + line)
 	eq(violations("res://ui/hud.gd", "var l := load(\"%s\")" % level_uid).size(), 1, "ui → levels uid ile de yakalanır")
-	# Gerçek dosyaya mutasyon: HUD yolunun yerine uid'si yazılırsa da yakalanır.
+	# Mutation on a real file: writing the uid in place of the HUD path is caught too.
 	var source: String = FileAccess.get_file_as_string(GAME)
 	eq(violations(GAME, source.replace("load(HUD_SCENE)", "load(\"%s\")" % ui_uid)).size(), 1)
 
 
-## `source` içindeki kural dışı başvurular ("satır: kod → hedefler" biçiminde, satır başına bir kayıt).
+## Rule-breaking references in `source` (format "line: code -> targets", one record per line).
 static func violations(path: String, source: String) -> PackedStringArray:
 	return scan(path, source)["violations"]
 
 
-## {"violations": PackedStringArray, "used": Array[int] (eşleşen EXCEPTIONS sıraları)}.
+## {"violations": PackedStringArray, "used": Array[int] (indices of matched EXCEPTIONS)}.
 static func scan(path: String, source: String) -> Dictionary:
 	var index: Dictionary = _class_index()
 	var rel: String = path.trim_prefix("res://")
@@ -222,12 +221,12 @@ static func scan(path: String, source: String) -> Dictionary:
 	for i: int in lines.size():
 		var parts: Array = split_strings(strip_comment(lines[i]))
 		var code: String = parts[0]
-		var refs: Array[Array] = []  # [hedef (res:// göreli), koddaki konum ya da -1]
+		var refs: Array[Array] = []  # [target (res:// relative), position in code or -1]
 		for m: RegExMatch in class_re.search_all(code):
 			refs.append([index[m.get_string(1)], m.get_start(1)])
 		for text: String in parts[2]:
 			if index.has(text):
-				refs.append([index[text], -1])  # &"Sınıf" (düz dize — düğüm adı, @export_subgroup — sayılmaz)
+				refs.append([index[text], -1])  # &"Class" (plain string: node name, @export_subgroup; does not count)
 		for text: String in parts[1]:
 			var pm: RegExMatch = path_re.search(text)
 			if pm != null:
@@ -251,10 +250,10 @@ static func scan(path: String, source: String) -> Dictionary:
 	return {"violations": out, "used": used}
 
 
-## Kaynak `rel`'in `target`'a başvurusu RULES'a göre izinli mi (kendi dizini her zaman izinli).
+## Whether source `rel`'s reference to `target` is allowed by RULES (own dir is always allowed).
 static func _allowed(rel: String, target: String) -> bool:
 	if target.begins_with("?"):
-		return false  # çözülemeyen uid
+		return false  # unresolvable uid
 	var from_dir: String = rel.get_slice("/", 0)
 	if target.get_slice("/", 0) == from_dir:
 		return true
@@ -264,7 +263,7 @@ static func _allowed(rel: String, target: String) -> bool:
 	return false
 
 
-## Eşleşen istisnanın sırası; yoksa -1.
+## Index of the matching exception; -1 if none.
 static func _exception_for(rel: String, target: String, line: String, code: String, at: int) -> int:
 	for i: int in EXCEPTIONS.size():
 		var e: Dictionary = EXCEPTIONS[i]
@@ -281,7 +280,7 @@ static func _exception_for(rel: String, target: String, line: String, code: Stri
 	return -1
 
 
-## Proje sınıf adları ve autoload adları -> betik yolu (res:// göreli). Testler (TestCase) hariç.
+## Project class names and autoload names -> script path (res:// relative). Tests (TestCase) excluded.
 static func _class_index() -> Dictionary:
 	if not _index.is_empty():
 		return _index
@@ -296,7 +295,7 @@ static func _class_index() -> Dictionary:
 	return _index
 
 
-## Dosyanın kendi bildirdiği adlar (enum/class/const/var/func/signal); aynı adlı proje sınıfını gölgeler.
+## Names the file declares itself (enum/class/const/var/func/signal); shadows a project class of the same name.
 static func _local_names(lines: PackedStringArray) -> Dictionary:
 	var out: Dictionary = {}
 	var re := RegEx.create_from_string("^\\s*(?:static\\s+)?(?:enum|class|const|var|func|signal)\\s+([A-Za-z_]\\w*)")
@@ -307,7 +306,7 @@ static func _local_names(lines: PackedStringArray) -> Dictionary:
 	return out
 
 
-## Proje kökündeki dizin adları (gizli dizinler hariç).
+## Dir names at the project root (hidden dirs excluded).
 static func _top_dirs() -> PackedStringArray:
 	var out: PackedStringArray = []
 	for d: String in DirAccess.get_directories_at("res://"):
@@ -325,8 +324,8 @@ static func _uid_text(path: String) -> String:
 	return ResourceUID.id_to_text(id) if id != ResourceUID.INVALID_ID else ""
 
 
-## Satırı [dizeler dışındaki kod (dize gövdeleri boşaltılmış), tüm dize içerikleri, StringName (&"") içerikleri]
-## olarak ayırır (tek satırlık "..." / '...' dizeleri, kaçışlarla; &"" ve ^"" önekleri kodda kalır).
+## Splits a line into [code outside strings (string bodies emptied), all string contents, StringName (&"") contents]
+## (single-line "..." / '...' strings, with escapes; &"" and ^"" prefixes stay in code).
 static func split_strings(line: String) -> Array:
 	var code: String = ""
 	var strings: PackedStringArray = []
@@ -362,7 +361,7 @@ static func split_strings(line: String) -> Array:
 	return [code, strings, string_names]
 
 
-## Satırdan dize dışındaki ilk `#`'tan sonrasını atar (tek satırlık "..." / '...' dizeleri, kaçışlarla).
+## Drops everything after the first `#` outside strings (single-line "..." / '...' strings, with escapes).
 static func strip_comment(line: String) -> String:
 	var quote: String = ""
 	var i: int = 0

@@ -1,20 +1,19 @@
 extends TestCase
-## Metin altyapısı (US-003 AC4, AC5, S9): i18n/texts.csv biçimi ve çeviri dosyalarıyla uyumu;
-## ui/ altındaki .tscn/.gd dosyalarında anahtar olmayan sabit metin olmadığı (tarama) ve
-## çalışan ekranlarda otomatik çevrilen her metnin bir anahtar olduğu.
+## Text infrastructure (US-003 AC4, AC5, S9): i18n/texts.csv format and consistency with the translation files; no non-key
+## hard-coded text in the .tscn/.gd files under ui/ (scan), and every auto-translated text on running screens is a key.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const CSV_PATH := "res://i18n/texts.csv"
 const LOCALES: Array[String] = ["tr", "en"]
-## Anahtar biçimi: BÜYÜK_HARF_SAYI, alt çizgiyle başlamaz/bitmez (sonu _ olan önek sayılır, ör. "EVENT_").
+## Key format: UPPER_CASE_NUMBER, does not start/end with an underscore (a prefix ending in _ counts, e.g. "EVENT_").
 const KEY_PATTERN := "^[A-Z][A-Z0-9]*(_[A-Z0-9]+)+$|^[A-Z][A-Z0-9]+$"
-## Sahnelerde oyuncuya görünen metin özellikleri.
+## Player-visible text properties in scenes.
 const TSCN_TEXT_PROPS := "text|placeholder_text|tooltip_text|title"
-## Geliştirici günlüğü satırları (oyuncu görmez) taramadan muaf.
+## Developer log lines (not seen by the player) are exempt from the scan.
 const LOG_CALLS: Array[String] = ["push_warning(", "push_error(", "print(", "printerr(", "print_debug("]
-## Oturum olayı yayan kaynaklar (IS-080): bu klasörlerdeki her `raise_session_event(...)` ve `_raise(&"...")`.
+## Sources that emit session events (IS-080): every `raise_session_event(...)` and `_raise(&"...")` in these folders.
 const EVENT_SOURCE_DIRS: Array[String] = ["res://autoload", "res://core", "res://entities", "res://levels", "res://ui"]
-## Olay türü yerine değişken alan çağrılar (sarmalayıcı parametresi; türü çağıranda taranır).
+## Calls with a variable in place of the event kind (wrapper parameter; the kind is scanned at the caller).
 const EVENT_PASS_THROUGH: Array[String] = ["kind"]
 
 
@@ -30,7 +29,7 @@ func test_csv_well_formed() -> void:
 		var row: PackedStringArray = f.get_csv_line()
 		line_no += 1
 		if row.size() == 1 and row[0].is_empty():
-			continue  # dosya sonu
+			continue  # end of file
 		if not eq(row.size(), 3, "satır %d sütun sayısı: %s" % [line_no, row]):
 			continue
 		var key: String = row[0]
@@ -100,8 +99,8 @@ func test_scripts_contain_no_literal_text() -> void:
 
 
 func test_every_session_event_has_hud_text() -> void:
-	# IS-080: kaynakta yayılan her session_event türünün HUD metni texts.csv'de olmalı (HUD'un kasıtlı sustuğu
-	# türler hariç: Hud.SILENT_EVENTS). Yeni olay metinsiz eklenirse bu test düşer.
+	# IS-080: the HUD text of every session_event kind emitted in source must be in texts.csv (except kinds the HUD deliberately
+	# silences: Hud.SILENT_EVENTS). This test fails if a new event is added without text.
 	var table: Dictionary = _csv()
 	var kinds: Dictionary = _emitted_session_events()
 	for want: String in ["player_held", "player_caught", "player_rescued", "police_arrived"]:
@@ -127,7 +126,7 @@ func test_event_scanner_resolves_literals_and_constants() -> void:
 
 
 func test_scanner_detects_literal_text() -> void:
-	# Taramanın kendisi: yorumdaki metin sayılmaz, dizedeki metin ve # yakalanır.
+	# The scan itself: text in a comment does not count, text in a string and # are caught.
 	var scan: Dictionary = _scan_gdscript("var a := \"Merhaba dünya\" # \"yorum metni\"\nlabel.text = \"Host\"\nvar b := 'x # y'\n")
 	var texts: Array[String] = []
 	for lit: Dictionary in scan["literals"]:
@@ -139,7 +138,7 @@ func test_scanner_detects_literal_text() -> void:
 
 func test_running_screens_show_only_keys() -> void:
 	var table: Dictionary = _csv()
-	var pair: Array = Fakes.make_pair(self, true)  # görüş eki: menüde görüş seçimi de denetlenir
+	var pair: Array = Fakes.make_pair(self, true)  # vision addition: the vision choice in the menu is checked too
 	var viewport: SubViewport = autofree(SubViewport.new()) as SubViewport
 	viewport.size = Vector2i(1280, 720)
 	tree().root.add_child(viewport)
@@ -171,9 +170,9 @@ func test_running_screens_show_only_keys() -> void:
 	is_true(checked >= 20, "denetlenen metin az: %d" % checked)
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
-## Kaynakta yayılan oturum olayı türleri: tür -> ilk bulunduğu yer. Çözülemeyen çağrı testi düşürür.
+## Session event kinds emitted in source: kind -> first location. An unresolvable call fails the test.
 func _emitted_session_events() -> Dictionary:
 	var found: Dictionary = {}
 	var unresolved: Array[String] = []
@@ -186,7 +185,7 @@ func _emitted_session_events() -> Dictionary:
 	return found
 
 
-## `raise_session_event(X` / `_raise(X` çağrılarında X: &"tür" dizesi ya da aynı dosyadaki `const X := &"tür"`.
+## X in `raise_session_event(X` / `_raise(X` calls: a &"kind" string or `const X := &"kind"` in the same file.
 static func _collect_events(source: String, path: String, found: Dictionary, unresolved: Array[String]) -> void:
 	var code: String = ""
 	for line: String in source.split("\n"):
@@ -197,7 +196,7 @@ static func _collect_events(source: String, path: String, found: Dictionary, unr
 	for m: RegExMatch in call_re.search_all(code):
 		var arg: String = m.get_string(1).strip_edges()
 		if arg.begins_with("kind:") or arg in EVENT_PASS_THROUGH:
-			continue  # tanım satırı ya da sarmalayıcı parametresi
+			continue  # definition line or wrapper parameter
 		var lit: RegExMatch = lit_re.search(arg)
 		if lit == null and arg.is_valid_identifier():
 			var const_re: RegEx = RegEx.create_from_string("const\\s+%s\\s*(?::\\s*\\w+\\s*)?:?=\\s*&?\"([a-z0-9_]+)\"" % arg)
@@ -209,7 +208,7 @@ static func _collect_events(source: String, path: String, found: Dictionary, unr
 			found[lit.get_string(1)] = path
 
 
-## anahtar -> [tr, en]
+## key -> [tr, en]
 static func _csv() -> Dictionary:
 	var out: Dictionary = {}
 	var f: FileAccess = FileAccess.open(CSV_PATH, FileAccess.READ)
@@ -223,7 +222,7 @@ static func _csv() -> Dictionary:
 	return out
 
 
-## %s / %d / {ad} yer tutucuları, sıralı.
+## %s / %d / {name} placeholders, in order.
 static func _placeholders(text: String) -> Array[String]:
 	var out: Array[String] = []
 	var re: RegEx = RegEx.create_from_string("%[sd]|\\{[a-z_]+\\}")
@@ -240,7 +239,7 @@ static func _is_log_line(line: String) -> bool:
 	return false
 
 
-## GDScript kaynağındaki dize sabitleri ({text, line}) ve yorumları boşlukla değiştirilmiş kod.
+## String constants in GDScript source ({text, line}) and the code with comments replaced by whitespace.
 static func _scan_gdscript(source: String) -> Dictionary:
 	var literals: Array[Dictionary] = []
 	var code: String = ""

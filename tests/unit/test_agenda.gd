@@ -1,9 +1,9 @@
 extends TestCase
-## US-008 AC1/AC2 (+ I6): Agenda bileşeni ve sahibin ajandası store_a geometrisinde. 300 sn headless ölçüm (sabit
-## adım, gerçek gezinme ve görüş hattı): kasa (`Register` işareti) sahibin konisi + görüş hattı dışında kalan
-## toplam süre 60-120 sn, ≥ 4 pencere (her ≥ 10 sn), ardışık pencereler arasında ≥ 15 sn kasa görünür (tezgâh).
-## Aynı tohum → aynı görev dizisi (I6). Kesmeler: öncelik GÖNDERİLDİ > MÜŞTERİ > DİNLE > ZİL, geri alma (kalan
-## süre korunur), zil telefonu kesmez. Ölçüm kuralı `window_stats` hatalı varyantlarla da sınanır.
+## US-008 AC1/AC2 (+ I6): Agenda component and the owner's agenda on store_a geometry. 300 s headless measurement (fixed
+## step, real pathing and line of sight): total time the register (`Register` marker) is outside the owner's cone + sight
+## line is 60-120 s, >= 4 windows (each >= 10 s), >= 15 s of register visibility between consecutive windows (counter).
+## Same seed -> same task sequence (I6). Interrupts: priority DISPATCHED > CUSTOMER > LISTEN > BELL, rollback (remaining
+## time kept), bell does not interrupt the phone. The `window_stats` rule is also checked against faulty variants.
 
 const DT := 1.0 / 60.0
 const COARSE_DT := 1.0 / 30.0
@@ -14,13 +14,13 @@ const TOTAL_MIN := 60.0
 const TOTAL_MAX := 120.0
 const MIN_WINDOWS := 4
 const OWNER_TUNING := "res://data/npc/owner_tuning.tres"
-## Kasayı boşaltan oyuncunun durduğu yer: kasanın personel tarafı (register.tres taraf kısıtı +x, ≥ 16 px).
-## Kasa işareti tezgâh karosunun içindedir (görüşü keser); ölçüm bu noktayla yapılır.
+## Where the player emptying the register stands: staff side of the register (register.tres side constraint +x, >= 16 px).
+## The register marker sits inside the counter tile (blocks sight); measurement uses this point.
 const REGISTER_STAFF_SIDE := Vector2(24, 0)
 
 
-## Görünürlük örneklerinden pencere istatistiği: pencere = kasanın görünmediği kesintisiz süre; ≥ WINDOW_MIN olanlar
-## sayılır; ardışık sayılan iki pencere arasında görünür geçen toplam süre `gaps`'e yazılır.
+## Window stats from visibility samples: window = continuous time the register is unseen; those >= WINDOW_MIN count;
+## visible time between two consecutive counted windows is written to `gaps`.
 static func window_stats(visible: PackedByteArray, dt: float) -> Dictionary:
 	var windows: Array[float] = []
 	var gaps: Array[float] = []
@@ -39,7 +39,7 @@ static func window_stats(visible: PackedByteArray, dt: float) -> Dictionary:
 			windows.append(run)
 			seen_since = 0.0
 		elif run > 0.0 and seen_since >= 0.0:
-			pass  # kısa görünmezlik pencere sayılmaz, tezgâh süresine de eklenmez
+			pass  # a short invisibility is not a window and is not added to counter time either
 		run = 0.0
 		if i < visible.size() and seen_since >= 0.0:
 			seen_since += dt
@@ -60,7 +60,7 @@ static func check_stats(stats: Dictionary) -> PackedStringArray:
 	return problems
 
 
-## 300 sn ölçüm: kasanın sahibin konisinde (o anki koni) ve görüş hattında olup olmadığı.
+## 300 s measurement: whether the register is in the owner's current cone and line of sight.
 func _measure(agenda_seed: int, dt: float) -> Dictionary:
 	var stage := NpcStage.new(self)
 	var level: Level = await stage.enter()
@@ -105,7 +105,7 @@ func test_owner_agenda_opens_register_windows() -> void:
 	eq(stats["wall_frames"], 0, "I7: sahip hiçbir karede duvar/raf içinde değil")
 
 
-## Ayar tek tohuma göre kurulmuş olmasın: başka tohumlarda da kabul tutar (kaba adım).
+## Tuning must not be fitted to one seed: it must hold for other seeds too (coarse step).
 func test_agenda_windows_hold_across_seeds() -> void:
 	for agenda_seed: int in [1, 2, 3, 4, 5]:
 		var stats: Dictionary = await _measure(agenda_seed, COARSE_DT)
@@ -114,16 +114,16 @@ func test_agenda_windows_hold_across_seeds() -> void:
 			", ".join(problems), stats["windows"], stats["gaps"]])
 
 
-## Ölçüm kuralı hatalı ajandaları yakalar (bozuk varyant → düşer).
+## The measurement rule catches faulty agendas (broken variant fails).
 func test_window_rule_rejects_bad_agendas() -> void:
 	var dt: float = 0.5
-	# İyi: 30 sn tezgâh / 15 sn pencere, 300 sn: 6-7 pencere, toplam ~100.
+	# Good: 30 s counter / 15 s window, 300 s: 6-7 windows, total ~100.
 	eq(check_stats(window_stats(_pattern([[30.0, 1], [15.0, 0]], 300.0, dt), dt)).size(), 0, "iyi ajanda geçer")
-	# Pencere kısa (8 sn): sayılmaz.
+	# Short window (8 s): not counted.
 	ne(check_stats(window_stats(_pattern([[30.0, 1], [8.0, 0]], 300.0, dt), dt)).size(), 0, "kısa pencere düşer")
-	# Tezgâh kısa (10 sn) — pencereler arası < 15 sn ve toplam > 120.
+	# Short counter (10 s): gap between windows < 15 s and total > 120.
 	ne(check_stats(window_stats(_pattern([[10.0, 1], [12.0, 0]], 300.0, dt), dt)).size(), 0, "kısa tezgâh düşer")
-	# Çok seyrek: 80 sn tezgâh / 12 sn pencere → 3 pencere, toplam < 60.
+	# Too sparse: 80 s counter / 12 s window -> 3 windows, total < 60.
 	ne(check_stats(window_stats(_pattern([[80.0, 1], [12.0, 0]], 300.0, dt), dt)).size(), 0, "seyrek pencere düşer")
 
 
@@ -140,7 +140,7 @@ static func _pattern(cycle: Array, seconds: float, dt: float) -> PackedByteArray
 	return out
 
 
-# --- Agenda bileşeni (düğüm, sahnesiz) ---
+# --- Agenda component (node, no scene) ---
 
 func _agenda(agenda_seed: int = 3) -> Agenda:
 	var agenda := Agenda.new()
@@ -184,7 +184,7 @@ func test_task_time_counts_after_arrival() -> void:
 	var left: float = a.time_left()
 	is_true(left >= 25.0 and left <= 40.0, "tezgâh 25-40 sn (gelen %.1f)" % left)
 	for i: int in 100:
-		a.step(0.1, false)  # yolda: süre işlemez
+		a.step(0.1, false)  # on the way: time does not run
 	near(a.time_left(), left, 0.001)
 	a.step(0.1, true)
 	near(a.time_left(), left - 0.1, 0.001)
@@ -202,7 +202,7 @@ func test_interrupt_priority_and_resume() -> void:
 	is_true(a.interrupt(Agenda.Interrupt.SENT, 10.0, Vector2(0, 10), Vector2.INF, true), "gönderildi > müşteri")
 	is_false(a.interrupt(Agenda.Interrupt.CUSTOMER, 6.0), "müşteri gönderilmeyi kesmez")
 	for i: int in 50:
-		a.step(0.1, false)  # varmadı: süre işlemez
+		a.step(0.1, false)  # not arrived: time does not run
 	eq(a.task_name(), &"sent")
 	for i: int in 101:
 		a.step(0.1, true)

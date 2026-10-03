@@ -1,28 +1,25 @@
 #!/usr/bin/env python3
-"""UDP gecikme proxy'si (mimari.md S6, US-001 AC6). Yalnız Python standart kütüphanesi.
+"""UDP latency proxy (mimari.md S6, US-001 AC6). Python standard library only.
 
-Host'un önüne konur; istemciler proxy'ye bağlanır. Her istemci adresi (ip, port) için ayrı bir yukarı akış
-soketi açılır (istemci adresi <-> yukarı akış soketi eşlemesi), böylece host her istemciyi ayrı peer görür.
-Her paket, yön başına `delay_ms` (+ [-jitter_ms, +jitter_ms] düzgün dağılımlı sapma, en az 0) sonra iletilir;
-`loss` olasılığıyla düşürülür. RTT = 2 x delay_ms. Varsayılan olarak jitter akış (istemci + yön) içindeki
-sırayı korur (gecikme değişimi gibi; gerçek yollarda sıra bozulması seyrektir); `reorder=True` /
-`--reorder` her paketin gecikmesini bağımsız seçer ve sırayı bozabilir.
+Placed in front of the host; clients connect to the proxy. A separate upstream socket is opened per client address (ip, port)
+(client address <-> upstream socket mapping) so the host sees each client as a separate peer. Each packet is forwarded after
+`delay_ms` per direction (+ a uniformly distributed deviation in [-jitter_ms, +jitter_ms], at least 0); dropped with probability
+`loss`. RTT = 2 x delay_ms. By default jitter preserves order within a flow (client + direction) (like delay variation; reordering
+is rare on real paths); `reorder=True` / `--reorder` picks each packet's delay independently and may reorder.
 
-Komut satırı:
-    python3 tools/latency_proxy.py --target 127.0.0.1:7777 [--listen 127.0.0.1:0] \
-        [--delay-ms 75] [--jitter-ms 0] [--loss 0.0] [--reorder] [--seed N]
-Bağlanınca stdout'a tek satır `LATENCY_PROXY_READY port=<dinlenen port>` basar; SIGINT/SIGTERM ile kapanır
-(Windows'ta SIGTERM gönderilemez: CTRL_BREAK_EVENT -> SIGBREAK ile de zarif kapanır).
+Command line:
+    python3 tools/latency_proxy.py --target 127.0.0.1:7777 [--listen 127.0.0.1:0]         [--delay-ms 75] [--jitter-ms 0] [--loss 0.0] [--reorder] [--seed N]
+Once bound it prints one line `LATENCY_PROXY_READY port=<listening port>` to stdout; shuts down on SIGINT/SIGTERM
+(on Windows SIGTERM cannot be sent: CTRL_BREAK_EVENT -> SIGBREAK also shuts down gracefully).
 
-Windows: select() zaman aşımı varsayılan zamanlayıcı adımına (~15,6 ms) yuvarlanır ve paketler geç çıkar;
-proxy çalışırken süreç zamanlayıcı çözünürlüğü 1 ms'ye çekilir (winmm timeBeginPeriod/timeEndPeriod). Windows 11
-güç kısıtlaması (EcoQoS) arka plandaki/penceresiz süreçlerin bu isteğini zaman zaman yok sayar (paketler yine
-~11 ms geç çıkar, IS-012); bu yüzden proxy çalışırken süreç güç kısıtlamasından da çıkarılır
-(SetProcessInformation/ProcessPowerThrottling), son proxy durunca sistem varsayılanına döner.
+Windows: the select() timeout rounds to the default timer step (~15.6 ms) and packets come out late; while the proxy runs the process
+timer resolution is raised to 1 ms (winmm timeBeginPeriod/timeEndPeriod). Windows 11 power throttling (EcoQoS) sometimes ignores this
+request for background/windowless processes (packets still come out ~11 ms late, IS-012); so while the proxy runs the process is also
+taken out of power throttling (SetProcessInformation/ProcessPowerThrottling), returning to the system default when the last proxy stops.
 
-Modül olarak (net_smoke.py, testler):
+As a module (net_smoke.py, tests):
     proxy = LatencyProxy(target=("127.0.0.1", 7777), delay_ms=75)
-    port = proxy.start()      # arka plan iş parçacığı
+    port = proxy.start()      # background thread
     ...
     proxy.stop()
 """
@@ -46,8 +43,8 @@ IDLE_TIMEOUT_SEC = 60.0
 
 
 def _timer_period(begin: bool) -> bool:
-    """Windows'ta zamanlayıcı çözünürlüğünü 1 ms'ye çeker (begin) ya da isteği geri alır; başka yerde no-op.
-    Çağrılar Windows'ta sayılır: her başarılı begin için bir end gerekir. Başarılıysa True."""
+    """Raises the timer resolution to 1 ms on Windows (begin) or undoes the request; no-op elsewhere.
+    Calls are counted on Windows: every successful begin needs an end. True on success."""
     if sys.platform != "win32":
         return False
     try:
@@ -58,7 +55,7 @@ def _timer_period(begin: bool) -> bool:
         return False
 
 
-# PROCESS_INFORMATION_CLASS.ProcessPowerThrottling ve PROCESS_POWER_THROTTLING_* bayrakları (processthreadsapi.h).
+# PROCESS_INFORMATION_CLASS.ProcessPowerThrottling and the PROCESS_POWER_THROTTLING_* flags (processthreadsapi.h).
 _PROCESS_POWER_THROTTLING = 4
 _THROTTLE_EXECUTION_SPEED = 0x1
 _THROTTLE_IGNORE_TIMER_RESOLUTION = 0x4
@@ -71,8 +68,8 @@ class _PowerThrottlingState(ctypes.Structure):
 
 
 def _set_power_throttling_opt_out(opt_out: bool) -> bool:
-    """Windows: opt_out=True süreci EcoQoS'tan ve 'zamanlayıcı çözünürlüğü isteğini yok say' kısıtından açıkça
-    çıkarır; False kararı sisteme geri bırakır. Desteklenmeyen sürümde/başka platformda no-op. Başarılıysa True."""
+    """Windows: opt_out=True explicitly takes the process out of EcoQoS and the "ignore timer resolution requests" restriction;
+    False leaves the decision to the system. No-op on unsupported versions/other platforms. True on success."""
     if sys.platform != "win32":
         return False
     try:
@@ -80,7 +77,7 @@ def _set_power_throttling_opt_out(opt_out: bool) -> bool:
         k32.GetCurrentProcess.restype = ctypes.c_void_p
         k32.SetProcessInformation.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_ulong]
         mask = (_THROTTLE_EXECUTION_SPEED | _THROTTLE_IGNORE_TIMER_RESOLUTION) if opt_out else 0
-        state = _PowerThrottlingState(1, mask, 0)  # StateMask 0 = denetlenen bayraklar kapalı
+        state = _PowerThrottlingState(1, mask, 0)  # StateMask 0 = the checked flags are off
         return bool(
             k32.SetProcessInformation(
                 k32.GetCurrentProcess(), _PROCESS_POWER_THROTTLING, ctypes.byref(state), ctypes.sizeof(state)
@@ -91,7 +88,7 @@ def _set_power_throttling_opt_out(opt_out: bool) -> bool:
 
 
 def _hold_unthrottled(hold: bool) -> None:
-    """Güç kısıtlamasından çıkışı süreç genelinde sayar: ilk tutan açar, son bırakan sisteme geri verir."""
+    """Counts the power-throttling opt-out process-wide: the first holder turns it on, the last releaser hands it back to the system."""
     global _unthrottle_users
     with _unthrottle_lock:
         if hold:
@@ -105,7 +102,7 @@ def _hold_unthrottled(hold: bool) -> None:
 
 
 def parse_addr(text: str) -> tuple[str, int]:
-    """'host:port' ya da '[v6]:port' -> (host, port)."""
+    """'host:port' or '[v6]:port' -> (host, port)."""
     host, sep, port = text.rpartition(":")
     if not sep or not port.isdigit():
         raise ValueError(f"adres host:port biçiminde olmalı: {text!r}")
@@ -120,7 +117,7 @@ class _Client:
 
 
 class LatencyProxy:
-    """Çok istemcili UDP röle; gecikme/jitter/kayıp yön başına uygulanır."""
+    """Multi-client UDP relay; delay/jitter/loss are applied per direction."""
 
     def __init__(
         self,
@@ -157,10 +154,10 @@ class LatencyProxy:
         self._unthrottled = False
         self.port = 0
 
-    # --- yaşam döngüsü ---
+    # --- lifecycle ---
 
     def start(self) -> int:
-        """Dinlemeye başlar, arka plan iş parçacığını açar ve dinlenen portu döner."""
+        """Starts listening, opens the background thread and returns the listening port."""
         info = socket.getaddrinfo(self.listen[0], self.listen[1], type=socket.SOCK_DGRAM)[0]
         self._listener = socket.socket(info[0], socket.SOCK_DGRAM)
         self._listener.bind(info[4])
@@ -212,7 +209,7 @@ class LatencyProxy:
     def __exit__(self, *_exc: object) -> None:
         self.stop()
 
-    # --- döngü ---
+    # --- loop ---
 
     def _run(self) -> None:
         assert self._sel is not None
@@ -239,7 +236,7 @@ class LatencyProxy:
                     else:
                         sock.sendto(data, addr)
                 except OSError:
-                    pass  # karşı taraf henüz/artık yok: UDP gibi sessizce düşer
+                    pass  # the other side is not there yet/any more: dropped silently like UDP
             if now - last_sweep > 5.0:
                 last_sweep = now
                 self._sweep_idle(now)
@@ -272,7 +269,7 @@ class LatencyProxy:
             except (BlockingIOError, InterruptedError):
                 return
             except OSError:
-                return  # ör. ICMP port kapalı; sonraki pakette yeniden denenir
+                return  # e.g. ICMP port closed; retried on the next packet
             client.last_seen = time.monotonic()
             self.stats["down"] += 1
             assert self._listener is not None
@@ -303,7 +300,7 @@ class LatencyProxy:
                 self._last_due.pop((id(self._listener), addr), None)
                 client.upstream.close()
                 del self._clients[addr]
-        # Geçmişte kalan son teslim zamanı sırayı artık kısıtlamaz; akış kaydı silinebilir.
+        # A last delivery time in the past no longer constrains order; the flow record can be deleted.
         for flow, due in list(self._last_due.items()):
             if due < now:
                 del self._last_due[flow]
@@ -346,7 +343,7 @@ def main(argv: list[str] | None = None) -> int:
     done = threading.Event()
     signal.signal(signal.SIGTERM, lambda *_: done.set())
     signal.signal(signal.SIGINT, lambda *_: done.set())
-    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (SIGTERM'in karşılığı)
+    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (the SIGTERM equivalent)
         signal.signal(signal.SIGBREAK, lambda *_: done.set())
     port = proxy.start()
     print(f"LATENCY_PROXY_READY port={port}", flush=True)

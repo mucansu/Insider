@@ -1,20 +1,20 @@
 #!/usr/bin/env python3
-"""Pencereli performans koşusu (IS-067; mimari.md S6 `--perf`). Yalnız Python standart kütüphanesi.
+"""Windowed performance run (IS-067; mimari.md S6 `--perf`). Python standard library only.
 
-Kullanım:
+Usage:
     python tools/perf_run.py [--seconds 10] [--level res://levels/store_a.tscn] [--clients 1]
         [--windows host|all] [--bot host=res://... --bot c1=...] [--window-size 1280x720]
-        [--out build/perf] [--name ad] [--godot-gui PATH] [--verbose]
+        [--out build/perf] [--name NAME] [--godot-gui PATH] [--verbose]
 
-Host (GUI exe, GPU'lu pencere) seviyeyi açar, istemciler katılır (varsayılan headless console exe; `--windows all`
-ile hepsi pencereli — aynı GPU'yu paylaştıkları için host ölçümü bozulur). Herkes `--perf --perf-seconds=N` ile
-koşar; host `JOIN_SLACK_SEC + N` saniyede dökümünü yazıp çıkar, ölçüm penceresi son N saniyedir (istemciler o
-sırada bağlı; host dökümündeki `peers` bunu gösterir). İstemciler host kaybıyla dökümlerini yazıp çıkar
-(`--quit-after` yalnız yedek). Dökümler `<out>/<ad>/<peer>.json`; sonunda özet tablo basılır.
+The host (GUI exe, GPU window) opens the level and clients join (headless console exe by default; `--windows all` makes all
+windowed - they share the GPU, which skews the host measurement). Everyone runs with `--perf --perf-seconds=N`; the host writes its
+dump and exits at `JOIN_SLACK_SEC + N` seconds, the measurement window is the last N seconds (clients are connected then; `peers` in
+the host dump shows it). Clients write their dumps and exit when they lose the host (`--quit-after` is only a backup). Dumps are
+`<out>/<name>/<peer>.json`; a summary table is printed at the end.
 
-CI'a GİRMEZ (pencere ve GPU gerekir); ekransız ortamda/CI'da "atlandı" deyip 0 döner. Aynı makinede başka Godot
-süreçleri koşuyorsa sayısı uyarı olarak basılır (ölçüme yük bindirir).
-Çıkış kodu: süreçler kod 0 ile bitti, log'da ERROR yok ve host'un "render" bölümü geçerliyse 0; değilse 1.
+NOT part of CI (needs a window and GPU); with no display / in CI it prints "atlandı" and returns 0. If other Godot processes are
+running on the same machine their count is printed as a warning (they load the measurement).
+Exit code: 0 if the processes ended with code 0, no ERROR in the log and the host's "render" section is valid; otherwise 1.
 """
 
 from __future__ import annotations
@@ -48,16 +48,16 @@ DEFAULT_LEVEL = "res://levels/store_a.tscn"
 DEFAULT_BOT = "res://tests/net/bots/wander.json"
 DEFAULT_OUT = os.path.join("build", "perf")
 DEFAULT_SECONDS = 10.0
-# Host'un ölçüm penceresinden önce istemcilerin katılması ve oyunun ısınması için pay (main.gd PERF_WARMUP_SEC=1).
+# Margin before the host's measurement window for clients to join and the game to warm up (main.gd PERF_WARMUP_SEC=1).
 JOIN_SLACK_SEC = 3.0
-# İstemcilerin yedek çıkışı: host'tan bu kadar sonra (normalde host kaybıyla daha önce çıkarlar).
+# Clients' backup exit: this long after the host (normally they exit earlier on losing the host).
 CLIENT_BACKSTOP_SEC = 5.0
-# Args PERF_SECONDS_MIN/MAX ile aynı.
+# Same as Args PERF_SECONDS_MIN/MAX.
 PERF_SECONDS_RANGE = (1.0, 600.0)
-# core/perf_report.gd RENDER_ONLY_KEYS ile aynı (headless'ta ölçülmez).
+# Same as core/perf_report.gd RENDER_ONLY_KEYS (not measured in headless).
 RENDER_ONLY = {"process_total_ms", "draw_calls", "objects", "primitives", "render_cpu_ms", "render_gpu_ms", "frame_setup_ms"}
 
-# Tablo kolonları: (başlık, döküm yolu, biçim). Yol "a.b" iç içe anahtar.
+# Table columns: (header, dump path, format). A path "a.b" is a nested key.
 COLUMNS: list[tuple[str, str, str]] = [
     ("fps ort", "fps.avg", "{:.0f}"),
     ("fps %1", "fps.p1_low", "{:.0f}"),
@@ -96,7 +96,7 @@ def host_quit_after(seconds: float) -> float:
 
 def peer_args(name: str, port: int, level: str, seconds: float, dump: str, bot: str | None,
               window: tuple[int, int] | None) -> list[str]:
-    """Godot kullanıcı argümanları (`--` sonrası) — S6."""
+    """Godot user arguments (after `--`) - S6."""
     user = [f"--name={name}", "--perf", f"--perf-seconds={seconds:g}", f"--dump={dump}"]
     if name == "host":
         user += ["--host", f"--port={port}", f"--level={level}", f"--quit-after={host_quit_after(seconds):g}"]
@@ -125,7 +125,7 @@ def fmt(value: Any, spec: str) -> str:
 
 
 def summary_rows(dumps: dict[str, dict | None]) -> list[list[str]]:
-    """Peer başına tablo satırı: peer, kip, peers, sonra COLUMNS. Headless'ta renderer kolonları "-"."""
+    """Table row per peer: peer, mode, peers, then COLUMNS. In headless the renderer columns are "-"."""
     rows: list[list[str]] = []
     for name, dump in dumps.items():
         render = dump.get("render") if isinstance(dump, dict) else None
@@ -157,7 +157,7 @@ def format_table(rows: list[list[str]]) -> str:
 
 
 def describe_machine(render: dict) -> str:
-    """Host dökümünden tek satırlık ortam açıklaması."""
+    """One-line environment description from the host dump."""
     win = render.get("window") or ["?", "?"]
     vsync = {0: "kapalı", 1: "açık", 2: "uyarlamalı", 3: "mailbox"}.get(render.get("vsync"), str(render.get("vsync")))
     return (f"GPU: {render.get('adapter') or '?'} ({render.get('vendor') or '?'}) · {render.get('renderer')}/"
@@ -179,7 +179,7 @@ def host_problems(dump: dict | None) -> list[str]:
 
 
 def count_other_godot() -> int:
-    """Koşudan önce makinede açık Godot süreci sayısı (en iyi çaba; sayılamazsa -1)."""
+    """Number of Godot processes open on the machine before the run (best effort; -1 if it cannot be counted)."""
     try:
         if WINDOWS:
             out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True, timeout=10,
@@ -319,7 +319,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--godot-gui", help="pencereli Godot exe (yoksa GODOT_GUI ya da GODOT'un *_console kardeşi)")
     ap.add_argument("--verbose", action="store_true")
     args = ap.parse_args(argv)
-    # Boruya yazarken (ör. Git Bash, CI) yerel kod sayfası Türkçe karakterleri bozmasın.
+    # When writing to a pipe (e.g. Git Bash, CI) the local code page must not garble Turkish characters.
     if not sys.stdout.isatty() and hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     if args.clients < 0:

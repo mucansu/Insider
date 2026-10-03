@@ -1,10 +1,10 @@
 extends TestCase
-## US-008 AC5/AC6/AC7 (+ ON-08, kapı ekleri): mahalleli (chaser) ve bakkalın uyarı yöneticisi store_a'da.
-## Koşan oyuncu açık alanda 10 karoda chaser'dan ≥ 1 karo açar (hız veride 190; 200 düşer). Bağırıştan 8 sn
-## sonra NeighbourSpawn'da komşu (`chaser_spawn`), ilk mahalleli kapıya/içeri girince uyarı 3 + 60 sn polis
-## sayacı, sayaç bitince 5 + `police_arrived` (I4: 0→1→2→3→5). Mahalleli yakalaması 28 px + 0,5 sn, kalıcı
-## (kurtarma yok). Görüş yoksa son görülen konum 15 sn, sonra ön kapıda bekler. NPC kapalı kapıyı Interactable
-## host API'siyle açar; kapı bağı kapı durumuna bağlı (kapalı kapıdan yol geçmez); kapı NPC gövdesine kapanmaz.
+## US-008 AC5/AC6/AC7 (+ ON-08, door additions): neighbour chaser and the shopkeeper's alert manager on store_a.
+## A running player gains >= 1 tile on the chaser over 10 tiles in the open (speed 190 in data; 200 fails). 8 s after the
+## shout a neighbour spawns at NeighbourSpawn (`chaser_spawn`); when the first neighbour enters the door/shop: alert 3 + 60 s
+## police timer, then 5 + `police_arrived` at expiry (I4: 0->1->2->3->5). Chaser catch: 28 px + 0.5 s, permanent (no rescue).
+## Without sight: last seen position 15 s, then waits at the front door. NPC opens closed doors via the Interactable host API;
+## door link follows door state (no path through a closed door); door does not close on an NPC body.
 
 const DT := 1.0 / 60.0
 const TILE := 32.0
@@ -14,8 +14,8 @@ const PLAYER_TUNING := "res://data/player_tuning.tres"
 const CHASER_TUNING := "res://data/npc/chaser_tuning.tres"
 
 
-## Aynı anda duruştan koşmaya başlayan oyuncu (PlayerMotion, koşu kipi) ile chaser: oyuncu 10 karo koşunca aradaki
-## mesafenin artışı (px).
+## Player starting from standstill to run (PlayerMotion, run mode) alongside the chaser: increase in distance (px) once the
+## player has run 10 tiles.
 static func gap_gain(chaser_speed: float, chaser_accel: float) -> float:
 	var tuning: PlayerTuning = load(PLAYER_TUNING) as PlayerTuning
 	var player_x: float = 0.0
@@ -79,7 +79,7 @@ func test_shout_spawns_neighbour_then_inside_and_police() -> void:
 	is_true(entered_at > 0.0 and entered_at <= 10.0, "mahalleli ön kapıya ≤ 10 sn (gelen %.2f)" % entered_at)
 	near(Game.alert_timer_left(), 60.0, 0.5, "uyarı 3 → 60 sn polis sayacı")
 	eq(stage.owner().brain().alarm_want(), 2)
-	Game.set_alert_timer(0.0)  # sayaç doldu (Game sayacı kare saatiyle işler; burada beklemeden)
+	Game.set_alert_timer(0.0)  # timer expired (Game timer runs on frame clock; no waiting here)
 	stage.run(DT * 2)
 	eq(Game.alert_level(), 5, "sayaç bitti: polis geldi")
 	eq(police[0], 1, "police_arrived (session_event → her peer)")
@@ -137,7 +137,7 @@ func test_npc_opens_closed_door_and_door_link_follows_state() -> void:
 		stage.run(DT)
 		if not opened and (front.is_open or back.is_open):
 			opened = true
-			await stage.sync()  # bağ açıldı: harita yinelemesi
+			await stage.sync()  # link opened: map repeat
 		if c.global_position.distance_to(Vector2(400, 400)) < 16.0:
 			break
 	is_true(opened, "chaser kapalı kapıyı açtı")
@@ -145,7 +145,7 @@ func test_npc_opens_closed_door_and_door_link_follows_state() -> void:
 	eq(uses, 1, "Interactable host API'si (host_use_by_npc), oyuncu sayaçları dışında")
 	eq(int(front.dump_state()["interact"]["requests"]), 0)
 	is_true(c.global_position.distance_to(Vector2(400, 400)) < 16.0, "içeri girdi (%s)" % c.global_position)
-	# Kapı NPC gövdesine kapanmaz.
+	# Door does not close on an NPC body.
 	var door: Door = front if front.is_open else back
 	c.global_position = door.global_position
 	await tree().physics_frame

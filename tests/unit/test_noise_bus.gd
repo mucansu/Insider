@@ -1,10 +1,9 @@
 extends TestCase
-## US-009 AC1, AC3, AC5, AC6 (tek süreç; çevrimdışı tekil kimlik 1 = host, ya da Net.host oturumu):
-## NoiseBus host yayılımı (dinleyiciler + halka olayı), istemci isteğinin host doğrulaması (`host_request` = RPC
-## gövdesi; hile: başka peer adına, uzak konumda, sonuç türünde ses yok, istemcinin yarıçapına güvenilmez),
-## yayımcılar (oyuncu koşu adımı ≤ ~3 Hz, yürüme/sızma sessiz, uzak kopya yaymaz; kapı aç/kapa; kasa sürerken ve
-## tamamlanınca), halka görseli (≥ 22 px, 0,4 sn, hareket azaltmada da görünür, seviye altında).
-## Ağ: tests/net/noise_ring.json. Yalnız genel API (§6): `_` üyelere erişim yok.
+## US-009 AC1, AC3, AC5, AC6 (single process; offline singular id 1 = host, or a Net.host session): NoiseBus host propagation
+## (listeners + ring event), host validation of a client request (`host_request` = RPC body; cheats: on behalf of another peer,
+## at a remote position, no sound for result kinds, client's radius not trusted), emitters (player run step <= ~3 Hz, walking/
+## sneaking silent, remote copy emits nothing; door open/close; while a register runs and on completion), ring visual (>= 22 px,
+## 0.4 s, visible with reduced motion too, under the level). Network: tests/net/noise_ring.json. Public API only (§6): no `_` members.
 
 const NOISE_BUS := "res://autoload/noise.gd"
 const RING_SCENE := "res://entities/fx/noise_ring.tscn"
@@ -16,7 +15,7 @@ const R := NoiseRules.Result
 const DT := 1.0 / 60.0
 
 
-## Dinleyici taklidi: `hear_noise` çağrılarını kaydeder.
+## Listener fake: records `hear_noise` calls.
 class FakeListener:
 	extends Node
 	var calls: Array = []
@@ -28,7 +27,7 @@ class FakeListener:
 		calls.append([pos, radius, kind])
 
 
-## Etkileşim aktörü taklidi (S7: grup + interaction_position; host'un bildiği konum).
+## Interaction actor fake (S7: group + interaction_position; position known to the host).
 class FakeActor:
 	extends Node2D
 
@@ -80,7 +79,7 @@ static func free_udp_port() -> int:
 	return port
 
 
-# --- NoiseBus host yayılımı (AC1) ---
+# --- NoiseBus host propagation (AC1) ---
 
 func test_host_emit_reaches_listeners_and_rings() -> void:
 	var bus: Node = _bus()
@@ -103,7 +102,7 @@ func test_host_emit_reaches_listeners_and_rings() -> void:
 	eq(stats["accepted"], 0, "yerel host çağrısı istemci isteği değildir")
 
 
-# --- istemci isteği: host doğrulaması (AC1, AC6 hile) ---
+# --- client request: host validation (AC1, AC6 cheat) ---
 
 func test_client_request_accepted_with_host_radius() -> void:
 	var bus: Node = _bus()
@@ -150,14 +149,14 @@ func test_client_rate_limit() -> void:
 	eq(bus.call(&"host_request", 5, Vector2(300, 300), &"run", 5, 20.0 + gap + 0.01), R.OK,
 		"son kabulden yarım aralık sonra kabul (reddedilen istek süreyi sıfırlamaz)")
 	eq(bus.call(&"host_request", 5, Vector2(300, 300), &"run", 5, 20.0 + gap + 0.01 + interval), R.OK, "dürüst tempo")
-	# Hileli istek (uzak konum) tempo sayacını ilerletmez; tempo reddi dinleyiciye ulaşmaz.
+	# A cheating request (remote position) does not advance the tempo counter; a tempo rejection does not reach the listener.
 	eq(bus.call(&"host_request", 5, Vector2(900, 900), &"run", 5, 30.0), R.TOO_FAR)
 	eq(bus.call(&"host_request", 5, Vector2(300, 300), &"run", 5, 30.01), R.OK)
 	eq(listener.calls.size(), 5)
 	eq((bus.call(&"stats") as Dictionary)["rejected"], {"rate": 1, "too_far": 1})
 
 
-# --- yayımcılar (AC3) ---
+# --- emitters (AC3) ---
 
 func test_player_sprint_steps_emit_at_most_3hz() -> void:
 	var player: Player = (load(PLAYER_SCENE) as PackedScene).instantiate() as Player
@@ -246,7 +245,7 @@ func test_door_emits_on_open_and_close() -> void:
 	var was_open: bool = door.is_open
 	item.request_start(1)
 	eq(door.is_open, not was_open)
-	await _physics_frames(20)  # tekrar beklemesi (REPEAT_COOLDOWN) dolsun
+	await _physics_frames(20)  # let the retry cooldown (REPEAT_COOLDOWN) elapse
 	item.request_start(2)
 	NoiseBus.noise_shown.disconnect(_on_shown)
 	eq(door.is_open, was_open)
@@ -254,8 +253,8 @@ func test_door_emits_on_open_and_close() -> void:
 
 
 func test_register_emits_while_emptying_and_on_complete() -> void:
-	# Doğal fizik yolu (gerçek fizik kareleri; item.step yok): 3 sn tam boşaltma = 1. ve 2. sn tempo sesi + bitiş
-	# sesi; bitişe denk gelen 3. tempo sesi bastırılır (aynı noktada art arda iki ses yok).
+	# Natural physics path (real physics frames; no item.step): a full 3 s unload = tempo sounds at 1 s and 2 s + the finish
+	# sound; the 3rd tempo sound coinciding with the finish is suppressed (no two sounds in a row at the same point).
 	eq(Net.host(free_udp_port()), OK)
 	var reg: Register = (load(REGISTER_SCENE) as PackedScene).instantiate() as Register
 	reg.position = Vector2(8000, 4000)
@@ -275,7 +274,7 @@ func test_register_emits_while_emptying_and_on_complete() -> void:
 	eq(_shown.size(), 0, "ilk ses register_interval (1 sn) sonra")
 	await _physics_frames(30)
 	eq(_shown, [[Vector2(8000, 4000), 90.0, &"register"]], "boşaltma sürerken (~1 sn)")
-	await _physics_frames(130)  # toplam ~3,4 sn: tam süre dolar (3 sn)
+	await _physics_frames(130)  # total ~3.4 s: the full duration (3 s) elapses
 	is_true(reg.emptied, "3 sn tutunca boşaldı")
 	await _physics_frames(70)
 	NoiseBus.noise_shown.disconnect(on_noise)
@@ -291,7 +290,7 @@ func test_register_emits_while_emptying_and_on_complete() -> void:
 	await tree().process_frame
 
 
-# --- halka görseli (AC5) ---
+# --- ring visual (AC5) ---
 
 func test_ring_geometry() -> void:
 	eq(NoiseRing.DURATION, 0.4, "0,4 sn")
@@ -302,7 +301,7 @@ func test_ring_geometry() -> void:
 	is_true(mid > NoiseRing.MIN_RADIUS and mid < 120.0)
 	eq(NoiseRing.ring_radius(0.0, 4.0, false), NoiseRing.MIN_RADIUS, "küçük ses de ≥ 22 px")
 	eq(NoiseRing.ring_radius(0.4, 4.0, false), NoiseRing.MIN_RADIUS)
-	# Hareket azaltma: genişleme yok, baştan tam yarıçapta görünür.
+	# Reduced motion: no expansion, visible at full radius from the start.
 	eq(NoiseRing.ring_radius(0.0, 120.0, true), 120.0)
 	eq(NoiseRing.ring_radius(0.3, 120.0, true), 120.0)
 	eq(NoiseRing.ring_radius(0.0, 4.0, true), NoiseRing.MIN_RADIUS)

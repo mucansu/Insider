@@ -1,14 +1,14 @@
 extends TestCase
-## US-009 AC4, AC6: `Hearing` bileşeni gerçek fizik ışınıyla (tek süreç; çevrimdışı tekil kimlik 1 = host).
-## Duvar arkası zayıflama (world ve vision_block keser; npcs/players kesmez), `see_through` yalnız gövde düzeyinde
-## geçirir (SightLine = Perception görüş kuralı; cama bitişik duvar köşede atlanmaz), kaynağın kendi gövdesi
-## (kapanan kapı kanadı) kesmez, yarıçap dışı ışın atmadan elenir; NoiseBus'tan `noise_listener` grubuyla ulaşılır.
-## Kurallar: test_noise_rules.gd.
+## US-009 AC4, AC6: `Hearing` component with a real physics ray (single process; offline singular id 1 = host). Attenuation
+## behind walls (world and vision_block block; npcs/players do not), `see_through` passes only at body level (SightLine =
+## Perception sight rule; a wall adjacent to glass is not skipped at the corner), the source's own body (a closing door wing)
+## does not block, out-of-radius is dropped without a ray; reached from NoiseBus via the `noise_listener` group.
+## Rules: test_noise_rules.gd.
 
 const HEARING_SCRIPT := "res://entities/npc/components/hearing.gd"
 const NOISE_BUS := "res://autoload/noise.gd"
 const PERCEPTION_TUNING := "res://data/npc/perception_tuning.tres"
-## Fizik katmanları (mimari.md §4).
+## Physics layers (mimari.md §4).
 const WORLD := 1 << 0
 const NPCS := 1 << 2
 const VISION_BLOCK := 1 << 5
@@ -25,7 +25,7 @@ func _hearing(at: Vector2) -> Hearing:
 	return hearing
 
 
-## Dikdörtgen statik gövde (merkez, boyut, katman); `group` gövde ya da şekil düzeyinde verilebilir.
+## Static rectangular body (centre, size, layer); `group` can be given at body or shape level.
 func _wall(center: Vector2, size: Vector2, layer: int = WORLD, body_group: StringName = &"",
 		shape_group: StringName = &"") -> StaticBody2D:
 	var body := StaticBody2D.new()
@@ -75,18 +75,18 @@ func test_open_space_full_radius() -> void:
 func test_wall_halves_radius() -> void:
 	var ear := Vector2(1000, 2000)
 	var hearing: Hearing = _hearing(ear)
-	_wall(ear + Vector2(40, 0), Vector2(32, 200))  # x 24..56 arası duvar
+	_wall(ear + Vector2(40, 0), Vector2(32, 200))  # wall spanning x 24..56
 	await _settle()
 	is_false(hearing.has_line_of_sight(ear + Vector2(100, 0)), "duvar görüş hattını keser")
 	hearing.hear_noise(ear + Vector2(100, 0), 120.0, &"run")
 	eq(_heard.size(), 0, "duvar arkası: 100 > 120 × 0,5")
 	hearing.hear_noise(ear + Vector2(59, 0), 120.0, &"run")
 	eq(_heard, [[ear + Vector2(59, 0), 60.0, &"run"]], "duvar arkası yakında: etkin yarıçap 60")
-	# Kontrol: aynı mesafe duvarsız yönde tam yarıçapla duyulur.
+	# Control: the same distance in a wall-free direction is heard at the full radius.
 	_heard.clear()
 	hearing.hear_noise(ear + Vector2(-100, 0), 120.0, &"run")
 	eq(_heard, [[ear + Vector2(-100, 0), 120.0, &"run"]], "duvarsız yön")
-	# Kapı sesi (160): duvar arkasında 80'e iner.
+	# Door sound (160): drops to 80 behind a wall.
 	_heard.clear()
 	hearing.hear_noise(ear + Vector2(75, 0), 160.0, &"door")
 	eq(_heard, [[ear + Vector2(75, 0), 80.0, &"door"]])
@@ -110,7 +110,7 @@ func test_see_through_passes() -> void:
 	var ear := Vector2(1000, 4000)
 	var hearing: Hearing = _hearing(ear)
 	_wall(ear + Vector2(40, 0), Vector2(16, 60), WORLD, Hearing.SEE_THROUGH_GROUP)
-	# Gruplu şekil ortak (gruplu olmayan) gövdede: görüş kuralında olduğu gibi keser (S11; Perception).
+	# A grouped shape in a shared (ungrouped) body: blocks as in the sight rule (S11; Perception).
 	_wall(ear + Vector2(-40, 0), Vector2(16, 60), WORLD, &"", Hearing.SEE_THROUGH_GROUP)
 	_wall(ear + Vector2(0, 40), Vector2(60, 8), WORLD, Hearing.SEE_THROUGH_GROUP)
 	_wall(ear + Vector2(0, 70), Vector2(60, 16), WORLD)
@@ -126,14 +126,14 @@ func test_see_through_passes() -> void:
 func test_source_body_does_not_block() -> void:
 	var ear := Vector2(1000, 5000)
 	var hearing: Hearing = _hearing(ear)
-	# Ses kaynağındaki kapalı kapı kanadı (32×8, ışına dik).
+	# The closed door wing at the sound source (32x8, perpendicular to the ray).
 	_wall(ear + Vector2(100, 0), Vector2(8, 32))
 	await _settle()
 	is_true(hearing.has_line_of_sight(ear + Vector2(100, 0)), "kaynağın kendi kanadı kesmez")
 	hearing.hear_noise(ear + Vector2(100, 0), 160.0, &"door")
 	eq(_heard, [[ear + Vector2(100, 0), 160.0, &"door"]])
-	# Kanadın öbür yüzüne yaslanmış oyuncunun koşusu (merkez kanat merkezinden 20 px; isabet kaynağa 24 px)
-	# kanat arkasında kalır: 120 > 120 × 0,5.
+	# A player's run leaning on the other face of the wing (centre 20 px from the wing centre; hit 24 px from the source)
+	# stays behind the wing: 120 > 120 x 0.5.
 	_heard.clear()
 	is_false(hearing.has_line_of_sight(ear + Vector2(120, 0)), "kanat arkası")
 	hearing.hear_noise(ear + Vector2(120, 0), 120.0, &"run")
@@ -153,24 +153,24 @@ func test_disabled_and_bus_dispatch() -> void:
 	eq(_heard.size(), 1, "kapalı bileşen duymaz")
 
 
-## Cama bitişik duvar köşesi: ışın camın sol yüzüne köşenin 0,2 px üstünden girer ve hemen duvara geçer. Eski
-## "camdan 0,5 px ilerleyip yeniden at" yöntemi yeni ışını duvarın içinden başlatıp duvarı atlıyordu.
+## Wall corner adjacent to glass: the ray enters the glass's left face 0.2 px above the corner and immediately moves to the wall.
+## The old "advance 0.5 px past the glass and recast" approach started the new ray inside the wall and skipped it.
 func test_wall_adjacent_to_glass_corner_blocks() -> void:
 	var ear := Vector2(1000, 7000)
 	var hearing: Hearing = _hearing(ear)
-	_wall(ear + Vector2(35, -25.0), Vector2(10, 50), WORLD, Hearing.SEE_THROUGH_GROUP)  # cam: x 30..40, y -50..0
-	_wall(ear + Vector2(35, 25.0), Vector2(10, 50))  # duvar: x 30..40, y 0..50
+	_wall(ear + Vector2(35, -25.0), Vector2(10, 50), WORLD, Hearing.SEE_THROUGH_GROUP)  # glass: x 30..40, y -50..0
+	_wall(ear + Vector2(35, 25.0), Vector2(10, 50))  # wall: x 30..40, y 0..50
 	await _settle()
 	hearing.position = ear + Vector2(0, -30.2)
-	var source: Vector2 = hearing.position + Vector2(60, 60)  # 45°: x 30'da y -0,2 (cam), 0,2 px sonra duvar
+	var source: Vector2 = hearing.position + Vector2(60, 60)  # 45 deg: y -0.2 at x 30 (glass), wall 0.2 px later
 	is_false(hearing.has_line_of_sight(source), "camın hemen arkasındaki duvar keser")
 	hearing.hear_noise(source, 120.0, &"run")
 	eq(_heard.size(), 0, "duvar arkası: ~85 px > 60")
-	# Kontrol: duvar olmadan cam tam geçirir.
+	# Control: without a wall the glass passes fully.
 	is_true(hearing.has_line_of_sight(hearing.position + Vector2(60, 20)), "yalnız cam: açık")
 
 
-## Hearing ve Perception aynı görüş kuralını kullanır (S11: SightLine = Perception.has_line_of_sight).
+## Hearing and Perception use the same sight rule (S11: SightLine = Perception.has_line_of_sight).
 func test_same_rule_as_perception() -> void:
 	var origin := Vector2(1000, 8000)
 	var perception := Perception.new()

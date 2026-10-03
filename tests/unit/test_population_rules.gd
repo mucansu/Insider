@@ -1,12 +1,12 @@
 extends TestCase
-## US-016 AC1/AC2/AC4/AC6 (düğümsüz kurallar): SpotRegistry (claim/release), Agenda lineer rota kipi, nüfus
-## zamanlayıcısı (tohumla belirlenimci, üst sınırlar, NPC tavanı, uyarıda duraklama), müşteri planı (kalış,
-## raf noktası), sokak rotası + cam önü bakışları, camdan bakış yönü ve örtü çarpanı (CivilianRules).
+## US-016 AC1/AC2/AC4/AC6 (no-node rules): SpotRegistry (claim/release), Agenda linear route mode, population timer (seeded
+## deterministic, upper limits, NPC cap, pause on alert), customer plan (stay, shelf point), street route + glass-front looks,
+## look direction through glass and cover multiplier (CivilianRules).
 
 const POP_TUNING := "res://data/npc/population.tres"
 const CIV_TUNING := "res://data/npc/civilian_tuning.tres"
 const PERC_TUNING := "res://data/npc/perception_tuning.tres"
-## store_a işaretleri (levels/store_a.tscn; test_levels_population sırayı ayrıca denetler).
+## store_a markers (levels/store_a.tscn; test_levels_population checks the order separately).
 const ROUTE: Array[Vector2] = [Vector2(112, 496), Vector2(336, 496), Vector2(752, 496), Vector2(752, 336),
 	Vector2(752, 80), Vector2(656, 48)]
 const LOOKS: Array[Vector2] = [Vector2(208, 496), Vector2(464, 496), Vector2(752, 368)]
@@ -37,7 +37,7 @@ func test_spot_registry_claim_release() -> void:
 	eq(r.size(), 2)
 
 
-## Agenda lineer rota: sırayla, süre 0 = ara nokta, bitince `finished` bir kez; kesme ve advance çalışır.
+## Agenda linear route: in order, duration 0 = waypoint, `finished` once at the end; interrupt and advance work.
 func test_agenda_route_mode() -> void:
 	var agenda: Agenda = autofree(Agenda.new()) as Agenda
 	var points := {&"A": Vector2(0, 0), &"B": Vector2(100, 0), &"C": Vector2(200, 0)}
@@ -80,7 +80,7 @@ func test_agenda_route_mode() -> void:
 	agenda.step(1.0, true)
 	eq(done[0], 1, "finished bir kez")
 	eq(agenda.sequence.slice(0, 5), [&"a", &"b", &"bell", &"b", &"c"] as Array[StringName])
-	# advance: süren görevi bitirir; boş rota hemen biter.
+	# advance: finishes the running task; an empty route finishes at once.
 	agenda.setup_route(tasks, 5, resolver)
 	agenda.advance()
 	agenda.advance()
@@ -89,7 +89,7 @@ func test_agenda_route_mode() -> void:
 	eq(done[0], 2, "boş rota hemen biter")
 
 
-## Ev ↔ uzak kipinde `begin_task` adlı görevi başlatır, kesme bırakılır (`interrupt_ended` completed = false).
+## In home <-> remote mode `begin_task` starts the named task, the interrupt is dropped (`interrupt_ended` completed = false).
 func test_agenda_begin_task_and_interrupt_ended() -> void:
 	var agenda: Agenda = autofree(Agenda.new()) as Agenda
 	var tuning: OwnerTuning = load("res://data/npc/owner_tuning.tres") as OwnerTuning
@@ -112,8 +112,8 @@ func test_agenda_begin_task_and_interrupt_ended() -> void:
 	is_false(agenda.begin_task(&"yok"))
 
 
-## Aynı tohum → aynı geliş anları ve planlar (I6); farklı tohum farklı. Basit benzetim: müşteri kalış sonunda,
-## yoldan geçen 15 sn sonra ayrılır.
+## Same seed -> same arrival times and plans (I6); a different seed differs. Simple simulation: customer leaves at the end of stay,
+## passer-by after 15 s.
 func test_schedule_is_deterministic() -> void:
 	var a: Array = _simulate(7, 900.0)
 	var b: Array = _simulate(7, 900.0)
@@ -127,7 +127,7 @@ func _simulate(seed_value: int, seconds: float) -> Array:
 	var p: PopulationRules.Params = _params()
 	var s := PopulationRules.Schedule.new(p, seed_value)
 	var out: Array = []
-	var leave: Array = []  # [rol, ayrılış anı]
+	var leave: Array = []  # [role, departure time]
 	var dt: float = 0.1
 	for i: int in roundi(seconds / dt):
 		var t: float = (i + 1) * dt
@@ -161,7 +161,7 @@ func test_schedule_timing_and_caps() -> void:
 	near(got[0].at, first, 0.11)
 	var gap: float = s.next_customer - s.clock
 	is_true(gap >= 20.0 - 0.001 and gap <= 50.0 + 0.001, "aralık 35 ± 15 (%.1f)" % gap)
-	# Üst sınırda gelen beklemez, iptal edilir; sonraki aralık çekilir.
+	# An arrival at the cap does not wait, it is cancelled; the next interval is drawn.
 	var full := PopulationRules.Counts.new()
 	full.customers = 2
 	full.npcs = 3
@@ -215,7 +215,7 @@ func test_customer_plan_fits_stay() -> void:
 	eq(PopulationRules.pick([] as Array[StringName], 0.5), &"")
 
 
-## Yoldan geçen planı: cam başına zar; olasılık %30 (çok sayıda örnekte 0,2-0,4).
+## Passer-by plan: a die per window; probability 30% (0.2-0.4 over many samples).
 func test_passerby_look_chance() -> void:
 	var p: PopulationRules.Params = _params()
 	var s := PopulationRules.Schedule.new(p, 11)
@@ -241,14 +241,14 @@ func test_street_route_inserts_window_looks() -> void:
 	eq(looks, [-1, 0, -1, 1, -1, 2, -1, -1, -1], "rota: a g b h c i d e f")
 	eq(r[1]["pos"], LOOKS[0])
 	eq(PopulationRules.street_route([] as Array[Vector2], LOOKS), [] as Array[Dictionary])
-	# Camdan içeri bakış yönü: içerinin en yakın noktası (ön camlar yukarı, yan cam sola).
+	# Look direction from the glass inward: the nearest interior point (front windows up, side window left).
 	var inside: Array[Rect2] = [Rect2(64, 128, 384, 320), Rect2(544, 288, 160, 160)]
 	eq(PopulationRules.look_facing(LOOKS[0], inside), Vector2.UP)
 	eq(PopulationRules.look_facing(LOOKS[2], inside), Vector2.LEFT)
 	eq(PopulationRules.look_facing(Vector2(100, 200), inside), Vector2.ZERO, "içerideyse yön yok")
 
 
-## AC6: içeride ≥ 1 müşteri varken müşteri bölgesindeki satırlar ×0,5; personel tarafı ve kasa satırları aynı.
+## AC6: with >= 1 customer inside the customer-zone rows are x0.5; staff side and register rows unchanged.
 func test_cover_factor() -> void:
 	var civ: CivilianTuning = load(CIV_TUNING) as CivilianTuning
 	var p: CivilianRules.Params = civ.rules_params(load(PERC_TUNING) as PerceptionTuning)

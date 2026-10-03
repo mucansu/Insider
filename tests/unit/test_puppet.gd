@@ -1,8 +1,8 @@
 extends TestCase
-## US-014 kukla hesabı (PuppetRig, düğümsüz): ayar okuma (GDD §14.1 tablosu), kip → siluet ölçeği/çömelme
-## eşlemesi, sabit adım (kare süresinden bağımsız), ışınlanmada "pop" yok, görsel aşma ≤ 6 px, hareket azaltma,
-## tepki API'si, bekleme (nefes, kırpma, bakınma), kalkış/duruş hazırlık-devam.
-## Sahne/ağ tarafı ve bağımlılık yönü: test_puppet_scene.gd.
+## US-014 puppet maths (PuppetRig, no node): tuning read (GDD §14.1 table), mode -> silhouette scale/crouch mapping, fixed step
+## (independent of frame time), no "pop" on teleport, visual overshoot <= 6 px, reduced motion, reaction API, idle (breathing,
+## blinking, looking around), start/stop anticipation-follow-through.
+## Scene/network side and dependency direction: test_puppet_scene.gd.
 
 const TUNING := "res://data/puppet_tuning.tres"
 const DT := 1.0 / 60.0
@@ -20,7 +20,7 @@ func _rig(rng_seed: int = 7) -> PuppetRig:
 	return rig
 
 
-## `seconds` boyunca sabit hızla yürütür (konum hızdan); son konumu döndürür.
+## Runs at a constant speed for `seconds` (position from speed); returns the final position.
 func _run(rig: PuppetRig, seconds: float, vel: Vector2, gait: PuppetRig.Gait, dt: float = DT,
 		working: bool = false) -> Vector2:
 	var pos: Vector2 = rig.target_position
@@ -31,13 +31,13 @@ func _run(rig: PuppetRig, seconds: float, vel: Vector2, gait: PuppetRig.Gait, dt
 	return pos
 
 
-# --- ayarlar ---
+# --- settings ---
 
 func test_tuning_reads_data_file() -> void:
 	var t: PuppetTuning = _tuning()
 	if not is_true(t != null, "data/puppet_tuning.tres PuppetTuning olmalı"):
 		return
-	# GDD §14.1 zamanlama tablosu (kukla-denemesi.html varsayılanları).
+	# GDD §14.1 timing table (kukla-denemesi.html defaults).
 	near(t.spring_frequency, 4.5, 0.001)
 	near(t.squash_damping, 0.32, 0.001)
 	near(t.lean_damping, 0.42, 0.001)
@@ -70,14 +70,14 @@ func test_tuning_reads_data_file() -> void:
 	eq(t.dust_per_step, 3)
 	eq(t.dust_life, Vector2(0.45, 0.7))
 	is_true(t.player_looks.size() >= 4, "dört oyuncu yuvası için görünüm")
-	# Değerlerin kaynağı dosya: betik varsayılanları nötr.
+	# Source of values is the file: script defaults are neutral.
 	var blank := PuppetTuning.new()
 	eq(blank.spring_frequency, 0.0)
 	eq(blank.body_scale, Vector3.ZERO)
 	eq(blank.scarf_segments, 0)
 
 
-# --- kip → siluet ---
+# --- mode -> silhouette ---
 
 func test_gait_to_silhouette_mapping() -> void:
 	var t: PuppetTuning = _tuning()
@@ -121,9 +121,9 @@ func test_settled_silhouette_per_gait() -> void:
 	is_true(float(lean[PuppetRig.Gait.WALK]) > 0.05, "gidilen yöne eğilme")
 
 
-# --- sabit adım ---
+# --- fixed step ---
 
-## Aynı hareket 30 ve 144 FPS'te aynı pozu üretir (yaylar ve yumuşatma kare süresinden bağımsız).
+## The same motion yields the same pose at 30 and 144 FPS (springs and smoothing are independent of frame time).
 func test_fixed_step_independent_of_frame_rate() -> void:
 	var slow: PuppetRig = _sim_profile(1.0 / 30.0)
 	var fast: PuppetRig = _sim_profile(1.0 / 144.0)
@@ -139,7 +139,7 @@ func test_fixed_step_independent_of_frame_rate() -> void:
 		near(a[a.size() - 1], b[b.size() - 1], 0.01, "atkı ucu")
 
 
-## 0-1 sn yürü sağa, 1-2 sn koş yukarı, 2-3 sn dur (anlar her iki kare süresinin katı).
+## 0-1 s walk right, 1-2 s run up, 2-3 s stop (times are multiples of both frame times).
 func _sim_profile(dt: float) -> PuppetRig:
 	var rig := PuppetRig.new(_tuning(), 3)
 	var pos := Vector2.ZERO
@@ -160,10 +160,10 @@ func _sim_profile(dt: float) -> PuppetRig:
 	return rig
 
 
-# --- ışınlanma ---
+# --- teleport ---
 
-## Uzak kopyada tampon sıfırlanınca (ya da seviye değişince) konum sıçrar: animasyon sessizce yeniden kurulur;
-## atkı yeni konumda, poz sıçramaz, toz silinir.
+## When the buffer resets on a remote copy (or the level changes) the position jumps: the animation is silently rebuilt; the scarf
+## is at the new position, the pose does not jump, dust is cleared.
 func test_teleport_rebuilds_without_pop() -> void:
 	var t: PuppetTuning = _tuning()
 	var rig: PuppetRig = _rig()
@@ -176,7 +176,7 @@ func test_teleport_rebuilds_without_pop() -> void:
 	eq(rig.rebuilds, rebuilds + 1, "ışınlanma yeniden kurar")
 	eq(rig.position, target)
 	is_true(rig.dust_particles().is_empty(), "eski toz silinir")
-	## Verlet kısıtı birkaç yinelemede çözülür: zincir koşuda biraz esneyebilir (%30 pay); kopma yüzlerce px olurdu.
+	## The Verlet constraint resolves in a few iterations: the chain may stretch a little while running (30% margin); a break would be hundreds of px.
 	var chain: float = t.scarf_segment_length * t.puppet_scale * (t.scarf_segments - 1) * 1.3
 	var max_jump: float = 0.0
 	var max_scarf: float = 0.0
@@ -197,10 +197,10 @@ func test_teleport_rebuilds_without_pop() -> void:
 	is_true(max_scarf <= chain, "atkı bağlantıdan zincir boyundan uzağa savrulmaz: %.1f > %.1f" % [max_scarf, chain])
 
 
-# --- görsel aşma ---
+# --- visual overshoot ---
 
-## Kalkış, duruş, ani dönüş, koşu: gövde merkezi çarpışma merkezinden ≤ 6 px, gölge/ayak izi 12 + 6 px içinde
-## (GDD §14.1 kural 3); bütün oyuncu görünümleri (genişlikler) için.
+## Start, stop, sudden turn, run: body centre within 6 px of the collision centre, shadow/footprint within 12 + 6 px
+## (GDD §14.1 rule 3); for all player look widths.
 func test_visual_overshoot_bounded() -> void:
 	var widest: float = 0.0
 	for look: PuppetLook in _tuning().player_looks:
@@ -226,7 +226,7 @@ func test_visual_overshoot_bounded() -> void:
 	is_true(widest > 12.0, "ölçüm anlamlı (gölge gövde çapını biraz aşar): %.2f" % widest)
 
 
-# --- hareket azaltma ---
+# --- reduced motion ---
 
 func test_reduced_motion_disables_bob_lean_dust() -> void:
 	var rig: PuppetRig = _rig()
@@ -245,7 +245,7 @@ func test_reduced_motion_disables_bob_lean_dust() -> void:
 	rig.react(PuppetRig.Reaction.QUESTION)
 	_run(rig, 0.3, Vector2.ZERO, PuppetRig.Gait.WALK)
 	near(rig.bubble_scale(), 1.0, 0.001, "balonlar kalır")
-	# Aynı koşu hareket azaltma olmadan sekme, eğilme ve toz üretir (testin anlamlılığı).
+	# The same run without reduced motion produces bounce, lean and dust (the test is meaningful).
 	var normal: PuppetRig = _rig()
 	var bob_seen: float = 0.0
 	var dust_seen: int = 0
@@ -256,7 +256,7 @@ func test_reduced_motion_disables_bob_lean_dust() -> void:
 	is_true(bob_seen > 2.0 and dust_seen > 0 and normal.lean.x > 0.1, "normalde sekme/toz/eğilme var")
 
 
-# --- tepki ---
+# --- reaction ---
 
 func test_reaction_api() -> void:
 	var t: PuppetTuning = _tuning()
@@ -270,7 +270,7 @@ func test_reaction_api() -> void:
 	eq(rig.hop, 0.0, "'?' sıçratmaz")
 	_run(rig, 0.15, Vector2.ZERO, PuppetRig.Gait.WALK)
 	near(rig.bubble_scale(), 1.0, 0.001, "pop 0,2 sn'de tamam")
-	# "!": aşmalı pop, titreme, sıçrama, göz büyümesi, inişte ezilme.
+	# "!": overshooting pop, shake, jump, eye widening, squash on landing.
 	rig.react(PuppetRig.Reaction.ALERT)
 	var peak_scale: float = 0.0
 	var peak_hop: float = 0.0
@@ -299,7 +299,7 @@ func test_reaction_api() -> void:
 	eq(rig.bubble_scale(), 0.0, "NONE balonu kaldırır")
 
 
-# --- bekleme ve hazırlık/devam ---
+# --- idle and anticipation/follow-through ---
 
 func test_idle_breath_blink_and_look() -> void:
 	var rig: PuppetRig = _rig(11)
@@ -318,7 +318,7 @@ func test_idle_breath_blink_and_look() -> void:
 	is_true(blinked, "göz kırpar")
 	looks.sort()
 	is_true(looks[looks.size() - 1] - looks[0] > 1.0, "etrafa bakınır")
-	# Ekip arkadaşı varken ona da bakar.
+	# With a teammate present it looks at them too.
 	var social: PuppetRig = _rig(5)
 	social.friend_position = Vector2(-200.0, 0.0)
 	social.has_friend = true
@@ -351,10 +351,10 @@ func test_start_dip_and_stop_overshoot() -> void:
 
 
 
-# --- yüksek kare hızı, yay kararlılığı, takılma (t2) ---
+# --- high frame rate, spring stability, hitch (t2) ---
 
-## 144/240 Hz'de bazı karelerde sabit adım düşmez; çizilen atkı kökü yine de her karede gövdenin çizildiği
-## konumdaki bağlantı noktasındadır (≤ 0,5 px).
+## At 144/240 Hz the fixed step does not fall on some frames; the drawn scarf root is still at the body's draw-position
+## anchor on every frame (<= 0.5 px).
 func test_scarf_root_follows_body_at_high_frame_rates() -> void:
 	for fps: float in [144.0, 240.0]:
 		var rig: PuppetRig = _rig()
@@ -372,7 +372,7 @@ func test_scarf_root_follows_body_at_high_frame_rates() -> void:
 		is_true(worst <= 0.5, "%d Hz: atkı kökü bağlantıda: %.3f px" % [fps, worst])
 
 
-## Yay, aralık dışı ayarlarda da patlamaz (alt adım + kenetleme); olağan ayarda davranış aynı (tek adım).
+## The spring does not blow up with out-of-range settings either (substeps + clamping); with usual settings behaviour is the same (single step).
 func test_spring_stable_at_extreme_settings() -> void:
 	for setting: Vector2 in [Vector2(10.0, 2.0), Vector2(20.0, 2.0), Vector2(40.0, 0.05), Vector2(200.0, 5.0)]:
 		var spring := PuppetSpring.new(0.0)
@@ -388,7 +388,7 @@ func test_spring_stable_at_extreme_settings() -> void:
 	near(a.x, v / 120.0, 1e-9)
 
 
-## Takılan kare (ör. 5 sn) en çok MAX_FRAME_DELTA kadar işlenir; poz sonlu kalır, sonra olağan sürer.
+## A hitched frame (e.g. 5 s) is processed at most MAX_FRAME_DELTA; the pose stays finite and then continues normally.
 func test_frame_hitch_is_capped() -> void:
 	var rig: PuppetRig = _rig()
 	var pos: Vector2 = _run(rig, 0.5, RIGHT * 140.0, PuppetRig.Gait.WALK)

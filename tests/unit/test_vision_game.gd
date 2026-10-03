@@ -1,10 +1,10 @@
 extends TestCase
-## US-011b Game görüş eki (S3 eki "Görüş ekleri"; AC1/AC2/AC7/AC8) tek süreçli host oturumunda: görüş kipi host
-## kuralı (varsayılan data/vision_tuning.tres, seviye başlamadan; seviye yüklüyken ve geçersiz değerde etkisiz),
-## seviye yüklenince yerel oyuncuya sis bağlanır ve kip verilir, `player_world_position`, maruziyet 0 → 1 (sahibin
-## konisinde) → 2 (şüphe ≥ 30) host'ta 10 Hz yazılır ve `player_exposure_changed` yayılır, döküm "vision" anahtarı;
-## oturum sonunda maruziyet boşalır. İstemcide yazmanın etkisizliği core `VisionRules.Session` testinde
-## (test_vision_rules.gd) ve çok süreçli tests/net/look_sync.json'da.
+## US-011b Game vision addition (S3 addition "Vision additions"; AC1/AC2/AC7/AC8) in a single-process host session: the vision mode
+## is a host rule (default data/vision_tuning.tres, before the level starts; no effect while a level is loaded or on an invalid
+## value), on level load fog is attached to the local player and the mode is given, `player_world_position`, exposure 0 -> 1
+## (in the owner's cone) -> 2 (suspicion >= 30) is written on the host at 10 Hz and `player_exposure_changed` is emitted, dump
+## "vision" key; exposure empties at session end. That writes have no effect on a client is in the core `VisionRules.Session` test
+## (test_vision_rules.gd) and the multi-process tests/net/look_sync.json.
 
 const STORE := "res://levels/store_a.tscn"
 const PLAYER := "res://entities/player/player.tscn"
@@ -102,8 +102,8 @@ func test_host_binds_fog_exposure_and_dump() -> void:
 	eq(Game.vision_mode(), was, "seviye kalkınca kip yeniden seçilebilir")
 
 
-## t2 (nit): peer ayrılma yolu (Net.peer_disconnected) Game'de oturum görüş kaydını siler: maruziyet 0'a düşer
-## (`player_exposure_changed` yayılır), döküm geçmişi ayrılanı taşımaz; kalan peer'ınki korunur.
+## t2 (nit): the peer-leave path (Net.peer_disconnected) deletes the session vision record in Game: exposure drops to 0
+## (`player_exposure_changed` is emitted), the dump history does not carry the leaver; the remaining peer's is kept.
 func test_departed_peer_exposure_and_history_forgotten() -> void:
 	_changes.clear()
 	Game.player_exposure_changed.connect(_on_exposure)
@@ -123,9 +123,9 @@ func test_departed_peer_exposure_and_history_forgotten() -> void:
 	Game.player_exposure_changed.disconnect(_on_exposure)
 
 
-## t2 (çürütmeli inceleme should-fix): sis ilk hesaplamadan ÖNCE oturum kipini ve yerel oyuncunun gerçek bakışını
-## alır. Yönlü kipte doğuşta oyuncunun arkası (bakış aşağı; yukarısı 128-256 px, görüş hattı açık sütun) hiç
-## görünür/hafıza olmaz; arkasındaki NPC hiç tam/siluet/hayalet çizilmez.
+## t2 (refutation review should-fix): the fog takes the session mode and the local player's real facing BEFORE the first computation.
+## In directional mode at spawn the player's back (facing down; above is 128-256 px, sight line open column) is never visible/memory;
+## the NPC behind is never drawn full/silhouette/ghost.
 func test_directional_spawn_never_reveals_behind() -> void:
 	var was: int = Game.vision_mode()
 	_previous_scene = Game.player_scene
@@ -137,10 +137,10 @@ func test_directional_spawn_never_reveals_behind() -> void:
 	var level: Level = Game.current_level() as Level
 	var me: Player = Game.local_player() as Player
 	if is_true(level != null and me != null, "seviye ve yerel oyuncu"):
-		# store_a sütun 3 (satır 4-13) açık koridor: oyuncu (3,13), bakış aşağı (kapı/sokak); arkası yukarı.
+		# store_a column 3 (rows 4-13) open corridor: player (3,13), facing down (door/street); behind is up.
 		me.global_position = Vector2(112, 432)
 		var owner: StoreOwner = level.npcs_root().get_node("Owner") as StoreOwner
-		owner.global_position = Vector2(112, 272)  # (3,8): 160 px arkada, yakın halkanın (64) dışında
+		owner.global_position = Vector2(112, 272)  # (3,8): 160 px behind, outside the near ring (64)
 		var visual: NpcVisual = owner.get_node("Visual") as NpcVisual
 		var behind: Array[Vector2i] = [Vector2i(3, 9), Vector2i(3, 7), Vector2i(3, 5)]
 		var revealed: Array = []
@@ -162,8 +162,8 @@ func test_directional_spawn_never_reveals_behind() -> void:
 			is_true(fog_now.state_at(Vector2i(3, 15)) == VisionGrid.State.VISIBLE, "önü (aşağı) görünür")
 		eq(revealed, [], "arkadaki karolar hiç görünür/hafıza olmadı")
 		eq(npc_modes, [], "arkadaki NPC hiç görünür/hayalet olmadı")
-		# Kip sonradan değişirse (istemciye çoğaltılan kip yolu) aynı sıra: kip + bakış önce, hafıza silinip hemen
-		# yeniden hesap. Çevresel → arkası görünür; yönlüye dönünce arkası hafıza değil bilinmeyen.
+		# If the mode changes later (the mode path replicated to the client) the same order: mode + facing first, memory cleared and
+		# recomputed immediately. Peripheral -> behind is visible; after switching to directional behind is unknown, not memory.
 		if fog_now != null:
 			Game._rpc_vision_mode(VisionGrid.Mode.PERIPHERAL)
 			eq(fog_now.mode(), VisionGrid.Mode.PERIPHERAL, "çoğaltılan kip sise hemen geçer")

@@ -1,8 +1,8 @@
 extends TestCase
-## IS-094 (oyun testi: "arkadaşım yakalandıktan sonra kaçış noktasına gittim, 1/1 dedi ama iş bitmedi"): kazanma ve
-## eli boş çekilme ekibin güvenceye aldığı ganimetle karar verir — iş sırasında ekip nakdine giren kasa nakdi
-## (boşaltan sonradan yakalansa da) + yakalanmamışların taşıdığı çantalar (yakalananın çantası kaybolur). Ödeme bu
-## toplamdan; yakalananın kişisel payı 0, kefaleti düşer (KR-029).
+## IS-094 (play test: "after my friend was caught I went to the escape point, it said 1/1 but the job did not end"): win and
+## empty-handed retreat decide on the loot the crew has secured - register cash that entered team cash during the job
+## (even if the emptier is caught later) + bags carried by uncaught players (a caught player's bag is lost). Payout is from
+## this total; the caught player's personal share is 0, bail is deducted (KR-029).
 
 const LOOTER := 2
 const RUNNER := 3
@@ -54,7 +54,7 @@ func test_nothing_secured_aborts_after_hold() -> void:
 	for i: int in 6:
 		t.observe(views, 0.1)
 	eq(t.evaluate(views), HeistRules.OUTCOME_ABORTED, "hiçbir şey güvencede değil: 3 sn sonra eli boş")
-	# Kasa nakdi güvencedeyse eli boş çekilme işlemez (kazanma).
+	# If register cash is secured, empty-handed retreat does not apply (win).
 	var t2 := _tracker()
 	t2.add_cash(LOOTER, 150)
 	t2.mark_caught(LOOTER)

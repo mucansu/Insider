@@ -1,7 +1,7 @@
 extends TestCase
-## US-010 izi (Game soygun bölümü, host oturumu + store_a + gerçek oyuncu): SATIN AL sahibin `social_action`
-## kancasıyla US-042 strateji etiketine "sosyal" sayılır; bedel iş sonu kasasından düşer (cash_after = iş öncesi +
-## ödeme − kefalet − alışveriş; `cash_before` gerçek iş öncesi kasa).
+## US-010 trace (Game heist part, host session + store_a + real player): BUY counts as "social" for the US-042 strategy tag via
+## the owner's `social_action` hook; the cost is deducted from the end-of-job register (cash_after = pre-job + payout - bail
+## - shopping; `cash_before` is the real pre-job register).
 
 const STORE := "res://levels/store_a.tscn"
 const PLAYER := "res://entities/player/player.tscn"
@@ -53,7 +53,7 @@ func test_purchase_is_social_strategy_and_cost_leaves_heist_cash() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
-	Game.add_team_cash(100 - Game.team_cash())  # iş öncesi kasa 100
+	Game.add_team_cash(100 - Game.team_cash())  # pre-job register 100
 	me.position = COUNTER_FRONT
 	await _frames(30)
 	var buy: Interactable = (Game.current_level() as Level).props_root().get_node(^"Counter/Buy") as Interactable

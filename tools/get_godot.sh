@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Godot ikilisini hazırlar ve yolunu stdout'a basar (mimari.md §1). Sürüm yalnız burada tutulur.
-#   GODOT ortam değişkeni verilmişse onu kullanır (sürüm farklıysa uyarır).
-#   Yoksa Godot 4.7.2-stable'ı <proje>/.tools/ altına indirir (varsa ve sürümü doğruysa atlar),
-#   SHA-512 özetini resmi SHA512-SUMS.txt değeriyle doğrular:
-#     Linux x86_64          -> .tools/godot
-#     Windows (Git Bash/MSYS2/Cygwin) -> .tools/Godot_v<sürüm>-stable_win64_console.exe (yanında GUI exe'si;
-#                              console exe onu çocuk süreç olarak başlatır). Yol C:/... biçiminde basılır.
-# Kullanım: "$(tools/get_godot.sh)" --version
+# Prepares the Godot binary and prints its path to stdout (mimari.md §1). The version is kept only here.
+# Uses the GODOT environment variable if given (warns if the version differs).
+# Otherwise downloads Godot 4.7.2-stable into <project>/.tools/ (skipped if present with the right version) and verifies
+# the SHA-512 against the official SHA512-SUMS.txt value:
+# Linux x86_64          -> .tools/godot
+# Windows (Git Bash/MSYS2/Cygwin) -> .tools/Godot_v<version>-stable_win64_console.exe (GUI exe alongside;
+# the console exe launches it as a child process). The path is printed as C:/...
+# Usage: "$(tools/get_godot.sh)" --version
 set -euo pipefail
 
 GODOT_VERSION="4.7.2"
@@ -43,7 +43,7 @@ MINGW* | MSYS* | CYGWIN*)
 	;;
 esac
 
-# Windows'ta yol C:/... biçiminde basılır: hem bash hem yerel Windows süreçleri (Python) kullanabilsin.
+# On Windows the path is printed as C:/... so both bash and native Windows processes (Python) can use it.
 print_bin() {
 	if ((windows)); then cygpath -m "$bin"; else echo "$bin"; fi
 }
@@ -68,7 +68,7 @@ echo "${sha512}  $tmp/godot.zip" | sha512sum -c --quiet - >&2 \
 unzip -q "$tmp/godot.zip" -d "$tmp"
 mkdir -p "$root/.tools"
 if ((windows)); then
-	# Zip'te GUI exe'si ve console exe'si yan yana; console exe GUI exe'sini aynı dizinde arar.
+	# The zip has the GUI exe and the console exe side by side; the console exe looks for the GUI exe in the same dir.
 	mv -f "$tmp/${name}" "$tmp/Godot_v${release}_win64_console.exe" "$root/.tools/"
 else
 	mv -f "$tmp/$name" "$bin"

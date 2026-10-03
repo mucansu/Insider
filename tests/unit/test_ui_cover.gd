@@ -1,8 +1,8 @@
 extends TestCase
-## US-042 örtü ve tanık sorgusu arayüzü: kaçış panelinde yerel örtü satırı ("Müşteri gibisin" soluk / "Örtün
-## bozuldu" uyarı rengi; Game.cover_state, iş yokken satır yok), `cover_broken` oturum olayı HUD'da sessiz, iş sonu
-## ekranında tanık satırı (END_STATUS_WITNESS) ve yerel oyuncuya "Tanık olarak sorgulandın…" (geç katılan da görür),
-## yeni metin anahtarları TR + EN.
+## US-042 cover and witness-check UI: the local cover line on the escape panel (a faded "you look like a customer" / warning-colour
+## "your cover is blown"; Game.cover_state, no line when no job), the `cover_broken` session event silent in the HUD, the witness
+## line on the end screen (END_STATUS_WITNESS) and the local player's "questioned as a witness" line (a late joiner sees it too),
+## new text keys TR + EN.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")

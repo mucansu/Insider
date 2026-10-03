@@ -1,14 +1,14 @@
 extends TestCase
-## US-039 (eksik ganimetin doğal keşfi) + US-016 AC3 (servis kesmesi ve "kasa açılır" kancası), store_a geometrisinde
-## sabit adım, tek süreç = host, nüfus kapalı (müşteri yerine `serve_customer` doğrudan):
-## - AC3 (US-016): servis → sahip ClerkSpot'a gelir, batıya döner, 6 sn; 2. sn'de `register_opened`; aynı anda tek
-##   servis; sonuç `serve_state`.
-## - AC1: kasa boşsa "kasa açılır" anında keşif (register). AC2: arka oda (gönderilmiş) varışından 1 sn sonra çanta
-##   yerinde değilse keşif (cash). AC3: müşterisiz tezgâhta kasa boşken toplam 45 sn → keşif; müşteri varken sayılmaz.
-## - AC4: DISCOVER 1,5 sn (durur) → bağırış akışı (uyarı 2); `owner_discover` oturum olayı {source}; balon olayı.
-## - AC6: kaynak başına bir keşif; alarmdayken ikinci kaynak yalnız balon + komşu +1.
-## - AC7: iş bittikten sonra keşif yok. AC8: HUD metin anahtarı. AC9: tezgâhtayken kapı sesi (160 px) → DİNLE,
-##   şüphe bedeli yok; arka kapı (B) tezgâhtan duyulmaz (264 px > 160).
+## US-039 (natural discovery of missing loot) + US-016 AC3 (service interrupt and "register opens" hook), store_a geometry,
+## fixed step, single process = host, population off (`serve_customer` directly instead of a customer):
+## - AC3 (US-016): service -> owner comes to ClerkSpot, turns west, 6 s; `register_opened` at 2 s; one service at a time;
+## result in `serve_state`.
+## - AC1: empty register -> instant discovery on "register opens" (register). AC2: bag missing 1 s after the back-room
+## (dispatched) arrival -> discovery (cash). AC3: 45 s total with the register empty at a customerless counter -> discovery; not counted with a customer present.
+## - AC4: DISCOVER 1.5 s (stands still) -> shout flow (alert 2); `owner_discover` session event {source}; balloon event.
+## - AC6: one discovery per source; under alarm the second source only gives a balloon + neighbour +1.
+## - AC7: no discovery after the job ends. AC8: HUD text key. AC9: at the counter a door sound (160 px) -> LISTEN,
+## no suspicion cost; the back door (B) is not heard from the counter (264 px > 160).
 
 const DT := 1.0 / 30.0
 
@@ -105,7 +105,7 @@ func test_serve_completes_without_theft() -> void:
 	_leave(stage)
 
 
-## AC3: müşterisiz tezgâhta kasa boşken toplam 45 sn → keşif; içeride müşteri varken sayılmaz.
+## AC3: 45 s total with the register empty at a customerless counter -> discovery; not counted with a customer inside.
 func test_idle_counter_discovery() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
@@ -132,7 +132,7 @@ func test_idle_counter_discovery() -> void:
 	_leave(stage)
 
 
-## AC2: gönderilmiş (ya da arka oda görevi) varıştan 1 sn sonra çanta yerinde değilse keşif.
+## AC2: if the bag is not in place 1 s after the dispatched (or back-room task) arrival -> discovery.
 func test_sent_backroom_discovers_taken_cash() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
@@ -154,7 +154,7 @@ func test_sent_backroom_discovers_taken_cash() -> void:
 	_leave(stage)
 
 
-## AC6: alarmdayken ikinci kaynak: yalnız balon + komşu +1 (en fazla 2); aynı kaynak ikinci kez yok.
+## AC6: second source during alarm: only balloon + neighbour +1 (max 2); no second discovery from the same source.
 func test_second_source_while_alarmed() -> void:
 	var stage: NpcStage = await _stage(2)
 	var o: StoreOwner = stage.owner()
@@ -174,7 +174,7 @@ func test_second_source_while_alarmed() -> void:
 	_leave(stage)
 
 
-## AC7: iş bittikten sonra keşif üretilmez.
+## AC7: no discovery is produced after the job ends.
 func test_no_discovery_after_heist_finished() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
@@ -186,7 +186,7 @@ func test_no_discovery_after_heist_finished() -> void:
 	_leave(stage)
 
 
-## AC9: tezgâhtayken kapı sesi (160 px) → DİNLE (döner, bakar), şüphe bedeli yok; arka kapı (B) tezgâhtan duyulmaz.
+## AC9: at the counter a door sound (160 px) -> LISTEN (turns, looks), no suspicion cost; the back door (B) is not heard from the counter.
 func test_door_noise_listen_at_counter() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
@@ -205,7 +205,7 @@ func test_door_noise_listen_at_counter() -> void:
 	_leave(stage)
 
 
-## AC8: HUD olay metni anahtarı (IS-080 kalıbı dışı ad: override).
+## AC8: HUD event text key (name outside the IS-080 pattern: override).
 func test_hud_event_key() -> void:
 	eq(Hud.event_key(OwnerBrain.DISCOVER_SESSION_EVENT), "EVENT_OWNER_DISCOVERED")
 	eq(Hud.event_key(&"player_held"), "EVENT_PLAYER_HELD", "kalıp değişmedi")

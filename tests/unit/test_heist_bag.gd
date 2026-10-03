@@ -1,10 +1,9 @@
 extends TestCase
-## US-012 çanta (entities/props/bag.*; tek süreç, çevrimdışı tekil kimlik 1 = host): veri (bag.tres, S10), store_a
-## yerleşimi (BackroomCash → Props/Bag), 2 sn alma, eli dolu alamaz, 0,3 sn devir (taşıyan kendi çantasını
-## devralamaz), koşarken her tam saniyede %25 düşürme + 160 px gürültü (zar ve gürültü çıkışı test enjekte eder),
-## yürürken zar yok, taşıyan ayrılınca düşer, `host_drop`, taşınırken taşıyanı izler, gerçek oyuncunun
-## `interaction_tags` / `is_carrying` / `is_sprinting` yanıtları. Yalnız genel API: `Interactable.host_start/step`,
-## `Bag.step/host_drop`.
+## US-012 bag (entities/props/bag.*; single process, offline singular id 1 = host): data (bag.tres, S10), store_a
+## placement (BackroomCash -> Props/Bag), 2 s pickup, cannot pick up with full hands, 0.3 s handover (a carrier cannot take
+## their own bag back), while running a 25% drop roll every full second + 160 px noise (the test injects the dice and noise sink),
+## no roll while walking, drops when the carrier leaves, `host_drop`, follows the carrier, the real player's
+## `interaction_tags` / `is_carrying` / `is_sprinting` answers. Public API only: `Interactable.host_start/step`, `Bag.step/host_drop`.
 
 const BAG_SCENE := "res://entities/props/bag.tscn"
 const BAG_DEF := "res://data/props/bag.tres"
@@ -14,7 +13,7 @@ const DT := 1.0 / 60.0
 const AT := Vector2(200, 200)
 
 
-## Oyuncunun S7 + US-012 arayüzü taklidi: grup, konum, eli boşsa `free_hands`, koşu bayrağı.
+## Fake of the player's S7 + US-012 interface: group, position, `free_hands` when hands are empty, run flag.
 class FakeActor:
 	extends Node2D
 	var sprinting: bool = false
@@ -77,7 +76,7 @@ func _handoff(bag: Bag) -> Interactable:
 	return bag.get_node("Handoff") as Interactable
 
 
-## `peer_id` çantayı alır (önce tekrar beklemesi geçer, sonra 2 sn tut).
+## `peer_id` picks up the bag (the retry cooldown passes first, then 2 s hold).
 func _pick(bag: Bag, peer_id: int) -> void:
 	_run(_take(bag), InteractionRules.REPEAT_COOLDOWN + 0.05)
 	_take(bag).host_start(peer_id, 1)
@@ -190,7 +189,7 @@ func test_dropped_bag_retakable_after_point_three_seconds() -> void:
 	_actor(2, AT + Vector2(10, 0))
 	_pick(bag, 2)
 	bag.host_drop()
-	_run(_take(bag), InteractionRules.REPEAT_COOLDOWN + 0.05)  # bileşenin tekrar beklemesi ayrı
+	_run(_take(bag), InteractionRules.REPEAT_COOLDOWN + 0.05)  # the component's retry cooldown is separate
 	_step(bag, 0.2)
 	_take(bag).host_start(2, 7)
 	eq(_take(bag).stats()["rejected"], {"blocked": 1}, "düştükten 0,2 sn sonra alınamaz (KR-026)")

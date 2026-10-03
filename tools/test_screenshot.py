@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""tools/screenshot.py saf yardımcı testleri (IS-022 AC4). Yalnız standart kütüphane; Godot ve ekran gerekmez.
+"""tools/screenshot.py pure helper tests (IS-022 AC4). Standard library only; no Godot or display needed.
 
-Koşu: python tools/test_screenshot.py   (Windows'ta `python` ya da `py -3`)
-Kapsam: an ayrıştırma/zamanlama (süreç saatine çevirme, --quit-after), peer seçimi, ekran yokken atlama,
-GUI exe çözümü, senaryodan plan, PNG okuma (bütün süzgeç türleri) ve boş/siyah/boyut doğrulaması.
+Run: python tools/test_screenshot.py   (on Windows `python` or `py -3`)
+Coverage: moment parsing/timing (conversion to process clock, --quit-after), peer selection, skipping with no display,
+GUI exe resolution, plan from a scenario, PNG reading (all filter kinds) and empty/black/size validation.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ def _paeth(a: int, b: int, c: int) -> int:
 
 
 def encode_png(rows: list[bytes], width: int, channels: int, filters: list[int] | None = None) -> bytes:
-    """Test PNG'si: 8 bit, satır başına verilen süzgeç (yoksa 0..4 döngüsü)."""
+    """Test PNG: 8-bit, with the given filter per row (cycling 0..4 if none)."""
     color_type = {1: 0, 3: 2, 4: 6}[channels]
     raw = bytearray()
     prev = bytes(width * channels)
@@ -74,7 +74,7 @@ class TempDirCase(unittest.TestCase):
 class MomentTest(unittest.TestCase):
     def test_parse_moments_sorted_unique(self) -> None:
         self.assertEqual(ss.parse_moments("6,2.5,6"), [2.5, 6.0])
-        self.assertEqual(ss.parse_moments(" 0 , 1.004,1.001"), [0.0, 1.0])  # 0,01 sn çözünürlük
+        self.assertEqual(ss.parse_moments(" 0 , 1.004,1.001"), [0.0, 1.0])  # 0.01 s resolution
 
     def test_parse_moments_rejects_bad(self) -> None:
         for bad in ("", "1,,2", "1,2,", "x", "1,-1", "nan", "inf", "1e400"):
@@ -89,22 +89,22 @@ class MomentTest(unittest.TestCase):
     def test_local_moments_shift_and_skip(self) -> None:
         self.assertEqual(ss.local_moments([3.0, 5.5, 8.0], 0.0), [(3.0, 3.0), (5.5, 5.5), (8.0, 8.0)])
         self.assertEqual(ss.local_moments([3.0, 5.5, 8.0], 1.237), [(3.0, 1.76), (5.5, 4.26), (8.0, 6.76)])
-        # Süreç başlamadan önceki (ya da MIN_LOCAL_SEC'ten yakın) an atlanır.
+        # A moment before the process starts (or closer than MIN_LOCAL_SEC) is skipped.
         self.assertEqual(ss.local_moments([1.0, 3.0], 0.95), [(3.0, 2.05)])
         self.assertEqual(ss.local_moments([1.0], 2.0), [])
 
     def test_local_moments_preserve_order(self) -> None:
-        # Godot dosya sırası (shot_NN) yerel anların artan sırasıdır; çeviri sırayı korumalı.
+        # Godot's file order (shot_NN) is the ascending order of local moments; the conversion must keep the order.
         moments = ss.parse_moments("9,1,4.5,7")
         local = [loc for _, loc in ss.local_moments(moments, 0.4)]
         self.assertEqual(local, sorted(local))
 
     def test_clock_offset(self) -> None:
-        # Aynı tür: açılış süreleri birbirini götürür, kayma = Popen farkı.
+        # Same kind: startup times cancel out, the offset = the Popen difference.
         self.assertAlmostEqual(ss.clock_offset(1.8, 1.3, "window", "window"), 1.8)
-        # Host headless (0,45 sn), istemci pencereli (tahmin 1,5): saat daha geç başlar.
+        # Host headless (0.45 s), client windowed (estimate 1.5): the clock starts later.
         self.assertAlmostEqual(ss.clock_offset(1.0, 0.45, "window", "headless"), 1.0 - 0.45 + ss.STARTUP_ESTIMATE["window"])
-        # Host pencereli, istemci headless: daha erken.
+        # Host windowed, client headless: earlier.
         self.assertAlmostEqual(ss.clock_offset(2.0, 1.6, "headless", "window"), 2.0 - 1.6 + ss.STARTUP_ESTIMATE["headless"])
 
     def test_quit_after_matches_net_smoke(self) -> None:
@@ -115,7 +115,7 @@ class MomentTest(unittest.TestCase):
         self.assertEqual(ss.quit_after_for("c1", 2.0, 5.0, 2), 1.0, "alt sınır 1 sn")
 
     def test_clients_leave_one_by_one_before_host(self) -> None:
-        # Host saatinde: istemci çıkışları (döküm + LINGER_SEC sonra ayrılış) en az LEAVE_GAP aralıklı, host en son.
+        # On the host clock: client exits (dump + LINGER_SEC then leave) at least LEAVE_GAP apart, the host last.
         offsets = {"c1": 1.3, "c2": 2.4, "c3": 2.9}
         leave = {n: off + ss.quit_after_for(n, 10.0, off, 3) + ss.LINGER_SEC for n, off in offsets.items()}
         leave["host"] = ss.quit_after_for("host", 10.0, 0.0, 3) + ss.LINGER_SEC
@@ -125,7 +125,7 @@ class MomentTest(unittest.TestCase):
             self.assertGreaterEqual(leave[b] - leave[a], ss.LEAVE_GAP - 1e-9)
 
     def test_every_local_moment_before_quit(self) -> None:
-        # Her sürecin bütün anları kendi --quit-after'ından önce olmalı (main.gd screenshot_plan düşürmesin).
+        # All of every process's moments must be before its own --quit-after (so main.gd screenshot_plan does not drop them).
         moments = [3.0, 5.5, 8.0]
         duration = moments[-1] + ss.TAIL_SEC
         for host_kind, host_startup in (("window", 1.6), ("headless", 0.45)):
@@ -283,7 +283,7 @@ class CollectTest(TempDirCase):
         out = os.path.join(self.dir, "out")
         os.makedirs(os.path.join(raw, "c1"))
         os.makedirs(out)
-        # c1: an 1.6 seviye yüklenmeden (atlandı), 4 geçerli, 6 siyah, 8 dosya yok.
+        # c1: moment 1.6 before the level loads (skipped), 4 valid, 6 black, 8 no file.
         self._noise_png(os.path.join(raw, "c1", "shot_01.png"))
         with open(os.path.join(raw, "c1", "shot_02.png"), "wb") as f:
             f.write(encode_png([bytes(80 * 3)] * 48, 80, 3))

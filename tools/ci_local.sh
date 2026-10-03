@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
-# Yerel CI (mimari.md §5): Godot getir → içe aktar → birim testler → araç testleri (Python) + uyarı kapısı →
-# ağ duman senaryoları (0 ve 150 ms). İlk hatada sıfır olmayan kodla çıkar. Push öncesi yeşil olmalı.
-# Kullanım: tools/ci_local.sh [godot|import|unit|tools|net|export ...]
-#   Adım verilmezse godot import unit tools net (bu sırayla; dev ve main push'unda CI de bunları koşar).
-#   export yalnız açıkça istenir: tools/export.sh (Windows + Linux build'i build/'e, bu makinenin build'iyle
-#   duman koşusu); CI bunu yalnız main push'unda `godot import export` olarak koşar ve build'leri yükler.
-# Python: python3 → python → py -3 sırasıyla ilk >= 3.10 olan (Windows'ta Git Bash ile de çalışır).
-# .github/workflows/ci.yml aynı adımları aynı sırayla bu betikle koşar; biri değişirse diğeri de.
-# Çıktı (IS-090): varsayılan kısa kip — başarıda adım başına özet satırı, başarısızlıkta ayrıntı.
-# CI_VERBOSE=1 eski ayrıntılı çıktıyı açar (test başına [PASS], unittest satırları, uyarı tabloları, net -v;
-# uzak CI bu kiple koşar). Kapılar ve çıkış kodları iki kipte aynıdır.
+# Local CI (mimari.md §5): fetch Godot -> import -> unit tests -> tool tests (Python) + warning gate -> network smoke
+# scenarios (0 and 150 ms). Exits non-zero on the first failure. Must be green before push.
+# Usage: tools/ci_local.sh [godot|import|unit|tools|net|export ...]
+# With no steps: godot import unit tools net (in this order; CI runs the same on dev and main push).
+# export only on request: tools/export.sh (Windows + Linux builds into build/, smoke run with this machine's build);
+# CI runs it only on main push as `godot import export` and uploads the builds.
+# Python: first of python3 -> python -> py -3 that is >= 3.10 (also works on Windows with Git Bash).
+# .github/workflows/ci.yml runs the same steps in the same order via this script; change one, change the other.
+# Output (IS-090): short mode by default - one summary line per step on success, details on failure.
+# CI_VERBOSE=1 enables the old detailed output (per-test [PASS], unittest lines, warning tables, net -v;
+# remote CI runs in this mode). Gates and exit codes are the same in both modes.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
-# Python çıktısı boruya/dosyaya giderken de UTF-8 olsun (Windows'ta varsayılan cp1254 Türkçeyi bozar;
-# Linux'ta zararsız).
+# Make Python output UTF-8 even when piped/redirected (on Windows the default cp1254 garbles Turkish;
+# harmless on Linux).
 export PYTHONUTF8=1
 
 VERBOSE=0
@@ -32,9 +32,9 @@ step_godot() {
 	"$GODOT" --version
 }
 
-# İçe aktarma iki geçiş: ilki önbelleği ve üretilen dosyaları (.godot/, *.translation) kurar;
-# taze klonda çeviriler henüz üretilmediği için yükleme hatası basabilir. İkinci geçiş temiz olmalı:
-# hata ya da uyarı satırı varsa adım başarısız.
+# Import runs in two passes: the first builds the cache and generated files (.godot/, *.translation);
+# on a fresh clone translations are not generated yet, so it may print a load error.
+# The second pass must be clean: any error or warning line fails the step.
 step_import() {
 	local log
 	log="$(mktemp)"
@@ -51,11 +51,11 @@ step_import() {
 	if ((VERBOSE)); then echo "İçe aktarma temiz."; fi
 }
 
-# Birim testler. Koşucu çıkış kodunu verir (test başına yetim düğüm farkı da kapıdır: `[ORPHAN]` satırı,
-# IS-046); motorun kapanışta bastığı sızıntı satırları (ObjectDB örneği,
-# kaynak, RID: "... leaked at exit" / "... still in use at exit") koşucudan sonra geldiğinden burada
-# yakalanır: biri bile varsa adım başarısız ve kaynaklar --verbose ikinci koşuyla listelenir (IS-029).
-# (import adımı bu satırları zaten genel ERROR/WARNING kuralıyla yakalar.)
+# Unit tests. The runner provides the exit code (the per-test orphan node delta is also a gate: `[ORPHAN]` line,
+# IS-046); leak lines the engine prints at shutdown (ObjectDB instances,
+# resource, RID: "... leaked at exit" / "... still in use at exit") come after the runner, so they are
+# caught here: any one fails the step and the resources are listed by a second --verbose run (IS-029).
+# (The import step already catches these lines with the generic ERROR/WARNING rule.)
 LEAK_PATTERN='(leaked|still in use) at exit'
 step_unit() {
 	local log code
@@ -65,9 +65,9 @@ step_unit() {
 		"$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee "$log"
 		code=${PIPESTATUS[0]}
 	else
-		# Kısa kip: koşucu zaten yalnız FAIL/ORPHAN + özet basar; motorun beklenen push_warning blokları
-		# burada süzülür. Başarısızlıkta koşucu satırları + motor ERROR satırları; koşucu özet basmadan
-		# düştüyse (çökme, zaman aşımı) log'un son 40 satırı.
+		# Short mode: the runner already prints only FAIL/ORPHAN + summary; the engine's expected push_warning blocks
+		# are filtered here. On failure the runner lines + engine ERROR lines; if the runner fell over without a summary
+		# (crash, timeout) the last 40 lines of the log.
 		"$GODOT" --headless --path . -s res://tests/run_tests.gd >"$log" 2>&1
 		code=$?
 		local runner_re='^(\[FAIL\]|\[ORPHAN\]|       - |[0-9]+ test: |Yetim düğüm farkı|Koşulacak test yok)'
@@ -95,13 +95,13 @@ step_unit() {
 	fi
 }
 
-# Python yorumlayıcısı (dizi: `py -3` iki sözcük). İlk kullanımda bulunur; yoksa adım başarısız.
+# Python interpreter (array: `py -3` is two words). Found on first use; if none, the step fails.
 PYTHON=()
 find_python() {
 	((${#PYTHON[@]})) && return 0
 	local cand
 	for cand in "python3" "python" "py -3"; do
-		# shellcheck disable=SC2086 # aday bilerek sözcüklere bölünür
+		# shellcheck disable=SC2086 # candidate is deliberately split into words
 		if command -v "${cand%% *}" >/dev/null 2>&1 \
 			&& $cand -c 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)' >/dev/null 2>&1; then
 			read -r -a PYTHON <<<"$cand"
@@ -112,12 +112,12 @@ find_python() {
 	return 1
 }
 
-# Araç testleri: gecikme proxy'si, net_smoke süreç ağacı öldürme, ekran görüntüsü ve uyarı sayımı yardımcıları,
-# ajan hook koruması .claude/hooks/agent_guard.py (IS-053) (Godot gerekmez). Ardından GDScript uyarı sayımı +
-# kapısı (IS-047; Godot ister, import'tan sonra): project.godot'ta düzeyi 2 olan türde uyarı varsa ya da sayım
-# alınamazsa adım KIRMIZI; düzeyi 0/1 olan türlerin sayımı yalnız bilgi (JSON: build/warn_count.json).
-# Bir Python araç testini koşar. Kısa kipte çıktı yakalanır: geçerse tek satır ("dosya: Ran N tests in … OK"),
-# kalırsa log'un tamamı (unittest başarısız testlerin izini ve nedenini basar).
+# Tool tests: latency proxy, net_smoke process-tree kill, screenshot and warning-count helpers,
+# the agent hook guard .claude/hooks/agent_guard.py (IS-053) (no Godot needed). Then the GDScript warning count +
+# gate (IS-047; needs Godot, after import): the step is RED if a kind at level 2 in project.godot has warnings or the count
+# cannot be taken; counts of level 0/1 kinds are informational only (JSON: build/warn_count.json).
+# Runs one Python tool test. In short mode output is captured: if it passes a single line ("file: Ran N tests in ... OK"),
+# if it fails the whole log (unittest prints the failing tests' traces and reasons).
 py_test() {
 	local file="$1" log
 	if ((VERBOSE)); then
@@ -135,7 +135,7 @@ py_test() {
 	return 1
 }
 
-# test_run_tests.py koşucunun kısa/ayrıntılı çıktı kipini doğrular (IS-090; Godot ister, GODOT dışa aktarıldı).
+# test_run_tests.py checks the runner's short/verbose output modes (IS-090; needs Godot, GODOT is exported).
 step_tools() {
 	find_python || return 1
 	if ((VERBOSE)); then "${PYTHON[@]}" --version; fi
@@ -154,7 +154,7 @@ step_tools() {
 	fi
 }
 
-# Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.
+# Windows + Linux builds (IS-005); templates are downloaded on first run (~1.3 GB), then skipped.
 step_export() {
 	bash tools/export.sh
 }
@@ -172,9 +172,9 @@ step_net() {
 		return 0
 	fi
 	find_python || return 1
-	# Not: adımlar `if` içinde çağrıldığından set -e burada işlemez; her hata açıkça döndürülür.
-	# Kısa kipte senaryo başına net_smoke'un tek PASS satırı (adı ve gecikmeyi içerir); FAIL'de başarısız
-	# iddialar + log hata satırları. Ayrıntılı kipte "--" başlıkları ve -v (bütün iddialar).
+	# Note: steps are called inside `if`, so set -e does not act here; every error is returned explicitly.
+	# In short mode one net_smoke PASS line per scenario (includes name and latency); on FAIL the failed
+	# assertions + log error lines. In verbose mode the "--" headers and -v (all assertions).
 	local s
 	local net_v=()
 	if ((VERBOSE)); then net_v=(-v); fi

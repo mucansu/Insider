@@ -1,17 +1,17 @@
 extends TestCase
-## US-004 yapı kuralları (mimari.md §6, KR-003, KR-018):
-## - Kapsülleme: entities/ betikleri başka nesnenin `_` önekli üyesine erişmez (`x._y`; self/super hariç).
-## - Girdi yalnız PlayerInput'tan (S5): entities/player/ altında `Input.` yalnız player_input.gd'de.
-## - Görsel yalnız durum okur (KR-003/KR-017): player_visual.gd girdi, ağ ve hareket koduna dokunmaz,
-##   Player'ın alanlarına yazmaz.
-## Yorumlar taranmaz (test_deps.gd'deki strip_comment).
+## US-004 structure rules (mimari.md §6, KR-003, KR-018):
+## - Encapsulation: entities/ scripts do not access another object's `_`-prefixed member (`x._y`; self/super excepted).
+## - Input only from PlayerInput (S5): under entities/player/ `Input.` appears only in player_input.gd.
+## - The visual only reads state (KR-003/KR-017): player_visual.gd does not touch input, network and movement code,
+## and does not write to Player's fields.
+## Comments are not scanned (strip_comment in test_deps.gd).
 
 const ENTITIES_DIR := "res://entities"
 const PLAYER_DIR := "res://entities/player"
 const INPUT_SCRIPT := "res://entities/player/player_input.gd"
 const VISUAL_SCRIPT := "res://entities/player/player_visual.gd"
 const Deps := preload("res://tests/unit/test_deps.gd")
-## Görselde yasak başvurular (girdi, ağ, hareket, oturum).
+## Forbidden references in the visual (input, network, movement, session).
 const VISUAL_FORBIDDEN: Array[String] = [
 	"\\bInput\\.", "\\bPlayerInput\\b", "\\bmultiplayer\\b", "\\brpc", "\\bNet\\.", "\\bGame\\.",
 	"move_and_slide", "\\bArgs\\.",
@@ -42,7 +42,7 @@ func test_private_access_scanner_detects_mutations() -> void:
 		"_input.poll(delta)",
 		"var t := 1.0  # other._secret yorumda",
 		"var s := Time.get_ticks_usec() / 1_000_000.0",
-		"var v := Vector2._ZERO_LIKE",  # büyük harf: sabit/sınıf üyesi değil (yalnız küçük harf `_x` özel sayılır)
+		"var v := Vector2._ZERO_LIKE",  # upper case: not a constant/class member (only lower-case `_x` counts as private)
 	]
 	for line: String in clean:
 		eq(private_access(line).size(), 0, "temiz sayılmalı: " + line)
@@ -69,7 +69,7 @@ func test_visual_only_reads_state() -> void:
 				"görselde yasak başvuru (%s): %s" % [pattern, line.strip_edges()])
 
 
-## `source` içinde başka nesnenin `_` önekli üyesine erişen satırlar (yorumlar hariç).
+## Lines in `source` that access another object's `_`-prefixed member (comments excluded).
 static func private_access(source: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	var re := RegEx.create_from_string("([\\w)\\]]+)\\._[a-z]")
@@ -85,7 +85,7 @@ static func private_access(source: String) -> PackedStringArray:
 	return out
 
 
-## `dir` altındaki .gd dosyaları (alt dizinler dahil).
+## .gd files under `dir` (subdirectories included).
 static func scripts_under(dir: String) -> PackedStringArray:
 	var out: PackedStringArray = []
 	if not DirAccess.dir_exists_absolute(dir):

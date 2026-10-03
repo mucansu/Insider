@@ -1,34 +1,34 @@
 #!/usr/bin/env bash
-# Windows + Linux build'i (IS-005): export şablonlarını hazırlar, export_presets.cfg ön ayarlarıyla build/'e
-# iki platform çıktısı üretir, bu makinenin platformundaki build'i headless açıp kapatır.
-# Kullanım: tools/export.sh [--debug] [templates|windows|linux|smoke ...]   (adım verilmezse hepsi, bu sırayla)
-#   --debug    (ya da ortamda EXPORT_DEBUG=1; tools/ci_local.sh export ve CI bunu ortamdan geçirir) build'leri
-#              debug şablonuyla üretir (Godot --export-debug): GDScript çalışma zamanı hataları iziyle log'a düşer,
-#              çökmede crash handler bloğu yazılır, OS.is_debug_build() true. `test-*` etiketli arkadaş test
-#              build'leri böyle çıkar (IS-076); varsayılan ve main push artefaktları release şablonuyla.
-#   templates  Godot sürümünün (tools/get_godot.sh) export şablonlarını kullanıcı dizinine kurar:
-#                Windows: %APPDATA%/Godot/export_templates/<sürüm>.stable
-#                Linux:   ${XDG_DATA_HOME:-~/.local/share}/godot/export_templates/<sürüm>.stable
-#              Kuruluysa atlar. Yoksa resmi .tpz'yi (~1,3 GB) .tools/ altına indirir, SHA-512'yi resmi
-#              SHA512-SUMS.txt değeriyle doğrular, yalnız Windows/Linux x86_64 şablonlarını açar, .tpz'yi siler.
-#   windows    build/windows/Insiders.exe (+ Insiders.console.exe; pck gömülü) + perf_dump.bat (IS-067)
-#   linux      build/linux/Insiders.x86_64 (pck gömülü) + build/Insiders-linux-x86_64.tar.gz (çalıştırma izni korunur)
-#   smoke      bu makinenin build'ini (Windows'ta Windows, Linux'ta Linux) headless iki süreçle açar: host +
-#              127.0.0.1'e katılan istemci, ikisi de --quit-after ile kapanır; her biri kod 0, READY satırı,
-#              hata satırı yok, döküm exit_reason=quit_after (istemci dökümünde 2 peer) vermeli.
-# İlk hatada sıfır olmayan kodla çıkar. Windows'ta Git Bash ile çalışır. tools/ci_local.sh export bunu çağırır.
+# Windows + Linux builds (IS-005): prepares export templates, produces both platform outputs into build/ with the
+# export_presets.cfg presets, and opens and closes the build for this machine's platform headless.
+# Usage: tools/export.sh [--debug] [templates|windows|linux|smoke ...]   (with no steps all, in this order)
+# --debug    (or EXPORT_DEBUG=1 in the environment; tools/ci_local.sh export and CI pass it via the environment) builds
+# with the debug template (Godot --export-debug): GDScript runtime errors land in the log with a trace,
+# a crash handler block is written on crash, OS.is_debug_build() is true. `test-*` tagged friend test
+# builds come out this way (IS-076); default and main-push artifacts use the release template.
+# templates  Installs the Godot version's (tools/get_godot.sh) export templates into the user dir:
+# Windows: %APPDATA%/Godot/export_templates/<version>.stable
+# Linux:   ${XDG_DATA_HOME:-~/.local/share}/godot/export_templates/<version>.stable
+# Skipped if installed. Otherwise downloads the official .tpz (~1.3 GB) into .tools/, verifies SHA-512 against the official
+# SHA512-SUMS.txt value, extracts only the Windows/Linux x86_64 templates, deletes the .tpz.
+# windows    build/windows/Insiders.exe (+ Insiders.console.exe; pck embedded) + perf_dump.bat (IS-067)
+# linux      build/linux/Insiders.x86_64 (pck embedded) + build/Insiders-linux-x86_64.tar.gz (execute permission kept)
+# smoke      opens this machine's build (Windows on Windows, Linux on Linux) headless as two processes: host +
+# a client joining 127.0.0.1, both close via --quit-after; each must give code 0, a READY line,
+# no error line, a dump with exit_reason=quit_after (2 peers in the client dump).
+# Exits non-zero on the first failure. Works with Git Bash on Windows. tools/ci_local.sh export calls this.
 set -euo pipefail
 
-# Şablon arşivinin özeti yalnız bu sürüm için geçerli; get_godot.sh sürümü yükseltilince burası da güncellenir.
+# The template archive's digest is valid only for this version; update it here when get_godot.sh is upgraded.
 TEMPLATES_VERSION="4.7.2"
 TEMPLATES_TPZ_SHA512="ca4d71c4d7b81dfc15d1a98baa07534aa95b03fdda78a0075b06672e1648d2e5f40980c9adc28d23e1b92e732ee7bf3461997aa804af74ec2fcd7a93ccb84079"
-# export_presets.cfg ön ayar adları ve çıktıları (yollar proje köküne göre).
+# export_presets.cfg preset names and outputs (paths relative to the project root).
 WINDOWS_PRESET="Windows Desktop"
 WINDOWS_OUT="build/windows/Insiders.exe"
 LINUX_PRESET="Linux"
 LINUX_OUT="build/linux/Insiders.x86_64"
 LINUX_TARBALL="build/Insiders-linux-x86_64.tar.gz"
-# Kurulan şablonlar (tpz içindeki templates/ altından).
+# Installed templates (from templates/ inside the tpz).
 TEMPLATE_FILES=(
 	version.txt
 	windows_release_x86_64.exe windows_release_x86_64_console.exe
@@ -84,7 +84,7 @@ step_templates() {
 	if [[ ! -f "$tpz" ]] || ! echo "${TEMPLATES_TPZ_SHA512}  $tpz" | sha512sum -c --quiet - >/dev/null 2>&1; then
 		local url="https://github.com/godotengine/godot/releases/download/${release}/${name}"
 		echo "İndiriliyor (~1,3 GB): $url"
-		# Kesilen indirme kaldığı yerden sürer (.part); özet tutmazsa silinir.
+		# An interrupted download resumes where it left off (.part); deleted if the digest does not match.
 		curl -fSL --retry 3 --retry-delay 5 -C - -sS -o "$tpz.part" "$url" || return 1
 		if ! echo "${TEMPLATES_TPZ_SHA512}  $tpz.part" | sha512sum -c --quiet -; then
 			rm -f "$tpz.part"
@@ -111,7 +111,7 @@ step_templates() {
 	echo "Şablonlar kuruldu: $dir"
 }
 
-# Hata satırı (ERROR:/SCRIPT ERROR:/USER ERROR:) varsa basar ve başarısız döner.
+# Prints and returns failure if there is an error line (ERROR:/SCRIPT ERROR:/USER ERROR:).
 check_log() {
 	local log="$1" problems
 	problems="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E '^[[:space:]]*(SCRIPT |USER )?ERROR:' || true)"
@@ -121,16 +121,16 @@ check_log() {
 	fi
 }
 
-# Ön ayarı export eder; çıktı yoksa/boşsa ya da günlükte hata varsa başarısız.
+# Exports the preset; fails if the output is missing/empty or the log has an error.
 export_preset() {
 	local preset="$1" out="$2" godot log
-	# GODOT verilmişse onu, yoksa .tools/ altındaki sabit sürümü kullanır.
+	# Uses GODOT if given, otherwise the pinned version under .tools/.
 	godot="$(bash tools/get_godot.sh)" || return 1
 	templates_installed "$(templates_dir)" || { echo "Şablonlar kurulu değil: tools/export.sh templates" >&2; return 1; }
 	rm -rf "$(dirname "$out")"
 	mkdir -p "$(dirname "$out")" || return 1
 	log="$(mktemp)"
-	# Taze klonda önbellek yoksa önce içe aktarma (export kendi de yapar; çeviriler hazır olsun).
+	# On a fresh clone without a cache import first (export does it too; so translations are ready).
 	[[ -d .godot ]] || "$godot" --headless --path . --import >"$log" 2>&1 || true
 	echo "Export ($export_mode): $preset → $out"
 	if ! "$godot" --headless --path . "--export-$export_mode" "$preset" "$out" >"$log" 2>&1; then
@@ -153,7 +153,7 @@ step_windows() {
 	export_preset "$WINDOWS_PRESET" "$WINDOWS_OUT" || return 1
 	[[ "$(head -c 2 "$WINDOWS_OUT")" == "MZ" ]] || { echo "PE değil: $WINDOWS_OUT" >&2; return 1; }
 	[[ -s "${WINDOWS_OUT%.exe}.console.exe" ]] || { echo "Konsol sarmalayıcısı yok" >&2; return 1; }
-	# IS-067: arkadaş makinesi performans dökümü betiği build'in yanında (cmd için CRLF).
+	# IS-067: friend-machine performance dump script next to the build (CRLF for cmd).
 	sed 's/\r*$/\r/' tools/perf_dump.bat > "$(dirname "$WINDOWS_OUT")/perf_dump.bat" || return 1
 }
 
@@ -161,15 +161,15 @@ step_linux() {
 	export_preset "$LINUX_PRESET" "$LINUX_OUT" || return 1
 	[[ "$(head -c 4 "$LINUX_OUT" | tail -c 3)" == "ELF" ]] || { echo "ELF değil: $LINUX_OUT" >&2; return 1; }
 	chmod +x "$LINUX_OUT" || return 1
-	# Windows'ta (NTFS) chmod etkisizdir; çalıştırma izni arşive --mode ile yazılır (GNU tar, Linux'ta da aynı).
+	# On Windows (NTFS) chmod has no effect; the execute permission is written into the archive with --mode (GNU tar, same on Linux).
 	tar --mode='a+x' -czf "$LINUX_TARBALL" -C "$(dirname "$LINUX_OUT")" . || return 1
 	tar -tvzf "$LINUX_TARBALL" | grep -qE '^-rwx.* \./Insiders\.x86_64$' \
 		|| { echo "Arşivde çalıştırma izni yok: $LINUX_TARBALL" >&2; tar -tvzf "$LINUX_TARBALL" >&2; return 1; }
 	ls -l "$LINUX_TARBALL"
 }
 
-# Bir koşunun sonucunu denetler: kod 0, READY satırı, hata satırı yok, döküm exit_reason=quit_after ve
-# beklenen is_host / peer sayısı (boş = denetlenmez). Sorun varsa günlüğü basar.
+# Checks a run's result: code 0, a READY line, no error line, dump exit_reason=quit_after and
+# the expected is_host / peer count (empty = not checked). Prints the log if there is a problem.
 check_run() {
 	local role="$1" code="$2" log="$3" dump="$4" is_host="$5" peers="$6" ok=1
 	if ((code != 0)); then echo "$role: çıkış kodu $code (beklenen 0)" >&2; ok=0; fi
@@ -192,8 +192,8 @@ check_run() {
 	((ok))
 }
 
-# Bu makinenin build'iyle iki süreç: host (store_a) + 127.0.0.1'e katılan istemci; ikisi de --quit-after ile
-# kendiliğinden kapanır; istemcinin dökümünde iki peer olmalı (host dökümü istemci çıktıktan sonra yazılır).
+# This machine's build as two processes: host (store_a) + a client joining 127.0.0.1; both close themselves via --quit-after;
+# the client dump must have two peers (the host dump is written after the client exits).
 step_smoke() {
 	local bin dir hdump cdump port hpid hcode=0 ccode=0 i
 	if ((windows)); then bin="./${WINDOWS_OUT%.exe}.console.exe"; else bin="./$LINUX_OUT"; fi

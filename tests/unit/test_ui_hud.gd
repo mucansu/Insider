@@ -1,6 +1,6 @@
 extends TestCase
-## HUD (US-003 AC2, AC3, AC5; IS-009): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi, sahte
-## oyuncunun S7 sinyallerine tepki, `pause` eylemiyle (Esc/Start) duraklat menüsü, ayrılma ve kopma akışı.
+## HUD (US-003 AC2, AC3, AC5; IS-009): team cash, ping, player list, session event notices, reaction to the fake player's S7
+## signals, the pause menu via the `pause` action (Esc/Start), leave and disconnect flow.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -11,11 +11,11 @@ var journal: Fakes.CallLog
 var viewport: SubViewport
 var hud: Hud
 var menu_requests: Array[StringName] = []
-## HUD'un geliştirici uyarıları (eksik metin anahtarı); çıktıya WARNING basılmaz.
+## The HUD's developer warnings (missing text key); no WARNING is printed to output.
 var warnings: Array[String] = []
 
 
-## `before_ready` HUD sahneye eklenmeden önce sahteleri hazırlamak içindir.
+## `before_ready` is for preparing the fakes before the HUD is added to the scene.
 func _open(before_ready: Callable = Callable()) -> void:
 	var pair: Array = Fakes.make_pair(self)
 	net = pair[0]
@@ -61,7 +61,7 @@ func _toast_texts() -> Array[String]:
 	return out
 
 
-# --- ekip nakdi ---
+# --- team cash ---
 
 func test_cash_initial_and_on_signal() -> void:
 	await _open(func() -> void: game.cash = 1250)
@@ -113,13 +113,13 @@ func test_ping_states() -> void:
 	eq(label.text, tr("HUD_PING_HOST"))
 
 
-# --- oyuncu listesi ---
+# --- player list ---
 
 func test_players_list_follows_signal() -> void:
 	await _open()
 	eq(_player_rows(), [] as Array[String])
 	net.my_peer_id = 2
-	# S3: players() renk değil slot taşır; peer 7 3. sırada ama 4. yuvada (ayrılanın yuvası boş kalmış).
+	# S3: players() carries a slot, not a colour; peer 7 is 3rd in order but in the 4th slot (the departed one's slot stayed empty).
 	game.roster = {
 		2: {"name": "Bo", "slot": 1},
 		1: {"name": "Ayşe", "slot": 0},
@@ -137,7 +137,7 @@ func test_players_list_follows_signal() -> void:
 	eq(_player_rows().size(), 2, "ayrılan oyuncu listeden düşer")
 
 
-# --- oturum olayları ---
+# --- session events ---
 
 func test_session_event_shows_keyed_toast() -> void:
 	await _open()
@@ -161,7 +161,7 @@ func test_session_event_data_fills_placeholders() -> void:
 
 
 func test_player_events_show_named_text() -> void:
-	# IS-080: US-008 oyuncu olayları (player_status.gd) genel metne düşmez, oyuncunun adını taşır.
+	# IS-080: US-008 player events (player_status.gd) do not fall to generic text, they carry the player's name.
 	await _open()
 	game.roster = {1: {"name": "Ayla", "slot": 0}, 7: {"name": "", "slot": 1}}
 	game.session_event.emit(&"player_held", {"peer": 1, "window": 3.0})
@@ -200,7 +200,7 @@ func test_toasts_expire_and_are_capped() -> void:
 	eq(_node("Toasts").get_child_count(), 0, "süresi dolan kalkar")
 
 
-# --- etkileşim (S7 sinyalleri, sahte oyuncu) ---
+# --- interaction (S7 signals, fake player) ---
 
 func test_interaction_progress_from_local_player_signals() -> void:
 	await _open()
@@ -255,7 +255,7 @@ func test_rebinding_local_player() -> void:
 	is_false((_node("Interaction") as Control).visible)
 
 
-# --- etkileşim istemi (S7 interaction_target_changed) ---
+# --- interaction prompt (S7 interaction_target_changed) ---
 
 func test_prompt_follows_target_and_input_device() -> void:
 	await _open()
@@ -301,7 +301,7 @@ func test_prompt_gives_way_to_progress() -> void:
 	is_false(prompt.visible)
 
 
-# --- IS-091: ikinci istem satırı (Q / intimidate) ---
+# --- IS-091: second prompt line (Q / intimidate) ---
 
 func test_alt_prompt_row_follows_alt_target_and_device() -> void:
 	await _open()
@@ -379,7 +379,7 @@ func test_player_without_prompt_signals_is_tolerated() -> void:
 	is_false((_node("Prompt") as Control).visible, "eski oyuncunun hedef sinyali dinlenmez")
 
 
-# --- AC3: duraklat menüsü ---
+# --- AC3: pause menu ---
 
 func test_pause_menu_blocks_gameplay_input() -> void:
 	await _open()
@@ -446,7 +446,7 @@ func test_host_disconnected_returns_to_menu_with_error() -> void:
 
 
 func test_connection_failed_after_level_load_returns_to_menu() -> void:
-	# El sıkışma bitmeden seviye yüklendi (ana menü kalktı), sonra bağlantı kurulamadı.
+	# The level loaded before the handshake finished (main menu gone), then the connection could not be made.
 	await _open()
 	net.connection_failed.emit()
 	eq(menu_requests, [&"MENU_ERROR_CONNECTION_FAILED"] as Array[StringName])

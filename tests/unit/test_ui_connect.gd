@@ -1,11 +1,11 @@
 extends TestCase
-## Bağlantı kolaylığı (US-026): davet adresi seçimi, "adres[:port]" ayrıştırma, pano metninden adres,
-## ayar dosyası okuma/yazma, davet paneli (Kopyala, açılır liste) ve duraklat menüsünde yalnız host'ta görünmesi.
+## Connection ease (US-026): invite address choice, "address[:port]" parsing, address from clipboard text, settings file
+## read/write, the invite panel (Copy, dropdown) and visibility only for the host in the pause menu.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const INVITE_SCENE := preload("res://ui/invite_panel.tscn")
 const PAUSE_SCENE := preload("res://ui/pause_menu.tscn")
-## Geçici ayar dosyası (oyuncunun user://connect.cfg'sine dokunulmaz).
+## Temporary settings file (the player's user://connect.cfg is not touched).
 const TEMP_PATH := "user://test_ui_connect_io.cfg"
 
 
@@ -21,7 +21,7 @@ func _viewport() -> SubViewport:
 	return vp
 
 
-# --- adres seçici (saf) ---
+# --- address picker (pure) ---
 
 func test_invite_candidates_prefer_tailscale() -> void:
 	var real_windows: PackedStringArray = ["0:0:0:0:0:0:0:1", "127.0.0.1", "fe80:0:0:0:8c39:898c:33dc:6daf",
@@ -63,7 +63,7 @@ func test_invite_text_and_session_port() -> void:
 	eq(ConnectInfo.MAX_NAME_LENGTH, MainMenu.MAX_NAME_LENGTH)
 
 
-# --- host:port ayrıştırma ---
+# --- host:port parsing ---
 
 func test_parse_host_port() -> void:
 	eq(ConnectInfo.parse_host_port("100.64.0.2"), {"ok": true, "address": "100.64.0.2", "port": 7777})
@@ -109,7 +109,7 @@ func test_find_invite_ranking_and_ts_names() -> void:
 	is_false(ConnectInfo.find_invite("")["ok"])
 
 
-# --- ayar dosyası ---
+# --- settings file ---
 
 func test_settings_round_trip_and_merge() -> void:
 	_remove(TEMP_PATH)
@@ -152,7 +152,7 @@ func test_settings_default_path_is_user_connect_cfg() -> void:
 	Fakes.reset_connect_settings()
 
 
-# --- davet paneli ---
+# --- invite panel ---
 
 func _invite(addresses: PackedStringArray, copied: Array[String]) -> InvitePanel:
 	var panel: InvitePanel = INVITE_SCENE.instantiate() as InvitePanel
@@ -232,7 +232,7 @@ func test_invite_panel_list_is_capped_and_can_be_disabled() -> void:
 	eq((panel.get_node("%AddressLabel") as Label).text, "10.0.0.1:7777")
 
 
-# --- duraklat menüsü ---
+# --- pause menu ---
 
 func _pause(hosting: bool, addresses: PackedStringArray) -> PauseMenu:
 	var pair: Array = Fakes.make_pair(self)

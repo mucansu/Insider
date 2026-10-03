@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-""".claude/hooks/agent_guard.py testleri (IS-053). Yalnız standart kütüphane; Godot gerekmez.
+""".claude/hooks/agent_guard.py tests (IS-053). Standard library only; no Godot needed.
 
-Koşu: python tools/test_agent_guard.py   (Windows'ta `python` ya da `py -3`; CI: ci_local.sh tools)
-Kapsam: bash modu (commit/push/merge/rebase/tag/dal değiştirme/branch -D/worktree remove/rm -rf kök; izinli
-status/diff/log/show, reset --hard, stash push -m + apply <sha>), edit modu (pano, .claude/{agents,hooks,
-settings}, --allow kökleri; Windows ters bölü, sürücü harfi, Git Bash /c/ yolu, worktree yolu, büyük/küçük
-harf), readonly modu (Edit/Write hepsi; > / >>, sed -i, git checkout --, git apply, cp/mv depo içi; geçici
-dizinler serbest), süreç düzeyi (çıkış 2 + Türkçe stderr; bozuk JSON/bilinmeyen mod → 0).
+Run: python tools/test_agent_guard.py   (on Windows `python` or `py -3`; CI: ci_local.sh tools)
+Coverage: bash mode (commit/push/merge/rebase/tag/branch switch/branch -D/worktree remove/rm -rf root; allowed
+status/diff/log/show, reset --hard, stash push -m + apply <sha>), edit mode (board files, .claude/{agents,hooks,
+settings}, --allow roots; Windows backslash, drive letter, Git Bash /c/ path, worktree path, case), readonly mode (all
+Edit/Write; > / >>, sed -i, git checkout --, git apply, cp/mv inside the repo; temp dirs free), process level (exit 2 +
+Turkish stderr; malformed JSON/unknown mode -> 0).
 """
 
 from __future__ import annotations
@@ -171,7 +171,7 @@ class BashMode(Base):
         self.assertIsNone(run("bash", {"tool_name": "Bash", "tool_input": "git push"}))
         self.assertIsNone(run("bash", {"tool_name": "Bash", "tool_input": {"command": 5}}))
         self.assertIsNone(run("bash", {"tool_name": "Read", "tool_input": {"file_path": "x"}}))
-        # Kapanmamış tırnak: kaba bölmeye düşer, yine de commit yakalanır.
+        # Unclosed quote: falls back to a rough split, the commit is still caught.
         self.assertIsNotNone(run("bash", payload("Bash", command="git commit -m 'yarım")))
 
 
@@ -232,9 +232,9 @@ class EditMode(unittest.TestCase):
         self.assertIsNotNone(self.edit(WT + "\\autoload\\net.gd", allow))
         self.assertIsNotNone(self.edit(WT + "\\docs\\arastirma_x.md", allow))
         self.assertIsNotNone(self.edit(WT + "\\docs\\arastirma\\..\\notes\\mimari.md", allow))
-        # Depo dışı (scratchpad) serbest.
+        # Outside the repo (scratchpad) is free.
         self.assertIsNone(self.edit("C:\\Users\\dev\\AppData\\Local\\Temp\\claude\\x\\scratchpad\\n.md", allow))
-        # Pano yine engelli (allow kökü altında olmasa da).
+        # Board still blocked (even if not under the allow root).
         self.assertIsNotNone(self.edit(WT + "\\docs\\surec\\backlog.md", ["docs/"]))
         tasarim = ["docs/tasarim/"]
         self.assertIsNone(self.edit(WT + "\\docs\\tasarim\\degerlendirmeler\\faz-2.md", tasarim))
@@ -331,7 +331,7 @@ TEMP_CWD = "C:\\Users\\dev\\AppData\\Local\\Temp\\iş"
 
 
 class CdTracking(Base):
-    """Zincirdeki cd/pushd/popd/Set-Location izlenir (t1b)."""
+    """`cd`/`pushd`/`popd`/`Set-Location` in a chain are tracked (t1b)."""
 
     mode = "readonly"
 
@@ -379,7 +379,7 @@ class CdTracking(Base):
                     "popd && echo a > f"]:
             with self.subTest(cmd=cmd):
                 self.assertTrue(self.warned(cmd), cmd)
-        # Mutlak depo hedefi cd çözülemese de engelli.
+        # An absolute repo target is blocked even if the cd cannot be resolved.
         self.blocked("cd $x && echo a > /c/Users/dev/Insider/f")
         self.assertEqual(self.warned("echo a > /tmp/f"), [])
 
@@ -391,7 +391,7 @@ class CdTracking(Base):
 
 
 class CheckoutPathOrBranch(unittest.TestCase):
-    """`git checkout <tek_argüman>`: mevcut yol → dosya geri alma (izinli), değilse dal değiştirme (engelli)."""
+    """`git checkout <single_argument>`: an existing path -> file restore (allowed), otherwise branch switch (blocked)."""
 
     def setUp(self) -> None:
         self.tmp = tempfile.TemporaryDirectory()
@@ -432,7 +432,7 @@ class CheckoutPathOrBranch(unittest.TestCase):
         self.assertIsNone(self.check("git -C " + os.path.join(self.dir, "sub").replace("\\", "/") + " checkout a.gd"))
         self.assertIsNotNone(self.check("git -C sub checkout dev"))
         self.assertIsNotNone(self.check("git -C tools checkout autoload/net.gd"))
-        self.assertIsNotNone(self.check("git checkout a.gd"))  # kökte yok
+        self.assertIsNotNone(self.check("git checkout a.gd"))  # not at the root
 
     def test_unknown_cwd_falls_back_to_dot_heuristic(self) -> None:
         self.assertIsNone(self.check("cd $x && git checkout a.gd"))
@@ -488,7 +488,7 @@ class Process(unittest.TestCase):
 
 
 class Frontmatter(unittest.TestCase):
-    """Ajan dosyalarında hook bağlı ve doğru modda (alan değişirse test hatırlatır)."""
+    """The hook is wired and in the right mode in the agent files (the test reminds you if the field changes)."""
 
     AGENTS = os.path.join(HERE, "..", ".claude", "agents")
     EXPECT = {
