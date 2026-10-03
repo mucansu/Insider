@@ -26,6 +26,11 @@ extends Area2D
 ## Aktör durumu (US-008 t2): host, `is_free()` sunan ve serbest olmayan (tutulan/yakalanan) aktörün isteğini
 ## `not_free` ile reddeder, süren etkileşimini iptal eder; prop `actor_filter`'a `func(peer_id, actor) -> bool`
 ## verebilir (false → `actor` reddi; ör. ÇEK: tutulan kendi kurtarmasını başlatamaz).
+## US-010 ekleri (yalnız ekleme): `input_action` hangi girdinin bu bileşeni tetiklediği (S5: `interact` E ya da
+## `intimidate` Q; oyuncu her eylem için ayrı istem satırı gösterir, PlayerInteraction); `innocent` sosyal eylem
+## (satın al, konuş, gönder): sivil çarpan tablosunda kurcalama sayılmaz; `start_blocker` peer'lı da olabilir
+## (`func(peer_id: int) -> bool`; 0 argümanlı eski biçim geçerli; NPC kullanımında peer 0); `host_abort()` host'ta
+## süren etkileşimi iptal eder (ör. sahip konuşmayı keser).
 
 ## Yalnız host'ta.
 signal completed(peer_id: int)
@@ -48,12 +53,16 @@ const SYNC_INTERVAL := 0.1
 	set = _set_interact_range
 @export var enabled: bool = true
 @export var requirement: InteractionRequirement
+## Tetikleyen girdi eylemi (S5; US-010): &"interact" (E) ya da &"intimidate" (Q, gamepad X).
+@export var input_action: StringName = &"interact"
+## Sosyal eylem (US-010): sürerken sivil çarpan tablosunda kurcalama (TAMPER) sayılmaz.
+@export var innocent: bool = false
 
 ## Çoğaltılan durum (host yazar).
 var busy_by: int = 0
 var progress: float = 0.0
-## İsteğe bağlı host engeli: `func() -> bool` (true = şu an uygulanamaz; ret nedeni "blocked"). Yalnız host'ta
-## ve yalnız yeni istek doğrulanırken çağrılır.
+## İsteğe bağlı host engeli: `func() -> bool` ya da `func(peer_id: int) -> bool` (true = şu an uygulanamaz; ret
+## nedeni "blocked"). Yalnız host'ta ve yalnız yeni istek doğrulanırken çağrılır.
 var start_blocker: Callable = Callable()
 ## İsteğe bağlı host aktör süzgeci: `func(peer_id: int, actor: Node) -> bool` (false = ret "actor").
 var actor_filter: Callable = Callable()
@@ -202,7 +211,7 @@ func host_start(peer_id: int, seq: int) -> void:
 	var result: InteractionRules.Result = InteractionRules.Result.NO_ACTOR
 	if actor != null:
 		var spec: InteractionRules.Target = _spec()
-		spec.blocked = start_blocker.is_valid() and bool(start_blocker.call())
+		spec.blocked = is_blocked_for(peer_id)
 		result = InteractionRules.host_check(spec, peer_id, _actor_position(actor), _actor_tags(actor),
 			_cooldown_left)
 	if result != InteractionRules.Result.OK:
@@ -232,12 +241,27 @@ func host_use_by_npc(actor_pos: Vector2) -> bool:
 		return false
 	if not InteractionRules.keeps_going(_spec(), actor_pos):
 		return false
-	if start_blocker.is_valid() and bool(start_blocker.call()):
+	if is_blocked_for(0):
 		return false
 	_npc_uses += 1
 	_cooldown_left = InteractionRules.REPEAT_COOLDOWN
 	completed.emit(0)
 	return true
+
+
+## Yalnız host: süren etkileşimi iptal eder (`cancelled` + isteyene başarısız sonuç); boşsa etkisiz.
+func host_abort() -> void:
+	if _is_host() and busy_by != 0:
+		_finish(false)
+
+
+## Host engeli bu peer için (peer 0 = NPC): `start_blocker` 0 ya da 1 argümanlı olabilir.
+func is_blocked_for(peer_id: int) -> bool:
+	if not start_blocker.is_valid():
+		return false
+	if start_blocker.get_argument_count() >= 1:
+		return bool(start_blocker.call(peer_id))
+	return bool(start_blocker.call())
 
 
 ## Etkileşimi bitirir: ilerleme sıfırlanır (yarıda bırakılan dahil), sinyal yayılır, isteyene sonuç gider.

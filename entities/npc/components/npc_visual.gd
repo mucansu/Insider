@@ -17,6 +17,7 @@ extends Node2D
 ## VisionRules.NPC_VISUAL_GROUP).
 ## US-016 eki (yalnız ekleme): müşteri ve yoldan geçen rolleri (gövde rengi), sivil/keşif balonları; sivil bir
 ## oyuncuyla iç içe geçince yarı saydam çizilir (GDD §9.2 "Engel": çarpışma yok, okunur kalsın).
+## IS-087: ebeveyn `is_listening()` true iken (sahip DİNLE'de) gösterge yoksa "?" çizilir.
 
 enum Role { OWNER, CHASER, CUSTOMER, PASSERBY }
 
@@ -45,6 +46,13 @@ const BALLOON_KEYS := {
 	&"owner_held": "OWNER_HELD",
 	&"owner_discover_register": "OWNER_DISCOVER_REGISTER",
 	&"owner_discover_cash": "OWNER_DISCOVER_CASH",
+	&"owner_serve": "OWNER_SERVE",
+	&"owner_talk": "OWNER_TALK",
+	&"owner_sent": "OWNER_SENT",
+	&"owner_listen": "OWNER_LISTEN",
+	&"owner_again": "OWNER_AGAIN",
+	&"owner_phone_found": "OWNER_PHONE_FOUND",
+	&"owner_loiter": "OWNER_LOITER",
 	&"customer_tell": "CIVILIAN_TELL",
 	&"passerby_tell": "CIVILIAN_TELL",
 	&"customer_flee": "CIVILIAN_FLEE",
@@ -120,6 +128,7 @@ func _process(_delta: float) -> void:
 		state.append(to_local(_gate.ghost_position()))
 	if p.has_method(&"cone_half_angle"):
 		state.append(p.call(&"cone_half_angle"))
+	state.append(_listening(p))
 	if state != _drawn:
 		_drawn = state
 		queue_redraw()
@@ -157,12 +166,15 @@ func _draw() -> void:
 		draw_line(Vector2.ZERO, local, ThemeTokens.GAMEPLAY_ALERT, 2.0)
 		draw_arc(local, HOLD_RING, 0.0, TAU, 24, ThemeTokens.GAMEPLAY_ALERT, 2.0)
 	var bubble_v: Variant = p.get(&"bubble")
-	if bubble_v is int:
-		match int(bubble_v):
-			CivilianRules.Bubble.NOTICE:
-				_draw_question(tone.fg_color)
-			CivilianRules.Bubble.ALARM:
-				_draw_exclaim(ThemeTokens.GAMEPLAY_ALERT)
+	var bubble: int = int(bubble_v) if bubble_v is int else CivilianRules.Bubble.NONE
+	match bubble:
+		CivilianRules.Bubble.NOTICE:
+			_draw_question(tone.fg_color)
+		CivilianRules.Bubble.ALARM:
+			_draw_exclaim(ThemeTokens.GAMEPLAY_ALERT)
+		_:
+			if _listening(p):
+				_draw_question(tone.fg_color)  # IS-087 AC4: DİNLE sırasında "?" (GDD §9.3)
 	_draw_balloon(p, tone)
 
 
@@ -186,6 +198,11 @@ func _draw_silhouette(center: Vector2, face: Vector2, tone: Tone) -> void:
 	var tip: Vector2 = center + face * (RADIUS + INDICATOR_LENGTH)
 	var side: Vector2 = face.orthogonal() * INDICATOR_HALF_WIDTH
 	draw_colored_polygon(PackedVector2Array([tip, center + face * RADIUS + side, center + face * RADIUS - side]), color)
+
+
+## Ebeveyn bir sesi dinliyor mu (duck typing `is_listening()`; sahip, IS-087 AC4).
+static func _listening(p: Node) -> bool:
+	return p.has_method(&"is_listening") and bool(p.call(&"is_listening"))
 
 
 func _held_point() -> Vector2:

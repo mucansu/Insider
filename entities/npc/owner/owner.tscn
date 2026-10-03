@@ -11,6 +11,7 @@
 [ext_resource type="Resource" path="res://data/npc/perception_tuning.tres" id="9_ptune"]
 [ext_resource type="Resource" path="res://data/npc/owner_tuning.tres" id="10_otune"]
 [ext_resource type="Resource" path="res://data/npc/civilian_tuning.tres" id="11_ctune"]
+[ext_resource type="Script" path="res://entities/props/interactable.gd" id="12_int"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_body"]
 radius = 12.0
@@ -37,6 +38,9 @@ properties/5/replication_mode = 2
 properties/6/path = NodePath(".:net_hold_peer")
 properties/6/spawn = false
 properties/6/replication_mode = 2
+properties/7/path = NodePath(".:net_shouted")
+properties/7/spawn = false
+properties/7/replication_mode = 2
 
 [node name="Owner" type="CharacterBody2D"]
 collision_layer = 4
@@ -69,6 +73,9 @@ script = ExtResource("6_senses")
 
 [node name="Brain" type="Node" parent="."]
 script = ExtResource("7_brain")
+
+[node name="Talk" type="Area2D" parent="."]
+script = ExtResource("12_int")
 
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="."]
 replication_interval = 0.0667

@@ -153,3 +153,19 @@ OWNER_DISCOVER_REGISTER,Kasa boş?!,The till is empty?!
 OWNER_DISCOVER_CASH,Para nerede?!,Where is the money?!
 CIVILIAN_TELL,Şu adam bir iş çeviriyor!,That one is up to something!
 CIVILIAN_FLEE,Ben karışmam!,Not my business!
+INTERACT_COUNTER_BUY,Satın al,Buy something
+INTERACT_COUNTER_SEND,Arka odaya gönder,Send to the back room
+INTERACT_OWNER_TALK,Oyala (sohbet et),Stall (chat)
+INTERACT_SHELF_TOPPLE,Rafı devir,Knock over the shelf
+INTERACT_PHONE_DROP,Telefonunu bırak,Leave your phone
+OWNER_SERVE,Buyrun?,Yes please?
+OWNER_TALK,Buyrun abi?,What can I do for you?
+OWNER_SENT,Hemen geliyorum!,Be right back!
+OWNER_LISTEN,Bu ses ne?,What was that?
+OWNER_AGAIN,Yine mi?!,Again?!
+OWNER_PHONE_FOUND,Bu kimin telefonu?,Whose phone is this?
+OWNER_LOITER,Bu adam ne istiyor?,What does this guy want?
+EVENT_PURCHASE,{name} alışveriş yaptı.,{name} bought something.
+EVENT_OWNER_SENT,Bakkal arka odaya gitti.,The grocer went to the back room.
+EVENT_OWNER_DISTRACTED,Bakkal sese yöneldi.,The grocer is checking a noise.
+EVENT_PHONE_FOUND,Bakkal telefonu buldu.,The grocer found the phone.

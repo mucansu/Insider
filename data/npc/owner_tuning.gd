@@ -12,6 +12,10 @@ extends Resource
 @export var tasks: Array[AgendaTask] = []
 ## Ajandada yürüme hızı (px/sn).
 @export_range(0.0, 1000.0, 1.0, "suffix:px/s") var walk_speed: float = 0.0
+## Sahibin arkasından kapattığı iç kapılar (Props düğüm adı; IS-087 AC2: D) ve geçişten sonraki gecikme (sn).
+## Ön kapı mesaide açık kalır (listede yok).
+@export var close_behind_doors: Array[StringName] = []
+@export_range(0.0, 5.0, 0.05, "suffix:s") var close_behind_sec: float = 0.0
 
 @export_group("Kesmeler")
 ## Kapı zili (sn), müşteri servisi (sn, US-016), arka odaya gönderilme (sn, US-010), ses dinleme (sn, US-009).
@@ -19,6 +23,9 @@ extends Resource
 @export_range(0.0, 60.0, 0.1, "suffix:s") var customer_sec: float = 0.0
 @export_range(0.0, 60.0, 0.1, "suffix:s") var sent_sec: float = 0.0
 @export_range(0.0, 60.0, 0.1, "suffix:s") var listen_sec: float = 0.0
+## İşitmenin köşe kırınımı (px; Hearing.corner_spread_px, US-010: tezgâhtaki sahip raf ucu devirmesini duvar
+## köşesini sıyıran sesten de duyar; 0 = kapalı).
+@export_range(0.0, 32.0, 0.5, "suffix:px") var hearing_corner_px: float = 0.0
 ## Ön kapı geçişini zil sayma yarıçapı (px; kapı işaretinden).
 @export_range(0.0, 256.0, 1.0, "suffix:px") var bell_radius: float = 0.0
 ## Müşteri servisi ve arka oda kesmesinin işaretleri.

@@ -9,6 +9,8 @@
 [ext_resource type="Script" uid="uid://bw4s7uaqkfgyj" path="res://entities/npc/store_alert.gd" id="6_alert"]
 [ext_resource type="Script" uid="uid://csgutiajmqys0" path="res://entities/fx/escape_marker.gd" id="7_escape"]
 [ext_resource type="Script" uid="uid://cjp3w5ymt8ytd" path="res://entities/npc/population.gd" id="7_pop"]
+[ext_resource type="PackedScene" path="res://entities/props/shop_counter.tscn" id="8_counter"]
+[ext_resource type="PackedScene" path="res://entities/props/shelf_prop.tscn" id="9_shelf"]
 
 [sub_resource type="RectangleShape2D" id="Bound_1"]
 size = Vector2(960, 32)
@@ -285,6 +287,18 @@ position = Vector2(624, 272)
 
 [node name="Bag" parent="Props" unique_id=692715059 instance=ExtResource("4_bag")]
 position = Vector2(496, 240)
+
+[node name="Counter" parent="Props" instance=ExtResource("8_counter")]
+position = Vector2(560, 336)
+
+[node name="ShelfProp1" parent="Props" instance=ExtResource("9_shelf")]
+position = Vector2(336, 208)
+
+[node name="ShelfProp2" parent="Props" instance=ExtResource("9_shelf")]
+position = Vector2(336, 272)
+
+[node name="ShelfProp3" parent="Props" instance=ExtResource("9_shelf")]
+position = Vector2(336, 336)
 
 [node name="NPCs" type="Node2D" parent="." unique_id=1842885990]
 

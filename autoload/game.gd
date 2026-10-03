@@ -51,7 +51,8 @@ const HUD_SCENE := "res://ui/hud.tscn"
 const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## El sıkışma protokolü sürümü; uyuşmayan peer reddedilir. Kablo (RPC/eşitleyici/handshake) düzeni değişince artar
 ## (mimari.md S2). 2: US-011b hareket eşitleyicisine 8 bit bakış açısı + görüş kipi/maruziyet RPC'leri.
-const PROTOCOL_VERSION := 3
+## 4: US-010 tezgâh/raf ucu prop'ları (eşitleyiciler), sahibin OYALA bileşeni ve `net_shouted`.
+const PROTOCOL_VERSION := 4
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 const MAX_EVENTS := 256

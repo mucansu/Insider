@@ -16,6 +16,8 @@ extends RefCounted
 ##   "!" beyin alarm durumundayken kilitli (tespit sonrası kısa saklanmada titremez).
 ## - Temas (tutma/yakalama): host'un en güncel konumu `velocity × min(RTT/2, lead_cap)` ileri alınır (ON-03,
 ##   oyuncu lehine: kaçan oyuncu ileride sayılır); `reach` içinde `contact_time` kesintisiz kalınca olur.
+## - Bakkal etkileşimleri (US-010): SATIN AL bedeli, oyalanma eşiği anı, dikkat dağıtma defteri ("yine mi?") ve
+##   raf ucuna bırakılan telefonun saati (dosya sonu).
 
 enum Zone { OUTSIDE, CUSTOMER, STAFF, BACKROOM }
 ## Tabloda çarpanı veren satır (döküm `behaviour`).
@@ -178,3 +180,97 @@ static func bubble(p: Params, meter: float, alarmed: bool, previous: Bubble) -> 
 	if previous != Bubble.NONE and meter >= p.notice_at - p.bubble_hysteresis:
 		return Bubble.NOTICE
 	return Bubble.NONE
+
+
+## --- Bakkal etkileşimleri (US-010; GDD §9.3 "Oyuncunun araçları", KR-026) ---
+
+## Raf ucuna bırakılan telefonun durumu (çoğaltılan int; ShelfProp).
+enum Phone { NONE, PLANTED, RINGING, FOUND, SILENT }
+const PHONE_NAMES: Array[StringName] = [&"none", &"planted", &"ringing", &"found", &"silent"]
+
+
+## SATIN AL bedeli: ekip nakdi fiyata yetiyorsa fiyat, yetmiyorsa 0 (bedava; GDD §9.3, Faz 2).
+static func purchase_cost(team_cash: int, price: int) -> int:
+	return price if price > 0 and team_cash >= price else 0
+
+
+## Oyalanma eşiği bu adımda mı geçildi (önce < eşik ≤ şimdi; "bu adam ne istiyor" anı).
+static func loiter_crossed(before: float, now: float, grace: float) -> bool:
+	return before < grace and now >= grace
+
+
+## Dikkat dağıtma defteri (iş başına): kaynak (prop + tür) başına bir kez sayılır — çalmayı sürdüren telefon tek
+## dikkat dağıtmadır; ikinci ve sonraki kaynak "yine mi?" (sahipte sorumluya şüphe).
+class DistractionLog:
+	extends RefCounted
+	var count: int = 0
+	var _seen: Dictionary = {}
+
+	## Yeni kaynaksa sayar ve true; bilinen kaynak (ya da boş anahtar) false.
+	func note(key: String) -> bool:
+		if key.is_empty() or _seen.has(key):
+			return false
+		_seen[key] = true
+		count += 1
+		return true
+
+	## Son sayılan kaynak ikinci ya da sonraki mi.
+	func is_again() -> bool:
+		return count >= 2
+
+
+## Telefon saati (raf ucu; host): bırakılınca `delay` sn bekler, sonra `interval` aralıkla en çok `max_rings` kez
+## çalar, sonra susar; sahip bulursa (çalarken ya da sustuktan sonra) FOUND. Bir saat bir kez kullanılır.
+class PhoneClock:
+	extends RefCounted
+	var state: int = Phone.NONE
+	## Bırakan oyuncu (sorumlu) ve çalma sayısı.
+	var peer: int = 0
+	var rings: int = 0
+	var delay: float = 0.0
+	var interval: float = 1.0
+	var max_rings: int = 1
+	var _left: float = 0.0
+
+	func _init(delay_sec: float, interval_sec: float, ring_max: int) -> void:
+		delay = maxf(delay_sec, 0.0)
+		interval = maxf(interval_sec, 0.01)
+		max_rings = maxi(ring_max, 1)
+
+	## Telefonu bırak (yalnız boşken). Kabul edilirse true.
+	func plant(peer_id: int) -> bool:
+		if state != Phone.NONE:
+			return false
+		state = Phone.PLANTED
+		peer = peer_id
+		_left = delay
+		return true
+
+	## Bir adım; bu adımda çaldıysa true.
+	func step(delta: float) -> bool:
+		var dt: float = maxf(delta, 0.0)
+		match state:
+			Phone.PLANTED:
+				_left -= dt
+				if _left <= 0.0:
+					state = Phone.RINGING
+					rings = 1
+					_left += interval
+					return true
+			Phone.RINGING:
+				_left -= dt
+				if _left <= 0.0:
+					if rings >= max_rings:
+						state = Phone.SILENT
+						return false
+					rings += 1
+					_left += interval
+					return true
+		return false
+
+	## Sahip buldu: çalıyor ya da susmuşsa alınır (true).
+	func take() -> bool:
+		if state != Phone.RINGING and state != Phone.SILENT:
+			return false
+		state = Phone.FOUND
+		return true

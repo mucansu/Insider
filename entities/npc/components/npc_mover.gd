@@ -14,6 +14,14 @@ extends Node
 ##   varmayan yol "kısmi" sayılmaz, `failed` olur ve `path_failed` ile beyne bildirilir.
 ## - Kapı bağı üzerindeyken (NPC gezinme çokgeninin dışında) yol yenilenmez: aksi halde en yakın çokgen noktası
 ##   geri tarafta kalıp NPC kapı eşiğinde ileri geri salınır.
+## IS-087 ekleri (yalnız host):
+## - Kısa yol (`door_shortcut`): hedefe açık bir yol olsa da kapalı bir kapıyı açarak giden yol belirgin kısaysa
+##   (kazanç ≥ SHORTCUT_MIN_PX ya da ≥ SHORTCUT_RATIO × açık yol) kapıyı açarak gider (sahip arka kapı açıkken
+##   caddeden dolaşmaz). Maliyet gezinme yolu uzunluklarıyla (NPC → kapı ucu + bağ + öbür uç → hedef).
+## - Arkasından kapatma (`close_behind`): listedeki kapı adlarından birinin eşiğini geçince `close_delay` sn sonra
+##   (hâlâ menzildeyken; kanat boşalana kadar yeniden dener) kapıyı `host_close_by_npc` ile kapatır;
+##   `close_enabled` false iken (sahip alarmda) kapatmaz.
+## - Kendi kapı sesi: açma/kapama, kardeş `Hearing`'in `ignore_own`'u içinde yapılır (NPC kendi kapı sesini duymaz).
 
 ## Yalnız host: hedefe yol bulunamadı (kapı da yok); NPC durur.
 signal path_failed(target: Vector2)
@@ -31,6 +39,23 @@ const PATH_ARRIVE_PX := 32.0
 const DOOR_REACH := 36.0
 ## Çokgenden bu kadar uzaktaysa bağ üzerinde sayılır (px).
 const OFF_MESH_PX := 3.0
+## Kısa yol eşikleri (IS-087 AC3): kazanç en az bu kadar px ya da açık yolun bu oranı.
+const SHORTCUT_MIN_PX := 160.0
+const SHORTCUT_RATIO := 0.4
+## Eşik geçişi: kapı ekseni boyunca bu kadar içinde (px) taraf değişimi geçiş sayılır.
+const CROSS_ALONG_PX := 24.0
+## Arkasından kapatma: geçişten sonra en çok bu kadar sn yeniden denenir.
+const CLOSE_GIVE_UP_SEC := 3.0
+const DOOR_NOISE_KIND := &"door"
+const HEARING_NODE := ^"Hearing"
+
+## Kapalı kapıyı açarak giden kısa yolu seç (IS-087 AC3; sahip).
+var door_shortcut: bool = false
+## Arkasından kapatılan kapıların adları (Props altındaki düğüm adı; IS-087 AC2) ve gecikme (sn).
+var close_behind: Array[StringName] = []
+var close_delay: float = 0.6
+## false: arkasından kapatma beklemede (beyin alarmda kapatmaz).
+var close_enabled: bool = true
 
 var _target: Vector2 = Vector2.INF
 var _speed: float = 0.0
@@ -44,6 +69,13 @@ var _spread: float = -1.0
 var _door: Node2D = null
 ## Seçilen kapının NPC tarafındaki bağ ucu.
 var _door_near: Vector2 = Vector2.INF
+## Arkasından kapatma: kapı adı -> son taraf (±1); kapı adı -> geçişten beri geçen süre (sn).
+var _door_side: Dictionary = {}
+var _close_wait: Dictionary = {}
+## Teşhis (döküm/test): açılan, kısa yol için seçilen ve arkasından kapatılan kapı sayısı.
+var doors_opened: int = 0
+var shortcuts: int = 0
+var doors_closed: int = 0
 
 
 ## Hedefe `speed` px/sn ile git; `stop_distance` içinde varılmış sayılır.
@@ -85,8 +117,9 @@ func map_ready() -> bool:
 	return map.is_valid() and NavigationServer2D.map_get_iteration_id(map) > 0
 
 
-## Bu adımın istenen hızı (global px/sn).
+## Bu adımın istenen hızı (global px/sn). Arkasından kapatma her çağrıda (varılmış olsa da) işler.
 func desired_velocity(delta: float) -> Vector2:
+	_track_doors(delta)
 	if arrived():
 		return Vector2.ZERO
 	var here: Vector2 = _body_pos()
@@ -129,6 +162,12 @@ func _plan(here: Vector2) -> void:
 	_path = _query(here, _target)
 	if _reaches(_path, _target):
 		_failed = false
+		if door_shortcut:
+			var shortcut: Node2D = _shortcut_door(here, _target, path_length(_path))
+			if shortcut != null:
+				shortcuts += 1
+				_door = shortcut
+				_path = _query(here, _door_near)
 		return
 	var door: Node2D = _best_closed_door(here, _target)
 	if door == null:
@@ -204,8 +243,104 @@ func _near_end(door: Node2D, from: Vector2, to: Vector2) -> Vector2:
 func _open(door: Node2D, here: Vector2) -> void:
 	var item: Interactable = door.get_node_or_null(^"Interactable") as Interactable
 	if item != null and &"is_open" in door and not bool(door.get(&"is_open")):
-		item.host_use_by_npc(here)  # yalnız "aç": açık kapıya dokunulmaz (kapatmaz)
+		# yalnız "aç": açık kapıya dokunulmaz (kapatmaz); kendi kapı sesini duymaz (IS-087 AC1)
+		if bool(_as_own_noise(door.global_position, func() -> bool: return item.host_use_by_npc(here))):
+			doors_opened += 1
 	_door = null
+
+
+## Yol uzunluğu (px).
+static func path_length(path: PackedVector2Array) -> float:
+	var total: float = 0.0
+	for i: int in range(1, path.size()):
+		total += path[i - 1].distance_to(path[i])
+	return total
+
+
+## Kısa yol (IS-087 AC3): açık yoldan (`open_length`) belirgin kısa giden kapalı kapı; yoksa null. Seçilirse
+## `_door_near` NPC tarafındaki uçtur.
+func _shortcut_door(from: Vector2, to: Vector2, open_length: float) -> Node2D:
+	var level: Node = _level()
+	if level == null or not level.has_method(&"props_root"):
+		return null
+	var props: Node = level.call(&"props_root") as Node
+	if props == null:
+		return null
+	var best: Node2D = null
+	var best_cost: float = INF
+	var best_near: Vector2 = Vector2.INF
+	for child: Node in props.get_children():
+		var door: Node2D = child as Node2D
+		if door == null or not (&"is_open" in door) or bool(door.get(&"is_open")):
+			continue
+		var link: NavigationLink2D = level.call(&"door_link", StringName(door.name)) as NavigationLink2D
+		if link == null:
+			continue
+		var ends: Array[Vector2] = [link.to_global(link.start_position), link.to_global(link.end_position)]
+		for i: int in 2:
+			var near_path: PackedVector2Array = _query(from, ends[i])
+			if not _reaches(near_path, ends[i]):
+				continue
+			var far_path: PackedVector2Array = _query(ends[1 - i], to)
+			if not _reaches(far_path, to):
+				continue
+			var cost: float = path_length(near_path) + ends[0].distance_to(ends[1]) + path_length(far_path)
+			if cost < best_cost:
+				best_cost = cost
+				best = door
+				best_near = ends[i]
+	if best == null:
+		return null
+	var saving: float = open_length - best_cost
+	if saving < SHORTCUT_MIN_PX and saving < SHORTCUT_RATIO * open_length:
+		return null
+	_door_near = best_near
+	return best
+
+
+## Arkasından kapatma (IS-087 AC2): listedeki kapının eşiğini geçince `close_delay` sonra kapatır.
+func _track_doors(delta: float) -> void:
+	if close_behind.is_empty():
+		return
+	var level: Node = _level()
+	if level == null or not level.has_method(&"props_root"):
+		return
+	var props: Node = level.call(&"props_root") as Node
+	if props == null:
+		return
+	var here: Vector2 = _body_pos()
+	for door_name: StringName in close_behind:
+		var door: Node2D = props.get_node_or_null(NodePath(String(door_name))) as Node2D
+		if door == null or not (&"is_open" in door):
+			continue
+		var offset: Vector2 = here - door.global_position
+		var normal: Vector2 = Vector2.DOWN.rotated(door.global_rotation)
+		var side: float = signf(offset.dot(normal))
+		var was: float = float(_door_side.get(door_name, side))
+		if side != 0.0:
+			_door_side[door_name] = side
+		if side != 0.0 and was != 0.0 and side != was and absf(offset.dot(normal.orthogonal())) <= CROSS_ALONG_PX:
+			_close_wait[door_name] = 0.0
+		if not _close_wait.has(door_name):
+			continue
+		var waited: float = float(_close_wait[door_name]) + maxf(delta, 0.0)
+		_close_wait[door_name] = waited
+		if not bool(door.get(&"is_open")) or waited > CLOSE_GIVE_UP_SEC:
+			_close_wait.erase(door_name)
+		elif close_enabled and waited >= close_delay and door.has_method(&"host_close_by_npc"):
+			var closer := func() -> bool: return bool(door.call(&"host_close_by_npc", here))
+			if bool(_as_own_noise(door.global_position, closer)):
+				doors_closed += 1
+				_close_wait.erase(door_name)
+
+
+## Kendi eylemi: kardeş Hearing varsa eylemin kapı sesi duyulmaz (IS-087 AC1).
+func _as_own_noise(at: Vector2, action: Callable) -> Variant:
+	var body: Node = get_parent()
+	var hearing: Node = body.get_node_or_null(HEARING_NODE) if body != null else null
+	if hearing != null and hearing.has_method(&"ignore_own"):
+		return hearing.call(&"ignore_own", at, DOOR_NOISE_KIND, action)
+	return action.call()
 
 
 func _map() -> RID:

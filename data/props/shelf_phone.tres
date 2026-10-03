@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="PropDef" format=3]
+
+[ext_resource type="Script" path="res://entities/props/prop_def.gd" id="1_def"]
+
+[resource]
+script = ExtResource("1_def")
+action_key = "INTERACT_PHONE_DROP"
+hold_time = 0.5
+interact_range = 40.0

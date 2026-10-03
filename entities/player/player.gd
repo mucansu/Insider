@@ -52,6 +52,8 @@ extends CharacterBody2D
 signal identity_changed()
 ## Yakındaki etkileşilebilir hedef değişti (boş dize = hedef yok); yalnız yerel oyuncuda (S7).
 signal interaction_target_changed(action_key: String)
+## Q (`intimidate`) istem satırının hedefi değişti (boş = yok); yalnız yerel oyuncuda (S7 eki, US-010).
+signal interaction_alt_target_changed(action_key: String)
 signal interaction_started(action_key: String, duration: float)
 signal interaction_finished(success: bool)
 ## Her peer'da: tutulma/yakalanma durumu değişti (PlayerStatus.State).
@@ -62,6 +64,7 @@ signal rescued(rescuer: int)
 const DUMP_KEY := "player_states"
 const INTERACTION_DUMP_KEY := "interaction"
 const INTERACT_ACTION := &"interact"
+const ALT_INTERACT_ACTION := &"intimidate"
 const TUNING_PATH := "res://data/player_tuning.tres"
 ## Gövde şekli yoksa varsayılan yarıçap (S4: karakter çapı ~24 px).
 const BODY_RADIUS := 12.0
@@ -128,6 +131,7 @@ func _ready() -> void:
 		_setup_camera()
 		_publish()
 		_interaction.target_changed.connect(interaction_target_changed.emit)
+		_interaction.alt_target_changed.connect(interaction_alt_target_changed.emit)
 		_interaction.started.connect(_on_interaction_started)
 		_interaction.finished.connect(_on_interaction_finished)
 		if not Args.dump_path.is_empty():
@@ -162,7 +166,7 @@ func _physics_process(delta: float) -> void:
 		_publish()
 		_emit_step_noise(delta)
 		_interaction.tick(delta, free and _input.is_held(INTERACT_ACTION), global_position, peer_id(),
-			interaction_tags())
+			interaction_tags(), free and _input.is_held(ALT_INTERACT_ACTION))
 	if _track_walls and overlaps_world():
 		_wall_frames += 1
 
