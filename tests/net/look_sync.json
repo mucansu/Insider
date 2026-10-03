@@ -1,0 +1,28 @@
+{
+  "_doc": "US-011b AC3/AC7/AC8 (GDD §6.5; S2, S3 eki görüş): store_a, gerçek oyuncu sahnesi, host + c1 + c2. Görüş kipi host kuralı: host'un yönlü seçimi (botundaki t=0 'vision_mode' kancası = --vision-mode=directional) istemcilere çoğaltılır, herkes aynı — 2,5 sn geç katılan c2 dahil (kip kabulde, oyuncusu doğmadan); her peer'da yerel oyuncuya sis bağlı. Bakış istemci yetkili: c1 bot 'look' adımlarıyla döner (son hedef −90°, t=4); 8 bit açı hareket eşitleyicisinde 20 Hz gider, uzak kopya 100 ms tamponla ara değerler ve 240°/sn tavanla izler — host'ta ve c2'de (iki bacak) c1'in uzak look_deg'i hedefe yakınsar (dönüş sırasındaki gecikme payı ≤ 240°/sn × (RTT/2 + 0,1 sn) + 2°; döküm anında dönüş biteli ~6 sn olduğundan 2° yeter). Maruziyet yalnız host'ta yazılır ve 10 Hz çoğaltılır: c1 sahibin konisine girince 0→1 (sonra şüphe ≥ 30 → 2); geçiş geçmişinin ilk iki öğesi her peer'da [0, 1]; c2 içeri girmez (gizli). c1 sahibi (yakın halkada) tam görür. Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 12,
+  "start_delay": {"c2": 2.5},
+  "bots": {
+    "host": "res://tests/net/bots/look_host.json",
+    "c1": "res://tests/net/bots/look_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.vision.mode", "directional"]},
+    {"eq": ["*.vision.fog", true]},
+    {"eq": ["c1.player_states.$c1.look_deg", -90.0]},
+    {"eq": ["c1.vision.look_deg", -90.0]},
+    {"near": ["host.vision.remote_look_deg.$c1", -90.0, 2.0]},
+    {"near": ["c2.vision.remote_look_deg.$c1", -90.0, 2.0]},
+    {"near": ["host.player_states.$c1.look_deg", -90.0, 2.0]},
+    {"eq": ["*.vision.exposure_history.$c1.0", 0]},
+    {"eq": ["*.vision.exposure_history.$c1.1", 1]},
+    {"eq": ["*.vision.exposure.$c2", 0]},
+    {"has": ["c1.vision.visible_npcs", "Owner"]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

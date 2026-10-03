@@ -49,8 +49,9 @@ signal alert_level_changed(level: int)
 const DEFAULT_LEVEL := "res://levels/store_a.tscn"
 const HUD_SCENE := "res://ui/hud.tscn"
 const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
-## El sıkışma protokolü sürümü; uyuşmayan peer reddedilir.
-const PROTOCOL_VERSION := 1
+## El sıkışma protokolü sürümü; uyuşmayan peer reddedilir. Kablo (RPC/eşitleyici/handshake) düzeni değişince artar
+## (mimari.md S2). 2: US-011b hareket eşitleyicisine 8 bit bakış açısı + görüş kipi/maruziyet RPC'leri.
+const PROTOCOL_VERSION := 2
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 const MAX_EVENTS := 256
@@ -66,6 +67,7 @@ const CATCHUP_INTERVAL_SEC := 0.05
 const BASE_DUMP_KEYS: Array[String] = [
 	"peer_id", "is_host", "peers", "players", "team_cash", "level", "player_nodes", "events", "host_lost",
 	"ping_ms", "alert",
+	"vision",  # US-011b görüş eki (S3 eki; döküm aşağıda `_vision_dump`)
 ]
 ## Uyarı geçmişinde tutulan en fazla kademe.
 const MAX_ALERT_HISTORY := 64
@@ -268,6 +270,7 @@ func collect_dump() -> Dictionary:
 		"host_lost": _host_lost,
 		"ping_ms": _dump_pings(),
 		"alert": {"level": _alert_level, "timer_left": _alert_timer, "history": _alert_history.duplicate()},
+		"vision": to_json_value(_vision_dump()),  # US-011b
 	}
 	for key: String in _dump_providers:
 		var provider: Callable = _dump_providers[key]
@@ -989,8 +992,10 @@ func _notification(what: int) -> void:
 	match what:
 		NOTIFICATION_ENTER_TREE:
 			_heist_setup()
+			_vision_setup()  # US-011b
 		NOTIFICATION_PHYSICS_PROCESS:
 			_heist_physics(get_physics_process_delta_time())
+			_vision_physics(get_physics_process_delta_time())  # US-011b
 
 
 func _heist_setup() -> void:
@@ -1285,3 +1290,262 @@ func _heist_apply_hook(step: Dictionary) -> void:
 			request_restart()
 		_:
 			push_warning("Game: bilinmeyen soygun test adımı: %s" % str(step[HEIST_HOOK_KEY]))
+
+
+# =====================================================================================================================
+# US-011b — Görüş eki (mimari.md S3 eki "Görüş ekleri", KR-022/KR-023; GDD §6.5). Bu bölüm yukarıdaki koda
+# dokunmaz: girişleri `_notification` (ENTER_TREE, PHYSICS_PROCESS) ve sinyaller; kurallar düğümsüz
+# `VisionRules.Session`'da (core/vision_rules.gd).
+# - Görüş kipi (`vision_mode`, 0 çevresel 360° / 1 yönlü): host'un oyun kuralı. Varsayılan data/vision_tuning.tres
+#   `default_mode`; `--vision-mode=` (Args, US-011d) ezer; ana menü (US-011c) host açılınca `set_vision_mode` ile
+#   seçer. Yalnız host, seviye başlamadan; değer istemcilere güvenilir RPC ile gider (geç katılana kabulde, oyuncusu
+#   doğmadan önce), herkes aynı. İstemcide `set_vision_mode` etkisizdir (uyarı).
+# - Sis bağlama: yerel oyuncu doğunca (`local_player_changed`; seviye değişimi ve geç katılan dahil) seviyenin
+#   sisi kurulur; sıra: katman gözlemcisiz (`attach_fog(null)`) → oturum kipi + yerel oyuncunun gerçek `look_dir`'i
+#   → `follow(oyuncu)` (ilk hesap). Kip sonradan çoğaltılırsa da kip + bakış önce, hafıza silinip hemen yeniden
+#   hesap. Her fizik adımında sise yerel oyuncunun `look_dir`'i verilir. Peer ayrılınca maruziyet kaydı ve geçmişi
+#   silinir. Yerel oyuncu yoksa (menü, oyuncusuz test) sis kurulmaz. Görünürlük kararı istemcide (host da kendi
+#   yerel görüşüyle çizer); host hiçbir görünürlük kararı vermez.
+# - Maruziyet (`player_exposure`, 0 gizli / 1 görünür / 2 görüldü): yalnız host, 10 Hz, NPC'lerin algı/şüphe
+#   özetinden (duck typing: `last_observations()` + `value_of(peer)` taşıyan bileşenler — Suspicion): 1 = bir
+#   gözlemcinin konisinde ve görüş hattında (son gözlem: bant ≠ NONE ∧ görüş hattı açık), 2 = şüphesi ≥ 30.
+#   Değişince tam tablo herkese güvenilir RPC (call_local); `player_exposure_changed` her peer'da. Seviye
+#   değişiminde ve oturum sonunda (yerel oyuncu kalkınca) tablo boşalır; host bir sonraki turda yeniden yayar.
+# - Test kancası (yalnız otomasyon, `--vision-mode` verilmemişse): `--bot` dosyasındaki {"t": 0, "vision_mode":
+#   "directional"} adımı açılışta `--vision-mode` gibi uygulanır (net_smoke süreç argümanı veremiyor; host'unki
+#   geçerlidir, istemcilere çoğaltılır).
+# Döküm (S6 taban anahtar "vision"): {mode, fog, visible_tiles, peripheral_tiles, memory_tiles, visible_npcs:[ad],
+# look_deg, exposure:{peer: düzey}, exposure_history:{peer: [düzeyler]}, remote_look_deg:{peer: derece}}.
+# =====================================================================================================================
+
+signal player_exposure_changed(peer: int, level: int)
+
+const VISION_HOOK_KEY := "vision_mode"
+
+var _vision: VisionRules.Session = null
+var _vision_elapsed: float = 0.0
+
+
+## S3 eki: görüş kipi (0 çevresel 360°, 1 yönlü; VisionGrid.Mode).
+func vision_mode() -> int:
+	return _vision_session().mode()
+
+
+## S3 eki: yalnız host, seviye başlamadan; istemcilere çoğaltılır. İstemcide ya da seviye yüklüyken etkisiz.
+func set_vision_mode(mode: int) -> void:
+	if not _has_host_authority():
+		push_warning("Game.set_vision_mode: yalnız host çağırabilir")
+		return
+	if not _vision_session().set_mode(mode, true, _level != null):
+		push_warning("Game.set_vision_mode: kip yalnız seviye başlamadan ve geçerli değerle seçilir (%d)" % mode)
+		return
+	if Net.is_online() and not multiplayer.get_peers().is_empty():
+		_rpc_vision_mode.rpc(mode)
+
+
+## S3 eki: oyuncunun maruziyeti (0 gizli, 1 görünür, 2 görüldü); host yazar, herkes okur.
+func player_exposure(peer: int) -> int:
+	return _vision_session().exposure(peer)
+
+
+## S3 eki: oyuncunun dünya konumu (global); oyuncu düğümü yoksa INF.
+func player_world_position(peer: int) -> Vector2:
+	var root: Node2D = _players_root()
+	var node: Node2D = root.get_node_or_null(NodePath(str(peer))) as Node2D if root != null else null
+	if node == null or not node.is_inside_tree():
+		return Vector2.INF
+	return node.global_position
+
+
+func _vision_session() -> VisionRules.Session:
+	if _vision == null:
+		_vision = VisionRules.Session.new(_vision_default_mode())
+	return _vision
+
+
+## Açılış kipi: --vision-mode > (otomasyonda) bot kancası > data/vision_tuning.tres.
+func _vision_default_mode() -> int:
+	if Args.vision_mode_given:
+		return VisionGrid.mode_from_name(StringName(Args.vision_mode))
+	if Args.is_automated():
+		for step: Dictionary in Args.bot_steps():
+			if step.has(VISION_HOOK_KEY) and float(step["t"]) <= 0.0:
+				return VisionGrid.mode_from_name(StringName(str(step[VISION_HOOK_KEY])))
+	var tuning: VisionTuning = load(VisionTuning.PATH) as VisionTuning
+	return tuning.default_mode if tuning != null else VisionGrid.Mode.PERIPHERAL
+
+
+func _vision_setup() -> void:
+	_vision_session()
+	if local_player_changed.is_connected(_vision_on_local_player):
+		return
+	local_player_changed.connect(_vision_on_local_player)
+	Net.peer_connected.connect(_vision_on_peer_connected)
+	Net.peer_disconnected.connect(_vision_on_peer_disconnected)
+
+
+func _vision_physics(delta: float) -> void:
+	var fog: Object = _vision_fog()
+	var me: Node = local_player()
+	if fog != null and me != null:
+		var look: Variant = me.get(&"look_dir")
+		if look is Vector2:
+			fog.call(&"set_look_dir", look)
+	if _level == null:
+		_vision_clear_exposures()  # oturum sonu / seviye yok: tablo boşalır
+		return
+	if not _has_host_authority():
+		return
+	_vision_elapsed += delta
+	if _vision_elapsed + 0.000001 < VisionRules.EXPOSURE_INTERVAL_SEC:
+		return
+	_vision_elapsed = 0.0
+	var table: Dictionary = _vision_compute_exposure()
+	if table != _vision_session().exposures():
+		_to_all(&"_rpc_exposure", [table])
+
+
+## Host: oyuncu başına maruziyet, NPC algı/şüphe bileşenlerinin özetinden (duck typing).
+func _vision_compute_exposure() -> Dictionary:
+	var out: Dictionary = {}
+	for peer_id: int in _players:
+		out[peer_id] = VisionRules.Exposure.HIDDEN
+	var npcs: Node = _level.npcs_root() if _level != null else null
+	if npcs == null or out.is_empty():
+		return out
+	for node: Node in npcs.find_children("*", "", true, false):
+		if not (node.has_method(&"last_observations") and node.has_method(&"value_of")):
+			continue
+		var observations: Dictionary = node.call(&"last_observations")
+		for peer_id: int in out:
+			var obs: Object = observations.get(peer_id) as Object
+			var in_view: bool = obs != null and int(obs.get(&"band")) != PerceptionRules.Band.NONE \
+				and bool(obs.get(&"line_clear"))
+			var level: int = VisionRules.exposure_level(in_view, float(node.call(&"value_of", peer_id)))
+			out[peer_id] = VisionRules.combine(int(out[peer_id]), level)
+	return out
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_exposure(table: Dictionary) -> void:
+	var clean: Dictionary = {}
+	for key: Variant in table:
+		if typeof(key) == TYPE_INT and typeof(table[key]) == TYPE_INT:
+			clean[key] = table[key]
+	var changed: Dictionary = _vision_session().apply(clean)
+	for peer_id: int in changed:
+		player_exposure_changed.emit(peer_id, int(changed[peer_id]))
+
+
+@rpc("authority", "call_remote", "reliable")
+func _rpc_vision_mode(mode: int) -> void:
+	if _vision_session().apply_mode(mode):
+		_vision_apply_fog_mode()
+
+
+## Host: yeni kabul edilen peer'a kip ve maruziyet tablosu (spawn'dan önce, aynı güvenilir kanalda).
+func _vision_on_peer_connected(peer_id: int) -> void:
+	if not Net.is_host():
+		return
+	_rpc_vision_mode.rpc_id(peer_id, _vision_session().mode())
+	_rpc_exposure.rpc_id(peer_id, _vision_session().exposures())
+
+
+## Peer ayrıldı (her peer'da): maruziyeti ve geçmişi silinir. Ertelenir: host'ta oyuncu kaydı da (`_host_drop_peer`)
+## aynı ertelenmiş boşaltmada düşer; arada fizik adımı olmadığından hesaplanan tablo ayrılanı yeniden açamaz.
+func _vision_on_peer_disconnected(peer_id: int) -> void:
+	_vision_forget_peer.call_deferred(peer_id)
+
+
+func _vision_forget_peer(peer_id: int) -> void:
+	var changed: Dictionary = _vision_session().forget(peer_id)
+	for gone: int in changed:
+		player_exposure_changed.emit(gone, int(changed[gone]))
+
+
+## Yerel oyuncu doğdu (seviye yüklemesi, seviye değişimi, geç katılım): sis ona bağlanır (kare sonunda; oyuncu
+## ağaca tam girmiş olsun). Oyuncu kalktı (seviye değişimi, oturum sonu): maruziyet tablosu boşalır.
+func _vision_on_local_player(player: Node) -> void:
+	if player != null:
+		_vision_attach_fog.call_deferred()
+		return
+	_vision_clear_exposures()
+
+
+func _vision_clear_exposures() -> void:
+	if _vision_session().exposures().is_empty():
+		return
+	var changed: Dictionary = _vision_session().clear_exposures()
+	for peer_id: int in changed:
+		player_exposure_changed.emit(peer_id, int(changed[peer_id]))
+
+
+## Sıra (t2): katman gözlemcisiz kurulur (hesap yok) → oturum kipi ve yerel oyuncunun gerçek bakışı verilir →
+## izleme başlar (ilk hesap). Aksi halde ilk güncelleme varsayılan kip/bakışla koşar; yönlü kipte oyuncunun arkası
+## hafızaya yazılır, arkadaki NPC bir an görünüp hayalet kalır. Katman zaten varsa hafızası korunur.
+func _vision_attach_fog() -> void:
+	var me: Node2D = local_player() as Node2D
+	if _level == null or me == null or not me.is_inside_tree() or not _level.is_inside_tree():
+		return
+	var fog: Object = _level.attach_fog(null)
+	_vision_prime_fog(fog, me)
+	fog.call(&"follow", me)
+
+
+## Kip değişti (istemciye çoğaltılan kip): aynı sıra — kip ve bakış önce; sis bir gözlemciyi izliyorsa eski kipin
+## hafızası silinip hemen yeniden hesaplanır.
+func _vision_apply_fog_mode() -> void:
+	var fog: Object = _vision_fog()
+	if fog == null:
+		return
+	var changed: bool = int(fog.call(&"mode")) != _vision_session().mode()
+	_vision_prime_fog(fog, local_player())
+	if changed and is_instance_valid(fog.call(&"observer")):
+		fog.call(&"reset_memory")
+		fog.call(&"update_now")
+
+
+## Sise oturum kipini ve (varsa) yerel oyuncunun bakışını verir; hesaplamaz.
+func _vision_prime_fog(fog: Object, me: Node) -> void:
+	fog.call(&"set_mode", _vision_session().mode())
+	var look: Variant = me.get(&"look_dir") if me != null else null
+	if look is Vector2:
+		fog.call(&"set_look_dir", look)
+
+
+func _vision_fog() -> Object:
+	return _level.fog_layer() as Object if _level != null else null
+
+
+func _vision_dump() -> Dictionary:
+	var fog: Object = _vision_fog()
+	var stats: Dictionary = fog.call(&"stats") if fog != null else {}
+	var me: Node = local_player()
+	var remote: Dictionary = {}
+	var root: Node2D = _players_root()
+	if root != null:
+		for child: Node in root.get_children():
+			if child != me and child.has_method(&"look_angle"):
+				remote[str(child.name)] = snappedf(rad_to_deg(float(child.call(&"look_angle"))), 0.1)
+	var npcs: Array[String] = []
+	if is_inside_tree():
+		for node: Node in get_tree().get_nodes_in_group(VisionRules.NPC_VISUAL_GROUP):
+			var visual: CanvasItem = node as CanvasItem
+			if visual != null and visual.is_visible_in_tree() and bool(node.call(&"is_fully_visible")):
+				npcs.append(str(node.get_parent().name))
+	npcs.sort()
+	var look: Variant = null
+	if me != null and me.has_method(&"look_angle"):
+		look = snappedf(rad_to_deg(float(me.call(&"look_angle"))), 0.1)
+	return {
+		"mode": str(stats.get("mode", VisionGrid.mode_name(_vision_session().mode()))),
+		"fog": fog != null,
+		"visible_tiles": int(stats.get("visible_tiles", 0)),
+		"peripheral_tiles": int(stats.get("peripheral_tiles", 0)),
+		"memory_tiles": int(stats.get("memory_tiles", 0)),
+		"visible_npcs": npcs,
+		"look_deg": look,
+		"exposure": _vision_session().exposures(),
+		"exposure_history": _vision_session().history(),
+		"remote_look_deg": remote,
+	}

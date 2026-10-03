@@ -5,6 +5,12 @@ extends Node2D
 ## genişler ve solar, sonra kendini kaldırır. Renk tonun ön plan rengi (KR-019: noir FG, ikinci renk yok).
 ## Hareket azaltmada (`reduced_motion`) genişleme yok: halka baştan tam yarıçapta görünür ve yalnız solar.
 ## Oyun kuralı taşımaz; yalnız kendi yaşını okur.
+## Çizim koşulu (US-011b AC6; GDD §6.5 "ses halkaları yalnız duyana"): seviyede yerel oyuncunun sisi varsa halka
+## yalnız kaynak karo görülüyorsa (görünen/çevresel) ya da yerel oyuncu sesi duyuyorsa çizilir — duyma NoiseBus/
+## Hearing ile aynı kural: mesafe ≤ yarıçap, kulaktan kaynağa tek ışında (SightLine) görüş hattı yoksa yarıçap
+## × `NoiseProfile.wall_factor` (VisionRules.ring_shown). Duyulan halka sisin üstünde çizilir (duvar arkasından
+## okunur). Sis yoksa her halka çizilir. `NoiseBus.noise_shown` sözleşmesi değişmez (olay her peer'da yayılır;
+## yalnız görsel gizlenir).
 
 const DURATION := 0.4
 ## 22 px çap (GDD §14.1 kural 2: oyun işaretleri ≥ 22 px).
@@ -20,16 +26,37 @@ static var reduced_motion: bool = false
 
 var radius: float = 0.0
 var _age: float = 0.0
+var _shown: bool = true
 
 
 func _ready() -> void:
 	z_index = Z_INDEX
 
 
-## Sesin yarıçapı (px).
+## Sesin yarıçapı (px). Çizim koşulu burada (konum atanmış, ağaçta) bir kez değerlendirilir.
 func setup(noise_radius: float) -> void:
 	radius = noise_radius
+	_shown = true
+	var fog: Object = FogView.fog_of(self) if is_inside_tree() else null
+	if fog != null:
+		var ear: Vector2 = FogView.observer_of(fog).global_position
+		var seen: bool = FogView.is_tile_seen(fog, global_position)
+		var distance: float = ear.distance_to(global_position)
+		var los: bool = true
+		if not seen and NoiseRules.can_hear(distance, radius):
+			# Hearing ile aynı: kulaktan kaynağa tek ışın; kaynağın kendi gövdesi (SOURCE_MARGIN) kesmez.
+			var hit: Dictionary = SightLine.first_blocker(get_world_2d().direct_space_state, ear, global_position)
+			los = hit.is_empty() or not NoiseRules.hit_blocks(hit["position"] as Vector2, global_position)
+		_shown = VisionRules.ring_shown(seen, distance, radius, los, NoiseProfile.load_default().wall_factor)
+		if _shown:
+			z_index = VisionRules.ABOVE_FOG_Z
+	visible = _shown
 	queue_redraw()
+
+
+## Bu peer'da çiziliyor mu (US-011b AC6).
+func is_shown() -> bool:
+	return _shown
 
 
 func _process(delta: float) -> void:

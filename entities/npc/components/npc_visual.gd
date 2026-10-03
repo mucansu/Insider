@@ -5,6 +5,16 @@ extends Node2D
 ## (`tr()` anahtarı, S9) + tutulan oyuncuya bağ. Yalnız ebeveynin durumunu okur (duck typing): `facing`,
 ## `bubble` (CivilianRules.Bubble), `cone_half_angle()`/`cone_range()`, `last_event`/`last_event_age`,
 ## `held_position()`. Kukla NPC başlıkları US-014'te bunun yerini alır. Renkler ThemeTokens'tan (§6 görsel istisnası).
+##
+## Görünürlük kapısı (US-011b AC5; GDD §6.5; KR-022/023): yalnız çizim — mantık, çarpışma ve çoğaltma etkilenmez;
+## her peer (host dahil) kendi yerel görüşüyle çizer. Seviyede yerel oyuncunun sisi (`Level.fog_layer()`, duck
+## typing) varsa her fizik adımında: tam görünür = sisin `can_see` (görünen karo ∧ görüş hattı); çevresel =
+## `is_peripheral_at` ∧ görüş hattı (yönlü kip). Karar `SightGate`'te (core): FULL tam çizim; SILHOUETTE soluk
+## siluet (MUTED α 0,5; koni, gösterge, balon, tutma bağı yok); görüşten çıkınca 0,2 sn tutma, sonra son görülen
+## konumda 1,5 sn hareketsiz hayalet (son 0,3 sn solar; hareket azaltmada solmaz), sonra gizli. İşaretler (koni,
+## "?"/"!", balonlar) yalnız FULL iken. Siluet ve hayalet sisin üstünde (VisionRules.ABOVE_FOG_Z) çizilir. Sis
+## yoksa her şey FULL. Dökümün `vision.visible_npcs` listesi `is_fully_visible()` olanlardan (grup
+## VisionRules.NPC_VISUAL_GROUP).
 
 enum Role { OWNER, CHASER }
 
@@ -31,6 +41,47 @@ const BALLOON_KEYS := {
 @export var role: Role = Role.OWNER
 
 var _drawn: Array = []
+var _gate := SightGate.new()
+var _seen_face: Vector2 = Vector2.LEFT
+
+
+func _ready() -> void:
+	add_to_group(VisionRules.NPC_VISUAL_GROUP)
+
+
+func _physics_process(delta: float) -> void:
+	var p: Node2D = get_parent() as Node2D
+	if p == null:
+		return
+	var at: Vector2 = p.global_position
+	var full: bool = true
+	var peripheral: bool = false
+	var fog: Object = FogView.fog_of(self)
+	if fog != null:
+		full = bool(fog.call(&"can_see", at))
+		if not full and bool(fog.call(&"is_peripheral_at", at)):
+			peripheral = bool(fog.call(&"line_clear", FogView.observer_of(fog).global_position, at))
+	_gate.reduce_motion = Puppet.is_reduced_motion()
+	_gate.step(full, peripheral, at, delta)
+	if full or peripheral:
+		var face_v: Variant = p.get(&"facing")
+		if face_v is Vector2 and not (face_v as Vector2).is_zero_approx():
+			_seen_face = (face_v as Vector2).normalized()
+	z_index = 0 if _gate.is_full() else VisionRules.ABOVE_FOG_Z
+
+
+## Bu peer'da tam çiziliyor mu (işaretler dahil; döküm `visible_npcs`).
+func is_fully_visible() -> bool:
+	return _gate.is_full()
+
+
+## Görünürlük kapısının çizim biçimi (SightGate.Mode).
+func sight_mode() -> SightGate.Mode:
+	return _gate.mode()
+
+
+func gate() -> SightGate:
+	return _gate
 
 
 func _process(_delta: float) -> void:
@@ -39,7 +90,10 @@ func _process(_delta: float) -> void:
 		return
 	var age: Variant = p.get(&"last_event_age")
 	var balloon: bool = age is float and float(age) < BALLOON_SEC
-	var state: Array = [p.get(&"facing"), p.get(&"bubble"), p.get(&"last_event"), balloon, _held_point()]
+	var state: Array = [p.get(&"facing"), p.get(&"bubble"), p.get(&"last_event"), balloon, _held_point(),
+		_gate.mode(), _gate.alpha()]
+	if _gate.mode() == SightGate.Mode.GHOST:
+		state.append(to_local(_gate.ghost_position()))
 	if p.has_method(&"cone_half_angle"):
 		state.append(p.call(&"cone_half_angle"))
 	if state != _drawn:
@@ -52,6 +106,15 @@ func _draw() -> void:
 	if p == null:
 		return
 	var tone: Tone = ThemeTokens.tone()
+	match _gate.mode():
+		SightGate.Mode.HIDDEN:
+			return
+		SightGate.Mode.SILHOUETTE:
+			_draw_silhouette(Vector2.ZERO, _seen_face.rotated(-global_rotation), tone)
+			return
+		SightGate.Mode.GHOST:
+			_draw_silhouette(to_local(_gate.ghost_position()), _seen_face.rotated(-global_rotation), tone)
+			return
 	var face_v: Variant = p.get(&"facing")
 	var face: Vector2 = (face_v as Vector2).normalized() if face_v is Vector2 and not (face_v as Vector2).is_zero_approx() \
 		else Vector2.LEFT
@@ -77,6 +140,17 @@ func _draw() -> void:
 			CivilianRules.Bubble.ALARM:
 				_draw_exclaim(ThemeTokens.GAMEPLAY_ALERT)
 	_draw_balloon(p, tone)
+
+
+## Soluk siluet (çevresel bölge ve hayalet): gövde + bakış üçgeni, MUTED, kapının opaklığıyla; işaret yok.
+func _draw_silhouette(center: Vector2, face: Vector2, tone: Tone) -> void:
+	var color := Color(tone.muted_color, _gate.alpha())
+	if color.a <= 0.0:
+		return
+	draw_circle(center, RADIUS, color)
+	var tip: Vector2 = center + face * (RADIUS + INDICATOR_LENGTH)
+	var side: Vector2 = face.orthogonal() * INDICATOR_HALF_WIDTH
+	draw_colored_polygon(PackedVector2Array([tip, center + face * RADIUS + side, center + face * RADIUS - side]), color)
 
 
 func _held_point() -> Vector2:

@@ -232,6 +232,7 @@ func dump_state() -> Dictionary:
 		out["states"] = states
 		out["rescues"] = _brain.rescues.duplicate(true)
 		out["shout_noises"] = _brain.shout_noises
+		out["agenda_noises"] = _brain.agenda_noises.duplicate()
 	return out
 
 

@@ -12,6 +12,11 @@ const KIND_RUN := &"run"
 const KIND_DOOR := &"door"
 const KIND_REGISTER := &"register"
 const KIND_INTIMIDATE := &"intimidate"
+## Sahibin ajanda sesleri (US-011b AC6; GDD §6.5: görüş yoksa "sahip nerede" dinlemeyle cevaplanır): telefon
+## konuşması, raf düzeltme, kapı zili. Host'ta NPC beyninden doğar; sahibin kendi işitmesi bunları yok sayar.
+const KIND_PHONE := &"phone"
+const KIND_SHELF := &"shelf"
+const KIND_BELL := &"bell"
 ## İstemcinin kendi adına üretebileceği türler (S2: istemci yalnız kendi hareketinde yetkili). Kapı, kasa,
 ## sindirme gibi sonuç sesleri host'ta doğar.
 const MOVEMENT_KINDS: Array[StringName] = [KIND_WALK, KIND_SNEAK, KIND_RUN]
@@ -24,6 +29,11 @@ const MOVEMENT_KINDS: Array[StringName] = [KIND_WALK, KIND_SNEAK, KIND_RUN]
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var door_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var register_radius: float = 0.0
 @export_range(0.0, 1000.0, 1.0, "suffix:px") var intimidate_radius: float = 0.0
+## Sahip ajanda sesleri (px; US-011b): telefon 160, raf düzeltme 96, kapı zili 160. Tempo ajanda görevinde
+## (`AgendaTask.noise_interval_sec`).
+@export_range(0.0, 1000.0, 1.0, "suffix:px") var phone_radius: float = 0.0
+@export_range(0.0, 1000.0, 1.0, "suffix:px") var shelf_radius: float = 0.0
+@export_range(0.0, 1000.0, 1.0, "suffix:px") var bell_radius: float = 0.0
 ## Adım sesleri arası en kısa süre (sn; S8 "en fazla ~3 Hz").
 @export_range(0.0, 5.0, 0.01, "suffix:s") var step_interval: float = 0.0
 ## Bu gerçek hızın altında (px/sn) adım sesi çıkmaz (koşu tuşu basılı ama duruyor/duvara itiyor). Her kipin
@@ -62,6 +72,12 @@ func radius_for(kind: StringName) -> float:
 			return register_radius
 		KIND_INTIMIDATE:
 			return intimidate_radius
+		KIND_PHONE:
+			return phone_radius
+		KIND_SHELF:
+			return shelf_radius
+		KIND_BELL:
+			return bell_radius
 	return 0.0
 
 

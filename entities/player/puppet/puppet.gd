@@ -58,6 +58,7 @@ var _velocity: Vector2 = Vector2.ZERO
 var _facing: Vector2 = Vector2.DOWN
 var _gait: PuppetRig.Gait = PuppetRig.Gait.WALK
 var _interacting: bool = false
+var _look: Vector2 = Vector2.ZERO
 ## Ağaca girmeden (rig kurulmadan) istenen tepki; _ready'de uygulanır.
 var _pending_reaction: PuppetRig.Reaction = PuppetRig.Reaction.NONE
 ## Son çizimin komut ve üçgen sayısı (ölçüm/test).
@@ -105,6 +106,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	_rig.reduced_motion = _reduced_motion
+	_rig.target_look = _look
 	_rig.update(delta, global_position, _velocity, _facing, _gait, _interacting)
 	_markers.update_state(_rig, _interacting, _accent)
 	queue_redraw()
@@ -125,6 +127,11 @@ func set_state(velocity: Vector2, facing: Vector2, gait: PuppetRig.Gait, interac
 	_facing = facing
 	_gait = gait
 	_interacting = interacting
+
+
+## Baş ve gözlerin bakış yönü (US-011b; dünya yönü). ZERO: baş gövdeyle aynı yöne bakar (NPC'ler, eski davranış).
+func set_look(direction: Vector2) -> void:
+	_look = direction
 
 
 ## Beklerken bakınılabilecek ekip arkadaşı (dünya px); `active` false ise yok.
@@ -186,6 +193,7 @@ func _draw() -> void:
 		_draw_shadow(tone)
 		_draw_feet()
 		var back: bool = _rig.is_back()
+		var head_back: bool = _rig.head_is_back()
 		if not back:
 			_draw_scarf()
 		_mesh.transform = _rig.body_transform()
@@ -194,11 +202,11 @@ func _draw() -> void:
 		textures += _draw_body(tone, back)
 		if not back:
 			textures += _draw_hands()
-		textures += _draw_head(back)
-		if not back:
+		textures += _draw_head(head_back)
+		if not head_back:
 			_draw_face(tone)
 		_draw_scarf_wrap()
-		textures += _draw_headgear(back, tone)
+		textures += _draw_headgear(head_back, tone)
 		if back:
 			_draw_scarf()
 		_mesh.flush(get_canvas_item())
@@ -278,7 +286,7 @@ func _draw_hands() -> int:
 func _draw_head(back: bool) -> int:
 	var c: Vector2 = PuppetBody.HEAD_CENTER
 	var r: float = PuppetBody.HEAD_RADIUS
-	var f: Vector2 = _rig.face_direction()
+	var f: Vector2 = _rig.head_direction()
 	if look.head_texture != null:
 		return _texture(look.head_texture, part_rect(Part.HEAD))
 	if look.gear == PuppetLook.Gear.HOOD:
@@ -297,7 +305,7 @@ func _draw_head(back: bool) -> int:
 
 func _draw_face(tone: Tone) -> void:
 	var c: Vector2 = PuppetBody.HEAD_CENTER
-	var f: Vector2 = _rig.face_direction()
+	var f: Vector2 = _rig.head_direction()
 	var e: Vector2 = _rig.eye_offset()
 	var es: float = _rig.eye_size()
 	var squeeze: float = BLINK_SQUEEZE if _rig.is_blinking() else 1.0
@@ -318,7 +326,7 @@ func _draw_face(tone: Tone) -> void:
 func _draw_headgear(back: bool, tone: Tone) -> int:
 	var c: Vector2 = PuppetBody.HEAD_CENTER
 	var r: float = PuppetBody.HEAD_RADIUS
-	var f: Vector2 = _rig.face_direction()
+	var f: Vector2 = _rig.head_direction()
 	if look.headgear_texture != null:
 		return _texture(look.headgear_texture, part_rect(Part.HEADGEAR))
 	match look.gear:

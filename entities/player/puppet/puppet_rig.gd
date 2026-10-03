@@ -68,12 +68,16 @@ var interacting: bool = false
 ## Bakınmada bakılabilecek ekip arkadaşı (dünya px); yoksa has_friend false.
 var friend_position: Vector2 = Vector2.ZERO
 var has_friend: bool = false
+## Baş ve gözlerin bakış yönü (US-011b, GDD §14.1: baş bakışı, gövde hareket yönünü izler); sıfır = baş gövdeyle.
+var target_look: Vector2 = Vector2.ZERO
 
 # --- poz durumu ---
 var position: Vector2 = Vector2.ZERO
 var velocity: Vector2 = Vector2.ZERO
 var accel: Vector2 = Vector2.ZERO
 var face: float = PI * 0.5
+## Baş açısı (rad): `target_look` varsa ona `turn_smoothing` ile döner, yoksa gövde açısı (`face`).
+var head: float = PI * 0.5
 var phase: float = 0.0
 var clock: float = 0.0
 var squash: PuppetSpring = PuppetSpring.new(1.0)
@@ -128,10 +132,11 @@ func rebuild(pos: Vector2) -> void:
 	velocity = target_velocity
 	accel = Vector2.ZERO
 	face = target_facing.angle()
+	head = _head_target()
 	var moving: float = _moving()
 	squash.settle(PuppetBody.target_squash(tuning, gait, moving, interacting, _exaggeration()))
 	lean.settle(PuppetBody.target_lean(tuning, gait, velocity, accel, _exaggeration(), reduced_motion))
-	eyes.settle(face)
+	eyes.settle(head)
 	hop = 0.0
 	hop_velocity = 0.0
 	cloth.clear_dust()
@@ -180,6 +185,16 @@ func moving() -> float:
 
 func face_direction() -> Vector2:
 	return Vector2.from_angle(face)
+
+
+## Başın (yüz, gözler, başlık) yönü.
+func head_direction() -> Vector2:
+	return Vector2.from_angle(head)
+
+
+## Baş sırt dönük mü (yukarı bakıyor; yüz çizilmez).
+func head_is_back() -> bool:
+	return head_direction().y < BACK_FACING_Y
 
 
 ## Sırt dönük mü (yukarı bakıyor).
@@ -316,6 +331,10 @@ func _step(h: float, pos: Vector2) -> void:
 	accel += ((velocity - prev) / h - accel) * (1.0 - exp(-tuning.accel_smoothing * h))
 	var spd: float = velocity.length()
 	face += angle_difference(face, target_facing.angle()) * (1.0 - exp(-tuning.turn_smoothing * h))
+	if target_look.length_squared() > 0.0001:
+		head += angle_difference(head, target_look.angle()) * (1.0 - exp(-tuning.turn_smoothing * h))
+	else:
+		head = face
 
 	var half: float = floorf(phase / PI)
 	phase += spd * h / maxf(1.0, PuppetBody.per_gait(tuning.stride, gait)) * PI
@@ -343,7 +362,7 @@ func _step(h: float, pos: Vector2) -> void:
 				squash.v -= tuning.land_impulse * tuning.bounce
 			hop_velocity = 0.0
 
-	eyes.step(h, face, m < IDLE_MOVING, gait == Gait.SNEAK and m > IDLE_MOVING, position, friend_position,
+	eyes.step(h, head, m < IDLE_MOVING, gait == Gait.SNEAK and m > IDLE_MOVING, position, friend_position,
 		has_friend)
 	if reaction != Reaction.NONE:
 		reaction_age += h
@@ -378,6 +397,10 @@ func _scarf_segment() -> float:
 
 func _reset_scarf() -> void:
 	cloth.reset_scarf(_anchor_at(position), tuning.scarf_segments if has_scarf else 0, _scarf_segment())
+
+
+func _head_target() -> float:
+	return target_look.angle() if target_look.length_squared() > 0.0001 else face
 
 
 func _moving() -> float:

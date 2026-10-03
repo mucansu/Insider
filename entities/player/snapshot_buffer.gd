@@ -5,7 +5,8 @@ extends RefCounted
 ## Yöntem: yetkili kopya her fizik adımında durumunu ve kendi saatindeki anı (`Player.net_time`) yazar,
 ## eşitleyici 20 Hz yayar. Alıcı her paketi (gönderen anı, yerel varış anı, durum) `push` ile koyar; her karede
 ## `sample(yerel_an)` gönderen saatinde `yerel_an - saat_farkı - delay` anını, o anı çevreleyen iki anlık görüntü
-## arasında doğrusal ara değerler (konum lerp, yön slerp, kip öncekinden, hız iki görüntü arası sabit).
+## arasında doğrusal ara değerler (konum lerp, yön slerp, bakış açısı en kısa yoldan lerp — US-011b, kip öncekinden,
+## hız iki görüntü arası sabit).
 ## Saat farkı (yerel varış - gönderen anı = tek yön gecikme + saat kayması) üstel ortalamayla izlenir: titreşim
 ## (jitter) tamponda emilir ve çizim saati düzgün ilerler; 0,5 sn'den büyük sıçramada sıfırdan kurulur.
 ## Varış anına göre değil gönderen anına göre çizildiği için paketler arası titreşim harekete yansımaz.
@@ -19,14 +20,17 @@ class Frame extends RefCounted:
 	var facing: Vector2 = Vector2.DOWN
 	var mode: int = 0
 	var velocity: Vector2 = Vector2.ZERO
+	## Bakış açısı (rad; US-011b).
+	var look: float = 0.0
 
 	func _init(t: float = 0.0, pos: Vector2 = Vector2.ZERO, dir: Vector2 = Vector2.DOWN, kind: int = 0,
-			vel: Vector2 = Vector2.ZERO) -> void:
+			vel: Vector2 = Vector2.ZERO, look_angle: float = 0.0) -> void:
 		time = t
 		position = pos
 		facing = dir
 		mode = kind
 		velocity = vel
+		look = look_angle
 
 
 ## Tampondaki en çok anlık görüntü (20 Hz'de 1,6 sn).
@@ -49,10 +53,12 @@ func _init(delay_sec: float = 0.1) -> void:
 	delay = delay_sec
 
 
-## Gelen anlık görüntü. Eskiyse (gönderen anı son görüntüden ileri değilse) ya da anlar/konum/yön sonlu
+## Gelen anlık görüntü. Eskiyse (gönderen anı son görüntüden ileri değilse) ya da anlar/konum/yön/bakış sonlu
 ## değilse (NaN/INF: bozuk paket saati ya da çizimi zehirlemesin) atılır ve false döner.
-func push(sender_time: float, local_time: float, position: Vector2, facing: Vector2, mode: int) -> bool:
-	if not (is_finite(sender_time) and is_finite(local_time) and position.is_finite() and facing.is_finite()):
+func push(sender_time: float, local_time: float, position: Vector2, facing: Vector2, mode: int,
+		look: float = 0.0) -> bool:
+	if not (is_finite(sender_time) and is_finite(local_time) and position.is_finite() and facing.is_finite()
+			and is_finite(look)):
 		return false
 	if not _frames.is_empty() and sender_time <= _frames.back().time:
 		return false
@@ -62,7 +68,7 @@ func push(sender_time: float, local_time: float, position: Vector2, facing: Vect
 		_has_offset = true
 	else:
 		_offset += (measured - _offset) * OFFSET_SMOOTHING
-	_frames.append(Frame.new(sender_time, position, facing, mode))
+	_frames.append(Frame.new(sender_time, position, facing, mode, Vector2.ZERO, look))
 	if _frames.size() > MAX_FRAMES:
 		_frames.pop_front()
 	return true
@@ -79,12 +85,12 @@ func sample(local_time: float) -> Frame:
 	if _frames.size() == 1 or t <= a.time:
 		if _frames.size() == 1 and t > a.time:
 			_underruns += 1  # çizim anı en yeni görüntüyü geçti: veri geç kaldı ya da kayboldu
-		return Frame.new(t, a.position, a.facing, a.mode)
+		return Frame.new(t, a.position, a.facing, a.mode, Vector2.ZERO, a.look)
 	var b: Frame = _frames[1]
 	var span: float = b.time - a.time
 	var w: float = clampf((t - a.time) / span, 0.0, 1.0)
 	return Frame.new(t, a.position.lerp(b.position, w), a.facing.slerp(b.facing, w), a.mode,
-		(b.position - a.position) / span)
+		(b.position - a.position) / span, lerp_angle(a.look, b.look, w))
 
 
 func size() -> int:
