@@ -1,4 +1,4 @@
-Her oturuma docs/project-index.md'yi okuyarak başla; dosya haritasına göre sadece gerekli notu aç.
+Her oturuma docs/project-index.md'yi okuyarak başla; dosya haritasına göre sadece gerekli notu aç. Araçtan bağımsız ortak kurallar ve "nasıl yapılır" reçeteleri: AGENTS.md ve .claude/skills/.
 Proje: Insiders (çalışma adı) — Steam'de 3 kişilik online co-op soygun oyunu; Godot 4.7.2, GDScript (katı statik tipleme), 2D üstten. Tasarımın tek kaynağı docs/tasarim/oyun-tasarimi.md; teknik mimari ve sözleşmeler docs/notes/mimari.md.
 İş fazlarla (docs/surec/backlog.md §1: Faz 0..5 = EP-00..EP-05) ve kalemlerle (US-/IS-) yürür; süreç docs/surec/surec.md. Kontrol kipi KR-028 (hafif, geçici): denetci yalnız ağ/yetki/kablo düzeni kaleminde; diğer kalemler ajan testleri + koordinatör diff okumasıyla Bitti. Her faz sonu durma noktasıdır: faz kapanış mesajından sonra kullanıcı "devam" demeden sonraki faz başlamaz.
 Çalışma dev branch'inde yapılır; faz kapanışında koordinatör dev → main fast-forward + `faz-N` etiketi (surec.md §5).

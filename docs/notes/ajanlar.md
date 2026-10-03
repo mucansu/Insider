@@ -19,6 +19,9 @@ Düşünme seviyesi (2026-10-02, kullanıcı onayı): denetci, cekirdek ve tasar
 
 Ajanlar arası sözleşmeler `docs/notes/mimari.md` S1-S9'da yaşar, raporlarda değil. Sözleşme değişikliği koordinatör kararıdır, önce dokümana yazılır.
 
+## Skill'ler ve AGENTS.md (2026-10-03, kullanıcı isteği)
+"Nasıl yapılır" bilgisi ajan tanımlarından ayrı, araçtan bağımsız reçeteler olarak `.claude/skills/` altında: `test-yaz`, `ag-senaryosu`, `npc-ekle`, `seviye-duzeni`, `metin-ve-tema`, `kalem-kapat`, `oyunu-ac`. Başka bir geliştirici kendi ajanlarıyla çalışırsa giriş `AGENTS.md` + bu skill'ler; bu dosyadaki ajanlar yalnız rol/sahiplik/sınır tanımıdır. Skill güncellemesi koordinatörde (hook `.claude/` yazımını ajanlara kapatır); ajan, reçete eksik/yanlışsa raporunda "Karar gereken" altında önerir.
+
 ## Ortak ajan kuralları (her ajan dosyasında tekrarlanır)
 1. Proje kökü = repo kökü (ana oturumun çalışma dizini; ya da koordinatörün verdiği worktree yolu). İşe `docs/project-index.md` ile başla; yalnız kalemin `docs/surec/backlog.md` bölümünü ve "Oku" listesini aç. Bu projede Takip'in kuralları geçmez.
 2. Yalnız kalemin **Dokunulacak** listesinde çalış; **Dokunulmayacak**'a ya da başka ajanın alanına giren iş görürsen dokunma, raporda "Sınır dışı" yaz. Ortak dosyalara ekleme serbest, mevcut davranışı değiştirmek "Karar gereken".

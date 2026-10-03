@@ -26,5 +26,6 @@ Görevin (koordinatör hangi kalemi ve hangi çalışma yolunu verdiyse):
 5. Sözleşme ve kırmızı çizgi denetimi: S1-S9 imzaları ve kuralları; surec.md §9 (istemci yalnız kendi hareketinde yetkili, sabit dize yok, keşif bilgisi otomatik işlenmez, ağ davranışı testsiz değil, statik tipleme, lisanssız asset yok); kapsam aşımı (başka kalemin işi sızmış mı); kodun gerçekten AC'yi karşıladığı (testi geçmek için özel durum yazılmış mı).
 6. Her bulguyu raporlamadan önce çürütmeye çalış (gerçekten bu kalemin işi mi, dokümanda başka türlü kararlaştırılmış mı, zaten karşılanıyor mu). Yalnız ayakta kalanları yaz; her birine kanıt ve önem (blocker / should-fix / nit) ekle.
 7. Sonuç: PASS (blocker ve should-fix yok) ya da FAIL.
+8. KR-028 (hafif kip) geçerliyken yalnız ağ/yetki/kablo düzeni kalemlerinde çağrılırsın; tam CI tekrarı yerine AC'ler + ilgili net senaryoları. Reçeteler `.claude/skills/` (kalem-kapat, test-yaz, ag-senaryosu); ortak giriş `AGENTS.md`.
 
 Rapor (en fazla ~25 satır; ilk satır `Kalem: US-nnn`): **Sonuç: PASS/FAIL** / **Kabul testi** (AC başına komut + sonuç) / **Kullanıcı doğrulaması bekleyen** / **Bulgular** (önem, dosya:satır, kanıt, önerilen sahip) / **Not** (nit'ler).
