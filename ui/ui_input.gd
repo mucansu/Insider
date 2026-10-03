@@ -1,12 +1,11 @@
 class_name UiInput
 extends RefCounted
-## Arayüz girdisi yardımcıları: odak sırası, duraklatma olayları (US-003 AC3, AC6), etkin cihaza göre
-## tuş adı (istemler için) ve oyun içi menü açıkken oyun girdisi engeli (S5).
-## Gamepad ile onay/geri project.godot'taki ui_accept (+A) ve ui_cancel (+B) eşlemelerinden gelir (S5, IS-009).
+## UI input helpers: focus order, pause events (US-003 AC3, AC6), key name by active device (for prompts),
+## and the gameplay-input block while an in-game menu is open (S5). Gamepad accept/back come from project.godot's ui_accept (+A) and ui_cancel (+B) (S5, IS-009).
 
-## Duraklat menüsünü açan/kapatan eylem (S5: Esc + gamepad Start).
+## Action that opens/closes the pause menu (S5: Esc + gamepad Start).
 const PAUSE_ACTION := &"pause"
-## İstemlerde gösterilen gamepad düğme adları (Xbox düzeni); listede olmayan düğme numarasıyla gösterilir.
+## Gamepad button names shown in prompts (Xbox layout); buttons not listed show their index.
 const JOY_BUTTON_LABELS := {
 	JOY_BUTTON_A: "A",
 	JOY_BUTTON_B: "B",
@@ -15,27 +14,27 @@ const JOY_BUTTON_LABELS := {
 	JOY_BUTTON_LEFT_SHOULDER: "LB",
 	JOY_BUTTON_RIGHT_SHOULDER: "RB",
 }
-## Bu eşiğin altındaki çubuk hareketi cihaz değişimi sayılmaz (çubuk kayması).
+## Stick movement below this does not count as a device change (stick drift).
 const JOY_AXIS_DEVICE_THRESHOLD := 0.5
 
-## Son anlamlı girdi gamepad'den mi geldi (istem tuş adı buna göre seçilir).
+## Whether the last meaningful input came from a gamepad (picks the prompt key name).
 static var using_gamepad: bool = false
-## Oyun girdisini engelleyen görünür menüler: instance_id -> true.
+## Visible menus blocking gameplay input: instance_id -> true.
 static var _gameplay_blockers: Dictionary = {}
 
 
-## S5: oyun içi menü açıkken PlayerInput oyun girdisi okumaz. Her karede çağrılır; menü yokken tek sözlük kontrolü.
+## S5: PlayerInput reads no gameplay input while an in-game menu is open. Called every frame; one dictionary check when no menu.
 static func is_gameplay_input_blocked() -> bool:
 	if _gameplay_blockers.is_empty():
 		return false
 	for id: int in _gameplay_blockers.keys():
 		if not is_instance_id_valid(id):
-			_gameplay_blockers.erase(id)  # güvenlik: ağaçtan çıkmadan serbest kalan menü
+			_gameplay_blockers.erase(id)  # safety: a menu freed without leaving the tree
 	return not _gameplay_blockers.is_empty()
 
 
-## `menu` ağaçta ve görünür olduğu sürece oyun girdisini engeller. Oyun içi her menü (duraklat, ileride
-## dükkân, plan masası) kendini bununla bir kez kaydeder; gizlenince ya da ağaçtan çıkınca engel kalkar.
+## Blocks gameplay input while `menu` is in the tree and visible. Every in-game menu (pause, later shop, planning table) registers itself once;
+## the block lifts when it hides or leaves the tree.
 static func block_gameplay_while_visible(menu: CanvasItem) -> void:
 	var update := func() -> void:
 		_set_gameplay_blocker(menu, menu.is_inside_tree() and menu.is_visible_in_tree())
@@ -52,7 +51,7 @@ static func _set_gameplay_blocker(menu: Object, blocking: bool) -> void:
 		_gameplay_blockers.erase(menu.get_instance_id())
 
 
-## Son girdinin cihazını kaydeder; cihaz değiştiyse true.
+## Records the device of the last input; true if the device changed.
 static func note_input(event: InputEvent) -> bool:
 	var pad: bool
 	if event is InputEventJoypadButton:
@@ -70,7 +69,7 @@ static func note_input(event: InputEvent) -> bool:
 	return changed
 
 
-## Eylemin etkin cihazdaki tuş adı (klavye "E", gamepad "A"); o cihazda eşleme yoksa diğerininki, hiç yoksa boş.
+## Key name of the action on the active device (keyboard "E", gamepad "A"); falls back to the other device, else empty.
 static func action_hint(action: StringName) -> String:
 	if not InputMap.has_action(action):
 		return ""
@@ -87,7 +86,7 @@ static func action_hint(action: StringName) -> String:
 	return key_hint if not key_hint.is_empty() else pad_hint
 
 
-## Fiziksel tuşu kullanıcının klavye düzenindeki adına çevirir (headless'ta dönüşüm yok, QWERTY adı).
+## Converts a physical key to its name in the user's keyboard layout (no conversion headless; QWERTY name).
 static func _key_name(e: InputEventKey) -> String:
 	var code: Key = e.keycode
 	if code == KEY_NONE:
@@ -97,23 +96,23 @@ static func _key_name(e: InputEventKey) -> String:
 	return OS.get_keycode_string(code)
 
 
-## Duraklat menüsünü açan olay: `pause` eylemi (Esc / gamepad Start). Gamepad B (ui_cancel) oyunda
-## menü açmaz, yalnız açık menüyü kapatır (bkz. `is_pause_close_event`).
+## Event that opens the pause menu: the `pause` action (Esc / gamepad Start). Gamepad B (ui_cancel) does not open a menu in-game,
+## it only closes an open one (see `is_pause_close_event`).
 static func is_pause_open_event(event: InputEvent) -> bool:
 	return event.is_action_pressed(PAUSE_ACTION, false, true)
 
 
-## Açık duraklat menüsünü kapatan olay: `pause` (Esc / Start) ya da ui_cancel (Esc / gamepad B).
+## Event that closes an open pause menu: `pause` (Esc / Start) or ui_cancel (Esc / gamepad B).
 static func is_pause_close_event(event: InputEvent) -> bool:
 	return is_pause_open_event(event) or event.is_action_pressed(&"ui_cancel", false, true)
 
 
-## `from`un `side` yönündeki odak komşusunu `to` yapar.
+## Sets `to` as the focus neighbour of `from` in direction `side`.
 static func link(from: Control, side: Side, to: Control) -> void:
 	from.set_focus_neighbor(side, from.get_path_to(to))
 
 
-## Tab / Shift+Tab sırası: listeyi halka olarak bağlar.
+## Tab / Shift+Tab order: links the list as a ring.
 static func tab_ring(controls: Array[Control]) -> void:
 	var n: int = controls.size()
 	for i: int in n:
@@ -122,7 +121,7 @@ static func tab_ring(controls: Array[Control]) -> void:
 		c.focus_previous = c.get_path_to(controls[(i - 1 + n) % n])
 
 
-## Dikey sıra: üst/alt komşuları bağlar; `wrap` ise son ile ilk birbirine bağlanır.
+## Vertical order: links up/down neighbours; with `wrap` the last links to the first.
 static func vertical(controls: Array[Control], wrap: bool = true) -> void:
 	var n: int = controls.size()
 	for i: int in n:
@@ -132,8 +131,8 @@ static func vertical(controls: Array[Control], wrap: bool = true) -> void:
 			link(controls[i], SIDE_TOP, controls[(i - 1 + n) % n])
 
 
-## Yazı alanında yukarı/aşağı ok tuşları imleci değil odağı taşısın (düzenleme kipinde LineEdit
-## bunları yutar; gamepad yön tuşları zaten çalışır). Odak tanımlı komşuya gider.
+## Make up/down arrows in a text field move focus, not the caret (LineEdit swallows them in edit mode;
+## gamepad d-pad already works). Focus goes to the defined neighbour.
 static func arrows_move_focus(edit: LineEdit) -> void:
 	edit.gui_input.connect(func(event: InputEvent) -> void:
 		for side: Side in [SIDE_TOP, SIDE_BOTTOM]:

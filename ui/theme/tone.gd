@@ -1,11 +1,11 @@
 class_name Tone
 extends Resource
-## Bir tonun kozmetik değerleri (KR-005, GDD §13): palet, yazı, biçim.
-## Kurallar ve oyun için anlamlı renkler (ThemeTokens.GAMEPLAY_*, PLAYER_COLORS) burada YOKTUR; her tonda aynıdır.
-## Noir: ThemeTokens.noir_tone(). Yeni ton: ui/theme/tones/<id>.tres + build_themes.gd ile ui/theme/<id>.tres teması.
+## Cosmetic values of one tone (KR-005, GDD §13): palette, type, shape.
+## Rules and gameplay-meaningful colours (ThemeTokens.GAMEPLAY_*, PLAYER_COLORS) are NOT here; they are identical in every tone.
+## Noir: ThemeTokens.noir_tone(). New tone: ui/theme/tones/<id>.tres + build_themes.gd generates ui/theme/<id>.tres.
 
 @export var id: StringName = &""
-## Ton seçim ekranında görünecek ad (i18n anahtarı).
+## Name shown on the tone picker (i18n key).
 @export var name_key: String = ""
 
 @export_group("Palette")
@@ -20,8 +20,8 @@ extends Resource
 @export var floor_color: Color
 
 @export_subgroup("Level")
-## Seviye yer tutucu çizimi (levels/level_layout.gd, IS-008); noir değerleri ThemeTokens.LEVEL_*.
-## Harita kenarı bg_color; kenar taraması, kaldırım bordürü ve cam çerçevesi wall_color kullanır.
+## Level placeholder drawing (levels/level_layout.gd, IS-008); noir values are ThemeTokens.LEVEL_*.
+## Map edge uses bg_color; edge scan, kerb border and glass frame use wall_color.
 @export var level_floor_color: Color
 @export var level_backroom_color: Color
 @export var level_sidewalk_color: Color
@@ -35,7 +35,7 @@ extends Resource
 @export var level_counter_edge_color: Color
 
 @export_group("Type")
-## null: Godot varsayılan yazı tipi.
+## null: Godot default font.
 @export var font: Font
 @export var font_size_small: int = 15
 @export var font_size_body: int = 18

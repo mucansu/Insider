@@ -1,15 +1,14 @@
 extends SceneTree
-## Ton temalarını üretir (S9): her ton için ThemeBuilder.build(ton) → ui/theme/<id>.tres.
+## Generates the tone themes (S9): ThemeBuilder.build(tone) -> ui/theme/<id>.tres for each tone.
 ##   godot --headless --path . -s res://ui/theme/build_themes.gd
-## ThemeTokens sabitleri ya da ThemeBuilder değişince çalıştırılır; test_ui_theme.gd güncelliği doğrular.
-## Çıkış kodu: 0 hepsi kaydedildi, 1 en az bir kayıt hatası.
+## Run after ThemeTokens constants or ThemeBuilder change; test_ui_theme.gd checks freshness. Exit code: 0 all saved, 1 at least one save error.
 
 
 func _initialize() -> void:
 	var code: int = 0
 	for tone: Tone in ThemeTokens.available_tones():
 		var path: String = ThemeTokens.theme_path(tone.id)
-		# Var olan dosyanın UID'si korunur (sahneler temaya UID ile de bağlanabilsin).
+		# Keep the existing file's UID (so scenes can also reference the theme by UID).
 		var uid: int = ResourceLoader.get_resource_uid(path) if ResourceLoader.exists(path) else ResourceUID.INVALID_ID
 		if uid == ResourceUID.INVALID_ID:
 			uid = ResourceUID.create_id()

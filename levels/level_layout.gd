@@ -1,24 +1,22 @@
 @tool
 class_name LevelLayout
 extends Node2D
-## Seviyenin karo düzeni ve geometrik yer tutucu çizimi (US-002; mimari.md S4, S9).
+## Level tile layout and geometric placeholder drawing (US-002; mimari.md S4, S9).
 ##
-## `rows` ASCII karo ızgarasıdır (1 karo = 32 px, sol üst köşe seviye kökünün (0, 0) noktası).
-## Kaynak `levels/layouts/<seviye>.txt`; `levels/tools/build_levels.gd` bu düğümü, `Walls`
-## çarpışma şekillerini, `SpawnPoints` ve `Markers` düğümlerini aynı ızgaradan üretir.
-## Renkler yalnız etkin tonun seviye paletinden okunur (S9, IS-008: `ThemeTokens.tone().level_*_color`,
-## noir değerleri `ThemeTokens.LEVEL_*`); sahneye renk yazılmaz, çizim `_draw` ile yapılır.
+## `rows` is the ASCII tile grid (1 tile = 32 px, top-left corner is the level root's (0, 0)). Source is `levels/layouts/<level>.txt`;
+## `levels/tools/build_levels.gd` generates this node, the `Walls` collision shapes, `SpawnPoints` and `Markers` from the same grid.
+## Colours are read only from the active tone's level palette (S9, IS-008: `ThemeTokens.tone().level_*_color`, noir values `ThemeTokens.LEVEL_*`); no colour is written into the scene, drawing is done in `_draw`.
 ##
-## Lejant (işaret harfleri her düzen dosyasında `@` satırlarıyla tanımlanır, ızgarada zemin karakterine döner):
-##   %  sınır (harita kenarı / komşu bina; çarpışır)     #  duvar (çarpışır)
-##   w  vitrin camı (çarpışır; görüş geçirir, US-007)    +  kapı boşluğu (1 karo; kapı nesnesi US-005)
-##   .  iç zemin (satış alanı)                            :  arka oda zemini
-##   ,  kaldırım / ara sokak                              _  cadde
-##   S  raf (çarpışır, engel)                             T  tezgâh (çarpışır)
-##   I  içecek dolabı (çarpışır, görüşü keser; US-033)   G  koli yığını (çarpışır, görüşü keser; US-033)
+## Legend (marker letters are defined by `@` lines in each layout file and revert to the floor character in the grid):
+##   %  border (map edge / neighbouring building; collides)   #  wall (collides)
+##   w  shop window (collides; lets sight through, US-007)    +  door gap (1 tile; door object US-005)
+##   .  interior floor (sales area)                            :  back-room floor
+##   ,  pavement / alley                                       _  street
+##   S  shelf (collides, obstacle)                             T  counter (collides)
+##   I  drinks cooler (collides, blocks sight; US-033)         G  crate stack (collides, blocks sight; US-033)
 
 const TILE := 32
-## Raf ve tezgâh şekillerinin karo kenarından içe payı (px); çizim ve çarpışma aynı payı kullanır.
+## Inset of shelf and counter shapes from the tile edge (px); drawing and collision use the same inset.
 const FURNITURE_INSET := 2.0
 
 enum Kind { BOUND, WALL, WINDOW, DOOR, FLOOR, BACKROOM, SIDEWALK, STREET, SHELF, COUNTER, COOLER, CRATE }
@@ -38,8 +36,8 @@ const LEGEND := {
 	"G": Kind.CRATE,
 }
 
-## Çarpışan türler ve `Walls` altındaki şekil adı öneki (Window*: Faz 2 görüş sistemi camı ayırt eder).
-## Dolap ve koli (US-033) dolu engeldir: çarpışır ve görüşü keser, raf gibi `Walls` gövdesinin şeklidir.
+## Colliding types and the shape-name prefix under `Walls` (Window*: lets the Phase 2 vision system tell glass apart).
+## Cooler and crate (US-033) are solid obstacles: they collide and block sight, and are `Walls` body shapes like shelves.
 const SOLID_PREFIX := {
 	Kind.BOUND: "Bound",
 	Kind.WALL: "Wall",
@@ -50,22 +48,22 @@ const SOLID_PREFIX := {
 	Kind.CRATE: "Crate",
 }
 
-## Görüş sınıfları (US-011a; `Level.vision_cells` → VisionGrid.Cell). Katı: görüşü her zaman keser, ışın atılmaz,
-## yalnız komşuluktan görünür (yapı). Geçit: fizik sorgusu karar verir (cam geçirir, kapalı kapı keser).
-## Diğer türler açık. Yeni bir görüş engeli türü tek satırla SIGHT_SOLID'e eklenir (US-033: dolap, koli).
+## Sight classes (US-011a; `Level.vision_cells` -> VisionGrid.Cell). Solid: always blocks sight, no ray cast, visible only by adjacency (structure).
+## Portal: a physics query decides (glass lets sight through, a closed door blocks). Other types are open.
+## A new sight-blocking type is added to SIGHT_SOLID with one line (US-033: cooler, crate).
 const SIGHT_SOLID: Array[Kind] = [Kind.BOUND, Kind.WALL, Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRATE]
 const SIGHT_PORTAL: Array[Kind] = [Kind.WINDOW, Kind.DOOR]
 
-# Çizgi kalınlıkları ve aralıklar (renkler tondan: ThemeTokens.tone()).
+# Line widths and spacings (colours come from the tone: ThemeTokens.tone()).
 const WALL_EDGE_WIDTH := 2.0
 const CURB_WIDTH := 2.0
 const GLASS_WIDTH := 6.0
-const SHELF_BAY := 16.0       # raf bölme aralığı (px)
-const HATCH_STEP := 8         # harita kenarı tarama aralığı (px; TILE'ı tam böler, karolar arası kesintisiz)
+const SHELF_BAY := 16.0       # shelf divider spacing (px)
+const HATCH_STEP := 8         # map-edge hatch spacing (px; divides TILE exactly, seamless across tiles)
 const HATCH_WIDTH := 2.0
-const COOLER_GLASS := 5.0     # dolabın zemine bakan cam kapağı (px)
-const CRATE_LID := 6.0        # üstteki koli kenar payı (px; yığın görünümü)
-## Eşya türleri (içe paylı şekil; çizim sırası).
+const COOLER_GLASS := 5.0     # glass door on the cooler's floor-facing side (px)
+const CRATE_LID := 6.0        # top crate edge inset (px; stack look)
+## Item types (inset shape; draw order).
 const FURNITURE: Array[Kind] = [Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRATE]
 
 @export var rows: PackedStringArray = PackedStringArray():
@@ -74,7 +72,7 @@ const FURNITURE: Array[Kind] = [Kind.SHELF, Kind.COUNTER, Kind.COOLER, Kind.CRAT
 		queue_redraw()
 
 
-## Izgara boyutu (karo): x = sütun, y = satır.
+## Grid size (tiles): x = column, y = row.
 func size_in_tiles() -> Vector2i:
 	return Vector2i(rows[0].length() if not rows.is_empty() else 0, rows.size())
 
@@ -84,7 +82,7 @@ func has_cell(cell: Vector2i) -> bool:
 	return cell.x >= 0 and cell.y >= 0 and cell.x < size.x and cell.y < size.y
 
 
-## Hücre türü; ızgara dışı sınır sayılır.
+## Cell type; outside the grid counts as border.
 func kind_at(cell: Vector2i) -> Kind:
 	if not has_cell(cell):
 		return Kind.BOUND
@@ -114,7 +112,7 @@ static func cell_of(pos: Vector2) -> Vector2i:
 	return Vector2i(floori(pos.x / TILE), floori(pos.y / TILE))
 
 
-## Türün karolarını açgözlü birleştirilmiş dikdörtgenlere böler (karo biriminde; satır satır, soldan sağa).
+## Splits the type's tiles into greedily merged rectangles (in tile units; row by row, left to right).
 func merged_rects(kind: Kind) -> Array[Rect2i]:
 	var size: Vector2i = size_in_tiles()
 	var taken := PackedByteArray()
@@ -137,13 +135,13 @@ func merged_rects(kind: Kind) -> Array[Rect2i]:
 	return out
 
 
-## Birleştirilmiş dikdörtgenin piksel karşılığı (raf/tezgâh içe paylı); çizim ve çarpışma bunu kullanır.
+## Pixel rect of a merged rectangle (shelf/counter with inset); drawing and collision use it.
 static func shape_rect(kind: Kind, cells: Rect2i) -> Rect2:
 	var rect := Rect2(Vector2(cells.position) * TILE, Vector2(cells.size) * TILE)
 	return rect.grow(-FURNITURE_INSET) if is_furniture(kind) else rect
 
 
-## Türün zemin/dolgu rengi (etkin tonun seviye paletinden).
+## Floor/fill colour of the type (from the active tone's level palette).
 static func color_of(kind: Kind) -> Color:
 	var tone: Tone = ThemeTokens.tone()
 	match kind:
@@ -170,12 +168,12 @@ static func color_of(kind: Kind) -> Color:
 	return tone.bg_color
 
 
-## Kenar/çizgi rengi: duvar iç kenarı, cam şeridi, raf ve tezgâh dış çizgisi.
+## Edge/line colour: wall inner edge, glass strip, shelf and counter outline.
 static func edge_color(kind: Kind) -> Color:
 	var tone: Tone = ThemeTokens.tone()
 	match kind:
 		Kind.BOUND:
-			return tone.wall_color  # tarama çizgisi: cadde ve kaldırımdan ayrı okunur
+			return tone.wall_color  # hatch line: reads apart from street and pavement
 		Kind.WALL:
 			return tone.level_wall_edge_color
 		Kind.WINDOW:
@@ -185,16 +183,14 @@ static func edge_color(kind: Kind) -> Color:
 		Kind.COUNTER, Kind.CRATE:
 			return tone.level_counter_edge_color
 		Kind.COOLER:
-			return tone.level_glass_color  # camlı kapak: rafın kenarından açık, dolap raftan ayrı okunur
+			return tone.level_glass_color  # glass door: lighter than the shelf edge, cooler reads apart from shelf
 		Kind.SIDEWALK:
-			return tone.wall_color  # bordür
+			return tone.wall_color  # kerb
 	return color_of(kind)
 
 
-## İki geçiş (çizim toplama, teknik/cizim-performans.md P1): önce bütün dolu dikdörtgenler (zemin, cam şeridi,
-## duvar kenarı, bordür, eşya dolgusu), sonra bütün çizgiler (sınır taraması, eşya dış çizgisi ve raf bölmeleri).
-## Komut türü sık değişmediği için toplu çizilir; çizgiler hiçbir dolgunun altında kalmaz (kenar taraması komşu
-## karoya en çok yarım çizgi kalınlığı taşar).
+## Two passes (draw batching, teknik/cizim-performans.md P1): first all filled rectangles (floor, glass strip, wall edge, kerb, item fill), then all lines (border hatch, item outline and shelf dividers).
+## Batched because the command type rarely changes; lines never end up under a fill (edge hatch overflows into the neighbour tile by at most half a line width).
 func _draw() -> void:
 	var size: Vector2i = size_in_tiles()
 	for y: int in size.y:
@@ -231,16 +227,15 @@ func _draw_cell_rects(cell: Vector2i) -> void:
 		_draw_curbs(cell, rect)
 
 
-## Duvarın yürünebilir ya da eşyalı tarafına açık renk kenar: odalar üstten kalın ve net okunur.
+## Light edge on the walkable or furnished side of a wall: rooms read thick and clear from above.
 func _draw_wall_edges(cell: Vector2i) -> void:
 	var color: Color = edge_color(Kind.WALL)
 	for edge: Rect2 in wall_edge_rects(cell):
 		draw_rect(edge, color)
 
 
-## Duvar/cam karosunun kenar çizgileri (px, seviye koordinatı): yürünebilir ya da eşyalı komşuya bakan her kenar
-## için WALL_EDGE_WIDTH kalınlıkta şerit. Duvar ya da cam değilse boş. Seviye çizimi ve görüş sisinin krokisi
-## (US-011a, `FogLayer`) aynı çizgileri kullanır.
+## Edge lines of a wall/glass tile (px, level coordinates): a WALL_EDGE_WIDTH strip on every edge facing a walkable or furnished neighbour.
+## Empty if not wall or glass. Level drawing and the vision fog sketch (US-011a, `FogLayer`) use the same lines.
 func wall_edge_rects(cell: Vector2i) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var kind: Kind = kind_at(cell)
@@ -259,8 +254,8 @@ func wall_edge_rects(cell: Vector2i) -> Array[Rect2]:
 	return out
 
 
-## Kapı boşluğu karosunun eşik çizgisi (iki uç, px): boşluğu kesen duvar doğrultusunda, karo ortasından.
-## Kapı boşluğu değilse boş.
+## Threshold line of a door-gap tile (two ends, px): along the wall direction cutting the gap, through the tile centre.
+## Empty if not a door gap.
 func door_gap_segment(cell: Vector2i) -> PackedVector2Array:
 	if kind_at(cell) != Kind.DOOR:
 		return PackedVector2Array()
@@ -271,7 +266,7 @@ func door_gap_segment(cell: Vector2i) -> PackedVector2Array:
 	return PackedVector2Array([c - Vector2(0, half), c + Vector2(0, half)])
 
 
-## Harita kenarı / komşu bina: çapraz tarama, yürünebilir dış alandan ayrı okunur.
+## Map edge / neighbouring building: diagonal hatch, reads apart from the walkable outside area.
 func _draw_hatch(rect: Rect2) -> void:
 	var color: Color = edge_color(Kind.BOUND)
 	var o: Vector2 = rect.position
@@ -282,7 +277,7 @@ func _draw_hatch(rect: Rect2) -> void:
 			draw_line(o + Vector2(TILE, k - TILE), o + Vector2(k - TILE, TILE), color, HATCH_WIDTH)
 
 
-## Kaldırımın caddeye bakan kenarında bordür çizgisi.
+## Kerb line on the pavement edge facing the street.
 func _draw_curbs(cell: Vector2i, rect: Rect2) -> void:
 	var w: float = CURB_WIDTH
 	var color: Color = edge_color(Kind.SIDEWALK)
@@ -296,12 +291,12 @@ func _draw_curbs(cell: Vector2i, rect: Rect2) -> void:
 		draw_rect(Rect2(rect.position + Vector2(TILE - w, 0), Vector2(w, TILE)), color)
 
 
-## Eşyanın dış çizgisi ve raf bölmeleri (dolgu `_draw` dikdörtgen geçişinde).
+## Item outline and shelf dividers (fill is in the `_draw` rectangle pass).
 func _draw_furniture_lines(kind: Kind, cells: Rect2i) -> void:
 	var rect: Rect2 = shape_rect(kind, cells)
 	draw_rect(rect, edge_color(kind), false, 1.0)
 	if kind == Kind.SHELF:
-		# Çift yüzlü raf: uzun eksen boyunca orta çizgi ve kısa bölmeler; duvardan ayrı okunur.
+		# Double-sided shelf: centre line along the long axis and short dividers; reads apart from the wall.
 		var edge: Color = edge_color(kind)
 		var c: Vector2 = rect.get_center()
 		if rect.size.x >= rect.size.y:
@@ -317,7 +312,7 @@ func _draw_furniture_lines(kind: Kind, cells: Rect2i) -> void:
 				draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), edge, 1.0)
 				y += SHELF_BAY
 	elif kind == Kind.CRATE:
-		# Koli yığını: bantlı üst koli (çapraz bant) ve altta görünen ikinci kolinin kenarı.
+		# Crate stack: taped top crate (diagonal tape) and the edge of the second crate showing below.
 		var edge: Color = edge_color(kind)
 		var lid := Rect2(rect.position + Vector2(CRATE_LID, 0), rect.size - Vector2(CRATE_LID, CRATE_LID))
 		draw_rect(lid, edge, false, 1.0)
@@ -325,7 +320,7 @@ func _draw_furniture_lines(kind: Kind, cells: Rect2i) -> void:
 		draw_line(Vector2(lid.end.x, lid.position.y), Vector2(lid.position.x, lid.end.y), edge, 1.0)
 
 
-## İçecek dolabının camlı kapak şeridi (px): zemine bakan uzun kenarda (dolap duvara yaslı; arka yüz kör).
+## Glass door strip of the drinks cooler (px): on the long edge facing the floor (cooler stands against the wall; back is blind).
 func _cooler_glass(rect: Rect2, cells: Rect2i) -> Rect2:
 	if cells.size.y >= cells.size.x:
 		var west_open: bool = not is_solid(kind_at(cells.position + Vector2i.LEFT))
@@ -336,8 +331,8 @@ func _cooler_glass(rect: Rect2, cells: Rect2i) -> Rect2:
 	return Rect2(rect.position.x, y, rect.size.x, COOLER_GLASS)
 
 
-## Karonun altındaki zemin: eşya ve kapı için komşu zemin türü (önce iç zemin; dışarıdaki eşya için kaldırım/cadde),
-## diğerleri kendisi.
+## Floor under a tile: for items and doors the neighbouring floor type (interior floor first; pavement/street for outside items),
+## otherwise the tile itself.
 func _ground_kind(cell: Vector2i, kind: Kind) -> Kind:
 	if not is_furniture(kind) and kind != Kind.DOOR:
 		return kind
@@ -359,7 +354,7 @@ func _opens(cell: Vector2i) -> bool:
 	return not (k == Kind.WALL or k == Kind.WINDOW or k == Kind.BOUND)
 
 
-## Karo yatay bir duvar şeridinde mi (sol ya da sağ komşusu duvar/cam)?
+## Whether the tile is in a horizontal wall strip (left or right neighbour is wall/glass).
 func _horizontal_wall(cell: Vector2i) -> bool:
 	return not _opens(cell + Vector2i.LEFT) or not _opens(cell + Vector2i.RIGHT)
 

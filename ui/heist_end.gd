@@ -1,41 +1,35 @@
 class_name HeistEnd
 extends Control
-## İş sonu ekranı (US-013 asgari 2a; S3 eki heist_finished, KR-021; oyun-testi-ve-klip §4).
-## Sonuç başlığı, süre, ödeme satırları (ganimet × oran = ödeme), oyuncu satırları (slot rengi, ad,
-## kaçtı/yakalandı, ganimet), notlar (NOTE_<KIND> + NOTE_<KIND>_DESC; anahtar yoksa genel metin + uyarı),
-## "Bir daha" (yalnız host ve Game `request_restart()` taşıyorsa; S3 eki) ve "Menü" (`menu_requested`). Ekran hesap yapmaz:
-## sayılar `result` sözlüğünden. Kayıp ekranı aynı sahnenin hâli; başlık ALERT, geri kalan FG.
-## Açıkken oyun girdisi engellenir (S5). HUD `bind(game, net)` ile bağlar; geç katılan `heist_result()` alır.
-## US-040: `aborted` (eli boş çekilme) kayıp değildir: normal başlık. US-041 (KR-029): yakalanan satırında kefalet,
-## ödeme altında "− Kefalet" (toplam > 0 ise) ve "Ekip kasası a → b" (sonuçta `cash_before`/`cash_after` varsa);
-## eksi tutar uyarı renginde.
-## US-042: tanık sorgusuyla serbest bırakılan (`witness_released`) oyuncu satırında END_STATUS_WITNESS; yerel oyuncu
-## ise başlık altında END_WITNESS_RELEASED (soluk).
+## Heist end screen (US-013 minimum 2a; S3 addendum heist_finished, KR-021; oyun-testi-ve-klip §4).
+## Shows result title, duration, payout rows (loot x rate = payout), player rows (slot colour, name, escaped/caught, loot) and notes (NOTE_<KIND> + NOTE_<KIND>_DESC; generic text + warning if the key is missing),
+## "Again" (host only, and only if Game has `request_restart()`; S3 addendum) and "Menu" (`menu_requested`). Does no maths: numbers come from the `result` dictionary. The loss screen is a variant of the same scene (title ALERT, rest FG).
+## Blocks gameplay input while open (S5). HUD calls `bind(game, net)`; a late joiner gets `heist_result()`.
+## US-040: `aborted` (empty-handed retreat) is not a loss: normal title. US-041 (KR-029): caught row shows bail, "- Bail" under the payout (if total > 0) and "Team cash a -> b" (if the result has `cash_before`/`cash_after`); negatives in the alert colour.
+## US-042: a player released after witness questioning (`witness_released`) gets END_STATUS_WITNESS on their row; for the local player END_WITNESS_RELEASED (dim) under the title.
 
-## "Bir daha" (host): seviyeyi yeniden başlatma isteği; Game.request_restart() çağrıldıktan sonra yayılır.
+## "Again" (host): request to restart the level; emitted after Game.request_restart() is called.
 signal retry_requested()
-## "Menü": oturumdan ayrılıp ana menüye dönüş.
+## "Menu": leave the session and return to the main menu.
 signal menu_requested()
-## Ekran açıldı (HUD duraklat menüsünü kapatır).
+## Screen opened (the HUD closes the pause menu).
 signal opened()
 
-## Kayıp sonuçları: başlık uyarı renginde.
+## Loss results: title in the alert colour.
 const LOSS_OUTCOMES: Array[StringName] = [&"caught_all", &"police"]
-## Ses kataloğu olayları (data/sfx_catalog.tres; IS-024).
+## Sound catalogue events (data/sfx_catalog.tres; IS-024).
 const STINGER_WIN := &"stinger_success"
 const STINGER_LOSS := &"stinger_caught"
 const OUTCOME_KEY_PREFIX := "END_OUTCOME_"
 const NOTE_KEY_PREFIX := "NOTE_"
 const DESC_SUFFIX := "_DESC"
 const NOTE_SUFFIX := "_NOTE"
-## 1280×720'de tek ekran: en fazla bu kadar not gösterilir (üretim kuralı Game'de, US-012).
+## Single screen at 1280x720: at most this many notes shown (production rule lives in Game, US-012).
 const MAX_NOTES := 3
 const SWATCH_SIZE := Vector2(14, 14)
-## Oyuncu adı sütunu genişliği; uzun ad üç noktayla kısalır.
+## Player name column width; long names are ellipsised.
 const NAME_WIDTH := 240.0
-## Yakalanma nedeni (US-038 AC5): oturum olaylarından (S3 eki `player_caught {peer, by}`, `police_arrived`) her
-## peer'da toplanır; olayla yakalanmayan (polis kaçış bölgesi dışında yakaladı) sonuç POLICE ise ya da polis
-## geldiyse polis sayılır. Metinler END_STATUS_CAUGHT_<NEDEN> (oyuncu satırı) ve END_CAUSE_<NEDEN> (yerel oyuncu).
+## Caught cause (US-038 AC5): collected on every peer from session events (S3 addendum `player_caught {peer, by}`, `police_arrived`); a player not caught by an event
+## counts as police if the result is POLICE or police arrived (police caught them outside the escape zone). Texts: END_STATUS_CAUGHT_<CAUSE> (player row), END_CAUSE_<CAUSE> (local player).
 const CAUSE_POLICE := &"police"
 const CAUSE_CHASER := &"chaser"
 const CAUSE_OWNER := &"owner"
@@ -46,13 +40,13 @@ const CAUSE_KEY_PREFIX := "END_CAUSE_"
 
 var net: Object = null
 var game: Object = null
-## Eksik metin anahtarı bildirimi (HUD bağlar; testler yakalar). Geçersizse push_warning.
+## Missing-text-key notification (HUD binds; tests catch it); push_warning if unhandled.
 var warn: Callable
 
 var _result: Dictionary = {}
-## peer -> yakalayan (&"chaser" | &"owner"), `player_caught` olaylarından (ilk kayıt kalır).
+## peer -> catcher (&"chaser" | &"owner"), from `player_caught` events (first record stays).
 var _caught_by: Dictionary = {}
-## Bu seviyede `police_arrived` olayı görüldü mü.
+## Whether a `police_arrived` event was seen this level.
 var _police_seen: bool = false
 
 @onready var _title: Label = %OutcomeTitle
@@ -85,7 +79,7 @@ func _ready() -> void:
 		UiInput.link(from, SIDE_BOTTOM, from)
 
 
-## Game'e (S3 eki) bağlanır; iş zaten bittiyse (geç katılım) sonucu hemen gösterir.
+## Binds to Game (S3 addendum); if the heist already ended (late join) shows the result immediately.
 func bind(game_source: Object, net_source: Object) -> void:
 	game = game_source
 	net = net_source
@@ -122,10 +116,10 @@ func show_result(value: Dictionary) -> void:
 	show()
 	opened.emit()
 	(_retry_button if _retry_button.visible else _menu_button).grab_focus()
-	UiSfx.of(self).play_event(stinger_event())  # odak tikinden sonra: stinger kesilmesin
+	UiSfx.of(self).play_event(stinger_event())  # after the focus tick: do not cut off the stinger
 
 
-## "Bir daha" sunulabilir mi: Game S3 ekindeki yeniden başlatma isteğini taşıyor.
+## Whether "Again" can be offered: Game has the S3 addendum restart request.
 func can_restart() -> bool:
 	return game != null and game.has_method(&"request_restart")
 
@@ -134,7 +128,7 @@ func _is_host() -> bool:
 	return net != null and bool(net.call(&"is_host"))
 
 
-## Yalnız host isteyebilir (S3 eki: request_restart yalnız host); istemcide düğme zaten gizli.
+## Only the host may request (S3 addendum: request_restart is host-only); the button is already hidden on clients.
 func _on_retry_pressed() -> void:
 	if not (_is_host() and can_restart()):
 		return
@@ -142,13 +136,13 @@ func _on_retry_pressed() -> void:
 	retry_requested.emit()
 
 
-# --- başlık ---
+# --- title ---
 
 func outcome() -> StringName:
 	return StringName(str(_result.get("outcome", "")))
 
 
-## Açılış vurgusu (IS-024; ses-ve-sfx §1 kural 5): kayıpta yakalanma stinger'ı, değilse kısa olumlu jingle.
+## Opening accent (IS-024; ses-ve-sfx §1 rule 5): caught stinger on a loss, otherwise a short positive jingle.
 func stinger_event() -> StringName:
 	return STINGER_LOSS if LOSS_OUTCOMES.has(outcome()) else STINGER_WIN
 
@@ -169,7 +163,7 @@ func _fill_header() -> void:
 	_duration.text = Hud.format_clock(float(_result.get("duration_s", 0.0)))
 
 
-# --- ödeme ---
+# --- payout ---
 
 func _fill_payout() -> void:
 	_clear(_payout_grid)
@@ -195,9 +189,9 @@ func _payout_row(caption: String, value: String, value_style: StringName) -> voi
 	_payout_grid.add_child(value_label)
 
 
-# --- oyuncular ---
+# --- players ---
 
-## Sonuçtaki oyuncular, slot sırasıyla: [{peer, name, slot, escaped, caught, loot, bail}].
+## Players in the result, in slot order: [{peer, name, slot, escaped, caught, loot, bail}].
 func player_entries() -> Array[Dictionary]:
 	var players: Dictionary = _result.get("players", {})
 	var out: Array[Dictionary] = []
@@ -247,8 +241,8 @@ func _fill_players() -> void:
 		_player_grid.add_child(loot)
 
 
-## Yakalanma nedeni: yakalanmadıysa &""; olayda yakalayan (mahalleli/sahip) varsa o; yoksa sonuç POLICE ya da polis
-## geldiyse CAUSE_POLICE (kaçış bölgesi dışında kalan); bilinmiyorsa &"" (geç katılan, olayı görmedi).
+## Caught cause: &"" if not caught; the catcher (civilian/owner) from the event if any; else CAUSE_POLICE if the result is POLICE or police arrived (left outside the escape zone);
+## &"" if unknown (late joiner who missed the event).
 static func caught_cause(caught: bool, by: StringName, outcome_kind: StringName, police_seen: bool) -> StringName:
 	if not caught:
 		return &""
@@ -259,17 +253,17 @@ static func caught_cause(caught: bool, by: StringName, outcome_kind: StringName,
 	return &""
 
 
-## `player_entries()` satırının yakalanma nedeni.
+## Caught cause of a `player_entries()` row.
 func cause_of(p: Dictionary) -> StringName:
 	return caught_cause(bool(p["caught"]), StringName(str(_caught_by.get(int(p["peer"]), ""))), outcome(), _police_seen)
 
 
-## Oyuncu satırının durum anahtarı: nedenli (END_STATUS_CAUGHT_<NEDEN>) ya da genel END_STATUS_CAUGHT.
+## Status key of a player row: with cause (END_STATUS_CAUGHT_<CAUSE>) or generic END_STATUS_CAUGHT.
 static func caught_status_key(cause: StringName) -> StringName:
 	return &"END_STATUS_CAUGHT" if cause == &"" else StringName(STATUS_CAUGHT_PREFIX + String(cause).to_upper())
 
 
-## Yerel oyuncu yakalandıysa nedeninin açıklaması (END_CAUSE_<NEDEN>); değilse ya da neden bilinmiyorsa boş.
+## Explanation of the local player's caught cause (END_CAUSE_<CAUSE>); empty if not caught or cause unknown.
 func local_cause_text() -> String:
 	var local_id: int = int(net.call(&"local_peer_id")) if net != null else 0
 	for p: Dictionary in player_entries():
@@ -280,7 +274,7 @@ func local_cause_text() -> String:
 	return ""
 
 
-## Yerel oyuncu tanık sorgusuyla serbest bırakıldı mı (US-042).
+## Whether the local player was released after witness questioning (US-042).
 func local_witness() -> bool:
 	var local_id: int = int(net.call(&"local_peer_id")) if net != null else 0
 	for p: Dictionary in player_entries():
@@ -314,9 +308,9 @@ func _player_name(p: Dictionary, local_id: int) -> String:
 	return tr(&"HUD_PLAYER_YOU") % player_name if int(p["peer"]) == local_id else player_name
 
 
-# --- notlar ---
+# --- notes ---
 
-## Notun başlık ve açıklama metni: [başlık, açıklama]. Anahtar yoksa genel metin + geliştirici uyarısı.
+## Note title and description text: [title, description]. Generic text + developer warning if the key is missing.
 func note_texts(kind: StringName) -> PackedStringArray:
 	var key: String = NOTE_KEY_PREFIX + String(kind).to_upper()
 	var title: String = tr(key)
@@ -365,9 +359,9 @@ func _fill_notes() -> void:
 	_notes_box.visible = _note_row.get_child_count() > 0
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
-## Eksi tutar (kefalet, borç) işaret para biriminin önünde: "-$100" (Hud.format_cash ile aynı).
+## Negative amounts put the sign before the currency symbol: "-$100" (same as Hud.format_cash).
 func _cash(value: int) -> String:
 	var text: String = tr(&"HUD_CASH_VALUE") % Hud.group_digits(absi(value), tr(&"NUMBER_GROUP_SEPARATOR"))
 	return "-" + text if value < 0 else text

@@ -1,17 +1,15 @@
 class_name ExposureBadge
 extends PanelContainer
-## Kendi maruziyet rozeti (US-011c; GDD §6.5): HUD sol alt. Gizli / görünür (bir gözlemcinin konisinde) /
-## görüldü (bir gözlemcinin şüphesi ≥ 30). Durum üç yoldan okunur: göz şekli, renk, yazı (EyeIcon).
-## Game'den yalnız S3 eki (mimari.md, US-011b/c) üyeleri okunur: player_exposure(peer) -> int, player_exposure_changed(peer, level);
-## yerel peer Net.local_peer_id(). Game bunları taşımıyorsa rozet gizli kalır (uyarı yok).
-## HUD `bind(game, net)` ile bağlar.
+## Own exposure badge (US-011c; GDD §6.5), HUD bottom-left: hidden / visible (inside an observer's cone) / seen (an observer's suspicion >= 30).
+## Shown three ways: eye shape, colour, text (EyeIcon). Reads only S3 addendum (player_exposure(peer), player_exposure_changed(peer, level)); local peer is Net.local_peer_id().
+## Hidden if Game lacks the API (no warning). HUD calls `bind(game, net)`.
 
 const STATE_KEYS: Array[StringName] = [&"HUD_EXPOSURE_HIDDEN", &"HUD_EXPOSURE_VISIBLE", &"HUD_EXPOSURE_SEEN"]
 const LABEL_VARIATIONS: Array[StringName] = [&"MutedLabel", &"", &"AlertLabel"]
 const POP_SEC := 0.3
 const POP_SCALE := 1.3
 
-## Hareket azaltma (GDD §14.1 kural 5): durum yükselince pop çalmaz, durum anında görünür.
+## Reduced motion (GDD §14.1 rule 5): no pop on escalation, state shows instantly.
 var reduce_motion: bool = false
 
 var game: Object = null
@@ -28,12 +26,12 @@ func _ready() -> void:
 	_render()
 
 
-## Game'in maruziyet API'si (S3 eki; mimari.md, US-011b/c) var mı.
+## Whether Game has the exposure API (S3 addendum).
 static func supports(source: Object) -> bool:
 	return source != null and source.has_signal(&"player_exposure_changed") and source.has_method(&"player_exposure")
 
 
-## Game'e bağlanır; API yoksa rozet gizli kalır.
+## Binds to Game; hidden if the API is missing.
 func bind(source_game: Object, source_net: Object) -> void:
 	game = source_game
 	net = source_net
@@ -57,7 +55,7 @@ func set_level(value: int, animate: bool = true) -> void:
 		_play_pop()
 
 
-## Pop animasyonu sürüyor mu (test ve hareket azaltma denetimi için).
+## Whether the pop animation is running (for tests and the reduced-motion check).
 func is_popping() -> bool:
 	return _pop != null and _pop.is_valid() and _pop.is_running()
 

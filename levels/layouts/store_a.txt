@@ -1,28 +1,17 @@
-; store_a — T1 köşe bakkalı (GDD §9), 30×20 karo. Lejant: levels/level_layout.gd.
-; Üret: $GODOT --headless --path . -s res://levels/tools/build_levels.gd
-; Kuzey: arka ara sokak (arka kapı B) · güney: kaldırım + cadde (ön kapı F) · doğu: yan sokak.
-; Satış alanı rafları yatay koridorlar; tezgâh (C) ve kasa (R) ön kapıya bakar; tezgâhtar (K) arkada.
-; Arka oda: kasa (V), arka kapı B ve tezgâh arkasına açılan iç kapı D; nakit (M) raf arkasındaki köşede,
-; iç kapıdan görünmez. İki rota: F→satış→tezgâh ucu→R; B→arka oda→D→R.
-; Kapı nesneleri (Props, elle; üretici korur): FrontDoor (açık başlar), BackDoor ve BackroomDoor (D, IS-086; kilitsiz,
-; kapalı başlar, kapalıyken görüşü keser). D ClerkSpot'un ~101 px kuzeydoğusunda, sahibin arkasında: açılış sesi
-; (160 px) tezgâhta duyulur (DİNLE), arka odaya girişin tek izidir.
-; Sokak rotası (IS-023, eski PolicePatrol; yoldan geçen + mahalleli yaklaşma yolu): a→f sırası ön camlar → ön kapı
-; → köşe → yan camlar → yan sokak → arka kapı; ara sokak batıda kapalı (ön cepheye yalnız yan sokaktan dönülür).
-; Kaçış bölgesi (X, E dahil) caddenin güneydoğu köşesinde: ön kapıdan kaldırım boyunca, arka kapıdan yan sokaktan.
-; Mekân nüfusu (IS-023, GDD §9.2-9.3): camdan bakış g h i (cam parçası başına bir, kaldırımda camın önü); komşu N
-; (yan sokak, arka kapı ile cadde arası); müşteri raf noktaları j-n (raf önü / koridor ağzı) ve kuyruk q u (kasanın
-; müşteri tarafı, q kasanın tam önü); sahip: raf düzeltme o p r (batı rafları, kasaya görüş hattı raflarla kesik),
-; telefon P (tezgâh arkası doğu duvarı; camın değil duvarın önü), arka oda O; raf ucu prop yerleri x y z (US-010).
-; Bölgeler: müşteri alanı (satış + tezgâhın batısı), personel tarafı (tezgâh hattı ve doğusu, iç kapıya açılır),
-; arka oda. Kapı karoları bölgesizdir (eşik); bölgeler örtüşmez, iç zeminin her karosu tam bir bölgededir.
-; Görüş kesen engeller (US-033, mekan-estetigi K3): I içecek dolabı (13,5)-(13,7) satış doğu duvarına yaslı (koridor
-; 11-12 kalır); G koli (20,6) arka oda kesesi (21,6)-(21,7): BackroomSpot'tan gizli, iç kapıdan giren (19,7) görür;
-; G koli (21,2) ara sokak: arka kapıyı açan (20,2) StreetRoute5'ten gizli, StreetRoute6'dan görünür. Mevcut nakit cebi
-; (15,5)-(15,7) korunur. Yoğunluk: çarpışan dekor 5 karo, kapı eşiği ve iki yanı, işaret karoları engelsiz.
-; İşaret satırı: @ <harf> <Marker adı> <zemin karakteri>; Spawn* adları SpawnPoints'e, diğerleri Markers'a gider.
-; Bölge satırı: = <harf> <Bölge adı> <zemin karakteri>; harfin hücreleri (içindeki işaretlerle) dolu dikdörtgen.
-; Boyamasız bölge: = <Bölge adı> <sütun> <satır> <genişlik> <yükseklik> (karo; aynı ad yinelenirse çok parçalı).
+; store_a — T1 corner shop (GDD §9), 30x20 tiles. Legend: levels/level_layout.gd. Generate: $GODOT --headless --path . -s res://levels/tools/build_levels.gd
+; North: back alley (back door B) · south: pavement + street (front door F) · east: side street. Sales-floor shelves are horizontal aisles; counter (C) and register (R) face the front door; clerk (K) at the back.
+; Back room: safe (V), back door B and inner door D opening behind the counter; cash (M) in the corner behind the shelf, invisible from the inner door. Two routes: F->sales->counter end->R; B->back room->D->R.
+; Door objects (Props, hand-placed; generator keeps them): FrontDoor (starts open), BackDoor and BackroomDoor (D, IS-086; unlocked, start closed, block sight when closed). D is ~101 px north-east of ClerkSpot, behind the owner: its open sound (160 px) is heard at the counter (LISTEN), the only trace of entering the back room.
+; Street route (IS-023, formerly PolicePatrol; passer-by + neighbour approach path): a->f order front windows -> front door -> corner -> side windows -> side street -> back door; the alley is closed to the west (the front can only be reached via the side street).
+; Escape zone (X, incl. E) in the street's south-east corner: along the pavement from the front door, via the side street from the back door.
+; Venue population (IS-023, GDD §9.2-9.3): window-gazing g h i (one per glass piece, on the pavement in front of it); neighbour N (side street, between back door and street); customer shelf points j-n (shelf front / aisle mouth) and queue q u (customer side of the register, q right in front);
+; owner: shelf tidying o p r (west shelves, line of sight to the register cut by shelves), phone P (east wall behind the counter; in front of the wall, not the glass), back room O; shelf-end prop spots x y z (US-010).
+; Zones: customer area (sales floor + west of the counter), staff side (counter line and east of it, opens to the inner door), back room. Door tiles have no zone (threshold); zones do not overlap, every interior floor tile is in exactly one zone.
+; Sight-blocking obstacles (US-033, mekan-estetigi K3): I drinks cooler (13,5)-(13,7) against the sales-floor east wall (aisle 11-12 stays); G crate (20,6) back-room nook (21,6)-(21,7): hidden from BackroomSpot, seen by someone entering via the inner door (19,7);
+; G crate (21,2) alley: hides from StreetRoute5 someone opening the back door (20,2), visible from StreetRoute6. The existing cash pocket (15,5)-(15,7) is kept. Density: colliding decor 5 tiles, door threshold and both sides, marker tiles are free of obstacles.
+; Marker line: @ <letter> <Marker name> <floor char>; Spawn* names go to SpawnPoints, others to Markers.
+; Zone line: = <letter> <Zone name> <floor char>; the letter's cells (with markers inside) form a filled rectangle.
+; Unpainted zone: = <Zone name> <col> <row> <width> <height> (tiles; a repeated name makes a multi-part zone).
 @ F FrontDoor +
 @ B BackDoor +
 @ D BackroomDoor +

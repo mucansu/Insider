@@ -1,10 +1,9 @@
 class_name ThemeBuilder
 extends RefCounted
-## Bir `Tone`'dan Godot `Theme`'i kurar (S9). Çıktı deterministiktir; build_themes.gd bunu
-## ui/theme/<id>.tres olarak kaydeder, test_ui_theme.gd kayıtlı dosyanın güncel olduğunu doğrular.
-## Oyun için anlamlı renkler (CashLabel, AlertLabel, AlertPanel, EscapeLabel) tondan değil ThemeTokens.GAMEPLAY_*'dan gelir.
+## Builds a Godot `Theme` from a `Tone` (S9). Output is deterministic; build_themes.gd saves it as ui/theme/<id>.tres and test_ui_theme.gd checks the saved file is current.
+## Gameplay-meaningful colours (CashLabel, AlertLabel, AlertPanel, EscapeLabel) come from ThemeTokens.GAMEPLAY_*, not the tone.
 ##
-## Tür varyasyonları (sahnelerde `theme_type_variation`):
+## Type variations (`theme_type_variation` in scenes):
 ##   Label: TitleLabel, AlertTitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel,
 ##          EscapeLabel
 ##   Button: PrimaryButton · HSeparator: AccentSeparator · MarginContainer: HudFrame
@@ -12,8 +11,8 @@ extends RefCounted
 ##   Panel: BackgroundPanel, DimPanel · VBoxContainer: LooseVBox · HBoxContainer: LooseHBox
 
 const HUD_PANEL_ALPHA := 0.88
-## HUD köşe ögeleri (nakit, ekip, uyarı merdiveni; US-013): haritayı az örten dar panel. Alfa, en açık dünya
-## zemini (cam) üstünde bile MUTED ≥ 4,5 kalacak kadar yüksek (test_ui_theme: test_hud_chip_readable_over_world).
+## HUD corner items (cash, team, alert ladder; US-013): narrow panel that covers little map. Alpha is high enough that MUTED stays >= 4.5 even over the lightest world
+## floor (glass) (test_ui_theme: test_hud_chip_readable_over_world).
 const HUD_CHIP_ALPHA := 0.94
 const HUD_CHIP_PAD := Vector2i(10, 4)
 const TOAST_PANEL_ALPHA := 0.94
@@ -49,7 +48,7 @@ static func _labels(t: Theme, tone: Tone) -> void:
 	t.set_font(&"font", &"TitleLabel", title_font)
 	t.set_font_size(&"font_size", &"TitleLabel", tone.font_size_title)
 	t.set_color(&"font_color", &"TitleLabel", tone.fg_color)
-	# Kayıp sonucu başlığı (US-013 iş sonu ekranı): TitleLabel, uyarı renginde.
+	# Loss result title (US-013 heist end screen): TitleLabel in the alert colour.
 	_variation(t, &"AlertTitleLabel", &"TitleLabel")
 	t.set_color(&"font_color", &"AlertTitleLabel", ThemeTokens.GAMEPLAY_ALERT)
 	_variation(t, &"HeadingLabel", &"Label")
@@ -66,7 +65,7 @@ static func _labels(t: Theme, tone: Tone) -> void:
 	_variation(t, &"CashLabel", &"Label")
 	t.set_font_size(&"font_size", &"CashLabel", tone.font_size_heading)
 	t.set_color(&"font_color", &"CashLabel", ThemeTokens.GAMEPLAY_CASH)
-	# Kaçış hedefi (US-038 HUD kaçış satırı): başlık boyu, kaçış renginde.
+	# Escape objective (US-038 HUD escape row): title size, escape colour.
 	_variation(t, &"EscapeLabel", &"Label")
 	t.set_font_size(&"font_size", &"EscapeLabel", tone.font_size_heading)
 	t.set_color(&"font_color", &"EscapeLabel", ThemeTokens.GAMEPLAY_ESCAPE)
@@ -140,8 +139,8 @@ static func _panels(t: Theme, tone: Tone) -> void:
 	var chip_line: Color = tone.line_color
 	chip_line.a = HUD_CHIP_ALPHA
 	t.set_stylebox(&"panel", &"HudChip", _box("hud_chip", chip_bg, chip_line, tone.border_width, tone, HUD_CHIP_PAD))
-	# Uyarı merdiveni kutuları (US-013): boş kutu MUTED çerçeve (metin dışı öge ≥ 3:1; LINE zeminde
-	# seçilmez), dolu kutu GAMEPLAY_ALERT dolgu. Boyut sahnede (≥ 22 px), iç boşluk yok.
+	# Alert ladder boxes (US-013): empty box has a MUTED outline (non-text >= 3:1; not picked on the LINE ground), filled box GAMEPLAY_ALERT fill.
+	# Size is in the scene (>= 22 px), no inner padding.
 	_variation(t, &"LadderStep", &"PanelContainer")
 	t.set_stylebox(&"panel", &"LadderStep", _box("ladder_step", tone.bg_color, tone.muted_color, tone.focus_width, tone, Vector2i.ZERO))
 	_variation(t, &"LadderStepActive", &"PanelContainer")
@@ -182,7 +181,7 @@ static func _misc(t: Theme, tone: Tone) -> void:
 		t.set_constant(side, &"HudFrame", ThemeTokens.SCREEN_MARGIN)
 
 
-# --- yardımcılar (alt kaynak kimlikleri sabit: üretilen .tres farkı yalnız gerçek değişikliği gösterir) ---
+# --- helpers (sub-resource ids are fixed: the generated .tres diff shows only real changes) ---
 
 static func _variation(t: Theme, variation: StringName, base: StringName) -> void:
 	t.set_type_variation(variation, base)
@@ -202,7 +201,7 @@ static func _box(id: String, bg: Color, border: Color, border_width: int, tone: 
 	return sb
 
 
-## Odak çerçevesi: dolgusuz, vurgu renginde kalın kenar (klavye/gamepad odağı her zaman görünür).
+## Focus frame: no fill, thick accent-colour border (keyboard/gamepad focus is always visible).
 static func _focus_box(id: String, tone: Tone) -> StyleBoxFlat:
 	var sb := _box(id, tone.accent_color, tone.accent_color, tone.focus_width, tone, Vector2i.ZERO)
 	sb.draw_center = false
@@ -210,7 +209,7 @@ static func _focus_box(id: String, tone: Tone) -> StyleBoxFlat:
 	return sb
 
 
-## Solunda renk şeridi olan panel (bildirim, hata).
+## Panel with a colour stripe on its left (notification, error).
 static func _stripe_box(id: String, bg: Color, stripe: Color, tone: Tone, pad: Vector2i) -> StyleBoxFlat:
 	var sb := _box(id, bg, stripe, 0, tone, pad)
 	sb.border_width_left = STRIPE_WIDTH

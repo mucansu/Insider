@@ -1,20 +1,18 @@
 class_name UiSfx
 extends AudioStreamPlayer
-## Arayüz sesi (IS-024): konumsuz çalar, ekranın alt düğümü (`UiSfx`). Olaylar `data/sfx_catalog.tres`'ten
-## (SfxCatalog) adla çalınır; aynı olay en kısa aralıktan sık çalmaz. Düğmeler `wire_buttons(ekran)` ile
-## bağlanır: odak -> ui_focus, basma -> ui_click. Uyarı merdiveni ve iş sonu ekranı kendi olaylarını çalar.
-## Ses yalnız eşlik eder; hiçbir bilgi yalnız sesle verilmez (ses-ve-sfx §1 kural 7).
+## UI sound (IS-024): non-positional player on the screen's child node (`UiSfx`). Events play by name from `data/sfx_catalog.tres` (SfxCatalog); the same event is rate-limited.
+## `wire_buttons(screen)` binds buttons: focus -> ui_focus, press -> ui_click. Sound only accompanies; no information is sound-only (ses-ve-sfx §1 rule 7).
 
-## Olay çalındı (yalnız gerçekten çalınınca; testler okur).
+## Event played (only when actually played; tests read it).
 signal played(event: StringName)
 
 const NODE_NAME := &"UiSfx"
 const CLICK := &"ui_click"
 const FOCUS := &"ui_focus"
 
-## Boşsa ilk çalışta `SfxCatalog.load_default()`.
+## If empty, `SfxCatalog.load_default()` on first use.
 var catalog: SfxCatalog = null
-## Saat (sn); testler değiştirir. Geçersizse `SfxCatalog.now_sec()`.
+## Clock (s); tests override. Falls back to `SfxCatalog.now_sec()` if invalid.
 var clock: Callable
 
 var _last_played: Dictionary = {}
@@ -25,7 +23,7 @@ func _ready() -> void:
 	_rng.randomize()
 
 
-## `owner_node`'un arayüz çaları; yoksa kurar.
+## UI player of `owner_node`; created if missing.
 static func of(owner_node: Node) -> UiSfx:
 	var existing: UiSfx = owner_node.get_node_or_null(NodePath(NODE_NAME)) as UiSfx
 	if existing != null:
@@ -36,7 +34,7 @@ static func of(owner_node: Node) -> UiSfx:
 	return player
 
 
-## `root` altındaki bütün düğmelere odak ve basma sesini bağlar; çaları döndürür.
+## Binds focus and press sounds to every button under `root`; returns the player.
 static func wire_buttons(root: Node) -> UiSfx:
 	var player: UiSfx = of(root)
 	for node: Node in root.find_children("*", "BaseButton", true, false):
@@ -44,8 +42,8 @@ static func wire_buttons(root: Node) -> UiSfx:
 	return player
 
 
-## Tek düğmeye odak ve basma sesini bağlar; düğme zaten bir arayüz çalarına bağlıysa dokunmaz (çift ses olmaz).
-## Ekran kurulduktan sonra üretilen düğmeler (ör. davet adres listesi) bununla bağlanır.
+## Binds focus and press sounds to one button; skips it if already bound to a UI player (no double sound).
+## Use for buttons created after the screen is built (e.g. the invite address list).
 static func wire_button(button: BaseButton, player: UiSfx) -> void:
 	if is_wired(button):
 		return
@@ -53,7 +51,7 @@ static func wire_button(button: BaseButton, player: UiSfx) -> void:
 	button.pressed.connect(player.play_event.bind(CLICK))
 
 
-## Düğmenin basma sinyali bir arayüz çalarına bağlı mı.
+## Whether the button's pressed signal is bound to a UI player.
 static func is_wired(button: BaseButton) -> bool:
 	for c: Dictionary in button.pressed.get_connections():
 		if (c["callable"] as Callable).get_object() is UiSfx:
@@ -61,7 +59,7 @@ static func is_wired(button: BaseButton) -> bool:
 	return false
 
 
-## `node`un en yakın atasının arayüz çaları (ekran `wire_buttons` ile kurduysa); yoksa null.
+## UI player of `node`'s nearest ancestor (if the screen set it up via `wire_buttons`); null otherwise.
 static func find_for(node: Node) -> UiSfx:
 	var current: Node = node.get_parent()
 	while current != null:
@@ -72,7 +70,7 @@ static func find_for(node: Node) -> UiSfx:
 	return null
 
 
-## Olayı çalar; olay katalogda yoksa, çalar ağaçta değilse ya da en kısa aralık dolmadıysa false (sessiz).
+## Plays the event; false (silent) if it is not in the catalogue, the player is not in the tree, or the minimum interval has not elapsed.
 func play_event(event: StringName) -> bool:
 	if not is_inside_tree():
 		return false

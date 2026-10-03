@@ -1,34 +1,28 @@
 extends SceneTree
-## Seviye üretici (US-002): levels/layouts/<ad>.txt ASCII düzeninden levels/<ad>.tscn sahnesini S4 düzeninde yazar.
+## Level generator (US-002): writes the levels/<name>.tscn scene in the S4 layout from the levels/layouts/<name>.txt ASCII layout.
 ##   $GODOT --headless --path . -s res://levels/tools/build_levels.gd [-- store_a test_arena]
-## Ad verilmezse levels/layouts/ altındaki tüm .txt dosyaları üretilir. Sahne zaten varsa yalnız üretilen
-## düğümler (Tiles, Walls, SpawnPoints, Markers, Zones, Navigation) yeniden kurulur; Players, Props, NPCs ve
-## elle eklenmiş diğer düğümler korunur. Düzen değişikliği .txt'de yapılır, .tscn elle düzenlenmez
-## (tests/unit/test_levels*.gd sahne ile ızgaranın tutarlılığını denetler).
+## With no name, every .txt under levels/layouts/ is generated. If the scene exists only the generated nodes (Tiles, Walls, SpawnPoints, Markers, Zones, Navigation) are rebuilt;
+## Players, Props, NPCs and other hand-added nodes are kept. Layout changes go in the .txt, never hand-edit the .tscn (tests/unit/test_levels*.gd check scene/grid consistency).
 ##
-## Düzen dosyası: `;` ile başlayan satır yorum; `@ <harf> <Marker adı> <zemin karakteri>` işaret tanımı
-## (her harf ızgarada tam bir kez geçer, `Spawn*` adları SpawnPoints'e, diğerleri Markers'a gider);
-## `= <harf> <Bölge adı> <zemin karakteri>` bölge tanımı (harfin hücreleri dolu bir dikdörtgen oluşturur; içine
-## düşen `@` işaretleri dikdörtgene sayılır; `Zones/<ad>` Area2D, katman triggers); `= <Bölge adı> <sütun> <satır>
-## <genişlik> <yükseklik>` boyamasız dikdörtgen bölge parçası (IS-023: raf/işaret içeren odalar boyanamaz; aynı ad
-## yinelenirse bölge birden çok dikdörtgenden oluşur, sırayla `Shape`, `Shape2` …); kalan satırlar eşit
-## genişlikte karo ızgarasıdır (lejant: levels/level_layout.gd). US-007 ekleri (camlar, bölgeler, gezinme):
-## `_build_walls`, `_build_zones`, `_build_navigation` açıklamaları.
+## Layout file: a line starting with `;` is a comment; `@ <letter> <Marker name> <floor char>` defines a marker (each letter appears exactly once in the grid; `Spawn*` names go to SpawnPoints, others to Markers);
+## `= <letter> <Zone name> <floor char>` defines a zone (the letter's cells form a filled rectangle; `@` markers inside count toward it; `Zones/<name>` Area2D, triggers layer);
+## `= <Zone name> <col> <row> <width> <height>` is an unpainted rectangle zone piece (IS-023: rooms with shelves/markers cannot be painted; a repeated name makes a zone of several rectangles, shapes `Shape`, `Shape2` ... in order);
+## the remaining lines are an equal-width tile grid (legend: levels/level_layout.gd). US-007 additions (glass, zones, navigation): see `_build_walls`, `_build_zones`, `_build_navigation`.
 
 const LAYOUT_DIR := "res://levels/layouts"
 const LEVEL_DIR := "res://levels"
-## Üretilen düğümler; sahnedeki sıra S4 ile aynı (Tiles en altta çizilir).
+## Generated nodes; scene order matches S4 (Tiles draws at the bottom).
 const ORDER: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Players", "Props", "NPCs", "Markers", "Zones", "Navigation"]
 const GENERATED: Array[String] = ["Tiles", "Walls", "SpawnPoints", "Markers", "Zones", "Navigation"]
-const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4: katman 1 `world`
-const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4: katman 2 `players`
-const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4: katman 5 `triggers`
-## Görüşü geçiren gövdelerin grubu (S11 Faz 2 eki; algı bu gruptaki çarpışanı atlar).
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4: layer 1 `world`
+const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4: layer 2 `players`
+const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4: layer 5 `triggers`
+## Group of sight-passing bodies (S11 Phase 2 addendum; perception skips colliders in this group).
 const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
-## Gezinme ajanı yarıçapı (px): karakter çapı ~24 px (S4); bake engelleri bu kadar büyütür.
+## Navigation agent radius (px): character diameter ~24 px (S4); the bake grows obstacles by this much.
 const NAV_AGENT_RADIUS := 12.0
 const LAYOUT_SCRIPT := preload("res://levels/level_layout.gd")
-## Kök betik (S4 Level API'si, KR-018).
+## Root script (S4 Level API, KR-018).
 const LEVEL_SCRIPT := preload("res://levels/level.gd")
 const SOLID_ORDER: Array[LevelLayout.Kind] = [
 	LevelLayout.Kind.BOUND, LevelLayout.Kind.WALL, LevelLayout.Kind.WINDOW,
@@ -51,13 +45,13 @@ func _initialize() -> void:
 	quit(code)
 
 
-## Tek seviyeyi üretir: layouts/<ad>.txt → <ad>.tscn.
+## Generates one level: layouts/<name>.txt -> <name>.tscn.
 static func build(level_name: String) -> Error:
 	return build_scene(LAYOUT_DIR.path_join(level_name + ".txt"), LEVEL_DIR.path_join(level_name + ".tscn"), true)
 
 
-## Düzen dosyasından sahneyi yazar (testler geçici yolla da çağırır). Var olan düğümler adla yeniden kullanılır;
-## düzen değişmediyse sahne dosyası da değişmez (unique_id'ler, sahne uid'i ve alt sahne örneklerinin değerleri korunur).
+## Writes the scene from the layout file (tests also call it with a temp path). Existing nodes are reused by name;
+## if the layout is unchanged the scene file is unchanged too (unique_ids, scene uid and sub-scene instance values are kept).
 static func build_scene(layout_path: String, scene_path: String, verbose: bool = false) -> Error:
 	var layout: Dictionary = parse_layout(layout_path)
 	if layout.is_empty():
@@ -73,8 +67,8 @@ static func build_scene(layout_path: String, scene_path: String, verbose: bool =
 
 	var spawns: Node2D = _ensure(root, "SpawnPoints", "Node2D") as Node2D
 	var markers: Node2D = _ensure(root, "Markers", "Node2D") as Node2D
-	var keep: Dictionary = {}  # üretilen düğüm -> true
-	var doors: Array[Marker2D] = []  # kapı karosundaki işaretler (gezinme bağları)
+	var keep: Dictionary = {}  # generated node -> true
+	var doors: Array[Marker2D] = []  # markers on door tiles (navigation links)
 	for m: Dictionary in layout["markers"]:
 		var marker_name: String = m["name"]
 		var parent: Node2D = spawns if marker_name.begins_with("Spawn") else markers
@@ -82,7 +76,7 @@ static func build_scene(layout_path: String, scene_path: String, verbose: bool =
 		parent.move_child(marker, -1)
 		var cell: Vector2i = m["cell"]
 		marker.position = LevelLayout.cell_center(cell)
-		# Kapı yönü: 0 = yatay duvardaki boşluk (kapı x boyunca), 90 = dikey duvar.
+		# Door orientation: 0 = gap in a horizontal wall (door along x), 90 = vertical wall.
 		var is_door: bool = tiles.kind_at(cell) == LevelLayout.Kind.DOOR
 		marker.rotation_degrees = 90.0 if is_door and not _is_horizontal_gap(tiles, cell) else 0.0
 		if is_door:
@@ -120,18 +114,17 @@ static func build_scene(layout_path: String, scene_path: String, verbose: bool =
 	return err
 
 
-## Düzen dosyasını okur: {"rows": PackedStringArray (işaretler zemine dönmüş), "markers": [{name, cell}],
-## "zones": [{name, rects: Array[Rect2i] (karo)}]} (bölgeler ilk tanım sırasıyla). Hata varsa push_error ile
-## bildirir ve boş sözlük döner.
+## Reads the layout file: {"rows": PackedStringArray (markers turned back to floor), "markers": [{name, cell}],
+## "zones": [{name, rects: Array[Rect2i] (tiles)}]} (zones in first-definition order). On error reports via push_error and returns an empty dictionary.
 static func parse_layout(path: String) -> Dictionary:
 	var text: String = FileAccess.get_file_as_string(path)
 	if text.is_empty():
 		push_error("build_levels: düzen okunamadı: " + path)
 		return {}
-	var defs: Dictionary = {}  # harf -> [ad, zemin karakteri]
-	var zone_defs: Dictionary = {}  # harf -> [ad, zemin karakteri]
-	var zone_order: Array[String] = []  # bölge adları, ilk tanım sırasıyla
-	var rect_zones: Dictionary = {}  # boyamasız bölge adı -> Array[Rect2i]
+	var defs: Dictionary = {}  # letter -> [name, floor char]
+	var zone_defs: Dictionary = {}  # letter -> [name, floor char]
+	var zone_order: Array[String] = []  # zone names, in first-definition order
+	var rect_zones: Dictionary = {}  # unpainted zone name -> Array[Rect2i]
 	var grid: PackedStringArray = []
 	for raw: String in text.split("\n"):
 		var line: String = raw.strip_edges(false, true)
@@ -166,8 +159,8 @@ static func parse_layout(path: String) -> Dictionary:
 		return {}
 	var width: int = grid[0].length()
 	var rows: PackedStringArray = []
-	var seen: Dictionary = {}  # işaret harfi -> hücre
-	var zone_cells: Dictionary = {}  # bölge harfi -> Array[Vector2i]
+	var seen: Dictionary = {}  # marker letter -> cell
+	var zone_cells: Dictionary = {}  # zone letter -> Array[Vector2i]
 	for y: int in grid.size():
 		if grid[y].length() != width:
 			push_error("build_levels: %s: %d. satır genişliği %d, beklenen %d" % [path, y + 1, grid[y].length(), width])
@@ -192,13 +185,13 @@ static func parse_layout(path: String) -> Dictionary:
 				push_error("build_levels: %s: bilinmeyen karakter '%s' (%d, %d)" % [path, ch, x, y])
 				return {}
 		rows.append(row)
-	var markers: Array[Dictionary] = []  # tanım sırasıyla
+	var markers: Array[Dictionary] = []  # in definition order
 	for ch: String in defs:
 		if not seen.has(ch):
 			push_error("build_levels: %s: işaret '%s' ızgarada yok" % [path, ch])
 			return {}
 		markers.append({"name": defs[ch][0], "cell": seen[ch]})
-	var painted: Dictionary = {}  # boyalı bölge adı -> dikdörtgen
+	var painted: Dictionary = {}  # painted zone name -> rectangle
 	for ch: String in zone_defs:
 		var rect: Rect2i = _zone_rect(zone_cells.get(ch, []), seen.values())
 		if rect.has_area():
@@ -207,7 +200,7 @@ static func parse_layout(path: String) -> Dictionary:
 			push_error("build_levels: %s: bölge '%s' ızgarada yok ya da dolu dikdörtgen değil" % [path, ch])
 			return {}
 	var bounds := Rect2i(0, 0, width, grid.size())
-	var zones: Array[Dictionary] = []  # ilk tanım sırasıyla
+	var zones: Array[Dictionary] = []  # in first-definition order
 	for zone_name: String in zone_order:
 		var rects: Array[Rect2i] = []
 		if painted.has(zone_name):
@@ -221,8 +214,8 @@ static func parse_layout(path: String) -> Dictionary:
 	return {"rows": rows, "markers": markers, "zones": zones}
 
 
-## `= <ad> <sütun> <satır> <genişlik> <yükseklik>` satırının dikdörtgeni; ad düğüm adı değilse ya da sayılar
-## geçersizse (negatif konum, sıfır/negatif boyut) boş dikdörtgen.
+## Rectangle of a `= <name> <col> <row> <width> <height>` line; empty rectangle if the name is not a node name or the numbers
+## are invalid (negative position, zero/negative size).
 static func _parse_zone_rect(parts: PackedStringArray) -> Rect2i:
 	if parts[1].validate_node_name() != parts[1]:
 		return Rect2i()
@@ -243,8 +236,7 @@ static func _painted_zone_named(zone_defs: Dictionary, zone_name: String) -> boo
 	return false
 
 
-## Bölge hücrelerinin kapsadığı dikdörtgen (karo); hücreler (araya düşen işaretlerle) dikdörtgeni tam
-## doldurmuyorsa boş dikdörtgen.
+## Rectangle covered by a zone's cells; empty rectangle if the cells (with markers in between) do not fill it exactly.
 static func _zone_rect(cells: Array, marker_cells: Array) -> Rect2i:
 	if cells.is_empty():
 		return Rect2i()
@@ -258,10 +250,8 @@ static func _zone_rect(cells: Array, marker_cells: Array) -> Rect2i:
 	return rect if covered == rect.get_area() else Rect2i()
 
 
-## Çarpışma şekilleri: tür başına birleştirilmiş dikdörtgenler, adları <Önek><n> (Bound/Wall/Window/Shelf/Counter;
-## US-033: Cooler/Crate — dolu engel, world katmanında `Walls` şekli: çarpışır ve görüşü keser).
-## Camlar (`Window<n>`) ayrı StaticBody2D + `Shape` çocuğudur ve `see_through` grubundadır: görüş hattı sorgusu
-## çarpışanı gövde olarak döndürdüğünden camı duvardan ayırmak için ayrı gövde gerekir (KR-019 K1).
+## Collision shapes: merged rectangles per type, named <Prefix><n> (Bound/Wall/Window/Shelf/Counter; US-033: Cooler/Crate - solid obstacle, `Walls` shape on the world layer: collides and blocks sight).
+## Glass (`Window<n>`) is a separate StaticBody2D + `Shape` child in the `see_through` group: a line-of-sight query returns the collider as a body, so glass needs its own body to be told apart from a wall (KR-019 K1).
 static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:
 	walls.collision_layer = WORLD_LAYER
 	walls.collision_mask = 0
@@ -294,8 +284,8 @@ static func _build_walls(walls: StaticBody2D, tiles: LevelLayout) -> void:
 	_prune(walls, keep)
 
 
-## Bölgeler: `Zones/<ad>` Area2D (katman triggers, oyuncuları izler) + dikdörtgen başına bir şekil (`Shape`,
-## `Shape2` …). Bölge kökü dikdörtgenlerin kapsayıcısının merkezinde (tek dikdörtgende şekil merkezde).
+## Zones: `Zones/<name>` Area2D (triggers layer, tracks players) + one shape per rectangle (`Shape`, `Shape2` ...).
+## The zone root sits at the centre of the rectangles' bounds (with a single rectangle the shape is at the centre).
 static func _build_zones(zones: Node2D, defs: Array) -> void:
 	var keep: Dictionary = {}
 	for z: Dictionary in defs:
@@ -324,8 +314,8 @@ static func _build_zones(zones: Node2D, defs: Array) -> void:
 	_prune(zones, keep)
 
 
-## Gezinme: düzenden bake edilmiş tek bölge + kapı başına bir bağ (`Navigation/<kapı işareti adı>`, NavigationLink2D).
-## Kapı karosu çokgende engeldir; geçiş bağladır, kapalı kapı = bağ `enabled = false` (kapıyı bağlayan sistem).
+## Navigation: one region baked from the layout + one link per door (`Navigation/<door marker name>`, NavigationLink2D).
+## The door tile blocks the polygon; passage goes through the link; closed door = link `enabled = false` (set by the system wiring the door).
 static func _build_navigation(region: NavigationRegion2D, tiles: LevelLayout, doors: Array[Marker2D]) -> void:
 	var door_cells: Array[Vector2i] = []
 	var keep: Dictionary = {}
@@ -334,7 +324,7 @@ static func _build_navigation(region: NavigationRegion2D, tiles: LevelLayout, do
 		var link: NavigationLink2D = _ensure(region, door.name, "NavigationLink2D") as NavigationLink2D
 		region.move_child(link, -1)
 		link.position = door.position
-		# Kapıyı dik geçen eksen: 0° (yatay duvar) → y, 90° (dikey duvar) → x; uçlar iki yandaki karo merkezleri.
+		# Axis crossing the door perpendicularly: 0 deg (horizontal wall) -> y, 90 deg (vertical wall) -> x; ends are the centres of the tiles on either side.
 		var across: Vector2 = Vector2.RIGHT if is_equal_approx(door.rotation_degrees, 90.0) else Vector2.DOWN
 		link.start_position = -across * LevelLayout.TILE
 		link.end_position = across * LevelLayout.TILE
@@ -343,9 +333,8 @@ static func _build_navigation(region: NavigationRegion2D, tiles: LevelLayout, do
 	region.navigation_polygon = bake_navigation(tiles, door_cells)
 
 
-## Düzenin gezinme çokgeni: harita dikdörtgeni yürünebilir; tüm çarpışan şekiller (raf/tezgâh içe paylı) ve
-## `blocked_cells` (kapı karoları; geçiş bağlarla) engel; ajan yarıçapı NAV_AGENT_RADIUS. Senkron ve
-## deterministik (testler aynı girdiyle yeniden bake edip sahnedekiyle karşılaştırır).
+## The layout's navigation polygon: the map rectangle is walkable; all colliding shapes (shelf/counter with inset) and
+## `blocked_cells` (door tiles; passage via links) are obstacles; agent radius NAV_AGENT_RADIUS. Synchronous and deterministic (tests re-bake from the same input and compare with the scene).
 static func bake_navigation(tiles: LevelLayout, blocked_cells: Array[Vector2i]) -> NavigationPolygon:
 	var poly := NavigationPolygon.new()
 	poly.agent_radius = NAV_AGENT_RADIUS
@@ -372,7 +361,7 @@ static func _rect_shape(size: Vector2, unique_id: String) -> RectangleShape2D:
 	return shape
 
 
-## Adlı çocuğu döndürür; yoksa ya da türü/betiği farklıysa yenisiyle değiştirir.
+## Returns the named child; replaces it with a new one if missing or of a different type/script.
 static func _ensure(parent: Node, child_name: String, cls: String, script: Script = null) -> Node:
 	var node: Node = parent.get_node_or_null(NodePath(child_name))
 	if node != null and node.get_class() == cls and node.get_script() == script:
@@ -392,7 +381,7 @@ static func _ensure(parent: Node, child_name: String, cls: String, script: Scrip
 	return node
 
 
-## Üretilen kapta bu koşuda kurulmamış çocukları siler (düzenden kalkan şekil/işaret).
+## Deletes children of the generated container not built this run (shape/marker removed from the layout).
 static func _prune(parent: Node, keep: Dictionary) -> void:
 	for child: Node in parent.get_children():
 		if not keep.has(child):
@@ -400,13 +389,13 @@ static func _prune(parent: Node, keep: Dictionary) -> void:
 			child.free()
 
 
-## Kök her zaman LEVEL_SCRIPT taşır (eski sahnenin kökü de bu betiğe geçer).
+## The root always carries LEVEL_SCRIPT (an old scene's root also moves to this script).
 static func _open_root(scene_path: String, root_name: String) -> Node2D:
 	var root: Node2D = null
 	if ResourceLoader.exists(scene_path):
 		var existing: PackedScene = ResourceLoader.load(scene_path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene
 		if existing != null:
-			# Düzenleme kipi: alt sahne örnekleri yalnız değiştirilmiş değerleriyle yeniden paketlenir (editör gibi).
+			# Edit mode: sub-scene instances are repacked with only their changed values (like the editor).
 			root = existing.instantiate(PackedScene.GEN_EDIT_STATE_MAIN) as Node2D
 		if root == null:
 			push_warning("build_levels: %s açılamadı, sıfırdan kuruluyor" % scene_path)
@@ -418,7 +407,7 @@ static func _open_root(scene_path: String, root_name: String) -> Node2D:
 	return root
 
 
-## Var olan sahnenin başlığındaki uid ("uid://…"); yoksa boş.
+## The uid ("uid://...") in the existing scene's header; empty if none.
 static func _header_uid(scene_path: String) -> String:
 	if not FileAccess.file_exists(scene_path):
 		return ""
@@ -428,8 +417,8 @@ static func _header_uid(scene_path: String) -> String:
 	return found.get_string(1) if found != null else ""
 
 
-## Başlığa sahne uid'ini ve ext_resource satırlarına kaynak uid'lerini yazar (editörün kaydettiği biçim).
-## Headless betik kipinde ResourceSaver uid yazmaz; editör sonradan kaydederse dosya değişmesin diye.
+## Writes the scene uid into the header and resource uids into ext_resource lines (the format the editor saves).
+## ResourceSaver writes no uids in headless script mode; this keeps the file unchanged if the editor saves later.
 static func _write_uids(scene_path: String, uid_text: String) -> Error:
 	var lines: PackedStringArray = FileAccess.get_file_as_string(scene_path).split("\n")
 	if lines.is_empty() or not lines[0].begins_with("[gd_scene"):
@@ -457,7 +446,7 @@ static func _is_horizontal_gap(tiles: LevelLayout, cell: Vector2i) -> bool:
 		and LevelLayout.is_solid(tiles.kind_at(cell + Vector2i.RIGHT))
 
 
-## Sahiplik: üretilen kaplarda tüm alt ağaç köke bağlanır; korunan kaplarda yalnız kabın kendisi.
+## Ownership: in generated containers the whole subtree is owned by the root; in kept containers only the container itself.
 static func _own(node: Node, owner_node: Node, recursive: bool) -> void:
 	if node.owner == null:
 		node.owner = owner_node

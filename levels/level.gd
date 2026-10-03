@@ -1,9 +1,8 @@
 class_name Level
 extends Node2D
-## Seviye kökü (mimari.md S4, KR-018). `levels/tools/build_levels.gd` her üretilen sahnenin köküne atar.
-## Çekirdek ve diğer sistemler seviye düğümlerine yalnız bu API ile erişir, ad dizesiyle gezmez; düğüm adları
-## (S4 zorunlu çocukları) yalnız burada ve üreticide geçer. Sorgular ağaç dışında da çalışır (Game seviyeyi
-## ağaca eklemeden önce kurar). Zorunlu çocuk yoksa ilgili kök null döner, doğma noktası sayısı 0 olur.
+## Level root (mimari.md S4, KR-018). `levels/tools/build_levels.gd` attaches it to the root of every generated scene.
+## Core and other systems reach level nodes only through this API, never by name string; node names (S4 required children) appear only here and in the generator.
+## Queries also work outside the tree (Game builds the level before adding it). Missing required child: the matching root returns null, spawn count is 0.
 
 const _PLAYERS := ^"Players"
 const _PROPS := ^"Props"
@@ -13,32 +12,32 @@ const _MARKERS := ^"Markers"
 const _ZONES := ^"Zones"
 const _NAVIGATION := ^"Navigation"
 const _TILES := ^"Tiles"
-## Görüş sisi katmanı (US-011a; çalışma anında `attach_fog` ekler, sahnede yoktur).
+## Vision fog layer (US-011a; added at runtime by `attach_fog`, not in the scene).
 const _FOG := ^"Fog"
 
 
-## Oyuncu düğümlerinin kabı (Game üretir; düğüm adı peer kimliği).
+## Container of player nodes (Game creates them; node name = peer id).
 func players_root() -> Node2D:
 	return get_node_or_null(_PLAYERS) as Node2D
 
 
-## Etkileşimli nesnelerin kabı.
+## Container of interactable objects.
 func props_root() -> Node2D:
 	return get_node_or_null(_PROPS) as Node2D
 
 
-## NPC'lerin kabı.
+## Container of NPCs.
 func npcs_root() -> Node2D:
 	return get_node_or_null(_NPCS) as Node2D
 
 
-## `SpawnPoints` altındaki doğma noktası sayısı (sahne sırasıyla Spawn1..N).
+## Number of spawn points under `SpawnPoints` (Spawn1..N in scene order).
 func spawn_count() -> int:
 	return _spawn_points().size()
 
 
-## `index`. doğma noktası (index doğma noktası sayısına göre çevrilir), `players_root()` koordinatında: oyuncu
-## düğümünün `position`'ı olarak doğrudan kullanılır. Doğma noktası ya da Players yoksa Vector2.ZERO.
+## The `index`-th spawn point (index wraps by spawn count), in `players_root()` coordinates: used directly as the player node's `position`.
+## Vector2.ZERO if there is no spawn point or no Players.
 func spawn_position(index: int) -> Vector2:
 	var points: Array[Node2D] = _spawn_points()
 	var players: Node2D = players_root()
@@ -48,13 +47,13 @@ func spawn_position(index: int) -> Vector2:
 	return _to_level(players).affine_inverse() * at
 
 
-## `Markers` altındaki adlı yerleşim işareti (ör. &"Register", &"BackDoor"); yoksa null.
+## Named placement marker under `Markers` (e.g. &"Register", &"BackDoor"); null if missing.
 func marker(marker_name: StringName) -> Node2D:
 	return _child_of(_MARKERS, marker_name) as Node2D
 
 
-## Sıralı işaret dizisi: `<prefix>1`, `<prefix>2` … ilk eksik numaraya kadar (ör. &"StreetRoute" sokak
-## rotası, &"ShopSpot" müşteri raf noktaları; IS-023). Yoksa boş dizi.
+## Ordered marker array: `<prefix>1`, `<prefix>2` ... up to the first missing number (e.g. &"StreetRoute" street route,
+## &"ShopSpot" customer shelf points; IS-023). Empty array if none.
 func marker_sequence(prefix: StringName) -> Array[Node2D]:
 	var out: Array[Node2D] = []
 	var next: Node2D = marker(StringName("%s%d" % [prefix, 1]))
@@ -64,35 +63,35 @@ func marker_sequence(prefix: StringName) -> Array[Node2D]:
 	return out
 
 
-## `Zones` altındaki adlı tetik bölgesi (ör. &"EscapeZone"; Area2D, katman triggers, oyuncuları izler); yoksa null.
+## Named trigger zone under `Zones` (e.g. &"EscapeZone"; Area2D, triggers layer, tracks players); null if missing.
 func zone(zone_name: StringName) -> Area2D:
 	return _child_of(_ZONES, zone_name) as Area2D
 
 
-## Seviyenin gezinme bölgesi (üretimde bake edilmiş NavigationPolygon); yoksa null.
+## Level navigation region (NavigationPolygon baked at generation); null if missing.
 func navigation_region() -> NavigationRegion2D:
 	return get_node_or_null(_NAVIGATION) as NavigationRegion2D
 
 
-## Kapı işaretinin (ör. &"BackDoor") gezinme bağı: kapı karosu çokgende engeldir, geçiş bu bağla olur.
-## Kapı kapanınca `enabled = false` yapılır (kapı durumunu bağlayan sistem; US-008). Yoksa null.
+## Navigation link of a door marker (e.g. &"BackDoor"): the door tile blocks the polygon, passage goes through this link.
+## Set `enabled = false` when the door closes (the system wiring door state; US-008). Null if missing.
 func door_link(door_name: StringName) -> NavigationLink2D:
 	return _child_of(_NAVIGATION, door_name) as NavigationLink2D
 
 
-## Karo düzeni (`Tiles`, LevelLayout); yoksa null.
+## Tile layout (`Tiles`, LevelLayout); null if missing.
 func layout() -> LevelLayout:
 	return get_node_or_null(_TILES) as LevelLayout
 
 
-## Görüş ızgarasının boyutu (karo; US-011a). Düzen yoksa sıfır.
+## Vision grid size (tiles; US-011a). Zero if there is no layout.
 func vision_size() -> Vector2i:
 	var tiles: LevelLayout = layout()
 	return tiles.size_in_tiles() if tiles != null else Vector2i.ZERO
 
 
-## Görüş engel ızgarası (US-011a; `VisionGrid.Cell`, satır satır). Sınıflar `LevelLayout.SIGHT_SOLID` (duvar, sınır,
-## raf, tezgâh) ve `SIGHT_PORTAL` (kapı boşluğu, vitrin camı: fizik sorgusu karar verir); diğerleri açık.
+## Vision obstacle grid (US-011a; `VisionGrid.Cell`, row by row). Classes: `LevelLayout.SIGHT_SOLID` (wall, border,
+## shelf, counter) and `SIGHT_PORTAL` (door gap, shop window: a physics query decides); the rest are open.
 func vision_cells() -> PackedByteArray:
 	var out := PackedByteArray()
 	var tiles: LevelLayout = layout()
@@ -106,7 +105,7 @@ func vision_cells() -> PackedByteArray:
 	return out
 
 
-## Karo türünün görüş sınıfı (`VisionGrid.Cell`).
+## Vision class of a tile type (`VisionGrid.Cell`).
 static func vision_cell_of(kind: LevelLayout.Kind) -> int:
 	if LevelLayout.SIGHT_SOLID.has(kind):
 		return VisionGrid.Cell.SOLID
@@ -115,18 +114,18 @@ static func vision_cell_of(kind: LevelLayout.Kind) -> int:
 	return VisionGrid.Cell.OPEN
 
 
-## Görüş ayarları (`data/vision_tuning.tres`).
+## Vision settings (`data/vision_tuning.tres`).
 func vision_tuning() -> VisionTuning:
 	return load(VisionTuning.PATH) as VisionTuning
 
 
-## Bu seviyenin görüş sisi katmanı (`attach_fog` ile kurulmuşsa); yoksa null.
+## This level's vision fog layer (if set up via `attach_fog`); null otherwise.
 func fog_layer() -> FogLayer:
 	return get_node_or_null(_FOG) as FogLayer
 
 
-## Yerel oyuncunun görüş sisini kurar (US-011a; istemcide, yalnız yerel oyuncu için çağrılır) ve `observer`ı
-## izletir. Katman zaten varsa yalnız gözlemci değişir (hafıza korunur). Seviye ağaçta olmalı (fizik sorgusu).
+## Sets up the local player's vision fog (US-011a; client only, for the local player) and tracks `observer`.
+## If the layer exists only the observer changes (memory is kept). The level must be in the tree (physics query).
 func attach_fog(observer: Node2D) -> FogLayer:
 	var fog: FogLayer = fog_layer()
 	if fog == null:
@@ -138,7 +137,7 @@ func attach_fog(observer: Node2D) -> FogLayer:
 	return fog
 
 
-## `container` altındaki doğrudan çocuk; yol parçası içeren ad ("../Players" gibi) kabul edilmez.
+## Direct child of `container`; names with a path part (like "../Players") are rejected.
 func _child_of(container: NodePath, child_name: StringName) -> Node:
 	var text: String = String(child_name)
 	var parent: Node = get_node_or_null(container)
@@ -147,9 +146,9 @@ func _child_of(container: NodePath, child_name: StringName) -> Node:
 	return parent.get_node_or_null(NodePath(text))
 
 
-## Haritanın oynanabilir alan dikdörtgeni (IS-027; kamera sınırı): `Tiles` ızgarasının tamamı, harita kenarı
-## dolgusu (sınır karoları) dahil; bu köke göre (kökün kendi dönüşümü hariç). `Tiles` yoksa ya da boşsa
-## alanı sıfır olan Rect2() — çağıran sınır uygulamaz.
+## Playable-area rectangle of the map (IS-027; camera limit): the whole `Tiles` grid including the map-edge fill (border tiles);
+## relative to this root (excluding the root's own transform). Rect2() with zero area if `Tiles` is missing or empty
+## (the caller applies no limit).
 func map_rect() -> Rect2:
 	var tiles: LevelLayout = get_node_or_null(_TILES) as LevelLayout
 	if tiles == null:
@@ -170,7 +169,7 @@ func _spawn_points() -> Array[Node2D]:
 	return out
 
 
-## Düğümün bu köke göre dönüşümü (ağaç dışında da; global_transform ağaç ister).
+## Node's transform relative to this root (works outside the tree; global_transform needs the tree).
 func _to_level(node: Node2D) -> Transform2D:
 	var xform: Transform2D = node.transform
 	var parent: Node = node.get_parent()

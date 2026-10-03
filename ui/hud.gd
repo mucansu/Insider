@@ -1,59 +1,55 @@
 class_name Hud
 extends CanvasLayer
-## Oyun içi HUD (US-003 AC2, AC3): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi,
-## etkileşim istemi ("[E] eylem", tuş adı etkin cihaza göre) ve ilerlemesi, duraklat menüsü. Game, seviye yüklenince Game.HUD_SCENE olarak ekler (S3).
-## US-013: uyarı merdiveni (ui/alert_ladder.gd) ve iş sonu ekranı (ui/heist_end.gd), S3 ekinden.
-## US-011c: maruziyet rozeti (ui/exposure_badge.gd) ve ekip işaretleri (ui/team_markers.gd), S3 eki (mimari.md, US-011b/c) üyelerinden.
-## US-038: kaçış paneli (ui/escape_panel.gd: hedef, polis sayacı, n/m) ve kaçış kenar oku (ui/escape_arrow.gd).
-## Yalnız S1/S3 sinyal ve fonksiyonlarını, yerel oyuncunun S7 sinyallerini okur. Testler `net` ve
-## `game`'i sahneye eklemeden önce sahte nesnelerle değiştirir; zaman `advance()` ile ilerletilebilir.
+## In-game HUD (US-003 AC2, AC3): team cash, ping, player list, session event notices, interaction prompt ("[E] action", key name by active device) and progress, pause menu. Game adds it as Game.HUD_SCENE on level load (S3).
+## Hosts the alert ladder (US-013), heist end screen (US-013), exposure badge and team markers (US-011c), escape panel and escape arrow (US-038), fed by the S3 addendum.
+## Reads only S1/S3 signals and functions plus the local player's S7 signals. Tests swap `net` and `game` for fakes before adding to the scene; time can be advanced with `advance()`.
 
 const PING_INTERVAL_SEC := 1.0
-## Bu değer ve üstü uyarı renginde gösterilir (GDD §12 test gecikmesi 150 ms).
+## At or above this value shown in the alert colour (GDD §12 test latency 150 ms).
 const PING_WARN_MS := 150
 const TOAST_SECONDS := 4.0
 const TOAST_FADE_SECONDS := 0.5
 const TOAST_WIDTH := 420.0
 const MAX_TOASTS := 3
-## Etkileşim bitince çubuğun ekranda kalma süresi.
+## How long the bar stays on screen after an interaction ends.
 const INTERACTION_LINGER_SEC := 0.6
 const CASH_FLASH_SEC := 0.35
 const CASH_FLASH_ALPHA := 0.35
 const SWATCH_SIZE := Vector2(10, 10)
-## Ekip listesinde ad en fazla bu genişlikte (px); uzunu üç noktayla kısalır.
+## Max name width (px) in the team list; longer names are ellipsised.
 const PLAYER_NAME_MAX_WIDTH := 170.0
-## Oturum olayı anahtarı: EVENT_<KIND> (ör. &"police_called" → EVENT_POLICE_CALLED).
+## Session event key: EVENT_<KIND> (e.g. &"police_called" -> EVENT_POLICE_CALLED).
 const EVENT_KEY_PREFIX := "EVENT_"
-## Kalıp dışı olay metni anahtarları (tür -> anahtar).
+## Text keys for events that do not fit the pattern (kind -> key).
 const EVENT_KEY_OVERRIDES := {&"owner_discover": "EVENT_OWNER_DISCOVERED"}
-## Bildirim gösterilmeyen olaylar: başka HUD öğesi zaten gösterir (alert_level → uyarı merdiveni, US-013;
-## cover_broken → kaçış panelindeki örtü satırı, US-042).
+## Events with no notice: another HUD element already shows them (alert_level -> alert ladder, US-013;
+## cover_broken -> cover row in the escape panel, US-042).
 const SILENT_EVENTS: Array[StringName] = [&"alert_level", &"cover_broken"]
-## Olay verisinde oyuncuyu belirten alan (S3 eki, US-008: player_held/caught/rescued {peer}); metne {name} olarak girer.
+## Event data field naming the player (S3 addendum, US-008: player_held/caught/rescued {peer}); enters the text as {name}.
 const EVENT_PEER_FIELD := "peer"
 const EVENT_NAME_FIELD := "name"
-## İstemdeki tuş adının alındığı eylem (S5).
+## Action the prompt key name is taken from (S5).
 const INTERACT_ACTION := &"interact"
-## İkinci istem satırının girdi eylemi (US-010 Q / gamepad X; IS-091).
+## Input action of the second prompt row (US-010 Q / gamepad X; IS-091).
 const ALT_ACTION := &"intimidate"
 
 var net: Object = Net
 var game: Object = Game
-## Testler için: atanırsa ana menüye geçmek yerine hata anahtarıyla bu çağrılır.
+## For tests: if set, called with the error key instead of switching to the main menu.
 var menu_override: Callable
-## Testler için: atanırsa eksik metin uyarısı push_warning yerine eksik anahtarla bu çağrılır.
+## For tests: if set, called with the missing key instead of push_warning for missing text.
 var warning_override: Callable
 
 var _player: Node = null
-## Yakındaki etkileşim hedefinin eylem anahtarı (S7 interaction_target_changed); boş = hedef yok.
+## Action key of the nearby interaction target (S7 interaction_target_changed); empty = no target.
 var _target_key: String = ""
-## Q satırının hedef eylem anahtarı (S7 interaction_alt_target_changed); boş = hedef yok.
+## Target action key of the Q row (S7 interaction_alt_target_changed); empty = no target.
 var _alt_target_key: String = ""
 var _interaction_running: bool = false
 var _interaction_elapsed: float = 0.0
 var _interaction_duration: float = 0.0
 var _interaction_linger: float = 0.0
-## Bildirim paneli -> kalan süre (sn).
+## Notice panel -> remaining time (s).
 var _toast_ttl: Dictionary = {}
 var _cash: int = 0
 var _leaving: bool = false
@@ -108,7 +104,7 @@ func _ready() -> void:
 		$Root/Frame/Layout/Top/Right as Control, _alert_ladder, _escape_panel, _exposure_badge, _prompt, _interaction]
 	_team_markers.avoid = blocks
 	_team_markers.bind(game, net)
-	# US-038: kaçış paneli polis sayacını büyük gösterir; merdivenin küçük sayacı yalnız panel yoksa.
+	# US-038: the escape panel shows the police timer large; the ladder's small timer only when there is no panel.
 	_escape_panel.bind(game)
 	_alert_ladder.show_timer = not EscapePanel.supports(game)
 	_alert_ladder.refresh_timer()
@@ -120,7 +116,7 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-## Yalnız gözlem: son girdinin cihazı değişince istemdeki tuş adı güncellenir (olay tüketilmez).
+## Observe only: when the last input's device changes the prompt key name updates (the event is not consumed).
 func _input(event: InputEvent) -> void:
 	if UiInput.note_input(event):
 		_refresh_prompt()
@@ -128,14 +124,14 @@ func _input(event: InputEvent) -> void:
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _heist_end.is_open():
-		return  # iş sonu ekranında duraklat menüsü açılmaz
+		return  # the pause menu does not open on the heist end screen
 	var open: bool = is_pause_open()
 	if (open and UiInput.is_pause_close_event(event)) or (not open and UiInput.is_pause_open_event(event)):
 		toggle_pause()
 		get_viewport().set_input_as_handled()
 
 
-## Zamanlı öğeleri (etkileşim çubuğu, bildirimler) `delta` saniye ilerletir.
+## Advances timed items (interaction bar, notices) by `delta` seconds.
 func advance(delta: float) -> void:
 	_tick_interaction(delta)
 	_tick_toasts(delta)
@@ -156,9 +152,9 @@ func is_pause_open() -> bool:
 	return _pause_menu.is_open()
 
 
-# --- ekip nakdi ---
+# --- team cash ---
 
-## "1234567" → "1.234.567" (ayraç dile göre, NUMBER_GROUP_SEPARATOR).
+## "1234567" -> "1.234.567" (separator by language, NUMBER_GROUP_SEPARATOR).
 static func group_digits(value: int, separator: String) -> String:
 	var digits: String = str(absi(value))
 	var out: String = ""
@@ -168,13 +164,13 @@ static func group_digits(value: int, separator: String) -> String:
 	return ("-" if value < 0 else "") + digits + out
 
 
-## Saniye → "d:ss" (yukarı yuvarlanır; sayaç 0'a inene dek "0:01" gösterir).
+## Seconds -> "m:ss" (rounded up; shows "0:01" until the counter reaches 0).
 static func format_clock(seconds: float) -> String:
 	var total: int = maxi(ceili(seconds), 0)
 	return "%d:%02d" % [floori(total / 60.0), total % 60]
 
 
-## Eksi tutar (borç, KR-029) işaret para biriminin önünde: "-$100".
+## Negative amounts (debt, KR-029) put the sign before the currency symbol: "-$100".
 func format_cash(value: int) -> String:
 	var text: String = tr(&"HUD_CASH_VALUE") % group_digits(absi(value), tr(&"NUMBER_GROUP_SEPARATOR"))
 	return "-" + text if value < 0 else text
@@ -187,7 +183,7 @@ func _on_team_cash_changed(value: int) -> void:
 func _set_cash(value: int, flash: bool) -> void:
 	_cash = value
 	_cash_value.text = format_cash(value)
-	# Borç (US-041, KR-029): eksi kasa uyarı token renginde (tema varyasyonu; geçersiz kılma yasak, S9).
+	# Debt (US-041, KR-029): negative cash in the alert token colour (theme variation; overrides are forbidden, S9).
 	_cash_value.theme_type_variation = &"AlertLabel" if value < 0 else &"CashLabel"
 	if flash:
 		_cash_value.modulate.a = CASH_FLASH_ALPHA
@@ -196,7 +192,7 @@ func _set_cash(value: int, flash: bool) -> void:
 
 # --- ping ---
 
-## Host'ta "Host"; istemcide host'a gecikme (bilinmiyorsa "— ms"), eşik üstü uyarı renginde.
+## "Host" on the host; on a client the latency to the host ("-- ms" if unknown), alert colour above the threshold.
 func refresh_ping() -> void:
 	var variation: StringName = &"MutedLabel"
 	if bool(net.call(&"is_host")):
@@ -212,7 +208,7 @@ func refresh_ping() -> void:
 	_ping_label.theme_type_variation = variation
 
 
-# --- oyuncular ---
+# --- players ---
 
 func refresh_players() -> void:
 	for row: Node in _player_list.get_children():
@@ -231,7 +227,7 @@ func refresh_players() -> void:
 		swatch.custom_minimum_size = SWATCH_SIZE
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		# S3: Game renk değil katılım yuvası (slot) yayınlar; renk slot'tan (slot yoksa liste sırası).
+		# S3: Game publishes a join slot, not a colour; colour comes from the slot (list order if no slot).
 		var slot: int = int(info["slot"]) if typeof(info.get("slot")) == TYPE_INT else i
 		swatch.color = ThemeTokens.PLAYER_COLORS[posmod(slot, ThemeTokens.PLAYER_COLORS.size())]
 		var label := Label.new()
@@ -241,18 +237,17 @@ func refresh_players() -> void:
 		row.add_child(swatch)
 		row.add_child(label)
 		_player_list.add_child(row)
-		# Ekip listesi dar kalır (haritayı az örter, US-013): uzun ad üç noktayla kısalır.
+		# The team list stays narrow (covers little map, US-013): long names are ellipsised.
 		var width: float = label.get_theme_font(&"font").get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			label.get_theme_font_size(&"font_size")).x
 		label.custom_minimum_size.x = minf(ceilf(width), PLAYER_NAME_MAX_WIDTH)
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 
 
-# --- oturum olayları ---
+# --- session events ---
 
-## EVENT_<KIND> anahtarının metni; `data` alanları {ad} yer tutucularına yerleşir. `data` bir oyuncu
-## (`peer`) taşıyorsa adı {name} olarak eklenir (veride `name` yoksa). Anahtar yoksa oyuncuya
-## ham olay adı değil genel metin gösterilir, eksik anahtar geliştiriciye uyarıyla bildirilir.
+## Text of the EVENT_<KIND> key; `data` fields fill {name}-style placeholders. If `data` carries a player (`peer`), the name is added as {name} (unless `data` has `name`).
+## If the key is missing the player sees generic text, not the raw event name, and the developer gets a warning.
 func event_text(kind: StringName, data: Dictionary) -> String:
 	var key: String = event_key(kind)
 	var text: String = tr(key)
@@ -268,15 +263,15 @@ func event_text(kind: StringName, data: Dictionary) -> String:
 	return text.format(fields) if not fields.is_empty() else text
 
 
-## Olay türünün HUD metin anahtarı (S9): &"player_held" → "EVENT_PLAYER_HELD"; kalıba uymayan anahtar
-## EVENT_KEY_OVERRIDES'tan (US-039: &"owner_discover" → "EVENT_OWNER_DISCOVERED").
+## HUD text key of an event kind (S9): &"player_held" -> "EVENT_PLAYER_HELD"; kinds that break the pattern
+## come from EVENT_KEY_OVERRIDES (US-039: &"owner_discover" -> "EVENT_OWNER_DISCOVERED").
 static func event_key(kind: StringName) -> String:
 	if EVENT_KEY_OVERRIDES.has(kind):
 		return str(EVENT_KEY_OVERRIDES[kind])
 	return EVENT_KEY_PREFIX + String(kind).to_upper()
 
 
-## Oyuncunun görünen adı (S3 players() kaydından); ad yoksa "Oyuncu N".
+## Player's display name (from the S3 players() record); "Player N" if there is no name.
 func _player_name(peer_id: int, info: Dictionary) -> String:
 	var player_name: String = str(info.get("name", "")).strip_edges().left(MainMenu.MAX_NAME_LENGTH)
 	if player_name.is_empty():
@@ -324,9 +319,9 @@ func _remove_toast(panel: Control) -> void:
 	panel.queue_free()
 
 
-# --- etkileşim (S7 oyuncu sinyalleri) ---
+# --- interaction (S7 player signals) ---
 
-## Yerel oyuncunun S7 sinyalleri; oyuncuda olmayan sinyal (eski fikstür) atlanır.
+## The local player's S7 signals; a signal the player lacks (old fixture) is skipped.
 func _player_signals() -> Dictionary:
 	return {
 		&"interaction_target_changed": _on_interaction_target_changed,
@@ -366,8 +361,8 @@ func _on_interaction_alt_target_changed(action_key: String) -> void:
 	_refresh_prompt()
 
 
-## İstem: hedef varken ve etkileşim sürmüyorken "[tuş] eylem"; etkileşim başlayınca yerini çubuğa bırakır.
-## İki satır: E (interact) üstte, Q (intimidate) altta; hedefi olmayan satır gizlenir (IS-091).
+## Prompt: "[key] action" while there is a target and no interaction in progress; the bar replaces it when an interaction starts.
+## Two rows: E (interact) on top, Q (intimidate) below; a row without a target is hidden (IS-091).
 func _refresh_prompt() -> void:
 	var idle: bool = not _interaction.visible
 	var main_now: bool = idle and _fill_prompt_row(_prompt_label, _target_key, INTERACT_ACTION)
@@ -377,7 +372,7 @@ func _refresh_prompt() -> void:
 	_prompt.visible = main_now or alt_now
 
 
-## Bir istem satırını "[tuş] eylem" ile doldurur; anahtar boşsa false (satır gizlenecek).
+## Fills one prompt row with "[key] action"; false if the key is empty (row will be hidden).
 func _fill_prompt_row(label: Label, action_key: String, input_action: StringName) -> bool:
 	if action_key.is_empty():
 		return false
@@ -423,7 +418,7 @@ func _tick_interaction(delta: float) -> void:
 			_refresh_prompt()
 
 
-# --- oturumdan çıkış ---
+# --- leaving the session ---
 
 func _on_leave_requested() -> void:
 	_leaving = true
@@ -435,12 +430,12 @@ func _on_host_disconnected() -> void:
 	_lost_session(&"MENU_ERROR_HOST_DISCONNECTED")
 
 
-## İstemcide seviye el sıkışma bitmeden yüklenmişken bağlantı kurulamazsa (ana menü kaldırılmış olur).
+## If a client's level loaded before the handshake finished and the connection cannot be made (the main menu has been removed).
 func _on_connection_failed() -> void:
 	_lost_session(&"MENU_ERROR_CONNECTION_FAILED")
 
 
-## Oturum dışarıdan bitti: bir kez ana menüye, hatayla döner (kendi ayrılışında hata gösterilmez).
+## Session ended externally: returns once to the main menu with an error (no error on one's own leave).
 func _lost_session(error_key: StringName) -> void:
 	if _leaving:
 		return
@@ -455,7 +450,7 @@ func _open_main_menu(error_key: StringName) -> void:
 		MainMenu.open(get_tree(), error_key)
 
 
-## Eksik metin anahtarını geliştiriciye bildirir (oyuncu görmez).
+## Reports a missing text key to the developer (the player does not see it).
 func _warn_missing_text(key: String) -> void:
 	if warning_override.is_valid():
 		warning_override.call(key)

@@ -1,49 +1,38 @@
 class_name FogLayer
 extends Node2D
-## Görüş sisi katmanı (US-011a AC1/AC2/AC9; GDD §6.5, §14; KR-022/KR-023). Yalnız istemcide, yalnız yerel
-## oyuncu için kurulur (`Level.attach_fog(oyuncu)`; bağlama US-011b'de Game'den); host hiçbir görünürlük kararı
-## vermez. Seviye kökünün çocuğudur, konumu (0, 0): ızgara koordinatı = seviye koordinatı (1 karo = 32 px).
+## Vision fog layer (US-011a AC1/AC2/AC9; GDD §6.5, §14; KR-022/KR-023). Built on the client only, for the local player only (`Level.attach_fog(player)`; wiring from Game in US-011b); the host makes no visibility decision.
+## Child of the level root at (0, 0): grid coordinate = level coordinate (1 tile = 32 px).
 ##
-## - Mantık: `VisionGrid` (core). Her `update_interval_sec`'te (fizik adımında) gözlemcinin konumu ve bakışıyla
-##   güncellenir. Görüş hattı `line_clear` (NPC algısıyla aynı kural; aşağıda).
-## - Çizim: `Shade` = seviye boyunda tek dörtgen + `fog_layer.gdshader` (karo başına bir texel veri dokusu: R
-##   bilinmeyen, G hafıza, B çevresel ağırlığı, A karanlık tarama; ton ve doygunluk ThemeTokens.GAMEPLAY_FOG_*'dan).
-##   Bilinmeyen opak düz tondur (içerik sızmaz). `Outline` = sisin üstünde kroki (duvar kenarı + kesikli kapı
-##   eşiği): geometri kurulumda bir kez hesaplanır ve bir kez çizilir; görünürlüğü `fog_outline.gdshader` aynı veri
-##   dokularından karo başına maskeler (yalnız bilinmeyen ve hafıza karolarında görünür).
-## - Geçiş shader'da: iki veri dokusu (`prev`, `next`) + `blend_t` (0 → 1, `transition_sec`). CPU yalnız ızgara
-##   değişince yazar ve iki küçük dokuyu yükler; karede yalnız `blend_t` uniform'u ilerler (karo döngüsü yok).
-##   Geçiş sürerken yeni değişim gelirse süren karoların o anki ara değeri `prev`e sabitlenir (yalnız geçişteki
-##   karolar için tek seferlik karışım) ve `blend_t` 0'dan başlar: görüntü sıçramaz, değişmeyen karolar beklemez.
-##   Hareket azaltmada `blend_t` anında 1.
-## - Sıra: `z_index = Z_INDEX` (50); seviye içeriği (zemin, prop, NPC) ve ileride ışık havuzları
-##   (`LIGHT_POOLS_Z_MAX`) altında kalır. Sisin üstünde çizilmesi gereken şeyler (ekip arkadaşı, kenar oku;
-##   US-011b/US-011c) daha büyük z_index kullanır.
+## - Logic: `VisionGrid` (core), updated every `update_interval_sec` (physics step) from the observer's position and facing; line of sight is `line_clear` (same rule as NPC perception).
+## - Drawing: `Shade` = one level-sized quad + `fog_layer.gdshader` (one texel per tile: R unknown, G memory, B ambient weight, A dark scan; tone and saturation from ThemeTokens.GAMEPLAY_FOG_*). Unknown is an opaque flat tone (no content leaks).
+##   `Outline` = sketch above the fog (wall edges + dashed door thresholds): geometry computed and drawn once; `fog_outline.gdshader` masks it per tile from the same data textures (visible only on unknown and memory tiles).
+## - Transition in the shader: two data textures (`prev`, `next`) + `blend_t` (0 -> 1, `transition_sec`). The CPU writes only when the grid changes and uploads two small textures; per frame only the `blend_t` uniform advances (no tile loop).
+##   A new change mid-transition pins the running tiles' current blend to `prev` (one-off mix for tiles in transition only) and restarts `blend_t` at 0: no visual jump, unchanged tiles do not wait. Reduced motion: `blend_t` is instantly 1.
+## - Order: `z_index = Z_INDEX` (50); below level content (floor, props, NPCs) and future light pools (`LIGHT_POOLS_Z_MAX`). Things that must draw above the fog (teammate, edge arrow; US-011b/US-011c) use a larger z_index.
 
-## Karo durumu değişti (VisionGrid.changed aktarımı; karolar ızgara koordinatında).
+## Tile state changed (relay of VisionGrid.changed; tiles in grid coordinates).
 signal vision_changed(cells: Array[Vector2i])
 
 const Z_INDEX := 50
-## İleride ışık havuzları (karanlık bölge, KR-019) sisin altında kalır: z_index ≤ bu değer.
+## Future light pools (dark zone, KR-019) stay below the fog: z_index <= this value.
 const LIGHT_POOLS_Z_MAX := Z_INDEX - 1
 const SHADER := preload("res://levels/fog/fog_layer.gdshader")
 const OUTLINE_SHADER := preload("res://levels/fog/fog_outline.gdshader")
-## Görüş hattı kuralı (mimari.md §4, S11; US-006 ile aynı): world (1) + vision_block (6) keser; `see_through`
-## grubundaki gövdeler (camlar) geçirir. Ortak core yardımcısı US-011b'de gelecek; o zamana kadar tek kaynak
-## `line_clear` (perception.gd `has_line_of_sight` ile birebir aynı kural).
+## Line-of-sight rule (mimari.md §4, S11; same as US-006): world (1) + vision_block (6) block; bodies in the `see_through` group (glass) let it pass.
+## A shared core helper arrives in US-011b; until then `line_clear` is the single source (identical to perception.gd `has_line_of_sight`).
 const SIGHT_MASK := PhysicsLayers.SIGHT_MASK
 const SEE_THROUGH_GROUP := PhysicsLayers.SEE_THROUGH_GROUP
 const MAX_SEE_THROUGH := 8
-## Kapı eşiği çizgisi: kesikli, ince (kroki işareti; kapının durumu bilinmez).
+## Door-threshold line: dashed, thin (sketch marker; door state is unknown).
 const DOOR_GAP_WIDTH := 2.0
 const DOOR_GAP_DASH := 4.0
 
 @export var tuning: VisionTuning
-## Hareket azaltma (GDD §14.1 kural 5): ton geçişi anlık. Bağlama US-011c (ayar) / US-011b.
+## Reduced motion (GDD §14.1 rule 5): instant tone transition. Wired in US-011c (setting) / US-011b.
 var reduce_motion: bool = false
-## Bakış yönü (birim; yönlü kipte koni yönü). Girdi US-011b'den gelir.
+## Facing direction (unit; cone direction in directional mode). Input comes from US-011b.
 var look_dir: Vector2 = Vector2.RIGHT
-## Görüş hattı: func(from: Vector2, to: Vector2) -> bool, ızgara (seviye) koordinatında. Boşsa fizik sorgusu.
+## Line of sight: func(from: Vector2, to: Vector2) -> bool, in grid (level) coordinates. Physics query if empty.
 var sight: Callable = Callable()
 
 var _grid := VisionGrid.new()
@@ -59,9 +48,9 @@ var _outline_material: ShaderMaterial = null
 var _outline_rects: Array[Rect2] = []
 var _outline_gaps := PackedVector2Array()
 var _dark := PackedByteArray()
-## Geçiş ilerlemesi (0 → 1); 1 iken `prev` görüntüsü anlamsızdır (görünen = `next`).
+## Transition progress (0 -> 1); at 1 the `prev` image is meaningless (shown = `next`).
 var _blend_t: float = 1.0
-## `prev` ile `next`i farklı olabilen karolar (son tamamlanmamış geçişler); bayrak dizisi yinelenmeyi önler.
+## Tiles where `prev` and `next` may differ (last unfinished transitions); the flag array prevents repeats.
 var _moving := PackedInt32Array()
 var _in_moving := PackedByteArray()
 var _query := PhysicsRayQueryParameters2D.new()
@@ -105,7 +94,7 @@ func _ready() -> void:
 	_rebuild_texture()
 
 
-## Ayarlardan core görüş değerleri (`mode`: VisionGrid.Mode).
+## Core vision values from the settings (`mode`: VisionGrid.Mode).
 static func params_for(source: VisionTuning, mode: int) -> VisionGrid.Params:
 	var p := VisionGrid.Params.new()
 	p.mode = mode
@@ -119,13 +108,13 @@ static func params_for(source: VisionTuning, mode: int) -> VisionGrid.Params:
 	return p
 
 
-## Izgarayı seviyeden kurar: engel ızgarası (`Level.vision_cells`) ve kroki geometrisi (bir kez). Hafıza sıfırlanır.
+## Builds the grid from the level: obstacle grid (`Level.vision_cells`) and sketch geometry (once). Memory is reset.
 func setup_from_level(level: Level) -> void:
 	setup(level.vision_size(), level.vision_cells())
 	_build_outline(level.layout())
 
 
-## Izgarayı doğrudan kurar (`VisionGrid.setup`); hafıza sıfırlanır. Kroki boşalır (`setup_from_level` kurar).
+## Builds the grid directly (`VisionGrid.setup`); memory is reset. The sketch is emptied (`setup_from_level` builds it).
 func setup(size: Vector2i, cells: PackedByteArray, dark: PackedByteArray = PackedByteArray()) -> void:
 	_grid.setup(size, cells, dark)
 	var total: int = _grid.size().x * _grid.size().y
@@ -144,7 +133,7 @@ func setup(size: Vector2i, cells: PackedByteArray, dark: PackedByteArray = Packe
 		_rebuild_texture()
 
 
-## Gözlemciyi (yerel oyuncu) izlemeye başlar ve hemen günceller. null izlemeyi bırakır (ızgara donar).
+## Starts tracking the observer (local player) and updates at once. null stops tracking (grid freezes).
 func follow(observer: Node2D) -> void:
 	_observer = observer
 	_since_update = 0.0
@@ -156,13 +145,13 @@ func observer() -> Node2D:
 	return _observer
 
 
-## Bakış yönü (global; sıfır yok sayılır). Bir sonraki güncellemede geçerli olur.
+## Facing direction (global; zero is ignored). Takes effect on the next update.
 func set_look_dir(direction: Vector2) -> void:
 	if not direction.is_zero_approx():
 		look_dir = direction.normalized()
 
 
-## Görüş kipi (`VisionGrid.Mode`); bir sonraki güncellemede geçerli olur.
+## Vision mode (`VisionGrid.Mode`); takes effect on the next update.
 func set_mode(mode: int) -> void:
 	_grid.params.mode = mode
 
@@ -175,29 +164,29 @@ func grid() -> VisionGrid:
 	return _grid
 
 
-## Karo durumu (`VisionGrid.State`; ızgara/seviye karo koordinatı).
+## Tile state (`VisionGrid.State`; grid/level tile coordinate).
 func state_at(cell: Vector2i) -> int:
 	return _grid.state_at(cell)
 
 
-## Global noktanın karo durumu.
+## Tile state of a global point.
 func state_at_position(global_pos: Vector2) -> int:
 	return _grid.state_at_position(to_local(global_pos))
 
 
-## Global nokta görünen karoda mı (durum 2). (CanvasItem.is_visible ile karışmasın diye `_at`.)
+## Whether a global point is on a visible tile (state 2). (`_at` avoids confusion with CanvasItem.is_visible.)
 func is_visible_at(global_pos: Vector2) -> bool:
 	return _grid.is_visible(to_local(global_pos))
 
 
-## Global nokta çevresel karoda mı (durum 3).
+## Whether a global point is on an ambient tile (state 3).
 func is_peripheral_at(global_pos: Vector2) -> bool:
 	return _grid.is_peripheral(to_local(global_pos))
 
 
-## Görüş hattı (global uçlar): world + vision_block keser; `see_through` grubundaki **gövdeler** dışlanıp ışın
-## baştan yeniden atılır (devam noktası hesaplanmaz, bitişik duvar atlanamaz). Grup yalnız gövde düzeyinde
-## geçerlidir; oyuncu ve NPC gövdeleri maskede değildir. Kural perception.gd `has_line_of_sight` ile aynıdır.
+## Line of sight (global endpoints): world + vision_block block; **bodies** in the `see_through` group are excluded and the ray is recast from the start
+## (no continuation point is computed, so an adjacent wall cannot be skipped). The group applies at body level only; player and NPC bodies are not in the mask.
+## Same rule as perception.gd `has_line_of_sight`.
 func line_clear(from: Vector2, to: Vector2) -> bool:
 	if not is_inside_tree():
 		return false
@@ -219,19 +208,19 @@ func line_clear(from: Vector2, to: Vector2) -> bool:
 	return false
 
 
-## Gözlemci noktayı görüyor mu: karo görünen ∧ gözlemciden noktaya görüş hattı (NPC görünürlük kapısı, US-011b).
+## Whether the observer sees the point: tile visible and line of sight from the observer to the point (NPC visibility gate, US-011b).
 func can_see(global_pos: Vector2) -> bool:
 	if _observer == null or not is_visible_at(global_pos):
 		return false
 	return line_clear(_observer.global_position, global_pos)
 
 
-## Hafızayı siler (faz geçişi; seviye yüklenince zaten yeni katman kurulur).
+## Clears memory (phase change; loading a level already builds a new layer).
 func reset_memory() -> void:
 	_grid.reset()
 
 
-## Izgarayı şimdi günceller (zamanlayıcıyı da sıfırlar).
+## Updates the grid now (also resets the timer).
 func update_now() -> void:
 	if _observer == null or not is_inside_tree():
 		return
@@ -246,7 +235,7 @@ func update_now() -> void:
 	_rays_max = maxi(_rays_max, _grid.last_ray_count)
 
 
-## Döküm/ölçüm özeti (US-011b `"vision"` dökümü bunu genişletir).
+## Dump/measurement summary (the US-011b `"vision"` dump extends it).
 func stats() -> Dictionary:
 	return {
 		"mode": String(VisionGrid.mode_name(_grid.params.mode)),
@@ -260,8 +249,8 @@ func stats() -> Dictionary:
 	}
 
 
-## Karonun çizilen ton ağırlıkları (bilinmeyen, hafıza, çevresel); geçiş sürerken ara değer.
-## Shader'ın gördüğü değer: mix(prev, next, blend_t) (8 bit doku hassasiyetinde).
+## Drawn tone weights of a tile (unknown, memory, ambient); an intermediate value during a transition.
+## The value the shader sees: mix(prev, next, blend_t) (at 8-bit texture precision).
 func shown_weights(cell: Vector2i) -> Vector3:
 	if not _grid.has_cell(cell) or _next_img == null:
 		return Vector3(1, 0, 0)
@@ -271,18 +260,18 @@ func shown_weights(cell: Vector2i) -> Vector3:
 	return Vector3(shown.r, shown.g, shown.b)
 
 
-## Geçiş ilerlemesi (shader `blend_t`).
+## Transition progress (shader `blend_t`).
 func blend_t() -> float:
 	return _blend_t
 
 
-## Kroki çizgisinin karodaki görünürlüğü (fog_outline.gdshader ile aynı formül: bilinmeyen + hafıza ağırlığı).
+## Sketch-line visibility on a tile (same formula as fog_outline.gdshader: unknown + memory weight).
 func outline_alpha(cell: Vector2i) -> float:
 	var w: Vector3 = shown_weights(cell)
 	return clampf(w.x + w.y, 0.0, 1.0)
 
 
-## Önbellekteki kroki geometrisi: duvar kenarı şeritleri ve kapı eşiği uç çiftleri (seviye koordinatı).
+## Cached sketch geometry: wall-edge strips and door-threshold endpoint pairs (level coordinates).
 func outline_rects() -> Array[Rect2]:
 	return _outline_rects
 
@@ -327,9 +316,9 @@ func _view_radius() -> float:
 	return tuning.view_radius
 
 
-## Izgara değişimi → veri dokuları. 1) Süren geçişi kapat: geçişteki karoların `prev`i o anki ara değere
-## (geçiş bitmişse `next`e) sabitlenir. 2) Değişen karoların hedefi `next`e yazılır. 3) blend_t = 0 (hareket
-## azaltmada 1) ve iki doku bir kez yüklenir. Döngüler yalnız geçişteki ve değişen karolar üzerindedir.
+## Grid change -> data textures. 1) Close the running transition: transitioning tiles' `prev` is pinned to the current blend (or `next` if finished).
+## 2) The changed tiles' target is written to `next`. 3) blend_t = 0 (1 under reduced motion) and the two textures are uploaded once.
+## Loops cover only tiles in transition and changed tiles.
 func _on_grid_changed(cells: Array[Vector2i]) -> void:
 	if _next_img != null:
 		var instant: bool = reduce_motion or tuning == null or tuning.transition_sec <= 0.0
@@ -343,7 +332,7 @@ func _on_grid_changed(cells: Array[Vector2i]) -> void:
 			var now: Color = goal if settle >= 1.0 else _prev_img.get_pixelv(at).lerp(goal, settle)
 			_prev_img.set_pixelv(at, now)
 			if _prev_img.get_pixelv(at) == goal:
-				_in_moving[cell_index] = 0  # 8 bitte hedefe vardı: artık geçişte değil
+				_in_moving[cell_index] = 0  # reached the target at 8 bit: no longer in transition
 			else:
 				_moving[kept] = cell_index
 				kept += 1
@@ -410,8 +399,8 @@ func _set_blend(value: float) -> void:
 		_outline_material.set_shader_parameter(&"blend_t", value)
 
 
-## Karonun hedef veri değeri (veri dokusu, renk değil): R bilinmeyen, G hafıza, B çevresel ağırlığı (0/1); A karanlık
-## tarama (karanlık karo ve bilinmeyen değil).
+## Target data value of a tile (data texture, not colour): R unknown, G memory, B ambient weight (0/1); A dark scan
+## (dark tile and not unknown).
 func _target_color(cell: Vector2i) -> Color:
 	var state: int = _grid.state_at(cell)
 	var data := Color()
@@ -427,7 +416,7 @@ static func _row_of(cell_index: int, width: int) -> int:
 	return cell_index / width
 
 
-## Kroki geometrisi (bir kez): duvar/cam karolarının kenar şeritleri ve kapı boşluklarının eşik çizgileri.
+## Sketch geometry (once): edge strips of wall/glass tiles and threshold lines of door gaps.
 func _build_outline(layout: LevelLayout) -> void:
 	_outline_rects = []
 	_outline_gaps = PackedVector2Array()
@@ -441,14 +430,14 @@ func _build_outline(layout: LevelLayout) -> void:
 		_outline.queue_redraw()
 
 
-## Tek dörtgen; doku shader'da `next_data`/`prev_data` uniform'larından okunur (TEXTURE yalnız UV taşır).
+## Single quad; the texture is read in the shader from the `next_data`/`prev_data` uniforms (TEXTURE carries only UV).
 func _draw_shade() -> void:
 	if _next_tex == null:
 		return
 	_shade.draw_texture_rect(_next_tex, Rect2(Vector2.ZERO, Vector2(_grid.size() * VisionGrid.TILE)), false)
 
 
-## Kroki: önbellekten, bir kez (önce şeritler, sonra kesikli eşikler); karo maskesi shader'da.
+## Sketch: from the cache, once (strips first, then dashed thresholds); tile mask in the shader.
 func _draw_outline() -> void:
 	var color: Color = ThemeTokens.tone().level_wall_edge_color
 	for edge: Rect2 in _outline_rects:

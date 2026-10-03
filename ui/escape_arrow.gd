@@ -1,24 +1,22 @@
 class_name EscapeArrow
 extends Control
-## Kaçış noktası kenar oku (US-038 AC2; US-011c ekip kenar oku kalıbı: TeamMarkers.edge_point / push_clear /
-## draw_arrow). Uyarı ≥ EscapePanel.OBJECTIVE_LEVEL iken kaçış noktası ekran dışındaysa ekran kenarında, ona doğru
-## kaçış renginde (ThemeTokens.GAMEPLAY_ESCAPE) ok; okun arkasında hedef noktası (ekip okundan ayırt edilsin). Ekrandaysa
-## ok yok (dünya işareti görünür; entities/fx/escape_marker.gd). Game'den yalnız S3 eki: alert_level(),
-## escape_point() (US-038 adayı). Game bunları taşımıyorsa katman gizli kalır. HUD `bind()` ve her karede `advance()`.
+## Escape-point edge arrow (US-038 AC2; same pattern as the US-011c team arrow: TeamMarkers.edge_point / push_clear / draw_arrow).
+## When alert >= EscapePanel.OBJECTIVE_LEVEL and the point is off-screen, draws an arrow on the screen edge in GAMEPLAY_ESCAPE with a target dot behind it; none when on-screen (world marker: entities/fx/escape_marker.gd).
+## Reads only S3 addendum alert_level() / escape_point() from Game; hidden if missing. HUD calls `bind()` and `advance()` per frame.
 
-## Ok boyu (ekran px): ekip okundan (26) biraz büyük; GDD §14.1 oyun işareti ≥ 22 px.
+## Arrow length (screen px): slightly larger than the team arrow (26); GDD §14.1 marker >= 22 px.
 const ARROW_SIZE := 30.0
-## Okun arkasındaki hedef noktasının yarıçapı ve ok merkezine uzaklığı (ekranın içine doğru).
+## Radius of the target dot behind the arrow and its offset from the arrow centre (inward).
 const DOT_RADIUS := 6.0
 const DOT_GAP := 24.0
 
-## Testler için dünya → ekran dönüşümü; geçersizse görünümün tuval dönüşümü.
+## World -> screen transform for tests; falls back to the viewport canvas transform if invalid.
 var world_to_screen: Callable
-## Okun örtmemesi gereken HUD blokları (HUD atar).
+## HUD blocks the arrow must not cover (set by HUD).
 var avoid: Array[Control] = []
 
 var game: Object = null
-## Son hesaplanan ok: {"pos" (ekran), "angle" (rad)}; ok yoksa boş.
+## Last computed arrow: {"pos" (screen), "angle" (rad)}; empty if none.
 var _marker: Dictionary = {}
 
 
@@ -43,7 +41,7 @@ func advance(_delta: float) -> void:
 		refresh()
 
 
-## Son hesaplanan ok ({"pos", "angle"}); ok yoksa boş.
+## Last computed arrow ({"pos", "angle"}); empty if none.
 func marker() -> Dictionary:
 	return _marker
 

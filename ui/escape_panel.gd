@@ -1,19 +1,13 @@
 class_name EscapePanel
 extends PanelContainer
-## Kaçış satırları (US-038; GDD §9.3): HUD üst ortası, uyarı merdiveninin altında dar panel.
-## - Hedef: uyarı ≥ OBJECTIVE_LEVEL iken "Kaçış noktasına git" + kural ("ekip birlikte oradayken kaçarsınız").
-## - Polis sayacı: Game.alert_timer_left() ≥ 0 iken (mahalleli içeride → 60 sn) "Polis gelmesine: d:ss". HUD bu
-##   panel varken merdivenin kendi küçük sayacını kapatır (AlertLadder.show_timer).
-## - Sayım: bölgede yakalanmamış biri varken "Kaçış noktasında: n/m" (m = yakalanmamış oyuncu); hepsi oradaysa
-##   kaçış renginde. Kazanma kuralı (herkes aynı anda bölgede, ganimet > 0) host'ta, HeistRules.
-## - Eli boş çekilme (US-040): Game.abort_left() ≥ 0 iken "Eli boş çekiliyorsunuz… n" (n = kalan tam saniye,
-##   yukarı yuvarlanır). İsteğe bağlı üye: Game taşımıyorsa satır hiç görünmez. Karar host'ta; sonuç heist_finished.
-## - Örtü (US-042): Game.cover_state() ≥ 0 iken (iş sürüyor) yerel oyuncuya "Müşteri gibisin" (soluk) ya da
-##   "Örtün bozuldu" (uyarı rengi). İsteğe bağlı üye; −1 iken satır yok.
-## Game'den yalnız S3 eki okunur: alert_level(), alert_timer_left(), escape_status() (US-038 adayı), abort_left()
-## (US-040), cover_state() (US-042). Game ilk üçünü taşımıyorsa panel gizli kalır. HUD `bind(game)` ile bağlar, her karede `advance()`.
+## Escape lines (US-038; GDD §9.3): narrow HUD panel under the alert ladder. Rows: objective (alert >= OBJECTIVE_LEVEL, with the team-together rule),
+## police timer (Game.alert_timer_left() >= 0; the HUD then hides the ladder's own small timer, AlertLadder.show_timer),
+## count of uncaught players at the escape point (escape colour when all are there; win rule is host-side, HeistRules),
+## empty-handed retreat (US-040: Game.abort_left() >= 0, whole seconds rounded up; optional, row absent if Game lacks it; result via heist_finished),
+## cover (US-042: Game.cover_state() >= 0 shows "like a customer" (dim) or "cover blown" (alert colour); optional, -1 hides the row).
+## Reads only the S3 addendum from Game (alert_level(), alert_timer_left(), escape_status(), abort_left(), cover_state()); hidden if the first three are missing. HUD calls `bind(game)` and `advance()` per frame.
 
-## Hedef satırının göründüğü en düşük uyarı kademesi (bakkal: 2 = bağırdı).
+## Lowest alert tier at which the objective row shows (shop: 2 = shouted).
 const OBJECTIVE_LEVEL := 2
 
 var game: Object = null
@@ -22,9 +16,9 @@ var game: Object = null
 @onready var _rule: Label = %Rule
 @onready var _police: Label = %Police
 @onready var _count: Label = %Count
-## Eli boş çekilme satırı (US-040): sahnede değil, burada kurulur (sayım satırının altında).
+## Empty-handed retreat row (US-040): built here, not in the scene (below the count row).
 var _abort: Label = null
-## Örtü satırı (US-042): burada kurulur (en altta).
+## Cover row (US-042): built here (bottom).
 var _cover: Label = null
 
 
@@ -46,7 +40,7 @@ func _ready() -> void:
 	hide()
 
 
-## Game kaçış satırları için gereken S3 eki üyelerini taşıyor mu.
+## Whether Game has the S3 addendum members the escape rows need.
 static func supports(source: Object) -> bool:
 	return source != null and source.has_method(&"alert_level") and source.has_method(&"alert_timer_left") \
 		and source.has_method(&"escape_status")
@@ -60,13 +54,13 @@ func bind(source: Object) -> void:
 	refresh()
 
 
-## Her karede (HUD çağırır); Game kapanışta HUD'dan önce serbest kalırsa işlem yapılmaz.
+## Called every frame by the HUD; does nothing if Game was freed before the HUD on shutdown.
 func advance(_delta: float) -> void:
 	if is_instance_valid(game) and supports(game):
 		refresh()
 
 
-## Satırların görünürlüğü: {"objective", "police", "count", "abort"} (bool).
+## Row visibility: {"objective", "police", "count", "abort"} (bool).
 static func lines(alert: int, timer_left: float, in_zone: int, free: int, abort_left: float = -1.0) -> Dictionary:
 	return {
 		"objective": alert >= OBJECTIVE_LEVEL,
@@ -76,7 +70,7 @@ static func lines(alert: int, timer_left: float, in_zone: int, free: int, abort_
 	}
 
 
-## Örtü satırı (US-042): [metin anahtarı, tema varyasyonu]; durum −1 (iş yok) ise boş anahtar.
+## Cover row (US-042): [text key, theme variation]; empty key when state is -1 (no job).
 static func cover_line(state: int) -> Array[StringName]:
 	var out: Array[StringName] = [&"", &""]
 	if state > 0:
@@ -86,7 +80,7 @@ static func cover_line(state: int) -> Array[StringName]:
 	return out
 
 
-## Eli boş çekilme satırındaki saniye: kalan süre yukarı yuvarlanır (3 → 2 → 1; dolunca 0).
+## Seconds on the retreat row: remaining time rounded up (3 -> 2 -> 1; 0 when elapsed).
 static func abort_seconds(abort_left: float) -> int:
 	return maxi(ceili(abort_left), 0)
 
