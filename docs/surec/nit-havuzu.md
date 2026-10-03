@@ -15,3 +15,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | US-016 (oynanis) | tests/fixtures/population_{busy,late}.tres | Ana population.tres kopyaları; kayabilir |
 | 2026-10-03 | US-016 (oynanis) | core/civilian_rules.gd, S4 | Tezgâh görüş engeli → kuyruktaki müşteri kasayı göremez; 'ikisi satış katında ise sahibi görür' gevşetmesi var. Tezgâh siviller için alçak sayılsın mı — Fable |
 | 2026-10-03 | US-016 (oynanis) | entities/npc/civilian | AC dışı eklenen davranışlar: uyarı ≥ 2'de müşteriler kaçar; yoldan geçen koniyle hep görür (yalnız bakış penceresinde değil) — oyun testinde gözle |
+| 2026-10-03 | IS-085 (oynanis) | entities/props/bag_carry.gd | Dikey yürüyüşte sarkaç tetiklenmiyor; önde (z+1) çanta üst üste binen başka oyuncunun da üstünde; etkileşimde ayrı taşıma pozu yok; devir alanı/döküm CARRY_OFFSET'te (çizimden ~15 px) |
