@@ -112,8 +112,19 @@ size_flags_horizontal = 4
 mouse_filter = 2
 theme_type_variation = &"HudPanel"
 
-[node name="PromptLabel" type="Label" parent="Root/Frame/Layout/Prompt"]
+[node name="PromptBox" type="VBoxContainer" parent="Root/Frame/Layout/Prompt"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="PromptLabel" type="Label" parent="Root/Frame/Layout/Prompt/PromptBox"]
 unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+horizontal_alignment = 1
+
+[node name="PromptAltLabel" type="Label" parent="Root/Frame/Layout/Prompt/PromptBox"]
+unique_name_in_owner = true
+visible = false
 auto_translate_mode = 2
 layout_mode = 2
 horizontal_alignment = 1

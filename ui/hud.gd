@@ -34,6 +34,8 @@ const EVENT_PEER_FIELD := "peer"
 const EVENT_NAME_FIELD := "name"
 ## İstemdeki tuş adının alındığı eylem (S5).
 const INTERACT_ACTION := &"interact"
+## İkinci istem satırının girdi eylemi (US-010 Q / gamepad X; IS-091).
+const ALT_ACTION := &"intimidate"
 
 var net: Object = Net
 var game: Object = Game
@@ -45,6 +47,8 @@ var warning_override: Callable
 var _player: Node = null
 ## Yakındaki etkileşim hedefinin eylem anahtarı (S7 interaction_target_changed); boş = hedef yok.
 var _target_key: String = ""
+## Q satırının hedef eylem anahtarı (S7 interaction_alt_target_changed); boş = hedef yok.
+var _alt_target_key: String = ""
 var _interaction_running: bool = false
 var _interaction_elapsed: float = 0.0
 var _interaction_duration: float = 0.0
@@ -61,6 +65,7 @@ var _leaving: bool = false
 @onready var _toasts: VBoxContainer = %Toasts
 @onready var _prompt: Control = %Prompt
 @onready var _prompt_label: Label = %PromptLabel
+@onready var _prompt_alt_label: Label = %PromptAltLabel
 @onready var _interaction: Control = %Interaction
 @onready var _interaction_label: Label = %InteractionLabel
 @onready var _interaction_bar: ProgressBar = %InteractionBar
@@ -325,6 +330,7 @@ func _remove_toast(panel: Control) -> void:
 func _player_signals() -> Dictionary:
 	return {
 		&"interaction_target_changed": _on_interaction_target_changed,
+		&"interaction_alt_target_changed": _on_interaction_alt_target_changed,
 		&"interaction_started": _on_interaction_started,
 		&"interaction_finished": _on_interaction_finished,
 	}
@@ -338,6 +344,7 @@ func _bind_player(player: Node) -> void:
 				_player.disconnect(sig, handlers[sig])
 	_player = player
 	_target_key = ""
+	_alt_target_key = ""
 	_interaction_running = false
 	_interaction_linger = 0.0
 	_interaction.hide()
@@ -354,14 +361,30 @@ func _on_interaction_target_changed(action_key: String) -> void:
 	_refresh_prompt()
 
 
+func _on_interaction_alt_target_changed(action_key: String) -> void:
+	_alt_target_key = action_key
+	_refresh_prompt()
+
+
 ## İstem: hedef varken ve etkileşim sürmüyorken "[tuş] eylem"; etkileşim başlayınca yerini çubuğa bırakır.
+## İki satır: E (interact) üstte, Q (intimidate) altta; hedefi olmayan satır gizlenir (IS-091).
 func _refresh_prompt() -> void:
-	var visible_now: bool = not _target_key.is_empty() and not _interaction.visible
-	if visible_now:
-		var hint: String = UiInput.action_hint(INTERACT_ACTION)
-		var action: String = tr(_target_key)
-		_prompt_label.text = action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]
-	_prompt.visible = visible_now
+	var idle: bool = not _interaction.visible
+	var main_now: bool = idle and _fill_prompt_row(_prompt_label, _target_key, INTERACT_ACTION)
+	var alt_now: bool = idle and _fill_prompt_row(_prompt_alt_label, _alt_target_key, ALT_ACTION)
+	_prompt_label.visible = main_now
+	_prompt_alt_label.visible = alt_now
+	_prompt.visible = main_now or alt_now
+
+
+## Bir istem satırını "[tuş] eylem" ile doldurur; anahtar boşsa false (satır gizlenecek).
+func _fill_prompt_row(label: Label, action_key: String, input_action: StringName) -> bool:
+	if action_key.is_empty():
+		return false
+	var action: String = tr(action_key)
+	var hint: String = UiInput.action_hint(input_action)
+	label.text = action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]
+	return true
 
 
 func _on_interaction_started(action_key: String, duration: float) -> void:

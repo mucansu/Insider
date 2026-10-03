@@ -176,6 +176,7 @@ class FakeVisionGame extends FakeGame:
 ## S7 oyuncu sinyalleri (HUD sözleşmesi); yalnız yerel oyuncuda yayılır.
 class FakePlayer extends Node:
 	signal interaction_target_changed(action_key: String)
+	signal interaction_alt_target_changed(action_key: String)
 	signal interaction_started(action_key: String, duration: float)
 	signal interaction_finished(success: bool)
 
