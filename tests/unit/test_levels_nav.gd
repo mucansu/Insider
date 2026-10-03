@@ -16,6 +16,7 @@ const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 layer 1
 const PLAYERS_LAYER := PhysicsLayers.PLAYERS  # §4 layer 2
 const TRIGGERS_LAYER := PhysicsLayers.TRIGGERS  # §4 layer 5
 const SEE_THROUGH := PhysicsLayers.SEE_THROUGH_GROUP
+const LOW_OBSTACLE := PhysicsLayers.LOW_OBSTACLE_GROUP
 const AGENT_RADIUS := 12.0    # character diameter ~24 px (S4)
 const ARRIVE := 2.0           # path end this close to the goal counts as "reached"
 const DOOR_PASS := TILE + 1.0  # door link ends are one tile from the door centre
@@ -34,12 +35,18 @@ func test_windows_are_see_through_bodies() -> void:
 		is_false(walls.is_in_group(SEE_THROUGH), "%s: Walls (duvar/raf/tezgâh) görüşü keser" % path)
 		var windows: int = 0
 		for child: Node in walls.get_children():
-			if child.name.begins_with("Window"):
-				windows += 1
+			# IS-098: the counter is a low obstacle body like glass (own body, own group; collides, sight passes).
+			var own_group: StringName = SEE_THROUGH if child.name.begins_with("Window") \
+				else (LOW_OBSTACLE if child.name.begins_with("Counter") else &"")
+			if not own_group.is_empty():
+				if own_group == SEE_THROUGH:
+					windows += 1
 				var body: StaticBody2D = child as StaticBody2D
 				if not is_true(body != null, "%s: %s StaticBody2D olmalı" % [path, child.name]):
 					continue
-				is_true(body.is_in_group(SEE_THROUGH), "%s: %s see_through grubunda" % [path, child.name])
+				is_true(body.is_in_group(own_group), "%s: %s %s grubunda" % [path, child.name, own_group])
+				is_false(body.is_in_group(SEE_THROUGH if own_group == LOW_OBSTACLE else LOW_OBSTACLE),
+					"%s: %s tek grupta" % [path, child.name])
 				eq(body.collision_layer, WORLD_LAYER, "%s: %s world katmanında (yürünmez)" % [path, child.name])
 				var shapes: Array[Node] = body.find_children("*", "CollisionShape2D", false, false)
 				eq(shapes.size(), 1, "%s: %s tek şekil taşır" % [path, child.name])
@@ -71,8 +78,10 @@ func test_line_of_sight_passes_glass_but_not_shelves() -> void:
 	eq(_shape_name(shelf), "Shelf", "raf görüşü keser (K1)")
 	# Back room wall (col 14): from the sales floor (13, 4) into the back room (15, 4) (13, 5-7 drinks cooler, US-033).
 	eq(_shape_name(_ray(space, _center(Vector2i(13, 4)), _center(Vector2i(15, 4)), true)), "Wall", "duvar görüşü keser")
-	# The counter (col 17) is not half height: it blocks sight.
-	eq(_shape_name(_ray(space, _center(Vector2i(16, 10)), _center(Vector2i(18, 10)), true)), "Counter", "tezgâh görüşü keser")
+	# The counter (col 17) is a low obstacle (IS-098, KR-031 addendum): it collides but sight passes for everyone.
+	var counter_hit: String = _shape_name(_ray(space, _center(Vector2i(16, 10)), _center(Vector2i(18, 10)), false))
+	is_true(counter_hit.begins_with("Counter"), "ışın tezgâha çarpar (fiziksel; gelen '%s')" % counter_hit)
+	is_true(_ray(space, _center(Vector2i(16, 10)), _center(Vector2i(18, 10)), true).is_empty(), "tezgâh görüşü kesmez (alçak engel)")
 	tree().root.remove_child(level)
 
 
@@ -436,7 +445,7 @@ func _ray(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, skip_see
 	for i: int in 8:
 		query.exclude = exclude
 		var hit: Dictionary = space.intersect_ray(query)
-		if hit.is_empty() or not skip_see_through or not (hit["collider"] as Node).is_in_group(SEE_THROUGH):
+		if hit.is_empty() or not skip_see_through or not PhysicsLayers.passes_sight((hit["collider"] as Node).get_groups()):
 			return hit
 		exclude.append(hit["rid"] as RID)
 	return {}

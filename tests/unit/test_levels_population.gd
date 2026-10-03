@@ -442,7 +442,7 @@ func _ray(space: PhysicsDirectSpaceState2D, from: Vector2, to: Vector2, skip_see
 	for i: int in 8:
 		query.exclude = exclude
 		var hit: Dictionary = space.intersect_ray(query)
-		if hit.is_empty() or not skip_see_through or not (hit["collider"] as Node).is_in_group(SEE_THROUGH):
+		if hit.is_empty() or not skip_see_through or not PhysicsLayers.passes_sight((hit["collider"] as Node).get_groups()):
 			return hit
 		exclude.append(hit["rid"] as RID)
 	return {}

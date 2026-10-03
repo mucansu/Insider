@@ -48,7 +48,7 @@ func test_level_vision_api() -> void:
 		Vector2i(0, 0): VisionGrid.Cell.SOLID,  # boundary
 		Vector2i(1, 4): VisionGrid.Cell.SOLID,  # wall
 		Vector2i(4, 4): VisionGrid.Cell.SOLID,  # shelf
-		Vector2i(17, 9): VisionGrid.Cell.SOLID,  # counter
+		Vector2i(17, 9): VisionGrid.Cell.PORTAL,  # counter (IS-098: low obstacle, sight passes)
 		Vector2i(3, 14): VisionGrid.Cell.PORTAL,  # display glass
 		Vector2i(11, 14): VisionGrid.Cell.PORTAL,  # front door gap
 		Vector2i(19, 8): VisionGrid.Cell.PORTAL,  # inner door gap

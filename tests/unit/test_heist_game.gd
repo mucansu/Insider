@@ -377,7 +377,8 @@ func test_association_seen_by_owner() -> void:
 	if not is_true(seen_at.is_finite(), "sahibin gördüğü nokta"):
 		await _stop()
 		return
-	var behind: Vector2 = eye.global_position - eye.facing.normalized() * 40.0
+	# Behind the owner, outside the 360 deg arm reach (IS-098: within it the owner sees in every direction).
+	var behind: Vector2 = eye.global_position - eye.facing.normalized() * (eye.arm_reach() + 16.0)
 	var other: int = 77
 	eq(Game._heist_associate_at(1, other, seen_at, seen_at + Vector2(20, 0)), 0, "arkadaş işaretsiz")
 	Game.raise_session_event(&"player_held", {"peer": other})

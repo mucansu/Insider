@@ -153,6 +153,7 @@ func _ready() -> void:
 		_senses.bell_marker = owner_tuning.front_door_marker
 		_senses.bell_radius = owner_tuning.bell_radius
 		_senses.setup(_level(), civilian_tuning, _perception.tuning)
+		_perception.set_arm_reach(owner_tuning.arm_reach_px)  # IS-098: 360 deg near band within arm reach
 		_brain.owner_tuning = owner_tuning
 		_brain.civilian_tuning = civilian_tuning
 		_brain.agenda_seed = agenda_seed()

@@ -1,0 +1,87 @@
+{
+  "_doc": "IS-098 AC5 (KR-031 eki: tezgâh herkes için alçak engel). store_a, tezgâh tanığı fikstürü (tests/fixtures/store_a_counter_witness.tscn: tek müşteri 22. sn'de, tek raf noktası ShopSpot4 8 sn, sonra QueueSpot1; yoldan geçen yok; müşteri konisi varsayılan 50°/160 px). c1 owner_window rotası (bots/owner_window_c1.json): sahip raf düzeltmedeyken (ajanda tohumu 3) tezgâh ucundan personel tarafına dolanıp kasayı boşaltır. Kuyruktaki müşteri kasaya bakar; tezgâh görüşü kesmediği için kasa boşaltan c1'i görür (kasa çarpanı 2,5, yakın bant), 100'de tanık olur ve sahibe söyler (`customer_tell`, peer c1; sahibin c1'e şüphesi +60): sahip sorgular, bağırır ve c1'i tutar, kasa boşalmaz, ekip nakdi 0. Eski kuralda (tezgâh görüşü keser) aynı rota temizdi: müşteri görmez, kasa boşalır (150), olay yok. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_counter_witness.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 50,
+  "bots": {
+    "c1": "res://tests/net/bots/owner_window_c1.json"
+  },
+  "expect": [
+    {
+      "eq": [
+        "*.level",
+        "res://tests/fixtures/store_a_counter_witness.tscn"
+      ]
+    },
+    {
+      "len": [
+        "*.player_nodes",
+        2
+      ]
+    },
+    {
+      "eq": [
+        "host.population.tells",
+        1
+      ]
+    },
+    {
+      "eq": [
+        "host.population.flees",
+        0
+      ]
+    },
+    {
+      "has": [
+        "*.population.events",
+        "customer_tell"
+      ]
+    },
+    {
+      "has": [
+        "host.population.event_peers",
+        "$c1"
+      ]
+    },
+    {
+      "has": [
+        "*.owner.events",
+        "owner_question"
+      ]
+    },
+    {
+      "has": [
+        "host.owner.event_peers",
+        "$c1"
+      ]
+    },
+    {
+      "eq": [
+        "host.owner.peak.$c1",
+        100
+      ]
+    },
+    {
+      "eq": [
+        "*.props.Register.emptied",
+        false
+      ]
+    },
+    {
+      "eq": [
+        "*.team_cash",
+        0
+      ]
+    },
+    {
+      "all_equal": "alert.level"
+    },
+    {
+      "eq": [
+        "*.player_states.$c1.wall_frames",
+        0
+      ]
+    }
+  ]
+}
