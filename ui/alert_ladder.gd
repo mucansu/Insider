@@ -31,6 +31,8 @@ const SFX_HIGH := &"alert_high"
 var tier: int = DEFAULT_TIER
 ## Hareket azaltma (GDD §14.1 kural 5): kademe değişiminde pop çalmaz, durum anında görünür.
 var reduce_motion: bool = false
+## false: polis sayacı merdivende gösterilmez (US-038: HUD'da kaçış paneli sayacı büyük gösterir).
+var show_timer: bool = true
 ## Eksik metin anahtarı bildirimi (HUD bağlar; testler yakalar). Geçersizse push_warning.
 var warn: Callable
 
@@ -117,7 +119,7 @@ func is_popping() -> bool:
 
 func refresh_timer() -> void:
 	var left: float = -1.0
-	if _level == TIMER_LEVEL and game != null and game.has_method(&"alert_timer_left"):
+	if show_timer and _level == TIMER_LEVEL and game != null and game.has_method(&"alert_timer_left"):
 		left = float(game.call(&"alert_timer_left"))
 	_timer_label.visible = left >= 0.0
 	if left >= 0.0:

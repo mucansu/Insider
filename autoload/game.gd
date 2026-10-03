@@ -1560,3 +1560,45 @@ func _vision_dump() -> Dictionary:
 		"exposure_history": _vision_session().history(),
 		"remote_look_deg": remote,
 	}
+
+
+# =====================================================================================================================
+# US-038 — Kaçış okunurluğu: salt okunur yardımcılar (S3 eki adayı; HUD kaçış satırları ve kenar oku). Durum
+# değiştirmez, RPC yoktur: her peer kendi yerel kopyasından (çoğaltılan oyuncu konumları ve Status durumu) hesaplar;
+# kural host'taki `_heist_views` ile aynıdır (bölge şekli `_heist_in_zone`, konum `interaction_position`).
+# =====================================================================================================================
+
+## Kaçış noktasının dünya konumu (EscapeZone'un ilk şeklinin merkezi, global); seviyede bölge yoksa Vector2.INF.
+func escape_point() -> Vector2:
+	var zone: Area2D = _level.zone(HEIST_ESCAPE_ZONE) if _level != null else null
+	if zone == null or not zone.is_inside_tree():
+		return Vector2.INF
+	for child: Node in zone.get_children():
+		var holder: CollisionShape2D = child as CollisionShape2D
+		if holder != null and not holder.disabled and holder.shape != null:
+			return holder.global_position
+	return zone.global_position
+
+
+## Kaçış durumu: {"in_zone": int, "free": int} — yakalanmamış (tutulan dahil) oyuncu sayısı ve bunlardan şu an
+## kaçış bölgesinde olanlar. Kazanma: in_zone == free (ve ganimet > 0; HeistRules.decide). Bölge yoksa in_zone 0.
+func escape_status() -> Dictionary:
+	var free: int = 0
+	var in_zone: int = 0
+	var root: Node2D = _players_root()
+	if root != null and root.is_inside_tree():
+		var zone: Area2D = _level.zone(HEIST_ESCAPE_ZONE)
+		for child: Node in root.get_children():
+			var node: Node2D = child as Node2D
+			if node == null or not str(node.name).is_valid_int():
+				continue
+			if HeistRules.node_flag(node, HeistRules.CAUGHT_METHODS) \
+					or (_heist != null and _heist.is_caught(str(node.name).to_int())):
+				continue
+			free += 1
+			var pos: Vector2 = node.global_position
+			if node.has_method(&"interaction_position"):
+				pos = node.call(&"interaction_position")
+			if _heist_in_zone(zone, pos):
+				in_zone += 1
+	return {"in_zone": in_zone, "free": free}

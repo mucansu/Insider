@@ -78,6 +78,10 @@ HUD_ALERT_TIMER,Polis gelir: %s,Police in %s
 HUD_EXPOSURE_HIDDEN,Gizli,Hidden
 HUD_EXPOSURE_VISIBLE,Görünür,Visible
 HUD_EXPOSURE_SEEN,Görüldü,Spotted
+HUD_ESCAPE_OBJECTIVE,Kaçış noktasına git,Get to the escape point
+HUD_ESCAPE_RULE,Ekip birlikte oradayken kaçarsınız.,You get away once the whole crew is there.
+HUD_ESCAPE_POLICE,Polis gelmesine: %s,Police arrive in %s
+HUD_ESCAPE_COUNT,Kaçış noktasında: %d/%d,At the escape point: %d/%d
 END_DURATION_LABEL,SÜRE,TIME
 END_PAYOUT_LABEL,ÖDEME,PAYOUT
 END_LOOT,Ganimet,Loot
@@ -88,6 +92,12 @@ END_PLAYERS_LABEL,EKİP,CREW
 END_STATUS_ESCAPED,Kaçtı,Escaped
 END_STATUS_CAUGHT,Yakalandı,Caught
 END_STATUS_INSIDE,İçeride kaldı,Left inside
+END_STATUS_CAUGHT_POLICE,Yakalandı (polis),Caught (police)
+END_STATUS_CAUGHT_CHASER,Yakalandı (mahalleli),Caught (neighbour)
+END_STATUS_CAUGHT_OWNER,Yakalandı (dükkân sahibi),Caught (shopkeeper)
+END_CAUSE_POLICE,Polis geldiğinde kaçış noktasında değildin.,You weren't at the escape point when the police arrived.
+END_CAUSE_CHASER,Mahalleli seni yakaladı.,A neighbour caught you.
+END_CAUSE_OWNER,Dükkân sahibi seni tuttu; kimse çekip kurtarmadı.,The shopkeeper held you and nobody pulled you free.
 END_NOTES_LABEL,NOTLAR,NOTES
 END_NOTE_TEAM,Ekip,Crew
 END_RETRY,Bir daha,Again
@@ -103,7 +113,7 @@ END_OUTCOME_HOT_NOTE,Mahalle peşinizdeydi; ganimet ucuza gitti.,The neighbours 
 END_OUTCOME_CAUGHT_ALL,EKİP YAKALANDI,CREW BUSTED
 END_OUTCOME_CAUGHT_ALL_NOTE,Kimse dışarı çıkamadı.,Nobody made it out.
 END_OUTCOME_POLICE,POLİS GELDİ,POLICE ARRIVED
-END_OUTCOME_POLICE_NOTE,İçeride kalan herkes yakalandı.,Everyone still inside was caught.
+END_OUTCOME_POLICE_NOTE,Polis geldiğinde kaçış noktasında olmayan herkes yakalandı.,Everyone who wasn't at the escape point when the police arrived was caught.
 NOTE_GENERIC,Kayda değer,Noteworthy
 NOTE_GENERIC_DESC,Bu işte göze battı.,Stood out on this job.
 NOTE_GHOST_CREW,Hayalet ekip,Ghost crew

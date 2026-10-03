@@ -7,6 +7,8 @@
 [ext_resource type="PackedScene" uid="uid://dfscna6q7c7gy" path="res://ui/heist_end.tscn" id="5_end"]
 [ext_resource type="PackedScene" path="res://ui/exposure_badge.tscn" id="6_badge"]
 [ext_resource type="Script" path="res://ui/team_markers.gd" id="7_markers"]
+[ext_resource type="PackedScene" path="res://ui/escape_panel.tscn" id="8_escape"]
+[ext_resource type="Script" path="res://ui/escape_arrow.gd" id="9_arrow"]
 
 [node name="Hud" type="CanvasLayer"]
 layer = 10
@@ -159,6 +161,10 @@ mouse_filter = 2
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="EscapePanel" parent="Root/Frame/TopCenter" instance=ExtResource("8_escape")]
+unique_name_in_owner = true
+layout_mode = 2
+
 [node name="Toasts" type="VBoxContainer" parent="Root/Frame/TopCenter"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -180,6 +186,17 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 script = ExtResource("7_markers")
+
+[node name="EscapeArrow" type="Control" parent="Root"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("9_arrow")
 
 [node name="PauseMenu" parent="Root" instance=ExtResource("3_pause")]
 unique_name_in_owner = true

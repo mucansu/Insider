@@ -53,6 +53,9 @@ const LINES := {
 		"func vision_mode() -> int",
 		"func set_vision_mode(mode: int) -> void",
 		"func player_world_position(peer: int) -> Vector2",
+		# S3 eki adayı (US-038, kaçış okunurluğu; mimari.md'ye koordinatör işler): salt okunur, RPC yok.
+		"func escape_point() -> Vector2",
+		"func escape_status() -> Dictionary",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
