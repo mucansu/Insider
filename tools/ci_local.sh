@@ -7,6 +7,9 @@
 #   duman koşusu); CI bunu yalnız main push'unda `godot import export` olarak koşar ve build'leri yükler.
 # Python: python3 → python → py -3 sırasıyla ilk >= 3.10 olan (Windows'ta Git Bash ile de çalışır).
 # .github/workflows/ci.yml aynı adımları aynı sırayla bu betikle koşar; biri değişirse diğeri de.
+# Çıktı (IS-090): varsayılan kısa kip — başarıda adım başına özet satırı, başarısızlıkta ayrıntı.
+# CI_VERBOSE=1 eski ayrıntılı çıktıyı açar (test başına [PASS], unittest satırları, uyarı tabloları, net -v;
+# uzak CI bu kiple koşar). Kapılar ve çıkış kodları iki kipte aynıdır.
 set -euo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,6 +18,12 @@ cd "$root"
 # Python çıktısı boruya/dosyaya giderken de UTF-8 olsun (Windows'ta varsayılan cp1254 Türkçeyi bozar;
 # Linux'ta zararsız).
 export PYTHONUTF8=1
+
+VERBOSE=0
+if [[ "${CI_VERBOSE:-}" == "1" ]]; then
+	VERBOSE=1
+	export TESTS_VERBOSE=1
+fi
 
 GODOT="$(bash tools/get_godot.sh)"
 export GODOT
@@ -39,7 +48,7 @@ step_import() {
 		echo "$problems"
 		return 1
 	fi
-	echo "İçe aktarma temiz."
+	if ((VERBOSE)); then echo "İçe aktarma temiz."; fi
 }
 
 # Birim testler. Koşucu çıkış kodunu verir (test başına yetim düğüm farkı da kapıdır: `[ORPHAN]` satırı,
@@ -52,8 +61,25 @@ step_unit() {
 	local log code
 	log="$(mktemp)"
 	set +e
-	"$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee "$log"
-	code=${PIPESTATUS[0]}
+	if ((VERBOSE)); then
+		"$GODOT" --headless --path . -s res://tests/run_tests.gd 2>&1 | tee "$log"
+		code=${PIPESTATUS[0]}
+	else
+		# Kısa kip: koşucu zaten yalnız FAIL/ORPHAN + özet basar; motorun beklenen push_warning blokları
+		# burada süzülür. Başarısızlıkta koşucu satırları + motor ERROR satırları; koşucu özet basmadan
+		# düştüyse (çökme, zaman aşımı) log'un son 40 satırı.
+		"$GODOT" --headless --path . -s res://tests/run_tests.gd >"$log" 2>&1
+		code=$?
+		local runner_re='^(\[FAIL\]|\[ORPHAN\]|       - |[0-9]+ test: |Yetim düğüm farkı|Koşulacak test yok)'
+		if ((code == 0)); then
+			sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "$runner_re" || true
+		elif sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -qE '^[0-9]+ test: '; then
+			sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "$runner_re|^(SCRIPT )?ERROR:" || true
+			echo "(tam çıktı: CI_VERBOSE=1 ya da TESTS_VERBOSE=1)"
+		else
+			tail -n 40 "$log"
+		fi
+	fi
 	set -e
 	local leaks
 	leaks="$(sed 's/\x1b\[[0-9;]*m//g' "$log" | grep -E "$LEAK_PATTERN" || true)"
@@ -90,17 +116,42 @@ find_python() {
 # ajan hook koruması .claude/hooks/agent_guard.py (IS-053) (Godot gerekmez). Ardından GDScript uyarı sayımı +
 # kapısı (IS-047; Godot ister, import'tan sonra): project.godot'ta düzeyi 2 olan türde uyarı varsa ya da sayım
 # alınamazsa adım KIRMIZI; düzeyi 0/1 olan türlerin sayımı yalnız bilgi (JSON: build/warn_count.json).
+# Bir Python araç testini koşar. Kısa kipte çıktı yakalanır: geçerse tek satır ("dosya: Ran N tests in … OK"),
+# kalırsa log'un tamamı (unittest başarısız testlerin izini ve nedenini basar).
+py_test() {
+	local file="$1" log
+	if ((VERBOSE)); then
+		"${PYTHON[@]}" "$file" || return 1
+		return 0
+	fi
+	log="$(mktemp)"
+	if "${PYTHON[@]}" "$file" >"$log" 2>&1; then
+		echo "$(basename "$file"): $(grep -E '^Ran [0-9]+ tests? in' "$log" | tail -n 1) $(grep -E '^OK' "$log" | tail -n 1)"
+		rm -f "$log"
+		return 0
+	fi
+	cat "$log"
+	rm -f "$log"
+	return 1
+}
+
+# test_run_tests.py koşucunun kısa/ayrıntılı çıktı kipini doğrular (IS-090; Godot ister, GODOT dışa aktarıldı).
 step_tools() {
 	find_python || return 1
-	"${PYTHON[@]}" --version
-	"${PYTHON[@]}" tools/test_latency_proxy.py || return 1
-	"${PYTHON[@]}" tools/test_net_smoke.py || return 1
-	"${PYTHON[@]}" tools/test_screenshot.py || return 1
-	"${PYTHON[@]}" tools/test_perf_run.py || return 1
-	"${PYTHON[@]}" tools/test_warn_count.py || return 1
-	"${PYTHON[@]}" tools/test_agent_guard.py || return 1
-	echo "-- GDScript uyarı sayımı (düzey 2 = kapı, diğerleri bilgi)"
-	"${PYTHON[@]}" tools/warn_count.py --gate || return 1
+	if ((VERBOSE)); then "${PYTHON[@]}" --version; fi
+	py_test tools/test_latency_proxy.py || return 1
+	py_test tools/test_net_smoke.py || return 1
+	py_test tools/test_screenshot.py || return 1
+	py_test tools/test_perf_run.py || return 1
+	py_test tools/test_warn_count.py || return 1
+	py_test tools/test_agent_guard.py || return 1
+	py_test tools/test_run_tests.py || return 1
+	if ((VERBOSE)); then
+		echo "-- GDScript uyarı sayımı (düzey 2 = kapı, diğerleri bilgi)"
+		"${PYTHON[@]}" tools/warn_count.py --gate || return 1
+	else
+		"${PYTHON[@]}" tools/warn_count.py --gate --brief || return 1
+	fi
 }
 
 # Windows + Linux build'i (IS-005); şablonlar ilk koşuda indirilir (~1,3 GB), sonra atlanır.
@@ -122,12 +173,16 @@ step_net() {
 	fi
 	find_python || return 1
 	# Not: adımlar `if` içinde çağrıldığından set -e burada işlemez; her hata açıkça döndürülür.
+	# Kısa kipte senaryo başına net_smoke'un tek PASS satırı (adı ve gecikmeyi içerir); FAIL'de başarısız
+	# iddialar + log hata satırları. Ayrıntılı kipte "--" başlıkları ve -v (bütün iddialar).
 	local s
+	local net_v=()
+	if ((VERBOSE)); then net_v=(-v); fi
 	for s in "${scenarios[@]}"; do
-		echo "-- $s (0 ms)"
-		"${PYTHON[@]}" tools/net_smoke.py "$s" || return 1
-		echo "-- $s (150 ms)"
-		"${PYTHON[@]}" tools/net_smoke.py "$s" --latency-ms 150 || return 1
+		if ((VERBOSE)); then echo "-- $s (0 ms)"; fi
+		"${PYTHON[@]}" tools/net_smoke.py "$s" "${net_v[@]}" || return 1
+		if ((VERBOSE)); then echo "-- $s (150 ms)"; fi
+		"${PYTHON[@]}" tools/net_smoke.py "$s" --latency-ms 150 "${net_v[@]}" || return 1
 	done
 }
 
@@ -143,7 +198,7 @@ for step in "${steps[@]}"; do
 		;;
 	esac
 	t0=$SECONDS
-	echo "== $step"
+	if ((VERBOSE)); then echo "== $step"; fi
 	if ! "step_$step"; then
 		echo "== $step BAŞARISIZ ($((SECONDS - t0)) sn)" >&2
 		exit 1

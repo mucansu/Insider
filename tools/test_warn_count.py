@@ -95,6 +95,14 @@ class AggregateTest(unittest.TestCase):
         # project.godot'ta adı olmayan tür: düzey -1, etkin sayılmaz.
         self.assertEqual(t["brand_new_warning"]["level"], -1)
 
+    def test_brief_is_one_line_without_tables(self) -> None:
+        # IS-090: ci_local kısa kipi tek satır basar; tablo ve "en çok" listesi yalnız ayrıntılı kipte.
+        line = wc.render_brief(self.r)
+        self.assertNotIn("\n", line)
+        self.assertIn("etkin 6 (üretim 2)", line)
+        self.assertIn("kapalı 3", line)
+        self.assertNotIn("En çok", line)
+
     def test_active_vs_inactive_totals(self) -> None:
         self.assertEqual(self.r["etkin_toplam"], {"uretim": 2, "test": 3, "diger": 1, "toplam": 6})
         self.assertEqual(self.r["kapali_toplam"], {"uretim": 3, "test": 0, "diger": 0, "toplam": 3})
