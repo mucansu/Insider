@@ -25,3 +25,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-03 | US-042 (oynanis) | core/heist_rules.gd | 'İşaretli' için yalnız bağırış/tutma sayılıyor, owner_question sayılmıyor; kaçış paneli örtü satırı yüzünden hep görünür |
 | 2026-10-03 | koordinatör | docs/notes/mimari.md | S3 eki tek uzun satır → her birleşmede çakışıyor; maddelere bölünmeli |
 | 2026-10-03 | Explore | autoload/game.gd:53 | PROTOCOL_VERSION üstündeki yorum '2: US-011b' diyor, değer 3 (US-016) |
+| 2026-10-03 | US-043 (oynanis) | entities/npc/chaser | Mahalleli sonradan oluşunca örtüyü sahibin duyusundan okur; sahipsiz seviyede herkesi kovalar. Geç katılan istemcide `cover` etiketi eksik olabilir (yalnız istem; host doğrular) |
