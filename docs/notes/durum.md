@@ -1,4 +1,4 @@
-# Durum (2026-10-03 akşam, devir noktası — yeni sohbete hazır)
+# Durum (2026-10-03 22:15)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
@@ -8,11 +8,11 @@ Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **2c8773d** (worktre
 Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095 · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-Yok — çalışan ajan yok, tüm işler birleşik. Yerelde kullanıcı için oyun penceresi açık (host + katılan, faz2-int).
+- **IS-093** Sürüyor (22:15): 5 ajan (sonnet, worktree, taban faz2-int 2c8773d) — dilim 1 autoload+main.gd+perf_probe.gd (cekirdek), 2 core+data (oynanis), 3 entities (oynanis), 4 ui+levels (arayuz), 5 tests+tools+.claude/hooks (altyapi). Birleştirme sırayla; .gdshader/.sh elle doğrulanır.
 
 ## Yeni sohbette ilk adımlar
 1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
-2. **IS-093 kod yorumları İngilizce + özet** (kullanıcı kararı): 5 paralel ajan (dizine göre: autoload+main; core+data; entities; ui+levels; tests+tools), `model: sonnet`; kural: yalnız yorum/docstring, kod/oyuncu metni/hata mesajı aynı, karar kimlikleri korunur; her ajan sonunda `python tools/check_comment_only.py faz2-int` → 0 + `ci_local.sh import unit tools`. Birleştirmeleri sırayla yap (dizinler ayrık).
+2. IS-093 ajan raporlarını al → diff oku → worktree commit → faz2-int'e sırayla birleştir → birleşik ağaçta check_comment_only + import unit tools → push.
 3. Test-2 (IS-017): kullanıcı arkadaşlarla paketle oynar; istenirse `test-2` etiketi → CI Release. Öncesinde tam CI zaten yeşil.
 4. Sıradaki Faz 2 kalemleri: IS-015 oyun testi botları + strateji istatistiği (tek kişi kolay geçiyor mu), US-037 NPC teması (KR-027), IS-092 küçük GDD bedelleri, IS-081 (GB-04/05 sonrası kalan sahip tepkisi), nit havuzundan dosyası dokunulanlar.
 5. Temizlik: ~30 birleşmiş ajan worktree'si (`git worktree list`) — kullanıcı izniyle `git worktree remove`.
