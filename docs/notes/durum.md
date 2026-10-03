@@ -22,7 +22,7 @@ Faz 1 bitti ve test-1 checkpoint'i alındı; Faz 2 — Gizlilik (bakkal) `faz2-i
    - nit/kural: eşitleyici paket düzeni değişti, `PROTOCOL_VERSION` (game.gd:53) artırılmadı → bu kalemde 2'ye çıkar; mimari.md'ye "kablo düzeni değişince sürüm artar" kuralı.
    Sonra denetci t2 → worktree'de `US-011b:` commit → faz2-int'e `--no-ff` (faz2-int artık 22e9392: IS-078 dev birleşimi + IS-080; game.gd döküm anahtarları ve texts.csv çakışabilir, iki taraf korunur) → import + unit → push.
 2. Sıradaki Faz 2: US-037 NPC teması (KR-027) → US-010 bakkal etkileşimleri (KR-026) → US-016 mekân nüfusu → IS-082 (net_smoke `args`) → IS-028 → US-038 kaçış okunurluğu (GB-04, test-2 öncesi P1) → IS-081 sahip tepkisi araştırması → IS-015 botlar → test-2 (IS-017).
-3. Açık nit/kalem adayları backlog'da: IS-057..IS-077, IS-079 (IS-078/080 nit), IS-083 (US-011b nit), IS-064/IS-058, IS-020, IS-077.
+3. Yeni (2026-10-03, dış blog incelemesi): IS-084 push öncesi sızıntı taraması (P1, XS, altyapi — US-011b t2 ile paralel başlatılabilir); US-030'a klavye düzeni etiketi AC'si. Açık nit/kalem adayları backlog'da: IS-057..IS-077, IS-079 (IS-078/080 nit), IS-083 (US-011b nit), IS-064/IS-058, IS-020, IS-077.
 4. Temizlik: 14 eski ajan worktree'si (birleşmiş, temiz) silinemedi (oto mod izni); kullanıcı ya da izinle `git worktree remove`.
 
 ## Araştırma
