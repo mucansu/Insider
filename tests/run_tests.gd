@@ -1,8 +1,11 @@
 extends SceneTree
 ## Birim test koşucusu (mimari.md §5). Eklentisiz, headless:
-##   godot --headless --path . -s res://tests/run_tests.gd [-- --filter=METİN --timeout=SN]
+##   godot --headless --path . -s res://tests/run_tests.gd [-- --filter=METİN --timeout=SN --verbose-tests --dir=YOL]
 ## tests/unit/test_*.gd dosyalarını (extends TestCase, tests/t.gd) bulur; `test_` ile başlayan argümansız
-## her metodu yeni bir örnekte koşar ve test başına sonuç + ad + süre basar. Başarısızlık nedenleri:
+## her metodu yeni bir örnekte koşar. Kısa kip (varsayılan, IS-090): yalnız [FAIL]/[ORPHAN] satırları ve
+## sonda tek özet satırı ("N test: N geçti, M başarısız (T ms)"; biçimi sabit, betikler grep'liyor).
+## Ayrıntılı kip (`--verbose-tests` ya da TESTS_VERBOSE=1): test başına [PASS] + ad + süre ve yetim özeti.
+## `--dir=YOL` test dizinini ezer (yalnız koşucunun kendi testi: tools/test_run_tests.py). Başarısızlık nedenleri:
 ## doğrulama, test sırasında betik hatası, izin verilmemiş push_error/motor hatası, zaman aşımı.
 ## Test hijyeni (IS-046): her testin öncesi/sonrası (autofree + bir kare sonrası) yetim düğüm sayısı
 ## (Performance.OBJECT_ORPHAN_NODE_COUNT) karşılaştırılır; artış `[ORPHAN] dosya::test +N` satırı basar
@@ -45,6 +48,8 @@ class ErrorCapture extends Logger:
 
 var _capture := ErrorCapture.new()
 var _filter: String = ""
+var _unit_dir: String = UNIT_DIR
+var _verbose: bool = false
 var _timeout_sec: float = DEFAULT_TIMEOUT_SEC
 var _watch_id: int = 0
 var _passed: int = 0
@@ -55,11 +60,16 @@ var _orphan_tests: int = 0
 
 func _initialize() -> void:
 	OS.add_logger(_capture)
+	_verbose = OS.get_environment("TESTS_VERBOSE") == "1"
 	for arg: String in OS.get_cmdline_user_args():
 		if arg.begins_with("--filter="):
 			_filter = arg.trim_prefix("--filter=")
 		elif arg.begins_with("--timeout="):
 			_timeout_sec = arg.trim_prefix("--timeout=").to_float()
+		elif arg == "--verbose-tests":
+			_verbose = true
+		elif arg.begins_with("--dir="):
+			_unit_dir = arg.trim_prefix("--dir=")
 	_run.call_deferred()
 
 
@@ -72,10 +82,12 @@ func _run() -> void:
 	for path: String in _test_files():
 		await _run_file(path)
 	var total: int = _passed + _failed
-	print("\n%d test: %d geçti, %d başarısız (%d ms)" % [total, _passed, _failed, Time.get_ticks_msec() - started])
-	print("Yetim düğüm farkı: toplam +%d (%d test)" % [_orphan_total, _orphan_tests])
+	var summary: String = "%d test: %d geçti, %d başarısız (%d ms)" % [total, _passed, _failed, Time.get_ticks_msec() - started]
+	print(("\n" if _verbose or _failed > 0 else "") + summary)
+	if _verbose or _orphan_total > 0:
+		print("Yetim düğüm farkı: toplam +%d (%d test)" % [_orphan_total, _orphan_tests])
 	if total == 0:
-		printerr("Koşulacak test yok (%s/test_*.gd%s)" % [UNIT_DIR, ", filtre: " + _filter if not _filter.is_empty() else ""])
+		printerr("Koşulacak test yok (%s/test_*.gd%s)" % [_unit_dir, ", filtre: " + _filter if not _filter.is_empty() else ""])
 		_finish(1)
 	else:
 		_finish(1 if _failed > 0 or _orphan_total > 0 else 0)
@@ -83,9 +95,9 @@ func _run() -> void:
 
 func _test_files() -> PackedStringArray:
 	var out: PackedStringArray = []
-	for f: String in DirAccess.get_files_at(UNIT_DIR):
+	for f: String in DirAccess.get_files_at(_unit_dir):
 		if f.begins_with("test_") and f.ends_with(".gd"):
-			out.append(UNIT_DIR.path_join(f))
+			out.append(_unit_dir.path_join(f))
 	out.sort()
 	return out
 
@@ -175,7 +187,8 @@ func _texts(entries: Array[Dictionary], errors_allowed: bool) -> PackedStringArr
 func _report(label: String, ms: float, problems: PackedStringArray) -> void:
 	if problems.is_empty():
 		_passed += 1
-		print("[PASS] %s  %.1f ms" % [label, ms])
+		if _verbose:
+			print("[PASS] %s  %.1f ms" % [label, ms])
 		return
 	_failed += 1
 	print("[FAIL] %s  %.1f ms" % [label, ms])

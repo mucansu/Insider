@@ -509,6 +509,27 @@ class ProcessMemoryTest(unittest.TestCase):
         os.rmdir(tmp)
 
 
+class LogExcerptTest(unittest.TestCase):
+    """IS-090: FAIL'de kısa kip log'un yalnız hata satırlarını (en çok 20) ya da son satırlarını basar."""
+
+    def test_picks_error_lines_and_at_lines(self) -> None:
+        lines = ["Godot Engine v4", "bilgi", "ERROR: kırık", "   at: f (a.gd:3)", "bilgi 2",
+                 "SCRIPT ERROR: x", "WARNING: y"]
+        self.assertEqual(net_smoke.log_excerpt(lines),
+                         ["ERROR: kırık", "   at: f (a.gd:3)", "SCRIPT ERROR: x", "WARNING: y"])
+
+    def test_caps_at_limit(self) -> None:
+        out = net_smoke.log_excerpt([f"ERROR: {i}" for i in range(30)])
+        self.assertEqual(len(out), 21)
+        self.assertEqual(out[0], "ERROR: 0")
+        self.assertEqual(out[-1], "(+10 hata satırı daha)")
+
+    def test_tail_when_no_errors(self) -> None:
+        out = net_smoke.log_excerpt([str(i) for i in range(50)])
+        self.assertEqual(out[1:], [str(i) for i in range(40, 50)])
+        self.assertEqual(net_smoke.log_excerpt([]), ["(boş)"])
+
+
 class TimeoutPathTest(unittest.TestCase):
     """net_smoke.run(): senaryonun sert üst süresi dolunca asılı süreç ağaçları öldürülür ve FAIL raporlanır."""
 
@@ -558,6 +579,9 @@ class TimeoutPathTest(unittest.TestCase):
             self.assertIn("host zaman aşımında öldürüldü", text)
             self.assertIn("c1 zaman aşımında öldürüldü", text)
             self.assertTrue(all(p.killed for p in created))
+            # IS-090 kısa kip: -v olmadan geçen iddia satırı ("ok") yok, tam log yerine özet + ipucu.
+            self.assertNotIn("  ok  ", text)
+            self.assertIn("--keep -v", text)
             # timeout 3 sn + öldürme payı (her süreç: 2 x grace + taskkill); asılı sürecin 60 sn uykusundan çok önce.
             self.assertLess(elapsed, 3.0 + 2 * (2 * net_smoke.KILL_GRACE_SEC + 3.0))
         finally:

@@ -2,7 +2,7 @@
 """GDScript uyarı sayımı ve kapısı (IS-047). Hiçbir dosyayı değiştirmez. Yalnız Python standart kütüphanesi.
 
 Kullanım:
-    python tools/warn_count.py [--gate] [--json build/warn_count.json] [--top 10] [--timeout 300] [--quiet]
+    python tools/warn_count.py [--gate] [--json build/warn_count.json] [--top 10] [--timeout 300] [--quiet | --brief]
 
 Kapı (--gate): project.godot'ta düzeyi 2 (hata) olan türlerde tek uyarı bile varsa çıkış kodu 2 ve yerleri
 stderr'e basılır; düzeyi 0/1 olan türler yalnız bilgi olarak sayılır. Düzey 2 ihlali `-d` olmadan da betiği
@@ -180,6 +180,17 @@ def render_text(report: dict[str, Any]) -> str:
     return "\n".join(out)
 
 
+def render_brief(report: dict[str, Any]) -> str:
+    """Tek satır özet (--brief, IS-090): betik sayısı, etkin/kapalı uyarı toplamları, yükleme hatası sayısı."""
+    n = report["dosya_sayisi"]
+    on, off = report["etkin_toplam"], report["kapali_toplam"]
+    line = (f"Uyarı sayımı: {sum(n.values())} betik; etkin {on['toplam']} (üretim {on['uretim']}), "
+            f"kapalı {off['toplam']} (bilgi)")
+    if report["hatalar"]:
+        line += f"; yükleme hatası {len(report['hatalar'])}"
+    return line
+
+
 def gate_violations(report: dict[str, Any]) -> list[dict[str, Any]]:
     """Kapı: project.godot'ta düzeyi 2 (hata) olan türlerin uyarıları (bütün gruplar); boşsa kapı geçer."""
     hard = {k for k, t in report["turler"].items() if t["level"] >= 2}
@@ -289,6 +300,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--top", type=int, default=10, help="en çok uyarı veren kaç dosya listelensin")
     ap.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT, help="her Godot koşusunun üst süresi (sn)")
     ap.add_argument("--quiet", action="store_true", help="metin özetini basma")
+    ap.add_argument("--brief", action="store_true", help="tablolar yerine tek satır özet (ci_local kısa kipi)")
     ap.add_argument("--gate", action="store_true", help="düzeyi 2 olan türde uyarı varsa çıkış kodu 2")
     args = ap.parse_args(argv)
     godot = find_godot()
@@ -323,7 +335,9 @@ def main(argv: list[str] | None = None) -> int:
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "w", encoding="utf-8") as fh:
             json.dump(report, fh, ensure_ascii=False, indent=1)
-    if not args.quiet:
+    if args.brief and not args.quiet:
+        print(render_brief(report))
+    elif not args.quiet:
         print(render_text(report))
         if args.json:
             print(f"JSON: {args.json}")

@@ -16,7 +16,8 @@ Süreç ağacı öldürme (kill_process_tree): POSIX'te ayrı oturum + killpg SI
 start_new_session işlemez: ayrı süreç grubu (CREATE_NEW_PROCESS_GROUP) + CTRL_BREAK_EVENT, sonra kök
 Popen tutamağıyla, torunlar `taskkill /F /PID` ile (Godot console exe'si asıl exe'yi çocuk olarak başlatır).
 Torunlar oluşturma zamanıyla süzülür: pid yeniden kullanımında ilgisiz süreç ağaca girmez (`/T` kullanılmaz).
-Başarısızlıkta her sürecin log'u basılır. Log'da `ERROR:` / `SCRIPT ERROR:` satırı da başarısızlıktır
+Çıktı (IS-090): başarıda tek PASS satırı; başarısızlıkta başarısız beklentiler + her sürecin log'undan hata
+satırları (ilk 20; yoksa son 10 satır); -v ile bütün beklentiler ve tam log'lar. Log'da `ERROR:` / `SCRIPT ERROR:` satırı da başarısızlıktır
 (`allow_log` hariç). --latency-ms > 0 iken gecikmenin uygulandığı ayrıca doğrulanır: proxy her istemciyi
 eşlemiş olmalı ve her istemci için ölçülen ping (kendi dökümünde ping_ms.1 ya da host'unkinde ping_ms.<id>)
 >= 0,8 x gecikme olmalı.
@@ -1066,8 +1067,29 @@ def _run(
     if not ok:
         for proc in procs.values():
             print(f"----- {proc.name} log ({' '.join(proc.cmd[-8:])}) -----")
-            print("\n".join(proc.lines) if proc.lines else "(boş)")
+            if verbose:
+                print("\n".join(proc.lines) if proc.lines else "(boş)")
+            else:
+                print("\n".join(log_excerpt(proc.lines)))
+        if not verbose:
+            print("  (log'ların tamamı: --keep -v)")
     return 0 if ok else 1
+
+
+# Kısa kipte FAIL logu (IS-090): hata/uyarı satırları ve hemen ardındaki "at:" satırları, en çok `limit`;
+# hiçbiri yoksa (çökme, takılma) son `tail` satır.
+LOG_PROBLEM = re.compile(r"(ERROR|WARNING|Traceback|Exception|FAIL|^\s+at: )")
+
+
+def log_excerpt(lines: list[str], limit: int = 20, tail: int = 10) -> list[str]:
+    if not lines:
+        return ["(boş)"]
+    picked = [ln for ln in lines if LOG_PROBLEM.search(ln)]
+    if not picked:
+        return [f"(hata satırı yok; son {min(tail, len(lines))} satır)"] + lines[-tail:]
+    if len(picked) > limit:
+        return picked[:limit] + [f"(+{len(picked) - limit} hata satırı daha)"]
+    return picked
 
 
 def main(argv: list[str] | None = None) -> int:
