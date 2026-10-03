@@ -29,8 +29,9 @@ Senaryo (JSON; "_doc" serbest açıklamadır):
     duration      host başlangıcından ortak döküm anına saniye         [8]
     start_delay   {"c2": 2.0}: istemcinin host hazır olduktan sonra kaç sn sonra başlatılacağı   [0]
     quit_after    {"c2": 4}: sürece özel --quit-after (o sürecin başlangıcına göre); verilmeyenler host
-                  başlangıcı + duration anında döker (cN, LEAVE_STAGGER x (N-1) sn sonra: istemciler aynı host
-                  karesinde kopmasın; bkz. LEAVE_STAGGER notu)
+                  başlangıcı + duration anında döker (cN, c1 dahil LEAVE_STAGGER x N sn sonra: istemciler host
+                  dökümünden sonra ve aynı host karesinde kopmasın; bkz. LEAVE_STAGGER notu). Bunların gerçek
+                  döküm anları LINGER_SEC'ten fazla yayılırsa koşu yinelenir (RACE_RETRIES; IS-095)
     bots          {"host": "res://tests/net/bots/x.json", "c1": ...} (--bot). Bot dosyasında
                   "loop": {"from": F, "period": P} varsa net_smoke t >= F adımlarını P aralıkla, yalnız tam
                   turlar ve son tur bot saatinde quit_after - BOT_LOOP_END_MARGIN'de bitecek şekilde açar ve
@@ -113,6 +114,20 @@ LINGER_SEC = 1.0  # main.gd QUIT_LINGER_SEC
 # peer'a DEL_PEER yollamaya çalışıp "Unable to send packet on channel 0, max channels: 0" basar (motor içi,
 # zararsız). Testlerde istemcilerin çıkışı bu kadar aralıkla kaydırılır; döküm anları yine bekleme payı içinde.
 LEAVE_STAGGER = 0.3
+# IS-095 döküm/çıkış yarışı. Her süreç --quit-after'ı KENDİ saatiyle (SceneTreeTimer) sayar: saat main._start'ta
+# (açılıştan ~1-2 sn sonra; host'ta seviye yüklemesinden önce) başlar, gerçek zamanın önüne geçmez, uzun
+# karelerde geri kalabilir. Boşta host ile istemcinin gerçek döküm anları ~0,1-0,3 sn ayrışır (ölçüm: -v
+# "zamanlama" satırı), makine yükündeyse (paralel ajan/CI koşuları) açılış süreleri farklılaşıp 1 sn'yi
+# aşabilir; oysa bir süreç dökümünden LINGER_SEC sonra ayrılır. Bu yüzden:
+#   1) istemciler host'un döküm anından LEAVE_STAGGER x N sonra döker (cN, c1 dahil: gözlenen yön host'un geç
+#      kalmasıdır; istemcilerin aralığı yine LEAVE_STAGGER) — default_quit_after;
+#   2) ortak döküm anına bağlı süreçlerin gerçek döküm zamanları (dosya mtime) LINGER_SEC'ten fazla yayıldıysa
+#      koşu geçersizdir (biri öbürünün dökümünden önce ayrılmış / öbürü kendisininkinden önce gitmiş olabilir):
+#      beklentiler değerlendirilmeden senaryo RACE_RETRIES kez yeniden koşulur, hâlâ yayılıyorsa FAIL
+#      (timing_race). Gerekçe: bir süreç dökümünden en erken LINGER_SEC (gerçek) sonra ayrılır, saatler yalnız
+#      geri kalır; yayılma < LINGER_SEC ise her döküm ötekilerin hepsini oturumda görür.
+RACE_RETRIES = 2
+RACE_RETRY = -1  # _run dönüşü: koşu zamanlama yarışı yüzünden geçersiz, yeniden koşulmalı
 # Tur ("loop") içeren bot dosyasında son tam tur, bot saatinde sürecin quit_after'ından bu kadar önce biter
 # (expand_bot_loop). Bot saati süreç başlangıcından SONRA (yerel oyuncu doğunca: açılış + bağlanma, ~1-2 sn)
 # başladığından gerçek pay bu değer eksi doğma gecikmesidir.
@@ -393,6 +408,7 @@ class Proc:
     ready: threading.Event = field(default_factory=threading.Event)
     reader: threading.Thread | None = None
     started_at: float = 0.0
+    ready_at: float = 0.0
     exit_code: int | None = None
     killed: bool = False
     # Bellek örnekleri [(süreç başlangıcından sn, MB)] (senaryoda mem_sample_sec verildiyse).
@@ -419,6 +435,8 @@ class Proc:
             line = ANSI.sub("", raw.rstrip("\n"))
             self.lines.append(line)
             if line.startswith(READY_MARKER):
+                if not self.ready.is_set():
+                    self.ready_at = time.monotonic()
                 self.ready.set()
 
     def kill(self) -> None:
@@ -483,6 +501,28 @@ def expand_bot_loop(raw: dict, until: float) -> dict:
         out.extend({**s, "t": round(float(s["t"]) + k * period, 4)} for s in body)
         k += 1
     return {"steps": out}
+
+
+def default_quit_after(name: str, duration: float, elapsed: float) -> float:
+    """İstemcinin varsayılan --quit-after'ı (kendi başlangıcına göre): host başlangıcı + duration +
+    LEAVE_STAGGER x N (cN, c1 dahil; IS-095). elapsed = host başlangıcından bu istemcinin başlangıcına sn."""
+    return max(1.0, duration - elapsed + LEAVE_STAGGER * int(name[1:]))
+
+
+def timing_race(dump_times: dict[str, float]) -> str:
+    """Ortak döküm anına bağlı süreçlerin gerçek döküm zamanları (sn; ör. dosya mtime) LINGER_SEC ya da daha
+    fazla yayıldıysa açıklama, yoksa "" döner (IS-095; bkz. RACE_RETRIES notu)."""
+    if len(dump_times) < 2:
+        return ""
+    first = min(dump_times, key=lambda n: dump_times[n])
+    last = max(dump_times, key=lambda n: dump_times[n])
+    spread = dump_times[last] - dump_times[first]
+    if spread < LINGER_SEC:
+        return ""
+    return (
+        f"zamanlama yarışı: {last} dökümü {first} dökümünden {spread:.2f} sn sonra (>= {LINGER_SEC:g} sn bekleme "
+        f"payı; {first} o anda oturumdan ayrılmış olabilir)"
+    )
 
 
 def find_godot() -> str:
@@ -859,14 +899,20 @@ def run(
         return 1
     if duration is not None:
         sc["duration"] = duration
-    tmp = tempfile.mkdtemp(prefix="net_smoke_")
-    try:
-        return _run(sc, scenario_path, tmp, latency_ms, jitter_ms, loss, reorder, verbose)
-    finally:
-        if keep:
-            print(f"  geçici dizin: {tmp}")
-        else:
-            shutil.rmtree(tmp, ignore_errors=True)
+    for attempt in range(RACE_RETRIES + 1):  # IS-095: zamanlama yarışında (timing_race) koşu yinelenir
+        tmp = tempfile.mkdtemp(prefix="net_smoke_")
+        try:
+            code = _run(
+                sc, scenario_path, tmp, latency_ms, jitter_ms, loss, reorder, verbose, attempt < RACE_RETRIES
+            )
+        finally:
+            if keep:
+                print(f"  geçici dizin: {tmp}")
+            else:
+                shutil.rmtree(tmp, ignore_errors=True)
+        if code != RACE_RETRY:
+            return code
+    return 1  # erişilmez: son denemede can_retry False
 
 
 def _run(
@@ -878,6 +924,7 @@ def _run(
     loss: float,
     reorder: bool,
     verbose: bool,
+    can_retry: bool = False,
 ) -> int:
     t_begin = time.monotonic()
     clients = int(sc.get("clients", 2))
@@ -986,9 +1033,7 @@ def _run(
                 wait = t_ready + start_delay.get(name, 0.0) - time.monotonic()
                 if wait > 0:
                     time.sleep(wait)
-                elapsed = time.monotonic() - t0
-                stagger = LEAVE_STAGGER * (int(name[1:]) - 1)
-                qa = quit_override.get(name, max(1.0, duration - elapsed + stagger))
+                qa = quit_override.get(name, default_quit_after(name, duration, time.monotonic() - t0))
                 proc = make(name, qa)
                 procs[name] = proc
                 proc.start()
@@ -1041,6 +1086,21 @@ def _run(
             failures.append(f"{name} döküm yazmadı")
         dumps[name] = d
 
+    # IS-095: ortak döküm anına bağlı süreçler (quit_after ezilmemiş, beklenen çıkış kodu 0) birbirini oturumda
+    # görmüş olmalı; görmediyse koşu geçersizdir (beklentiler değerlendirilmez, run() yeniden koşar).
+    race = timing_race(
+        {
+            n: os.path.getmtime(procs[n].dump_path)
+            for n in all_names
+            if dumps.get(n) is not None and n not in quit_override and exit_codes.get(n, 0) == 0
+        }
+    )
+    if race:
+        if can_retry:
+            print(f"UYARI {label}: {race}; senaryo yeniden koşuluyor")
+            return RACE_RETRY
+        failures.append(race)
+
     results: list[tuple[bool, str]] = []
     ev = Evaluator(dumps, rtt_ms=latency_ms)
     for exp in sc["expect"]:
@@ -1061,6 +1121,18 @@ def _run(
     if verbose and proxy is not None:
         print(f"  proxy: {proxy.stats}")
     if verbose:
+        # Host başlangıcına göre sn: başlatma, READY, --quit-after, gerçek döküm (mtime) — IS-095 yarış teşhisi.
+        mono_off = time.time() - time.monotonic()
+        t_host = procs["host"].started_at if "host" in procs else t_begin
+        parts = []
+        for name in all_names:
+            p = procs.get(name)
+            if p is None:
+                continue
+            dm = (os.path.getmtime(p.dump_path) - mono_off - t_host) if os.path.exists(p.dump_path) else math.nan
+            rd = (p.ready_at - t_host) if p.ready_at else math.nan
+            parts.append(f"{name} başla+{p.started_at - t_host:.2f} hazır+{rd:.2f} qa={p.quit_after:.2f} döküm+{dm:.2f}")
+        print("  zamanlama: " + "; ".join(parts))
         for name in all_names:
             d = dumps.get(name) or {}
             print(f"  {name}: peer_id={d.get('peer_id')} ping_ms={d.get('ping_ms')} exit={d.get('exit_code')}")
