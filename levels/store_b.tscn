@@ -127,6 +127,15 @@ agent_radius = 12.0
 
 [node name="StoreB" type="Node2D" unique_id=579280645]
 script = ExtResource("1_buo7f")
+tuning_overrides = {
+"owner": {
+"neighbour_delay_sec": 7.0,
+"shout_radius": 640.0
+},
+"population": {
+"convert_radius": 640.0
+}
+}
 
 [node name="Tiles" type="Node2D" parent="." unique_id=1038217877]
 script = ExtResource("2_fwvkj")

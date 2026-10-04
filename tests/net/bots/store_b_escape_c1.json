@@ -1,0 +1,8 @@
+{
+  "_doc": "store_b_brain_shout.json c1 botu (IS-107): Spawn2'den (11,20) güney kaldırımı boyunca doğuya ~9 karo, güneye kaçış bölgesine (E 20,22 çevresi, X sütun 18-23 satır 21-22); dur ve bekle (ganimetsiz).",
+  "steps": [
+    {"t": 0.3, "move": [1, 0]},
+    {"t": 2.4, "move": [0, 1]},
+    {"t": 3.0, "move": [0, 0]}
+  ]
+}
