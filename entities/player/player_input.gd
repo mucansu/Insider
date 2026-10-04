@@ -54,6 +54,7 @@ func _ready() -> void:
 	elif not Args.bot_path.is_empty():
 		if _process_bot == null:
 			_process_bot = BotTimeline.from_file(Args.bot_path)
+			Game.session_event.connect(_process_bot.on_session_event)  # `wait` steps (IS-104)
 		use_bot(_process_bot)
 	else:
 		use_device()

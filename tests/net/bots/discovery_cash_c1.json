@@ -1,5 +1,5 @@
 {
-  "_doc": "discovery_cash.json c1 botu (US-039 AC10 ii): sola sınır duvarına hizalan, kaldırımdan doğuya yan sokağa (x≈768) yürü, ara sokağa (y≈48) çık, batıya arka kapının önüne (x≈656) gel, güneye in ve kapıyı aç; arka odaya gir (y≈176), batıya nakit köşesine (x≈496) yürü, güneye bir adım, çantayı al (2 sn tut), aynı yoldan ara sokağa çık ve batıya (x≈448) yürüyüp bekle (arka odadan görünmez).",
+  "_doc": "discovery_cash.json c1 botu (US-039 AC10 ii, IS-104): sola sınır duvarına hizalan, kaldırımdan doğuya yan sokağa (x≈768) yürü, ara sokağa (y≈48) çık, batıya arka kapının önüne (x≈656) gel, güneye in ve dur; oturum olayı `owner_distracted` görülene kadar bekle (`wait` adımı: saat durur, sonraki adımlar kayar; sabit zaman yerine olay tabanlı, katılma gecikmesinden bağımsız), sonra kapıyı aç; arka odaya gir (y≈176), batıya nakit köşesine (x≈496) yürü, güneye bir adım, çantayı al (2 sn tut), aynı yoldan ara sokağa çık ve batıya (x≈448) yürüyüp bekle (arka odadan görünmez).",
   "steps": [
     {"t": 0.2, "move": [-1, 0]},
     {"t": 1.6, "move": [1, 0]},
@@ -7,6 +7,7 @@
     {"t": 10.2, "move": [-1, 0]},
     {"t": 11.0, "move": [0, 1]},
     {"t": 11.229, "move": [0, 0]},
+    {"t": 11.3, "wait": "owner_distracted", "max": 25},
     {"t": 11.4, "press": "interact"},
     {"t": 11.8, "move": [0, 1]},
     {"t": 12.486, "move": [-1, 0]},

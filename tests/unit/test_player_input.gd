@@ -89,6 +89,51 @@ func test_bot_tick_advances_once_per_frame() -> void:
 	eq(timeline.move_vector(), Vector2(1, 0))
 
 
+func test_bot_wait_step_stops_clock_until_event() -> void:
+	# IS-104: {"wait": kind} stops script time at t until the session event; later steps shift by the wait
+	var timeline := BotTimeline.from_raw([
+		{"t": 0.0, "move": [1, 0]},
+		{"t": 0.2, "move": [0, 0]},
+		{"t": 0.2, "wait": "owner_distracted"},
+		{"t": 0.3, "press": "interact"},
+	])
+	timeline.advance(0.25)
+	is_true(timeline.is_waiting(), "wait adımında saat durdu")
+	near(timeline.time(), 0.2, 0.0001, "betik saati tam wait adımında")
+	eq(timeline.move_vector(), Vector2.ZERO, "wait'ten önceki adım uygulandı")
+	timeline.notify_event(&"other_event")
+	for i: int in 10:
+		timeline.advance(0.1)
+	is_true(timeline.is_waiting(), "başka olay bekleyeni bırakmaz")
+	is_false(timeline.is_just_pressed(&"interact"), "beklerken sonraki adım uygulanmaz")
+	near(timeline.waited(), 1.0, 0.0001)
+	timeline.on_session_event(&"owner_distracted", {})
+	timeline.advance(0.05)
+	is_false(timeline.is_waiting(), "olay görülünce saat yürür")
+	is_false(timeline.is_just_pressed(&"interact"))
+	timeline.advance(0.06)
+	is_true(timeline.is_just_pressed(&"interact"), "sonraki adım bekleme kadar kaydı (betik saati 0,3)")
+	is_true(timeline.is_finished())
+
+
+func test_bot_wait_step_counts_earlier_event_and_gives_up_after_max() -> void:
+	var early := BotTimeline.from_raw([{"t": 0.1, "wait": "owner_distracted"}, {"t": 0.2, "move": [0, 1]}])
+	early.notify_event(&"owner_distracted")
+	early.advance(0.25)
+	is_false(early.is_waiting(), "önceden görülen olay beklemeyi atlatır")
+	eq(early.move_vector(), Vector2(0, 1))
+	var capped := BotTimeline.from_raw([{"t": 0.0, "wait": "never", "max": 0.3}, {"t": 0.1, "move": [-1, 0]}])
+	capped.advance(0.05)
+	is_true(capped.is_waiting())
+	for i: int in 3:
+		capped.advance(0.1)
+	is_true(capped.is_waiting(), "max dolana dek bekler")
+	capped.advance(0.1)
+	capped.advance(0.1)
+	is_false(capped.is_waiting(), "max sonra vazgeçer")
+	eq(capped.move_vector(), Vector2(-1, 0))
+
+
 # --- PlayerInput ---
 
 func test_device_input_reads_actions() -> void:
