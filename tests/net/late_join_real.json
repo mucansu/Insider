@@ -3,7 +3,7 @@
   "level": "res://tests/fixtures/store_a_quiet.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
-  "duration": 27,
+  "duration": 29,
   "start_delay": {"c2": 16.0},
   "allow_log": ["^ERROR: Unable to send packet on channel 0, max channels: 0"],
   "bots": {
