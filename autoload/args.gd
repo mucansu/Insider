@@ -370,8 +370,9 @@ func _parse_brain_args() -> void:
 				if BotRules.is_valid_strategy(value):
 					brain = value.to_lower()
 				else:
-					push_warning("Args: geçersiz --brain '%s' (%s, isteğe bağlı %s / %s ekleri)"
-						% [value, "|".join(PackedStringArray(BotRules.STRATEGIES)), BotRules.BAG_SUFFIX, BotRules.OMNI_SUFFIX])
+					push_warning("Args: geçersiz --brain '%s' (%s, isteğe bağlı %s / %s / %s ekleri)"
+						% [value, "|".join(PackedStringArray(BotRules.STRATEGIES)), BotRules.BAG_SUFFIX, BotRules.OMNI_SUFFIX,
+						BotRules.HUMAN_SUFFIX])
 			"--seed":
 				if not _need_value(key, value, eq >= 0):
 					continue
