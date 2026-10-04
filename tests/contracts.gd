@@ -96,6 +96,9 @@ const LINES := {
 		"var quit_on_heist_end: float",
 		# IS-058b: brain loop.
 		"var brain_loop: float",
+		# IS-102: playtest log on exit (not automation); the automation dump path without the log mirror.
+		"var log_on_exit: String",
+		"func dump_file() -> String",
 	],
 	# S6 addition (IS-015a): bot brain surface the statistics runner (IS-015b) relies on (entities/player/bot_brain.gd; checked in
 	# tests/unit/test_bot_brain.gd). Dump section "brain": strategy, seed, role, phase, phase_log, stuck_s (+ counters).

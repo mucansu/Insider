@@ -170,7 +170,9 @@ func test_host_session_flow() -> void:
 	eq(dump["events"], [
 		{"kind": "police_called", "data": {"at": [3.0, 4.0]}},
 		{"kind": "alarm", "data": {}},
-	])
+		{"kind": "level_started", "data": {"run": 1, "level": LEVEL, "seed": Game.session_seed()}},
+	], "IS-102: seviye başında host'a yerel koşu işareti")
+	eq(_events, [&"police_called", &"alarm"], "koşu işareti session_event sinyali yaymaz")
 
 	# Restarting the same level removes the old one and respawns the player.
 	Game.start_level(LEVEL)
