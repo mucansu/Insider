@@ -5,8 +5,10 @@ extends TestCase
 ## points to the register is cut by shelf/wall, from glass look points the interior is visible through glass (real physics ray, US-007 pattern).
 
 const STORE := "res://levels/store_a.tscn"
+const STORE_B := "res://levels/store_b.tscn"  # IS-107 (KR-037): same marker/zone names as store_a
 const ARENA := "res://levels/test_arena.tscn"
-const LEVELS: Array[String] = [STORE, ARENA]
+const LEVELS: Array[String] = [STORE, STORE_B, ARENA]
+const STORES: Array[String] = [STORE, STORE_B]
 
 const TILE := 32
 const CHAR_RADIUS := 12.0       # character diameter ~24 px (S4)
@@ -55,7 +57,7 @@ func test_population_markers_complete_and_clear() -> void:
 		for prefix: StringName in SEQUENCES:
 			var sequence: Array[Node2D] = level.marker_sequence(prefix)
 			var expected: int = int(SEQUENCES[prefix])
-			if path == STORE:
+			if STORES.has(path):
 				eq(sequence.size(), expected, "%s: %s1..%d" % [path, prefix, expected])
 			else:
 				is_true(sequence.size() >= 1, "%s: en az bir %s" % [path, prefix])
@@ -80,7 +82,7 @@ func test_population_markers_complete_and_clear() -> void:
 			eq(zone.collision_mask, PLAYERS_LAYER, "%s: %s oyuncuları izler" % [path, zone_name])
 			is_true(zone.monitoring and not zone.monitorable, "%s: %s izler, izlenmez" % [path, zone_name])
 			is_true(_zone_rects(zone).size() >= 1, "%s: %s dikdörtgen şekil taşır" % [path, zone_name])
-		if path == STORE:
+		if STORES.has(path):
 			# Under Props (US-005 instances) survive regeneration.
 			for prop: String in ["Register", "FrontDoor", "BackDoor"]:
 				var node: Node = level.props_root().get_node_or_null(prop)
@@ -193,7 +195,7 @@ func test_zones_disjoint_and_partition_interior() -> void:
 		for i: int in level.spawn_count():
 			var cell: Vector2i = LevelLayout.cell_of((level.get_node("SpawnPoints/Spawn%d" % (i + 1)) as Node2D).position)
 			is_false(owner_of.has(cell), "%s: Spawn%d bölge dışında (dışarısı)" % [path, i + 1])
-		if path != STORE:
+		if not STORES.has(path):
 			continue
 		# Store: every tile of the interior floor (sales floor + back room) is in exactly one population zone.
 		var uncovered: PackedStringArray = []

@@ -1,0 +1,8 @@
+{
+  "_doc": "store_b_smoke.json c1 botu (IS-107): Spawn2'den (11,20) güney kaldırımı boyunca doğuya, arka sokakta kuzeye (ek alanın doğu camı hizası, satır ~13); dur.",
+  "steps": [
+    {"t": 0.3, "move": [1, 0]},
+    {"t": 6.3, "move": [0, -1]},
+    {"t": 7.8, "move": [0, 0]}
+  ]
+}
