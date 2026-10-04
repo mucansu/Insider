@@ -154,6 +154,7 @@ func _ready() -> void:
 	if _is_host():
 		_senses.bell_marker = owner_tuning.front_door_marker
 		_senses.bell_radius = owner_tuning.bell_radius
+		_senses.back_bell_door = owner_tuning.back_bell_door
 		_senses.setup(_level(), civilian_tuning, _perception.tuning)
 		_perception.set_arm_reach(owner_tuning.arm_reach_px)  # IS-098: 360 deg near band within arm reach
 		_brain.owner_tuning = owner_tuning

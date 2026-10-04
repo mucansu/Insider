@@ -23,6 +23,9 @@ extends Node
 ## at ClerkSpot; an emptied register -> discovery (same flow, same one-per-source rule, none after the heist ends). SEND return cost (GDD
 ## §9.3 "suspicion +20 to the asking player on return"): back at the counter after SEND, the sender (if still free) gets
 ## `send_return_suspicion` wherever they are (an unseen meter drains as usual; an alarm in between cancels it; `send_costs`, dump).
+## Back door bell (IS-104, KR-034): a player opening/closing or crossing the back door B rings its bell; the owner standing calm at ClerkSpot (home
+## task, no interrupt) LISTENs at BackroomSpot and checks the bag on arrival (trigger "bell"); busy = not heard. The inner door D stays
+## a plain door sound (hearing -> LISTEN toward D).
 ## Player tools (US-010; GDD §9.3, KR-026; oyun-yz round 2 #14-#15):
 ## - BUY `serve_player(peer)`: same as customer service (CUSTOMER interrupt, `register_opened` hook; service id -peer), suspicion 0 and loiter 0
 ##   for that player, `owner_serve`. SEND TO BACKROOM `send_to_backroom(peer)`: SENT interrupt, `owner_sent`; time from being sent until back at the
@@ -96,12 +99,14 @@ const TRIGGER_RETURN := &"return"
 const TRIGGER_SERVE := &"serve"
 const TRIGGER_BACKROOM := &"backroom"
 const TRIGGER_IDLE := &"idle"
+const TRIGGER_BELL := &"bell"
 ## Event log (IS-081): discovery reason per trigger and the throttle of repeated sound/bell notes (s).
 const DISCOVER_LINES := {
 	&"return": "kasa boş, dönüş kontrolü",
 	&"serve": "kasa boş, servis",
 	&"backroom": "çanta eksik, arka oda kontrolü",
 	&"idle": "kasa boş, boş tezgâh",
+	&"bell": "çanta eksik, arka kapı zili",
 	&"direct": "keşif",
 }
 const LOG_REPEAT_SEC := 2.0
@@ -177,6 +182,9 @@ var _away_from_counter: bool = false
 var _back_at_counter: float = 0.0
 var _distraction_listen: bool = false
 var _listen_phone: Node2D = null
+## Back door bell (IS-104): the running LISTEN was started by the bell (back room + bag check); time standing at its point.
+var _bell_listen: bool = false
+var _bell_at_spot: float = 0.0
 ## STALL soothe: peer -> use count; whether this talk was evaluated (talker peer).
 var _soothes: Dictionary = {}
 var _soothed_talk: int = 0
@@ -208,6 +216,7 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	mover.close_delay = owner_tuning.close_behind_sec
 	agenda.interrupt_ended.connect(_on_interrupt_ended)
 	senses.door_crossed.connect(_on_door_crossed)
+	senses.back_door_rang.connect(_on_back_door_rang)
 	# Props of discovery sources are remembered at the start (while in place): if the first query comes after the bag is carried away, no prop
 	# would be found next to the marker and "taken" would never be seen (US-039).
 	senses.prop_taken_near(owner_tuning.cash_marker)
@@ -368,6 +377,47 @@ func ring_bell(door_pos: Vector2) -> bool:
 	return ok
 
 
+## Back door bell (IS-104, KR-034): the bell rings at the door (sound for everyone); the owner hears it only standing calm at ClerkSpot
+## (AGENDA, home task arrived, no interrupt) -> LISTEN at BackroomSpot (`listen_sec`, counted from the start) and the bag check
+## `backroom_check_sec` after arriving (`discover(CASH, "bell")`). Busy -> not heard (event log note). True if the owner reacts.
+func back_door_bell(door_pos: Vector2) -> bool:
+	_agenda_noise(NoiseProfile.KIND_BELL, door_pos)
+	var busy: String = _back_bell_busy()
+	if busy.is_empty():
+		var spot: Vector2 = senses.marker_position(owner_tuning.backroom_marker)
+		if spot.is_finite() and _interrupt(Agenda.Interrupt.LISTEN, owner_tuning.listen_sec, spot, door_pos, false):
+			_distraction_listen = false
+			_listen_phone = null
+			_bell_listen = true
+			_bell_at_spot = 0.0
+			_backroom_checked = false
+			event_log.note("arka kapı zili -> DİNLE, arka odaya")
+			event(&"owner_listen", 0)
+			return true
+		busy = "arka oda noktası yok"
+	event_log.note_throttled("backbell", "zil duyulmadı (%s)" % busy, fsm.clock, LOG_REPEAT_SEC)
+	return false
+
+
+## Why the back bell is not heard now (empty = heard): reaction/alarm state, an interrupt (service, listen, sent, talk, bell), or not at
+## the counter (other agenda task, still walking home).
+func _back_bell_busy() -> String:
+	if fsm.state != State.AGENDA:
+		return String(state_name())
+	if agenda.current_interrupt() != Agenda.Interrupt.NONE:
+		return String(agenda.task_name())
+	var task: AgendaTask = agenda.current_task()
+	if task == null or not task.home:
+		return String(agenda.task_name())
+	if not agenda.has_arrived():
+		return "tezgâha yürüyor"
+	return ""
+
+
+func _on_back_door_rang(_peer_id: int, door_pos: Vector2) -> void:
+	back_door_bell(door_pos)
+
+
 ## Sound heard (Hearing `heard`, S8/S11): walks toward it (stops 64 px short) and looks. Excludes its own sounds
 ## (shout, agenda sounds, bell).
 func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
@@ -393,6 +443,7 @@ func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 	event_log.note_throttled("hear:%s" % kind, "ses '%s' -> DİNLE%s" % [kind, " (dikkat dağıtma)" if distraction else ""],
 		fsm.clock, 0.0 if not was_listening else LOG_REPEAT_SEC)
 	_distraction_listen = distraction
+	_bell_listen = false  # a newer sound replaces the bell's back-room walk (latest sound wins)
 	_listen_phone = source if kind == StoreToolsTuning.KIND_CELLPHONE else null
 	if not was_listening:
 		event(&"owner_listen", 0)
@@ -479,16 +530,21 @@ func _agenda_triggers(delta: float) -> bool:
 			return fsm.state != State.AGENDA
 	var interrupt: Agenda.Interrupt = agenda.current_interrupt()
 	var task: AgendaTask = agenda.current_task()
-	var backroom: bool = interrupt == Agenda.Interrupt.SENT or (interrupt == Agenda.Interrupt.NONE \
+	var bell: bool = _bell_listen and interrupt == Agenda.Interrupt.LISTEN
+	var backroom: bool = bell or interrupt == Agenda.Interrupt.SENT or (interrupt == Agenda.Interrupt.NONE \
 		and task != null and task.name == owner_tuning.backroom_task)
+	# LISTEN counts its time from the start, so the bell's "since arrival" is kept here (IS-104).
+	if bell and agenda.has_arrived():
+		_bell_at_spot += maxf(delta, 0.0)
+	var arrived_for: float = _bell_at_spot if bell else agenda.arrived_for()
 	if not backroom:
 		_backroom_checked = false
-	elif not _backroom_checked and agenda.has_arrived() and agenda.arrived_for() >= owner_tuning.backroom_check_sec:
+	elif not _backroom_checked and agenda.has_arrived() and arrived_for >= owner_tuning.backroom_check_sec:
 		_backroom_checked = true
 		var cash_taken: bool = senses.prop_taken_near(owner_tuning.cash_marker)
 		if not cash_taken:
 			event_log.note("arka oda kontrolü: çanta yerinde")
-		if cash_taken and discover(Source.CASH, TRIGGER_BACKROOM):
+		if cash_taken and discover(Source.CASH, TRIGGER_BELL if bell else TRIGGER_BACKROOM):
 			return fsm.state != State.AGENDA
 	var at_counter: bool = interrupt == Agenda.Interrupt.NONE and task != null and task.home and agenda.has_arrived()
 	if owner_tuning.idle_discover_sec > 0.0 and at_counter and senses.customers_inside() == 0 \
@@ -541,6 +597,7 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 	if not listening:
 		_distraction_listen = false
 		_listen_phone = null
+		_bell_listen = false
 	# Distraction listening is not split into LOOK by "again?" suspicion; it is split at the QUESTION threshold (60) (US-010).
 	var held_by_listen: bool = listening and _distraction_listen and level < Suspicion.Level.INVESTIGATE
 	if level >= Suspicion.Level.NOTICE and not held_by_listen:

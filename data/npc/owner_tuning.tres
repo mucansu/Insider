@@ -54,6 +54,7 @@ customer_sec = 6.0
 sent_sec = 7.0
 listen_sec = 6.0
 bell_radius = 48.0
+back_bell_door = &"BackDoor"
 hearing_corner_px = 12.0
 arm_reach_px = 48.0
 counter_marker = &"ClerkSpot"

@@ -16,8 +16,15 @@ const SPAWN := Vector2(112, 528)
 const ALLEY := Vector2(624, 80)
 const BAG := Vector2(496, 240)
 const BACKROOM_SPOT := Vector2(592, 176)
+## IS-104 team bag route: alley, wait for a lure window, bag, wait hidden for the next window, out through B, escape.
 const BAG_ROUTE: Array = [BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.GO_BAG, BotRules.Phase.TAKE_BAG,
-	BotRules.Phase.LEAVE, BotRules.Phase.ESCAPE]
+	BotRules.Phase.WAIT, BotRules.Phase.LEAVE, BotRules.Phase.ESCAPE]
+## IS-104 solo bag: side window, wait for a busy owner, dash to the alley, bag, out, escape.
+const SOLO_BAG_ROUTE: Array = [BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.STAGE, BotRules.Phase.GO_BAG,
+	BotRules.Phase.TAKE_BAG, BotRules.Phase.LEAVE, BotRules.Phase.ESCAPE]
+## IS-104: side-window watch spot (WindowLook3) and back-room hiding spot (BackroomCash).
+const PEEK := Vector2(752, 368)
+const HIDE := BAG
 
 
 ## A view with the owner at the counter and every spot known; the bot stands at `pos`.
@@ -39,6 +46,8 @@ func _view(t: float, pos: Vector2 = SPAWN) -> BotRules.View:
 	v.bag_pos = BAG
 	v.spots[BotRules.SPOT_BAG] = v.bag_pos
 	v.spots[BotRules.SPOT_ALLEY] = ALLEY
+	v.spots[BotRules.SPOT_PEEK] = PEEK
+	v.spots[BotRules.SPOT_HIDE] = HIDE
 	return v
 
 
@@ -153,34 +162,61 @@ func test_plans() -> void:
 		BotRules.Phase.GO_BAG, BotRules.Phase.TAKE_BAG, BotRules.Phase.ESCAPE])
 	eq(int(window[2]["abort_to"]), 1, "kasaya koşu bekleme adımına geri döner")
 	var bagger: Array[Dictionary] = BotRules.plan_for("team", false, BotRules.Role.BAGGER)
-	eq(_phases(bagger), BAG_ROUTE, "IS-101: çantacı ara sokak -> B -> çanta -> ara sokak -> kaçış")
+	eq(_phases(bagger), BAG_ROUTE, "IS-104: çantacı ara sokak -> oyalama penceresinde B -> çanta -> saklanır -> ara sokak -> kaçış")
 	eq(StringName(bagger[0]["spot"]), BotRules.SPOT_ALLEY, "sahneleme ara sokakta")
-	eq(StringName(bagger[1]["until"]), BotRules.COND_BACK_CLEAR)
+	eq(StringName(bagger[1]["until"]), BotRules.COND_BAG_GO, "oyalayıcı penceresi + arka oda boş")
+	eq(float(bagger[1]["timeout"]), BotRules.BAGGER_WAIT_S)
 	eq(int(bagger[2]["abort_to"]), 1, "kapı açılıp sahip arka odada görünürse ara sokağa geri çekilir")
 	eq(StringName(bagger[2]["abort_if"]), BotRules.COND_OWNER_IN_BACKROOM)
-	eq(StringName(bagger[4]["spot"]), BotRules.SPOT_ALLEY, "çantayla arka kapıdan çıkar")
+	eq(StringName(bagger[4]["spot"]), BotRules.SPOT_HIDE, "çantayla saklanır")
+	eq(StringName(bagger[4]["until"]), BotRules.COND_LURE_WINDOW, "çıkış da oyalama penceresinde (zil)")
+	eq(float(bagger[4]["timeout"]), BotRules.HIDE_WAIT_S)
+	eq(StringName(bagger[5]["spot"]), BotRules.SPOT_ALLEY, "çantayla arka kapıdan çıkar")
 	var lure: Array[Dictionary] = BotRules.plan_for("team", false, BotRules.Role.LURE)
-	eq(StringName(lure[2]["action"]), BotRules.ACTION_ALT, "oyalayıcı Q ile arka odaya gönderir")
-	eq(StringName(lure[1]["until"]), BotRules.COND_LURE_GO, "IS-101: GÖNDER kasacı hazır + çanta alındı (ya da çantacı yok)")
+	eq(StringName(lure[1]["until"]), BotRules.COND_LURE_GO, "IS-104: kasacı sırada + çanta taşıyıcı ara sokakta")
 	eq(float(lure[1]["timeout"]), BotRules.TEAM_WAIT_S)
 	eq(float(lure[1]["timeout_bag"]), BotRules.TEAM_BAG_WAIT_S, "çantacı varken daha uzun bekler")
-	eq(StringName(lure[2]["skip"]), BotRules.COND_NO_SEND, "çantacı varken / çanta alındıysa GÖNDER yok")
-	eq(StringName(lure[3]["spot"]), BotRules.SPOT_SHELF, "yerine raf devirme (oyalama)")
-	eq(StringName(lure[3]["skip"]), BotRules.COND_NO_DISTRACT)
-	eq(StringName(lure[5]["action"]), BotRules.ACTION_INTERACT)
+	eq(StringName(lure[2]["action"]), BotRules.ACTION_INTERACT, "önce SATIN AL (çanta penceresi)")
+	eq(StringName(lure[2]["skip"]), BotRules.COND_NO_BAG_WORK, "çanta işi yoksa / çanta alındıysa SATIN AL yok")
+	eq(StringName(lure[3]["until"]), BotRules.COND_BAG_DONE, "çantayı bekler")
+	eq(float(lure[3]["timeout"]), BotRules.LURE_BAG_WAIT_S)
+	eq(StringName(lure[3]["skip"]), BotRules.COND_NO_BAG_WORK)
+	eq(StringName(lure[4]["action"]), BotRules.ACTION_ALT, "oyalayıcı Q ile arka odaya gönderir")
+	eq(StringName(lure[4]["skip"]), BotRules.COND_NO_SEND, "çantacı varken / çanta alındıysa GÖNDER yok")
+	eq(StringName(lure[5]["spot"]), BotRules.SPOT_SHELF, "yerine raf devirme (oyalama)")
+	eq(StringName(lure[5]["skip"]), BotRules.COND_NO_DISTRACT)
+	eq(StringName(lure[7]["action"]), BotRules.ACTION_INTERACT)
 	var lure_bag: Array[Dictionary] = BotRules.plan_for("team", true, BotRules.Role.LURE)
 	is_false(_phases(lure_bag).has(BotRules.Phase.GO_BAG), "team+bag: oyalayıcı çantaya gitmez (örtüsünü korur)")
 	for step: Dictionary in lure_bag:
 		is_false(StringName(step["action"]) == BotRules.ACTION_ALT, "team+bag: GÖNDER yok (sahip arka odada çantayı kontrol eder)")
+	eq(StringName(lure_bag[2]["action"]), BotRules.ACTION_INTERACT, "team+bag: SATIN AL adımı (Fable)")
 	var thief: Array[Dictionary] = BotRules.plan_for("team", true, BotRules.Role.THIEF)
-	eq(StringName(thief[1]["until"]), BotRules.COND_THIEF_GO, "kasacı pencere + çanta alındı (kasa en son)")
-	eq(_phases(thief), [BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.GO_REGISTER, BotRules.Phase.EMPTY,
-		BotRules.Phase.GO_BAG, BotRules.Phase.TAKE_BAG, BotRules.Phase.ESCAPE], "team+bag: 2 kişide kasacı çantayı da hedefler")
-	eq(StringName(thief[2]["abort_if"]), BotRules.COND_OWNER_BACK)
-	eq(int(thief[4]["abort_to"]), 6, "kasadan sonra sahip arka odada görünürse çantayı bırakıp kaçar")
-	eq(StringName(thief[4]["abort_if"]), BotRules.COND_OWNER_IN_BACKROOM)
+	eq(_phases(thief), [BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.GO_BAG, BotRules.Phase.TAKE_BAG,
+		BotRules.Phase.WAIT, BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.GO_REGISTER, BotRules.Phase.EMPTY,
+		BotRules.Phase.GO_BAG, BotRules.Phase.TAKE_BAG, BotRules.Phase.LEAVE, BotRules.Phase.ESCAPE],
+		"team+bag kasacı: (2 kişi) önce çanta, saklanır, kasa; (3 kişi) çanta adımları atlanır")
+	for i: int in 4:
+		eq(StringName(thief[i]["skip"]), BotRules.COND_NO_SELF_BAG, "çantacı varken / çanta alındıysa atlanır: %d" % i)
+	eq(StringName(thief[4]["until"]), BotRules.COND_DISTRACT_FRESH, "saklanıp raf devirmeyi bekler")
+	eq(StringName(thief[4]["skip"]), BotRules.COND_NOT_CARRYING)
+	eq(StringName(thief[5]["skip"]), BotRules.COND_SELF_CARRYING, "çantayla sıraya girmez")
+	eq(StringName(thief[6]["until"]), BotRules.COND_THIEF_GO, "kasacı pencere + çanta alındı (kasa en son)")
+	eq(StringName(thief[7]["abort_if"]), BotRules.COND_OWNER_BACK)
+	eq(int(thief[7]["abort_to"]), 4, "geri çekilme: saklanma noktası (taşırken) ya da sıra")
+	eq(int(thief[9]["abort_to"]), 11, "kasadan sonra sahip arka odada görünürse çantayı bırakır")
+	eq(StringName(thief[11]["skip"]), BotRules.COND_NOT_CARRYING, "çantayla D ve B'den çıkar")
+	var thief_plain: Array[Dictionary] = BotRules.plan_for("team", false, BotRules.Role.THIEF)
+	eq(_phases(thief_plain), [BotRules.Phase.STAGE, BotRules.Phase.WAIT, BotRules.Phase.GO_REGISTER, BotRules.Phase.EMPTY,
+		BotRules.Phase.ESCAPE])
 	var bag: Array[Dictionary] = BotRules.plan_for("bag", false, BotRules.Role.SOLO)
-	eq(_phases(bag), BAG_ROUTE, "tek kişi bag stratejisi kasaya dokunmaz")
+	eq(_phases(bag), SOLO_BAG_ROUTE, "tek kişi bag stratejisi kasaya dokunmaz")
+	eq(StringName(bag[0]["spot"]), BotRules.SPOT_PEEK, "yan camdan sahibi izler")
+	eq(StringName(bag[1]["until"]), BotRules.COND_BAG_WINDOW, "sahip meşgulken (telefon/raf)")
+	eq(float(bag[1]["timeout"]), BotRules.SOLO_BAG_WAIT_S)
+	eq(StringName(bag[2]["spot"]), BotRules.SPOT_ALLEY)
+	is_true(bool(bag[2]["sprint"]), "ara sokağa koşar")
+	eq(int(bag[3]["abort_to"]), 1)
 	for base: String in BotRules.STRATEGIES:
 		for role: int in BotRules.Role.size():
 			var plan: Array[Dictionary] = BotRules.plan_for(base, true, role as BotRules.Role)
@@ -397,8 +433,11 @@ func test_team_go_conditions() -> void:
 	is_true(BotRules.condition(BotRules.COND_THIEF_GO, v), "2 kişi: pencere yeter")
 	v.team_size = 3
 	v.bagger_present = true
-	is_false(BotRules.condition(BotRules.COND_LURE_GO, v), "3 kişi: çanta yerde, GÖNDER yok")
+	is_false(BotRules.condition(BotRules.COND_LURE_GO, v), "3 kişi: çanta yerde, çantacı ara sokakta değil")
 	is_false(BotRules.condition(BotRules.COND_THIEF_GO, v), "3 kişi: çanta yerde, kasa en son")
+	v.mate_at_alley = true
+	is_true(BotRules.condition(BotRules.COND_LURE_GO, v), "IS-104: kasacı sırada + çantacı ara sokakta -> SATIN AL")
+	v.mate_at_alley = false
 	v.bag_carrier = 9
 	is_true(BotRules.condition(BotRules.COND_LURE_GO, v), "çanta alındı")
 	is_true(BotRules.condition(BotRules.COND_THIEF_GO, v))
@@ -413,7 +452,9 @@ func test_team_go_conditions() -> void:
 	is_false(BotRules.condition(BotRules.COND_LURE_GO, solo), "tek kişi: kasacı yok")
 
 
-func test_team_lure_waits_for_bag_with_bagger() -> void:
+## IS-104: 3 players - the lure waits for the thief at the queue AND the bagger in the alley, BUYs (bag window), waits for the bag,
+## then topples a shelf (register window + the bagger's way out); without the bagger in the alley it acts alone after TEAM_BAG_WAIT_S.
+func test_team_lure_buys_for_the_bag_then_topples() -> void:
 	var m := BotRules.Mind.new("team", 22)
 	var v: BotRules.View = _view(0.0, COUNTER_STAND)
 	v.team_size = 3
@@ -423,15 +464,25 @@ func test_team_lure_waits_for_bag_with_bagger() -> void:
 	eq(m.phase, BotRules.Phase.WAIT)
 	v.t = BotRules.TEAM_WAIT_S + 2.0
 	m.decide(v)
-	eq(m.phase, BotRules.Phase.WAIT, "çanta yerde: çantacıyı TEAM_WAIT_S'den uzun bekler")
-	var taken: BotRules.View = _view(v.t + 0.5, COUNTER_STAND)
+	eq(m.phase, BotRules.Phase.WAIT, "çantacı ara sokakta değil: TEAM_WAIT_S'den uzun bekler")
+	v.mate_at_alley = true
+	m.decide(v)
+	v.t += 1.5
+	var i: BotRules.Intent = m.decide(v)
+	eq(m.phase, BotRules.Phase.LURE, "kasacı sırada + çantacı ara sokakta: SATIN AL")
+	eq(i.action, BotRules.ACTION_INTERACT)
+	eq(i.spot, BotRules.SPOT_COUNTER)
+	v.result = BotRules.RESULT_OK
+	v.t += 0.5
+	i = m.decide(v)
+	eq(m.phase, BotRules.Phase.WAIT, "satın aldı: çantayı bekler")
+	eq(i.spot, BotRules.SPOT_COUNTER)
+	var taken: BotRules.View = _view(v.t + 6.0, COUNTER_STAND)
 	taken.team_size = 3
 	taken.bagger_present = true
 	taken.thief_ready = true
 	taken.bag_carrier = 9
-	m.decide(taken)
-	taken.t += 1.5
-	var i: BotRules.Intent = m.decide(taken)
+	i = m.decide(taken)
 	eq(m.phase, BotRules.Phase.STAGE, "çanta alındı: GÖNDER değil raf devirmeye")
 	eq(i.spot, BotRules.SPOT_SHELF)
 	eq(m.wait_timeouts, 0)
@@ -445,6 +496,7 @@ func test_team_lure_waits_for_bag_with_bagger() -> void:
 	i = m.decide(at_shelf)
 	eq(m.phase, BotRules.Phase.LURE, "sahip tezgâhta: rafı devirir")
 	eq(i.action, BotRules.ACTION_INTERACT)
+	eq(i.spot, BotRules.SPOT_SHELF)
 	at_shelf.result = BotRules.RESULT_OK
 	at_shelf.t += 0.5
 	i = m.decide(at_shelf)
@@ -456,8 +508,9 @@ func test_team_lure_waits_for_bag_with_bagger() -> void:
 	w.bagger_present = true
 	late.decide(w)
 	w.t = BotRules.TEAM_BAG_WAIT_S + 0.1
-	late.decide(w)
-	eq(late.phase, BotRules.Phase.STAGE, "çantacı gelmezse TEAM_BAG_WAIT_S sonra yine oyalar")
+	i = late.decide(w)
+	eq(late.phase, BotRules.Phase.LURE, "çantacı gelmezse TEAM_BAG_WAIT_S sonra yine SATIN AL")
+	eq(i.action, BotRules.ACTION_INTERACT)
 	eq(late.wait_timeouts, 1)
 	var duo := BotRules.Mind.new("team", 27)
 	var d: BotRules.View = _view(0.0, COUNTER_STAND)
@@ -466,13 +519,161 @@ func test_team_lure_waits_for_bag_with_bagger() -> void:
 	duo.decide(d)
 	d.t = 1.5
 	var di: BotRules.Intent = duo.decide(d)
-	eq(duo.phase, BotRules.Phase.LURE, "2 kişi, çanta işte değil: GÖNDER (bugünkü davranış)")
+	eq(duo.phase, BotRules.Phase.LURE, "2 kişi, çanta işte değil: SATIN AL yok, GÖNDER (bugünkü davranış)")
 	eq(di.action, BotRules.ACTION_ALT)
 	d.send_used = true
 	d.result = BotRules.RESULT_OK
 	d.t = 2.0
 	duo.decide(d)
 	eq(duo.phase, BotRules.Phase.WAIT, "GÖNDER sonrası raf adımları atlanır")
+	var duo_bag := BotRules.Mind.new("team+bag", 33)
+	var b: BotRules.View = _view(0.0, COUNTER_STAND)
+	b.team_size = 2
+	duo_bag.decide(b)
+	b.t = 1.5
+	duo_bag.decide(b)
+	eq(duo_bag.phase, BotRules.Phase.WAIT, "team+bag 2 kişi: kasacı (çantayı taşıyacak) ara sokakta değil")
+	b.mate_at_alley = true
+	duo_bag.decide(b)
+	b.t = 3.0
+	di = duo_bag.decide(b)
+	eq(duo_bag.phase, BotRules.Phase.LURE, "kasacı ara sokakta: SATIN AL (Fable: team+bag'e SATIN AL adımı)")
+	eq(di.action, BotRules.ACTION_INTERACT)
+
+
+## IS-104: the team bagger crosses B only inside a lure window (fresh BUY / distraction), hides by the bag spot with the bag and leaves on
+## the next window; a BUY window still open when it has the bag lets it out at once.
+func test_bagger_enters_and_leaves_in_lure_windows() -> void:
+	var m := BotRules.Mind.new("team", 31)
+	var v: BotRules.View = _view(0.0, ALLEY)
+	v.slot = 2
+	v.team_size = 3
+	v.bagger_present = true
+	m.decide(v)
+	eq(m.role, BotRules.Role.BAGGER)
+	v.t = 5.0
+	m.decide(v)
+	eq(m.phase, BotRules.Phase.WAIT, "oyalama yok: sahip tezgâhta, zil duyulur -> bekler")
+	v.buy_age = 0.5
+	v.t = 6.0
+	m.decide(v)
+	v.buy_age = 2.0
+	v.t = 7.5
+	var i: BotRules.Intent = m.decide(v)
+	eq(m.phase, BotRules.Phase.GO_BAG, "SATIN AL penceresi: B'den girer")
+	eq(i.spot, BotRules.SPOT_BAG)
+	var at_bag: BotRules.View = _view(10.0, BAG)
+	at_bag.slot = 2
+	at_bag.team_size = 3
+	at_bag.bagger_present = true
+	at_bag.buy_age = 4.5
+	i = m.decide(at_bag)
+	eq(m.phase, BotRules.Phase.TAKE_BAG)
+	at_bag.result = BotRules.RESULT_OK
+	at_bag.carrying = true
+	at_bag.bag_carrier = 5
+	at_bag.t = 12.0
+	at_bag.buy_age = 6.5
+	i = m.decide(at_bag)
+	eq(m.phase, BotRules.Phase.WAIT, "pencere kapandı: çantayla saklanır")
+	eq(i.spot, BotRules.SPOT_HIDE)
+	at_bag.distract_age = 0.2
+	at_bag.t = 20.0
+	m.decide(at_bag)
+	at_bag.distract_age = 1.6
+	at_bag.t = 21.4
+	i = m.decide(at_bag)
+	eq(m.phase, BotRules.Phase.LEAVE, "raf devrildi: B'den çıkar")
+	eq(i.spot, BotRules.SPOT_ALLEY)
+	var quick := BotRules.Mind.new("team", 34)
+	var q: BotRules.View = _view(0.0, ALLEY)
+	q.slot = 2
+	q.team_size = 3
+	q.bagger_present = true
+	q.buy_age = 0.0
+	quick.decide(q)
+	q.t = 1.3
+	q.buy_age = 1.3
+	quick.decide(q)
+	eq(quick.phase, BotRules.Phase.GO_BAG)
+	q.pos = HIDE
+	q.t = 2.0
+	q.buy_age = 2.0
+	quick.decide(q)
+	eq(quick.phase, BotRules.Phase.TAKE_BAG)
+	q.result = BotRules.RESULT_OK
+	q.carrying = true
+	q.bag_carrier = 5
+	q.t = 2.2
+	q.buy_age = 2.2
+	quick.decide(q)
+	q.t = 3.5
+	q.buy_age = 3.5
+	i = quick.decide(q)
+	eq(quick.phase, BotRules.Phase.LEAVE, "SATIN AL penceresi sürerken çanta alındı: hemen çıkar")
+
+
+## IS-104: `team+bag` with 2 players - the thief carries the bag first (alley, BUY window, bag), hides, goes through D to the register on
+## the shelf topple, leaves through B with the bag; with a bagger in the team the bag steps are skipped (queue spot, register last).
+func test_duo_bag_thief_bag_first_then_register() -> void:
+	var m := BotRules.Mind.new("team+bag", 32)
+	var v: BotRules.View = _view(0.0)
+	v.slot = 1
+	v.team_size = 2
+	var i: BotRules.Intent = m.decide(v)
+	eq(m.role, BotRules.Role.THIEF)
+	eq(m.phase, BotRules.Phase.STAGE)
+	eq(i.spot, BotRules.SPOT_ALLEY, "2 kişi: kasacı çantayı da taşır, önce ara sokak")
+	var alley: BotRules.View = _view(10.0, ALLEY)
+	alley.slot = 1
+	alley.team_size = 2
+	alley.buy_age = 0.4
+	m.decide(alley)
+	alley.t = 11.5
+	alley.buy_age = 1.9
+	i = m.decide(alley)
+	eq(m.phase, BotRules.Phase.GO_BAG, "SATIN AL penceresi")
+	var took: BotRules.View = _view(16.0, BAG)
+	took.slot = 1
+	took.team_size = 2
+	took.carrying = true
+	took.bag_carrier = 5
+	took.buy_age = 6.0
+	i = m.decide(took)
+	eq(m.phase, BotRules.Phase.WAIT, "çantayla saklanır")
+	eq(i.spot, BotRules.SPOT_HIDE)
+	var topple: BotRules.View = _away(_view(25.0, HIDE))
+	topple.slot = 1
+	topple.team_size = 2
+	topple.carrying = true
+	topple.bag_carrier = 5
+	topple.buy_age = 15.0
+	topple.distract_age = 0.3
+	m.decide(topple)
+	topple.t = 26.5
+	topple.distract_age = 1.8
+	i = m.decide(topple)
+	eq(m.phase, BotRules.Phase.GO_REGISTER, "raf devrildi: D'den kasaya (sıra adımları atlanır)")
+	eq(i.spot, BotRules.SPOT_REGISTER)
+	var emptied: BotRules.View = _away(_view(32.0, STAND))
+	emptied.slot = 1
+	emptied.team_size = 2
+	emptied.carrying = true
+	emptied.bag_carrier = 5
+	emptied.register_emptied = true
+	i = m.decide(emptied)
+	eq(m.phase, BotRules.Phase.LEAVE, "kasa boş, çantayla D ve B'den çıkar")
+	eq(i.spot, BotRules.SPOT_ALLEY)
+	var names: PackedStringArray = _names(m.phase_log)
+	is_false(names.has("lure"), "kasacı oyalamaz")
+	var trio := BotRules.Mind.new("team+bag", 35)
+	var t3: BotRules.View = _away(_view(0.0, QUEUE))
+	t3.slot = 1
+	t3.team_size = 3
+	t3.bagger_present = true
+	i = trio.decide(t3)
+	eq(trio.phase, BotRules.Phase.WAIT, "3 kişi: çanta adımları atlanır, sırada bekler (çanta yerde)")
+	eq(i.spot, BotRules.SPOT_QUEUE)
 
 
 func test_team_thief_takes_register_last() -> void:
@@ -505,46 +706,49 @@ func test_team_thief_takes_register_last() -> void:
 	eq(duo.phase, BotRules.Phase.GO_REGISTER, "2 kişi (çantacı yok): bugünkü davranış")
 
 
+## IS-104 solo bag: watches from the side window, goes (sprinting to the alley) only when the owner is busy away from the counter (phone /
+## shelves) or after SOLO_BAG_WAIT_S; backs off to the window if the open door shows the owner in the back room; never the register.
 func test_bag_route_flow_and_backroom_retreat() -> void:
 	var m := BotRules.Mind.new("bag", 21)
 	var i: BotRules.Intent = m.decide(_view(0.0))
 	eq(m.role, BotRules.Role.SOLO)
 	eq(m.phase, BotRules.Phase.STAGE)
-	eq(i.spot, BotRules.SPOT_ALLEY, "önce ara sokak")
-	var inside: BotRules.View = _view(4.0, ALLEY)
-	inside.owner_seen = false
-	inside.owner_age = 2.0
-	inside.owner_task = &"backroom"
-	inside.owner_pos = BACKROOM_SPOT
-	m.decide(inside)
-	inside.t = 6.0
-	m.decide(inside)
-	eq(m.phase, BotRules.Phase.WAIT, "sahip arka odada (taze anı): ara sokakta bekler")
-	var clear: BotRules.View = _view(8.0, ALLEY)
-	m.decide(clear)
-	clear.t = 9.5
-	i = m.decide(clear)
+	eq(i.spot, BotRules.SPOT_PEEK, "önce yan cam")
+	var counter: BotRules.View = _view(4.0, PEEK)
+	m.decide(counter)
+	counter.t = 6.0
+	i = m.decide(counter)
+	eq(m.phase, BotRules.Phase.WAIT, "sahip tezgâhta: zil duyulur, bekler")
+	eq(i.look, Vector2.RIGHT, "cama bakmaz (US-044)")
+	var phone: BotRules.View = _view(8.0, PEEK)
+	phone.owner_task = &"phone"
+	phone.owner_pos = Vector2(688, 400)
+	m.decide(phone)
+	phone.t = 9.5
+	i = m.decide(phone)
+	eq(m.phase, BotRules.Phase.STAGE, "sahip telefonda: ara sokağa")
+	eq(i.spot, BotRules.SPOT_ALLEY)
+	is_true(i.sprint, "koşarak")
+	i = m.decide(_view(12.0, ALLEY))
 	eq(m.phase, BotRules.Phase.GO_BAG)
 	eq(i.spot, BotRules.SPOT_BAG)
-	var peek: BotRules.View = _view(11.0, Vector2(656, 144))
+	is_false(i.sprint)
+	var peek: BotRules.View = _view(13.0, Vector2(656, 144))
 	peek.owner_task = &"backroom"
 	peek.owner_pos = BACKROOM_SPOT
 	m.decide(peek)
-	eq(m.phase, BotRules.Phase.WAIT, "açık kapıdan sahip arka odada görüldü: geri çekilir")
+	eq(m.phase, BotRules.Phase.WAIT, "açık kapıdan sahip arka odada görüldü: yan cama geri çekilir")
 	eq(m.retreats, 1)
-	var stale: BotRules.View = _view(40.0, ALLEY)
-	stale.owner_seen = false
-	stale.owner_age = BotRules.MEMORY_STALE_S + 1.0
-	stale.owner_task = &"backroom"
-	stale.owner_pos = BACKROOM_SPOT
-	m.decide(stale)
-	stale.t = 41.5
-	m.decide(stale)
-	eq(m.phase, BotRules.Phase.GO_BAG, "anı bayatladı: yeniden bakmaya gider")
-	i = m.decide(_view(45.0, BAG))
+	var late: BotRules.View = _view(13.0 + BotRules.SOLO_BAG_WAIT_S + 0.1, PEEK)
+	i = m.decide(late)
+	eq(m.phase, BotRules.Phase.STAGE, "SOLO_BAG_WAIT_S doldu: yine de gider")
+	eq(i.spot, BotRules.SPOT_ALLEY)
+	eq(m.wait_timeouts, 1)
+	m.decide(_view(late.t + 3.0, ALLEY))
+	i = m.decide(_view(late.t + 6.0, BAG))
 	eq(m.phase, BotRules.Phase.TAKE_BAG)
 	eq(i.action, BotRules.ACTION_INTERACT)
-	var took: BotRules.View = _view(47.0, BAG)
+	var took: BotRules.View = _view(late.t + 8.0, BAG)
 	took.result = BotRules.RESULT_OK
 	took.carrying = true
 	took.bag_carrier = 5
@@ -552,7 +756,7 @@ func test_bag_route_flow_and_backroom_retreat() -> void:
 	i = m.decide(took)
 	eq(m.phase, BotRules.Phase.LEAVE, "çantayla arka kapıdan ara sokağa")
 	eq(i.spot, BotRules.SPOT_ALLEY)
-	var out: BotRules.View = _view(52.0, ALLEY)
+	var out: BotRules.View = _view(late.t + 12.0, ALLEY)
 	out.carrying = true
 	out.bag_carrier = 5
 	i = m.decide(out)
@@ -560,7 +764,35 @@ func test_bag_route_flow_and_backroom_retreat() -> void:
 	eq(i.spot, BotRules.SPOT_ESCAPE)
 	var names: PackedStringArray = _names(m.phase_log)
 	is_false(names.has("go_register") or names.has("empty"), "kasaya dokunmaz")
-	eq(Array(names.slice(0, 3)), ["stage", "wait", "go_bag"])
+	eq(Array(names.slice(0, 3)), ["stage", "wait", "stage"])
+
+
+func test_lure_window_conditions() -> void:
+	var v: BotRules.View = _view(0.0)
+	is_false(BotRules.lure_window(v), "olay yok")
+	v.buy_age = BotRules.LURE_WINDOW_S
+	is_true(BotRules.lure_window(v), "taze SATIN AL")
+	v.buy_age = BotRules.LURE_WINDOW_S + 0.1
+	is_false(BotRules.lure_window(v))
+	v.distract_age = 1.0
+	is_true(BotRules.condition(BotRules.COND_LURE_WINDOW, v), "taze raf devirme")
+	is_true(BotRules.condition(BotRules.COND_DISTRACT_FRESH, v))
+	is_true(BotRules.condition(BotRules.COND_BAG_GO, v), "pencere + arka oda boş")
+	v.owner_task = &"backroom"
+	v.owner_pos = BACKROOM_SPOT
+	is_false(BotRules.condition(BotRules.COND_BAG_GO, v), "sahip arka odada")
+	var w: BotRules.View = _view(0.0)
+	is_false(BotRules.bag_work(w), "çantacı yok, +bag yok")
+	w.bag_job = true
+	is_true(BotRules.bag_work(w))
+	is_false(BotRules.condition(BotRules.COND_NO_BAG_WORK, w))
+	w.bag_carrier = 3
+	is_false(BotRules.bag_work(w), "çanta alındı")
+	is_true(BotRules.condition(BotRules.COND_BAG_DONE, w))
+	var x: BotRules.View = _view(0.0)
+	x.bagger_present = true
+	is_true(BotRules.bag_work(x), "çantacı var")
+	is_true(BotRules.condition(BotRules.COND_NO_SELF_BAG, x), "çantacı varken kasacı çanta taşımaz")
 
 
 func test_bag_after_register_skipped_when_owner_in_backroom() -> void:
@@ -796,3 +1028,33 @@ func test_steer() -> void:
 	near(BotRules.steer(Vector2.ZERO, Vector2(12, 0), 2.0, 24.0), Vector2(0.5, 0), 0.001, "yaklaşırken yavaşlar")
 	near(BotRules.steer(Vector2.ZERO, Vector2(4, 0), 2.0, 24.0), Vector2(0.35, 0), 0.001, "alt sınır")
 	near(BotRules.steer(Vector2.ZERO, Vector2(0, 5), 0.0, 0.0), Vector2(0, 1), 0.001, "yavaşlamasız ara nokta")
+
+
+## IS-104: the take result can arrive before the replicated bag carrier; the Mind still counts itself as carrying (TAKE_GRACE_S), so the
+## `team+bag` thief hides instead of skipping straight to the register.
+func test_take_result_before_carrier_replication() -> void:
+	var m := BotRules.Mind.new("team+bag", 36)
+	var v: BotRules.View = _view(0.0, ALLEY)
+	v.slot = 1
+	v.team_size = 2
+	v.buy_age = 0.0
+	m.decide(v)
+	v.t = 1.3
+	v.buy_age = 1.3
+	m.decide(v)
+	v.pos = BAG
+	v.t = 3.0
+	m.decide(v)
+	eq(m.phase, BotRules.Phase.TAKE_BAG)
+	var lag: BotRules.View = _view(5.0, BAG)
+	lag.slot = 1
+	lag.team_size = 2
+	lag.result = BotRules.RESULT_OK
+	var i: BotRules.Intent = m.decide(lag)
+	eq(m.phase, BotRules.Phase.WAIT, "taşıyıcı henüz çoğalmadı: yine saklanır")
+	eq(i.spot, BotRules.SPOT_HIDE)
+	var still: BotRules.View = _view(5.5, HIDE)
+	still.slot = 1
+	still.team_size = 2
+	m.decide(still)
+	eq(m.phase, BotRules.Phase.WAIT, "pay süresi içinde taşıyor sayılır")

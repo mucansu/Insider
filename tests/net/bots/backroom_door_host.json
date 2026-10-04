@@ -1,0 +1,11 @@
+{
+  "_doc": "backroom_door.json host botu (IS-104, alıcı): store_tools_c1 rotasıyla tezgâh önüne (x≈532, y≈350) gelir, 8,6. sn'de SATIN AL (E, 2,4 sn tut): sahip ~10,6-16,6 sn tezgâhta servis eder, bu sürede c1'in arka kapı (B) zili duyulmaz. Sonra tezgâh önünde bekler.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 5.271, "move": [1, 0]},
+    {"t": 6.8, "move": [0, 0]},
+    {"t": 8.6, "hold": "interact", "dur": 2.4}
+  ]
+}

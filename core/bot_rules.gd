@@ -10,14 +10,21 @@ extends RefCounted
 ##   distract wait at a shelf end until the owner is at the counter, topple it (E), wait at the queue spot for the window, register
 ##   buy      BUY (E) at the counter (keeps cover, resets loitering; rebuys every REBUY_*, at most MAX_REBUYS), take the window,
 ##            register, escape
-##   bag      (IS-101) bag only, never the register: back alley -> back door B once the back room is clear (owner not in it) -> cash bag
-##            -> back out to the alley -> escape. B is ~264 px from the counter, its 160 px door sound is not heard there.
-##   team     roles by join slot, "register last" (IS-101): 2 bagger goes first (the `bag` route: alley, B, bag, alley, escape);
-##            0 lure (counter; acts once the thief stands at the queue spot AND the bag is taken - or there is no bagger (< 3
-##            players) - or after TEAM_WAIT_S / TEAM_BAG_WAIT_S alone: SEND when the bag is not part of the job (`team`, 2 players),
-##            else distract (topple a shelf once the owner is at the counter; a SEND would walk the owner into the back room and its
-##            missing-bag check), then stays as a customer until the register is emptied, then escapes); 1 thief (queue spot; window
-##            AND bag taken (no bagger: window only) -> register, escape). Any free teammate within PULL_RANGE_PX pulls a held one (PULL)
+##   bag      (IS-101, IS-104) bag only, never the register. The back door B has a bell (KR-034: opening/closing or crossing it is
+##            heard by an owner standing calm at the counter -> walks to the back room, checks the bag), so: watch the owner from the
+##            side window (`peek`) until it is busy away from the counter (phone/shelves; `bag_window_open`) or SOLO_BAG_WAIT_S runs
+##            out -> sprint to the back alley -> B -> cash bag -> back out to the alley -> escape. A bell on the way out while the
+##            owner is back at the counter = discovery (expected: solo bag is mostly shouted).
+##   team     roles by join slot, "lure first, bag in its window, register last" (IS-104, KR-034): 0 lure (counter; once the thief
+##            stands at the queue spot and the bag carrier (bagger, or the 2-player `team+bag` thief) waits in the alley - or after
+##            TEAM_WAIT_S / TEAM_BAG_WAIT_S alone - BUY while the bag is still on the floor (the service keeps the owner at the
+##            counter, the back bell is not heard), wait for the bag (LURE_BAG_WAIT_S), then SEND when the bag is not part of the job
+##            (`team`, 2 players) else topple a shelf once the owner is at the counter, then stay as a customer until the register is
+##            emptied, then escape); 2 bagger (alley; enters B inside a lure window (`lure_window`: a BUY / distraction session event
+##            at most LURE_WINDOW_S old), takes the bag, waits hidden by it for the next lure window to leave through B, escape);
+##            1 thief (queue spot; window AND bag taken (no bagger: window only) -> register, escape; `team+bag` with 2 players:
+##            the thief carries the bag too - the bagger's entry, then from its hiding spot through the inner door D to the register
+##            on the lure's shelf topple, then out through B). Any free teammate within PULL_RANGE_PX pulls a held one (PULL)
 ## Suffixes (any order, once each): `+bag` - the bag is part of the job: solo strategies and the team thief take it AFTER the register
 ## (inner door D is 3 tiles from the register stand; with 2 players the thief is the bagger too, with 3 the bagger usually has it
 ## already and the step is skipped; skipped to the escape if the owner is seen in the back room); the team lure never goes for it;
@@ -61,6 +68,8 @@ const SPOT_SHELF := &"shelf"         # aisle side of the nearest untoppled shelf
 const SPOT_BAG := &"bag"             # the cash bag
 const SPOT_ESCAPE := &"escape"       # escape zone (per-slot offset)
 const SPOT_MATE := &"mate"           # held teammate (PULL)
+const SPOT_PEEK := &"peek"           # side street by the side window: sees the counter and the phone (solo bag; IS-104)
+const SPOT_HIDE := &"hide"           # back room by the cash bag spot, out of sight of the inner door (bagger waits; IS-104)
 
 const ACTION_INTERACT := &"interact"
 const ACTION_ALT := &"intimidate"
@@ -86,6 +95,16 @@ const COND_OWNER_IN_BACKROOM := &"owner_in_backroom"
 ## back room and its missing-bag check, KR-031); skip the shelf distraction (SEND used, register emptied, or the window is open).
 const COND_NO_SEND := &"no_send"
 const COND_NO_DISTRACT := &"no_distract"
+## IS-104 (back bell, KR-034): lure window (a fresh BUY / distraction), bag entry (lure window and back room clear), shelf topple fresh,
+## bag taken, no bag work left for the lure (BUY + bag wait skipped), this thief does not carry the bag itself, carrying / not.
+const COND_LURE_WINDOW := &"lure_window"
+const COND_BAG_GO := &"bag_go"
+const COND_DISTRACT_FRESH := &"distract_fresh"
+const COND_BAG_DONE := &"bag_done"
+const COND_NO_BAG_WORK := &"no_bag_work"
+const COND_NO_SELF_BAG := &"no_self_bag"
+const COND_SELF_CARRYING := &"self_carrying"
+const COND_NOT_CARRYING := &"not_carrying"
 
 ## Interaction result of the last step (consumed by `Mind.decide`).
 const RESULT_NONE := -1
@@ -126,6 +145,8 @@ const COMMIT_PX := 96.0
 const MAX_RETREATS := 2
 ## Reaction delay after a WAIT condition turns true (s).
 const REACTION_MIN_S := 0.3
+## IS-104: after its own successful bag take the Mind counts itself as carrying this long, until the replicated `carrier` arrives (s).
+const TAKE_GRACE_S := 1.0
 const REACTION_MAX_S := 1.2
 ## `+human` reaction delay (s; IS-101).
 const REACTION_HUMAN_MIN_S := 1.0
@@ -137,6 +158,17 @@ const WAIT_MAX_MAX_S := 90.0
 const TEAM_WAIT_S := 20.0
 ## With a bagger (join slot 2) the lure also waits for the bag; this is its longer limit (s; alley route ~15-25 s; IS-101).
 const TEAM_BAG_WAIT_S := 45.0
+## IS-104 back bell: a BUY (service 6 s) or a shelf distraction (listen 6 s + walk back) at most this old keeps the owner away from an
+## idle counter - the bag carrier crosses B only inside it (s; session events `purchase` / `owner_distracted`, seen by the whole team).
+const LURE_WINDOW_S := 4.0
+## The lure waits this long after its BUY for the bag before moving on (s).
+const LURE_BAG_WAIT_S := 12.0
+## Bag carrier in the alley waits this long for a lure window, then goes anyway (s).
+const BAGGER_WAIT_S := 60.0
+## With the bag, waits hidden in the back room this long for the next lure window before leaving anyway (s).
+const HIDE_WAIT_S := 25.0
+## Solo bag watches from the side window this long for a busy owner, then goes anyway (s).
+const SOLO_BAG_WAIT_S := 50.0
 ## Thief counts as ready within this distance of the queue spot.
 const READY_PX := 48.0
 ## Retry delay after a failed interaction (s) and attempts before giving the step up.
@@ -212,6 +244,12 @@ class View:
 	var bagger_present: bool = false
 	## Position of a held teammate (INF = none).
 	var mate_held_pos: Vector2 = Vector2.INF
+	## IS-104: seconds since the last BUY (`purchase`) / shelf distraction (`owner_distracted`) session event (INF = none this run;
+	## team-wide HUD events), a teammate stands at the alley spot, the bag is part of this strategy (`+bag`; set by the Mind).
+	var buy_age: float = INF
+	var distract_age: float = INF
+	var mate_at_alley: bool = false
+	var bag_job: bool = false
 
 	## Whether the bot stands at `spot` (within ARRIVE_PX; MATE_ARRIVE_PX next to a held teammate).
 	func at(spot: StringName) -> bool:
@@ -420,6 +458,16 @@ static func has_bagger(v: View) -> bool:
 	return v.bagger_present
 
 
+## IS-104: a lure keeps the owner busy now (BUY or distraction at most LURE_WINDOW_S old): the back bell is not heard.
+static func lure_window(v: View) -> bool:
+	return v.buy_age <= LURE_WINDOW_S or v.distract_age <= LURE_WINDOW_S
+
+
+## IS-104: the team still has to take the bag (a bagger in the team or a `+bag` job) and it is on the floor.
+static func bag_work(v: View) -> bool:
+	return (has_bagger(v) or v.bag_job) and not bag_done(v)
+
+
 static func condition(cond: StringName, v: View) -> bool:
 	match cond:
 		COND_WINDOW:
@@ -441,7 +489,11 @@ static func condition(cond: StringName, v: View) -> bool:
 		COND_BACK_CLEAR:
 			return backroom_clear(v)
 		COND_LURE_GO:
-			return v.team_size >= 2 and v.thief_ready and (not has_bagger(v) or bag_done(v))
+			if v.team_size < 2:
+				return false
+			if bag_work(v):
+				return v.mate_at_alley and (v.thief_ready or not has_bagger(v))
+			return v.thief_ready
 		COND_THIEF_GO:
 			return window_open(v) and (not has_bagger(v) or bag_done(v))
 		COND_OWNER_BACK:
@@ -452,6 +504,22 @@ static func condition(cond: StringName, v: View) -> bool:
 			return v.send_used or has_bagger(v) or bag_done(v)
 		COND_NO_DISTRACT:
 			return v.send_used or v.register_emptied or window_open(v)
+		COND_LURE_WINDOW:
+			return lure_window(v)
+		COND_BAG_GO:
+			return lure_window(v) and backroom_clear(v)
+		COND_DISTRACT_FRESH:
+			return v.distract_age <= LURE_WINDOW_S
+		COND_BAG_DONE:
+			return bag_done(v)
+		COND_NO_BAG_WORK:
+			return not bag_work(v)
+		COND_NO_SELF_BAG:
+			return has_bagger(v) or bag_done(v)
+		COND_SELF_CARRYING:
+			return v.carrying
+		COND_NOT_CARRYING:
+			return not v.carrying
 	return false
 
 
@@ -485,7 +553,7 @@ static func plan_for(base: String, bag: bool, role: Role) -> Array[Dictionary]:
 			w["loop_to"] = buy_at
 			p.append(w)
 		BAG_BASE:
-			_append_bag_route(p)
+			_append_solo_bag(p)
 			return p
 		"team":
 			match role:
@@ -494,10 +562,15 @@ static func plan_for(base: String, bag: bool, role: Role) -> Array[Dictionary]:
 					var lure_wait: Dictionary = _wait(SPOT_COUNTER, COND_LURE_GO, TEAM_WAIT_S)
 					lure_wait["timeout_bag"] = TEAM_BAG_WAIT_S
 					p.append(lure_wait)
+					# IS-104: bag first - BUY keeps the owner at the counter (back bell unheard) while the carrier crosses B.
+					p.append(_use(Phase.LURE, SPOT_COUNTER, ACTION_INTERACT, COND_NO_BAG_WORK))
+					var bag_wait: Dictionary = _wait(SPOT_COUNTER, COND_BAG_DONE, LURE_BAG_WAIT_S)
+					bag_wait["skip"] = COND_NO_BAG_WORK
+					p.append(bag_wait)
 					if not bag:
 						p.append(_use(Phase.LURE, SPOT_COUNTER, ACTION_ALT, COND_NO_SEND))
-					# Bag job (bagger in the team, or `+bag`): distract instead of SEND - the owner goes to the shelves, the back room stays
-					# empty for the thief's bag and no missing-bag check fires. Also the fallback after a failed SEND.
+					# Bag job (bagger in the team, or `+bag`): distract instead of SEND (a SEND would walk the owner into the back room and its
+					# missing-bag check); the topple is the register window and the bag carrier's way out. Also the fallback after a failed SEND.
 					var shelf_go: Dictionary = _go(Phase.STAGE, SPOT_SHELF, COND_NO_DISTRACT)
 					p.append(shelf_go)
 					var shelf_wait: Dictionary = _wait(SPOT_SHELF, COND_OWNER_AT_COUNTER, TEAM_WAIT_S)
@@ -508,9 +581,22 @@ static func plan_for(base: String, bag: bool, role: Role) -> Array[Dictionary]:
 					p.append(_wait(SPOT_COUNTER, COND_LURE_HOLD))
 					bag = false  # the lure keeps its cover; the thief (2 players) or the bagger (3) takes the bag
 				Role.THIEF:
-					p.append(_go(Phase.STAGE, SPOT_QUEUE))
+					var carry_at: int = -1
+					if bag:
+						# IS-104, 2 players (no bagger): the thief carries the bag first (the bagger's entry, skipped once a bagger
+						# joins or the bag is gone), then waits hidden for the lure's shelf topple to go through D to the register.
+						_append_bag_entry(p, COND_NO_SELF_BAG)
+						carry_at = p.size()
+						var hide: Dictionary = _wait(SPOT_HIDE, COND_DISTRACT_FRESH, HIDE_WAIT_S)
+						hide["skip"] = COND_NOT_CARRYING
+						p.append(hide)
+					p.append(_go(Phase.STAGE, SPOT_QUEUE, COND_SELF_CARRYING if bag else COND_NONE))
 					wait_at = p.size()
-					p.append(_wait(SPOT_QUEUE, COND_THIEF_GO))
+					var thief_wait: Dictionary = _wait(SPOT_QUEUE, COND_THIEF_GO)
+					if bag:
+						thief_wait["skip"] = COND_SELF_CARRYING
+						wait_at = carry_at  # a retreat goes back to the hiding spot (carrying) or on to the queue spot
+					p.append(thief_wait)
 				Role.BAGGER:
 					_append_bag_route(p)
 					return p
@@ -525,6 +611,8 @@ static func plan_for(base: String, bag: bool, role: Role) -> Array[Dictionary]:
 		var go_bag: Dictionary = p[p.size() - 2]
 		go_bag["abort_to"] = p.size()
 		go_bag["abort_if"] = COND_OWNER_IN_BACKROOM
+		if base == "team" and role == Role.THIEF:
+			p.append(_go(Phase.LEAVE, SPOT_ALLEY, COND_NOT_CARRYING))  # with the bag: out through D and B, not past the owner
 	p.append(_go(Phase.ESCAPE, SPOT_ESCAPE))
 	return p
 
@@ -534,14 +622,42 @@ static func _append_bag(p: Array[Dictionary]) -> void:
 	p.append(_use(Phase.TAKE_BAG, SPOT_BAG, ACTION_INTERACT, COND_CARRYING))
 
 
-## Bag route through the back door (IS-101; `bag` strategy, team bagger): stage in the alley, wait until the back room is clear, bag
-## (the run backs off to the alley if the open door shows the owner inside), back out to the alley, escape.
+## Team bag route through the back door (IS-101, IS-104; team bagger): stage in the alley, enter inside a lure window, bag (the run backs
+## off to the alley if the open door shows the owner inside), wait hidden by the bag spot for the next lure window, back out to the alley,
+## escape.
 static func _append_bag_route(p: Array[Dictionary]) -> void:
-	p.append(_go(Phase.STAGE, SPOT_ALLEY))
+	_append_bag_entry(p, COND_NONE)
+	p.append(_wait(SPOT_HIDE, COND_LURE_WINDOW, HIDE_WAIT_S))
+	p.append(_go(Phase.LEAVE, SPOT_ALLEY))
+	p.append(_go(Phase.ESCAPE, SPOT_ESCAPE))
+
+
+## Alley staging + entry inside a lure window (COND_BAG_GO, BAGGER_WAIT_S) + bag; every step skipped while `skip` holds.
+static func _append_bag_entry(p: Array[Dictionary], skip: StringName) -> void:
+	p.append(_go(Phase.STAGE, SPOT_ALLEY, skip))
 	var wait_at: int = p.size()
-	p.append(_wait(SPOT_ALLEY, COND_BACK_CLEAR))
+	var wait: Dictionary = _wait(SPOT_ALLEY, COND_BAG_GO, BAGGER_WAIT_S)
+	wait["skip"] = skip
+	p.append(wait)
 	_append_bag(p)
 	var go_bag: Dictionary = p[wait_at + 1]
+	go_bag["abort_to"] = wait_at
+	go_bag["abort_if"] = COND_OWNER_IN_BACKROOM
+	if skip != COND_NONE:
+		go_bag["skip"] = skip
+		p[wait_at + 2]["skip"] = skip
+
+
+## Solo bag route (IS-104): watch from the side window for a busy owner (or SOLO_BAG_WAIT_S), sprint to the alley, bag, out, escape.
+static func _append_solo_bag(p: Array[Dictionary]) -> void:
+	p.append(_go(Phase.STAGE, SPOT_PEEK))
+	var wait_at: int = p.size()
+	p.append(_wait(SPOT_PEEK, COND_BAG_WINDOW, SOLO_BAG_WAIT_S))
+	var run: Dictionary = _go(Phase.STAGE, SPOT_ALLEY)
+	run["sprint"] = true
+	p.append(run)
+	_append_bag(p)
+	var go_bag: Dictionary = p[p.size() - 2]
 	go_bag["abort_to"] = wait_at
 	go_bag["abort_if"] = COND_OWNER_IN_BACKROOM
 	p.append(_go(Phase.LEAVE, SPOT_ALLEY))
@@ -562,11 +678,12 @@ static func _wait(spot: StringName, until: StringName, timeout: float = -1.0) ->
 
 
 ## Step keys: "abort_to"/"abort_if" (GO: back to that step while `abort_if` holds and the run has not committed), "loop_to" (WAIT:
-## rebuy loop), "timeout" (WAIT; < 0 random), "timeout_bag" (WAIT; used instead of "timeout" while a bagger is in the team; < 0 none).
+## rebuy loop), "timeout" (WAIT; < 0 random), "timeout_bag" (WAIT; used instead of "timeout" while a bagger is in the team; < 0 none),
+## "sprint" (GO: run there; IS-104 solo bag dash to the alley).
 static func _step(kind: Step, phase: Phase, spot: StringName, action: StringName, until: StringName, skip: StringName,
 		timeout: float) -> Dictionary:
 	return {"kind": kind, "phase": phase, "spot": spot, "action": action, "until": until, "skip": skip, "abort_to": -1,
-		"abort_if": COND_NONE, "loop_to": -1, "timeout": timeout, "timeout_bag": -1.0}
+		"abort_if": COND_NONE, "loop_to": -1, "timeout": timeout, "timeout_bag": -1.0, "sprint": false}
 
 
 ## Stateful decider of one bot (one per process; the plan is built on the first decide, when the join slot is known).
@@ -604,6 +721,8 @@ class Mind:
 	var _loops: int = 0
 	## Own SEND succeeded (the replicated `send_used` may arrive a little after the interaction result; IS-101 lure skips).
 	var _sent: bool = false
+	## Brain time of the own successful bag take (IS-104; -INF = none).
+	var _took_t: float = -INF
 
 	func _init(strategy_name: String, run_seed: int) -> void:
 		var parsed: Dictionary = BotRules.parse_strategy(strategy_name)
@@ -655,6 +774,10 @@ class Mind:
 	func _run(v: View, intent: Intent) -> Intent:
 		if _sent:
 			v.send_used = true
+		if v.t - _took_t <= BotRules.TAKE_GRACE_S and not v.carrying and v.bag_carrier == 0:
+			v.carrying = true  # own take finished; the replicated carrier may lag a few steps
+			v.bag_carrier = -1
+		v.bag_job = bag
 		for _guard: int in _plan.size() + 1:
 			var step: Dictionary = _plan[_index]
 			var skip: StringName = step["skip"]
@@ -663,7 +786,8 @@ class Mind:
 				continue
 			_set_phase(int(step["phase"]) as Phase, v.t)
 			intent.spot = step["spot"]
-			intent.sprint = _escaping or (int(step["phase"]) == Phase.ESCAPE and v.alert >= BotRules.ALERT_FLEE)
+			intent.sprint = _escaping or (int(step["phase"]) == Phase.ESCAPE and v.alert >= BotRules.ALERT_FLEE) \
+				or bool(step["sprint"])
 			match int(step["kind"]):
 				Step.GO:
 					if int(step["phase"]) == Phase.ESCAPE:
@@ -685,6 +809,11 @@ class Mind:
 						if StringName(step["action"]) == BotRules.ACTION_ALT:
 							_sent = true
 							v.send_used = true
+						if int(step["phase"]) == Phase.TAKE_BAG:
+							_took_t = v.t
+							v.carrying = true
+							if v.bag_carrier == 0:
+								v.bag_carrier = -1
 						_enter(_index + 1, v)
 						continue
 					if v.result == BotRules.RESULT_FAIL:
@@ -701,6 +830,8 @@ class Mind:
 				Step.WAIT:
 					if intent.spot == BotRules.SPOT_OUTSIDE:
 						intent.look = Vector2.DOWN  # away from the shop windows
+					elif intent.spot == BotRules.SPOT_PEEK:
+						intent.look = Vector2.RIGHT  # away from the side window (no window stare, US-044); sight is all-round
 					if BotRules.condition(step["until"], v):
 						if _cond_since < 0.0:
 							_cond_since = v.t
