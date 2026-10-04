@@ -44,3 +44,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-058b (oynanis) | entities/player/bot_brain.gd | Adil kipte window/distract/buy çoğunlukla bekleme zaman aşımıyla gidiyor (ön kaldırım/raf ucundan sahip görülmüyor) — bekleme noktası seçimi; prop durumları (kasa/çanta) hâlâ her şeyi bilen kipte; çevresel silüet görüşü sayılmıyor |
 | 2026-10-04 | IS-099 (oynanis) | docs/notes/mimari.md | S3 sonuç sözlüğü `players` alan listesine `left` (IS-099) eklenmeli — birleştirmede koordinatör |
 | 2026-10-04 | IS-081 (oynanis) | entities/npc/owner/brain_owner.gd | owner.log: SORGULA girişi ile 'soru' olayı bitişik adımlarda iki ayrı kayıt |
+| 2026-10-04 | IS-104 (oynanis) | tests/net/discovery_cash.json | Pencere payı dar (~0,6 / ~1 sn; istemci ~2,7 sn geç katılıyor) — yük altında oynaklık riski; gerekirse oyalayıcı telefon da bırakır |
+| 2026-10-04 | IS-015 (koordinatör) | tests/net | 150 ms 20 dk beyin döngüsü dayanıklılık koşusu yapılmadı (IS-015 AC kalıntısı) |
+| 2026-10-04 | IS-095 (cekirdek) | tests/net/*.json | Süreçler arası `near` kalıbı: döküm hareket halinde alınabilir; net_smoke'a 'hareketli döküm' uyarısı adayı (faz1_full, move_sync, store_move payı ~1,9-2,2 sn) |
