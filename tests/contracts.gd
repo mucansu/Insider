@@ -87,6 +87,8 @@ const LINES := {
 		# S3 vision additions (fog; US-011a).
 		"func attach_fog(observer: Node2D) -> FogLayer",
 		"func fog_layer() -> FogLayer",
+		# S4/S10 addition (IS-106, KR-037): per-map tuning overrides {id: {field: value}} (VenueTuning access point).
+		"var tuning_overrides: Dictionary",
 	],
 	# S6 addition (IS-015a): closed-loop bot brain arguments (autoload Args; checked by test_smoke like the other autoloads).
 	"Args": [

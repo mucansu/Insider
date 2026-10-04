@@ -36,8 +36,8 @@ func _ready() -> void:
 		topple_def = load(TOPPLE_DEF_PATH) as PropDef
 	if phone_def == null:
 		phone_def = load(PHONE_DEF_PATH) as PropDef
-	if tuning == null:
-		tuning = StoreToolsTuning.load_default()
+	# IS-106: global default (or the scene's) + the level's per-map overrides.
+	tuning = VenueTuning.of(self, VenueTuning.STORE_TOOLS, tuning if tuning != null else StoreToolsTuning.load_default()) 		as StoreToolsTuning
 	_setup(_topple, topple_def)
 	_setup(_phone, phone_def)
 	_phone.input_action = &"intimidate"

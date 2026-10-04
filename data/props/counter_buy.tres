@@ -7,6 +7,7 @@
 script = ExtResource("1_req")
 side = Vector2(-1, 0)
 side_min = 16.0
+side_zone = &"CustomerArea"
 
 [resource]
 script = ExtResource("2_def")

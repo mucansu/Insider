@@ -68,17 +68,40 @@ var _windows: Array[Rect2] = []
 var _stare: Dictionary = {}
 ## US-042/US-043: peers whose cover broke (from the `cover_broken` session event on every peer).
 var _cover_lost: Dictionary = {}
+## IS-106: tile geometry of the level layout (built on first use; `map_grid`).
+var _grid: MapGrid = null
 
 
 ## Level (ancestor with the Level API) and rules.
 func setup(level: Node, civilian: CivilianTuning, perception: PerceptionTuning) -> void:
 	_level = level
+	_grid = null
 	tuning = civilian
 	rules = civilian.rules_params(perception)
 	_zones = zone_rects(level)
 	_windows = window_rects(level)
 	if not Game.session_event.is_connected(_on_session_event):
 		Game.session_event.connect(_on_session_event)
+
+
+## Tile geometry of a level (IS-106, KR-037): its layout rows (Level `layout()` -> `rows`); an empty grid without a layout.
+static func grid_of(level: Node) -> MapGrid:
+	var layout: Object = level.call(&"layout") as Object if level != null and level.has_method(&"layout") else null
+	var rows: Variant = layout.get(&"rows") if layout != null else null
+	return MapGrid.new(rows as PackedStringArray if typeof(rows) == TYPE_PACKED_STRING_ARRAY else PackedStringArray())
+
+
+## This level's tile geometry (cached).
+func map_grid() -> MapGrid:
+	if _grid == null:
+		_grid = grid_of(_level)
+	return _grid
+
+
+## Facing at `spot` toward the adjacent shelf/counter/wall, `hint` preferred (MapGrid.face_block; the owner's agenda facing resolver,
+## IS-106). Without a layout: the hint.
+func face_block(spot: Vector2, hint: Vector2) -> Vector2:
+	return map_grid().face_block(spot, hint)
 
 
 ## Window (glass) rects (global): rect shapes of bodies in the level's `see_through` group (S4 addendum `Window<n>`).

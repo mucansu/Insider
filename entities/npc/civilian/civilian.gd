@@ -65,10 +65,9 @@ var _contact: NpcContact = null
 
 func _ready() -> void:
 	_suspicion.set_physics_process(false)  # the brain runs it in order
-	if tuning == null:
-		tuning = load(TUNING_PATH) as PopulationTuning
-	if civilian_tuning == null:
-		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
+	# IS-106: global default (or the scene's) + the level's per-map overrides.
+	tuning = VenueTuning.of(self, VenueTuning.POPULATION, tuning) as PopulationTuning
+	civilian_tuning = VenueTuning.of(self, VenueTuning.CIVILIAN, civilian_tuning) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
 	_visual.role = NpcVisual.Role.PASSERBY if role == PopulationRules.Role.PASSERBY else NpcVisual.Role.CUSTOMER
 	_contact = NpcContact.attach(self, false, _perception, _add_suspicion, Callable())

@@ -9,7 +9,7 @@ extends Node
 ## `detections` (muhafiz-davranisi §4 fields + behaviour). Component fields (`body`, `perception` ...) are read only by the reaction layer and
 ## tests; not written outside the brain.
 ## Service (US-016 AC3): a customer in the queue calls `serve_customer(id)`; if the owner is on AGENDA and no other service runs, it interrupts
-## the agenda (CUSTOMER interrupt), comes to ClerkSpot, faces west, serves for 6 s. At the service's `register_open_sec` (sec 2) the "register
+## the agenda (CUSTOMER interrupt), comes to ClerkSpot, faces the counter, serves for 6 s. At the service's `register_open_sec` (sec 2) the "register
 ## opens" hook `register_opened(customer_id)` fires (US-039 sale trigger; US-010 BUY uses the same hook). The customer reads the result via
 ## `serve_state(id)`.
 ## Discovery (US-039): if the owner did not catch the robbery in the act, it notices when the register opens (service hook), `backroom_check_sec`
@@ -208,10 +208,11 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	senses.track_window_stare = true  # US-044: window gazing only in the owner's context
 	suspicion.innocent_decay_per_sec = civilian_tuning.innocent_decay_per_sec
 	suspicion.threshold_reached.connect(_on_threshold)
+	# IS-106 (KR-037): a task's facing is a hint; at the spot the owner faces the adjacent shelf/counter/wall (no "faces west").
+	agenda.facing_resolver = _face_at
 	agenda.setup(owner_tuning.tasks, agenda_seed, senses.marker_positions)
 	mover.door_shortcut = true  # IS-087 AC3: does not walk around via the street when the back door is open
-	if tools == null:
-		tools = StoreToolsTuning.load_default()
+	tools = VenueTuning.of(body, VenueTuning.STORE_TOOLS, tools if tools != null else StoreToolsTuning.load_default()) 		as StoreToolsTuning
 	mover.close_behind = owner_tuning.close_behind_doors.duplicate()
 	mover.close_delay = owner_tuning.close_behind_sec
 	agenda.interrupt_ended.connect(_on_interrupt_ended)
@@ -283,7 +284,18 @@ func _step_layers(delta: float) -> Vector2:
 
 ## --- Interrupt API (US-016 customer, US-010 send, US-009 sound; accepted on AGENDA only) ---
 
-## Customer in the queue (US-016 AC3): if the owner is on AGENDA and no other service runs, comes to the counter (ClerkSpot), faces west,
+## Facing at an agenda/service spot (IS-106, KR-037; the tuning direction is only a hint): at the counter spot (ClerkSpot) toward the
+## register marker - over the counter to the customer side, whichever wall the counter stands on; elsewhere toward the adjacent
+## shelf/counter/wall (`CivilianSenses.face_block`).
+func _face_at(spot: Vector2, hint: Vector2) -> Vector2:
+	var clerk: Vector2 = senses.marker_position(owner_tuning.counter_marker)
+	var register: Vector2 = senses.marker_position(owner_tuning.register_marker)
+	if clerk.is_finite() and register.is_finite() and spot.distance_to(clerk) <= STAND_PX and not register.is_equal_approx(clerk):
+		return (register - clerk).normalized()
+	return senses.face_block(spot, hint)
+
+
+## Customer in the queue (US-016 AC3): if the owner is on AGENDA and no other service runs, comes to the counter (ClerkSpot), faces the counter,
 ## serves for `customer_sec`. True for the same customer's ongoing service; false while serving another.
 func serve_customer(customer_id: int = 0) -> bool:
 	if _serving and agenda.current_interrupt() == Agenda.Interrupt.CUSTOMER:
@@ -291,7 +303,7 @@ func serve_customer(customer_id: int = 0) -> bool:
 	var clerk: Vector2 = senses.marker_position(owner_tuning.counter_marker)
 	var look: Vector2 = senses.marker_position(owner_tuning.front_door_marker)
 	if clerk.is_finite() and not owner_tuning.serve_facing.is_zero_approx():
-		look = clerk + owner_tuning.serve_facing.normalized() * SERVE_LOOK_PX
+		look = clerk + _face_at(clerk, owner_tuning.serve_facing) * SERVE_LOOK_PX  # IS-106: derived, toward the counter
 	if not _interrupt(Agenda.Interrupt.CUSTOMER, owner_tuning.customer_sec, clerk, look, true):
 		return false
 	_serving = true
