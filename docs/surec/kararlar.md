@@ -17,6 +17,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 - Context emniyeti: dilim bitmeden context dolmaya yaklaşırsa açık işler WIP commit'lenir, devir yazılır, kullanıcıya durma önerilir.
 - Faz 2 kalanı 5 dilime bölündü (backlog §1a); dilime alınmayan ~28 kalem "Havuz (KR-033)" durumuna geçti — dilim planında yeniden seçilebilir.
 
+### KR-036 — "Arka odaya gönder" yerine doğal sipariş; öğrenme keşifle (2026-10-04, kullanıcı; GB-09)
+- GÖNDER eylemi bakkalın gerçekte yaptığı bir işe dayansın: **damacana su ya da benzeri ağır/büyük ürün istemek** (rafta durmaz, depodan gelir; sahip getirir, taşırken yavaş döner; ürün ödenir — satın almadan gitmek tuhaf kaçar).
+- İstemde ve HUD'da sahibin arkaya gideceği **yazılmaz** (ör. istem "Damacana iste", "Bakkal arka odaya gitti" olay metni kalkar ya da nötrleşir): oyuncu bunu keşifte gözlemle öğrenir (KR-004 hafızaya dayalı keşif ruhu).
+- Ek yol adayı (koordinatör önerisi, Fable değerlendirir): dışarıdan arka kapıyı çalmak / zile basmak → sahip tedarikçi sanıp bakar (IS-104 zil altyapısı; iki kişilik iç-dış oyunu, KR-035). Para bozdurma (arka odadaki paraya gider) sonraya.
+- Ayrıntı (ürün listesi, süreler, bedel/ödeme, +20 şüphe kalır mı, balon metinleri) Fable danışmasıyla → US-045, dilim 2.2 başı (test-2 paketinden önce).
+
 ### KR-035 — Tasarım hedefi: bilgi bölünsün, ekip konuşsun (2026-10-04, kullanıcı)
 - Kaynak: kullanıcının 2026-10-03 "market iki katlı olsun, oyuncular birbirini göremesin, konuşmak zorunda kalsın" geri bildirimi. O gün yalnız "tek kişi kolay geçmesin" amacıyla kaydedilmişti (iki kat bakkalda yok, T3-T4'te değerlendirilir); asıl niyet ayrı hedef olarak eksikti.
 - Hedef: soygun sırasında hiçbir oyuncu her şeyi görmesin; mekân ve roller ekibi farklı bilgi noktalarına dağıtsın (ayrı kat/oda, kör nokta, kamera odası/gözcü, dış gözcü), kritik bilgi ancak oyuncular birbirine söyleyince birleşsin. Mevcut dayanaklar: KR-004 hafızaya dayalı keşif, GDD §7.1 Tech "bilgi asimetrisi", çift anahtar anları.

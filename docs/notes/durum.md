@@ -12,7 +12,7 @@ Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kas
 Yok. Çalışan ajan yok; açık ajan worktree'si yok (yalnız `.claude/worktrees/faz2-int`).
 
 ## Yeni sohbette ilk adımlar
-1. Dilim 2.2 başı mesajı (surec §5b): kalemler + çıkış kriteri ("test-2 oynandı; GB'ler kaleme/KR'ye bağlı; blocker yok"). İlk kalem **IS-102** (cekirdek, XS): `level_started {run}` oturum olayı + `--log-on-exit=<yol>` (otomasyon sayılmayan, tohum/FPS normal; GB-04a tekrarı için) — test-2 paketinden önce; sonra yeni paket.
+1. Dilim 2.2 başı mesajı (surec §5b): kalemler + çıkış kriteri ("test-2 oynandı; GB'ler kaleme/KR'ye bağlı; blocker yok"). Paralel başla: **US-045** önce Fable danışması (KR-036 damacana siparişi, istemde arka oda yazmaz; GB-08 örtü yalnız görülünce mi bozulsun) → oynanis + arayuz; ve **IS-102** (cekirdek, XS): `level_started {run}` oturum olayı + `--log-on-exit=<yol>` (otomasyon sayılmayan, tohum/FPS normal; GB-04a tekrarı için) — test-2 paketinden önce; ikisi bitince yeni test-2 paketi (mevcut a01ac86 paketi eski GÖNDER'li).
 2. Kullanıcı test-2'yi oynarsa geri bildirimleri `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz; KR-034 ilke kararı (fark edildiği an = shouted; IS-105 kasa sesi → kasaya bak) ve denge hedeflerinin yeniden yazımı test-2 gözlemiyle (Fable).
 3. Test-2 gözlem formuna satır (Fable): oyuncular vuruş-kaç mı yapıyor, pencere mi bekliyor; geri sayım ve arka kapı zili okunuyor mu.
 4. Nit havuzundan dokunulan dosyalarınkiler (IS-095 near kalıbı uyarısı, IS-104 discovery_cash payı).
