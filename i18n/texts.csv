@@ -104,6 +104,8 @@ END_STATUS_CAUGHT_CHASER,Yakalandı (mahalleli),Caught (neighbour)
 END_STATUS_CAUGHT_OWNER,Yakalandı (dükkân sahibi),Caught (shopkeeper)
 END_STATUS_WITH_BAIL,%s · Kefalet: %s,%s · Bail: %s
 END_STATUS_WITNESS,"Tanık, serbest","Witness, released"
+END_STATUS_LEFT,Ayrıldı,Left the game
+END_LOOT_NONE,—,—
 END_CAUSE_POLICE,Polis geldiğinde kaçış noktasında değildin.,You weren't at the escape point when the police arrived.
 END_CAUSE_CHASER,Mahalleli seni yakaladı.,A neighbour caught you.
 END_CAUSE_OWNER,Dükkân sahibi seni tuttu; kimse çekip kurtarmadı.,The shopkeeper held you and nobody pulled you free.

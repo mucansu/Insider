@@ -146,6 +146,24 @@ func test_heist_finished_fills_fields() -> void:
 	eq(warnings, [] as Array[String], "bilinen anahtarlar uyarı vermez")
 
 
+func test_left_player_row_shows_left_only() -> void:
+	# IS-099: a player who disconnected mid-heist shows a single muted "left" status; no caught/bail, loot "—".
+	await _open(func() -> void: net.my_peer_id = 1)
+	var r: Dictionary = sample_result()
+	r["players"]["9"] = {"name": "Deniz", "slot": 3, "escaped": false, "caught": false, "loot": 0, "bail": 150,
+		"witness_released": false, "recognized": 0, "left": true}
+	game.heist_finished.emit(r)
+	var texts: Array[String] = _texts("PlayerGrid")
+	eq(texts.slice(9), ["Deniz", tr("END_STATUS_LEFT"), tr("END_LOOT_NONE")] as Array[String], "ayrılan satırı: ad, Ayrıldı, —")
+	for t: String in texts.slice(9):
+		is_false(t.contains(tr("END_STATUS_CAUGHT")), "ayrılan satırında yakalandı yok")
+		is_false(t.contains(tr("END_STATUS_WITH_BAIL").split("%s")[1].strip_edges()), "ayrılan satırında kefalet yok")
+	var grid: Node = screen.get_node("%PlayerGrid")
+	eq((grid.get_child(14) as Label).theme_type_variation, &"MutedLabel", "ayrıldı soluk tonda")
+	eq(screen.local_cause_text(), "", "yerel oyuncu yakalanmadı")
+	eq(warnings, [] as Array[String])
+
+
 func test_loss_outcomes_use_alert_title() -> void:
 	await _open()
 	for outcome: StringName in [&"police", &"caught_all"]:

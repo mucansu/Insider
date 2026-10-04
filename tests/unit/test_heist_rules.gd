@@ -198,11 +198,56 @@ func test_result_shape_and_shares() -> void:
 	var players: Dictionary = result["players"]
 	eq(players.size(), 3)
 	eq(players[str(A)], {"name": "Ayşe", "slot": 0, "escaped": true, "caught": false, "loot": 150, "bail": 0,
-		"witness_released": false, "recognized": 0})
+		"witness_released": false, "recognized": 0, "left": false})
 	eq(players[str(B)]["loot"], 450)
 	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": true, "loot": 0, "bail": 0,
-		"witness_released": false, "recognized": 0})
+		"witness_released": false, "recognized": 0, "left": false})
 	eq(t.cash_grabbed(), 150)
+
+
+## IS-099: a player who left mid-job (C emptied the register, was caught, then left) is listed with `left: true` and zero share/bail;
+## every other result field equals the same job without the record (economy unchanged).
+func test_left_player_listed_without_changing_economy() -> void:
+	var trackers: Array[HeistRules.Tracker] = [HeistRules.Tracker.new(), HeistRules.Tracker.new()]
+	var views: Dictionary = {A: _view(true), B: _view(true, 450)}
+	var roster: Dictionary = _roster()
+	var cem: Dictionary = roster[C]
+	roster.erase(C)
+	for t: HeistRules.Tracker in trackers:
+		t.add_cash(C, 150)
+		t.mark_caught(C)
+		t.observe(views, 3.0)
+	trackers[1].note_left(C, cem)
+	var base: Dictionary = trackers[0].build_result(&"win", views, roster, 100, 1000)
+	var with_left: Dictionary = trackers[1].build_result(&"win", views, roster, 100, 1000)
+	var players: Dictionary = with_left["players"]
+	eq(players.size(), 3, "ayrılan da listede")
+	eq(players[str(C)], {"name": "Cem", "slot": 2, "escaped": false, "caught": false, "loot": 0, "bail": 0,
+		"witness_released": false, "recognized": 0, "left": true})
+	eq(players[str(C)], HeistRules.left_entry(cem))
+	is_false(bool(players[str(A)]["left"]), "kalanlarda left: false")
+	is_false(bool(players[str(B)]["left"]))
+	eq((base["players"] as Dictionary).size(), 2, "ayrılma kaydı yoksa eski davranış")
+	for key: String in base:
+		if key != "players":
+			eq(with_left[key], base[key], "ekonomi/sonuç değişmez: " + key)
+	for key: String in base["players"]:
+		eq(players[key], base["players"][key], "kalanların kaydı aynı: " + key)
+	eq(with_left["loot_total"], 600, "ayrılanın boşalttığı kasa ekipte kalır (IS-094)")
+	eq(with_left["bail"], 0, "ayrılan kefalet ödemez")
+
+
+func test_note_left_after_finish_or_for_roster_player_is_ignored() -> void:
+	var t := HeistRules.Tracker.new()
+	t.note_left(0, {"name": "x", "slot": 0})
+	t.note_left(C, {"name": "Cem", "slot": 2})
+	eq(t.departed.size(), 1, "geçersiz peer yok sayılır")
+	var r: Dictionary = t.build_result(&"win", {A: _view(true)}, _roster())
+	is_false(bool((r["players"] as Dictionary)[str(C)]["left"]), "yeniden kadrodaki oyuncunun kaydı kadrodan gelir")
+	t.finished = true
+	t.note_left(B, {"name": "Bora", "slot": 1})
+	is_false(t.departed.has(B), "iş bittikten sonra ayrılan kaydedilmez")
+	eq(HeistRules.left_entry({})["name"], "", "eksik alan: boş ad")
 
 
 func test_shout_event_cancels_clean_bonus() -> void:

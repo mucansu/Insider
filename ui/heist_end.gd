@@ -191,7 +191,8 @@ func _payout_row(caption: String, value: String, value_style: StringName) -> voi
 
 # --- players ---
 
-## Players in the result, in slot order: [{peer, name, slot, escaped, caught, loot, bail}].
+## Players in the result, in slot order: [{peer, name, slot, escaped, caught, loot, bail, witness, left}].
+## IS-099: `left` = the player disconnected mid-heist; the row shows only "left" (no caught/escaped/bail, loot "—").
 func player_entries() -> Array[Dictionary]:
 	var players: Dictionary = _result.get("players", {})
 	var out: Array[Dictionary] = []
@@ -206,6 +207,7 @@ func player_entries() -> Array[Dictionary]:
 			"loot": int(info.get("loot", 0)),
 			"bail": int(info.get("bail", 0)),
 			"witness": bool(info.get("witness_released", false)),
+			"left": bool(info.get("left", false)),
 		})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		return a["slot"] < b["slot"] if a["slot"] != b["slot"] else a["peer"] < b["peer"])
@@ -221,6 +223,13 @@ func _fill_players() -> void:
 		label.custom_minimum_size.x = NAME_WIDTH
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		_player_grid.add_child(label)
+		if bool(p["left"]):
+			_player_grid.add_child(_label(tr(&"END_STATUS_LEFT"), &"MutedLabel"))
+			var none: Label = _label(tr(&"END_LOOT_NONE"), &"MutedLabel")
+			none.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+			none.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			_player_grid.add_child(none)
+			continue
 		var status_key: StringName = &"END_STATUS_INSIDE"
 		var status_style: StringName = &"MutedLabel"
 		if bool(p["caught"]):
