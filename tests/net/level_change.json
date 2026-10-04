@@ -1,9 +1,9 @@
 {
-  "_doc": "US-001 (S3 start_level): oturum içinde host seviyeyi değiştirir; istemciler hareket ederken eski oyuncular kaldırılır, yeni seviye herkese yüklenir ve oyuncular yeni seviyenin doğma noktalarında yeniden üretilir; log hatası olmamalı. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-001 (S3 start_level): oturum içinde host seviyeyi değiştirir; istemciler hareket ederken eski oyuncular kaldırılır, yeni seviye herkese yüklenir ve oyuncular yeni seviyenin doğma noktalarında yeniden üretilir; log hatası olmamalı. duration 10 (IS-095): botların saati oyuncu doğunca başlar (150 ms'de istemci ~+2,8 sn) ve seviye arasında durur; wander t=5,2'de durur, döküm ondan >= ~2 sn sonra alınır ki konum `near` karşılaştırmaları hareket halinde örneklenmesin (7 sn'de istemciler döküm anında hâlâ yürüyordu). Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/empty_level.tscn",
   "player_scene": "res://tests/fixtures/dummy_player.tscn",
   "clients": 2,
-  "duration": 7,
+  "duration": 10,
   "bots": {
     "host": "res://tests/net/bots/change_level_host.json",
     "c1": "res://tests/net/bots/wander.json",
