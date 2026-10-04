@@ -10,6 +10,10 @@ extends Node2D
 ##   `player_caught {peer, by}` (by: &"owner" | &"chaser"), `player_rescued {peer, by}`.
 ## - PULL is validated on the host: the rescuer cannot be the held player and must be free (held/caught are rejected).
 ## - The window counter runs on the host; a client counts `hold_left()` locally from the moment it sees HELD (display only).
+## - IS-081 AC3: once the job result is out (`Game.heist_result()` not empty) the status is final on the host: no new hold or catch and
+##   an open hold window does not turn into CAUGHT. NPCs keep running on the end screen; without this a player the police already
+##   caught (no event) could get a late `player_caught {by: chaser|owner}` that heist_end would take as the catcher. `player_caught` is
+##   raised at most once per player node (CAUGHT is terminal); several in one session come from separate runs ("Bir daha").
 
 ## On every peer: state changed.
 signal changed(state: int)
@@ -63,7 +67,7 @@ func step(delta: float) -> void:
 	if state != State.HELD:
 		return
 	_hold_left = maxf(_hold_left - maxf(delta, 0.0), 0.0)
-	if _hold_left <= 0.0 and _is_host():
+	if _hold_left <= 0.0 and _is_host() and not _heist_over():
 		_caught_by = HOLD_CATCHER
 		_become(State.CAUGHT)
 
@@ -97,7 +101,7 @@ func times_held() -> int:
 
 ## Host only: holds a free player for `window` s. False if not accepted.
 func host_hold(window: float) -> bool:
-	if not _is_host() or state != State.FREE:
+	if not _is_host() or state != State.FREE or _heist_over():
 		return false
 	_times_held += 1
 	hold_window = maxf(window, 0.0)
@@ -107,7 +111,7 @@ func host_hold(window: float) -> bool:
 
 ## Host only: permanent catch; `by` is the catcher (S3 addendum: &"chaser" neighbour, &"owner" hold window expired).
 func host_catch(by: StringName = &"") -> bool:
-	if not _is_host() or state == State.CAUGHT:
+	if not _is_host() or state == State.CAUGHT or _heist_over():
 		return false
 	_caught_by = by
 	_become(State.CAUGHT)
@@ -173,6 +177,11 @@ func _peer() -> int:
 
 func _is_host() -> bool:
 	return _host_side()
+
+
+## The job result is out (IS-081 AC3): the status no longer changes toward held/caught.
+static func _heist_over() -> bool:
+	return not Game.heist_result().is_empty()
 
 
 func _make_sync() -> MultiplayerSynchronizer:
