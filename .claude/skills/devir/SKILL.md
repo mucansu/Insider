@@ -8,6 +8,7 @@ description: Coordinator handoff recipe for Insiders - closes a work wave so the
 Goal: a new chat continues from files alone - `CLAUDE.md` -> `docs/project-index.md` -> `docs/notes/durum.md`. Nothing important may live only in this conversation.
 
 ## 1. Reach a clean point
+- KR-033: every **slice (dilim) end** is a mandatory handoff — merge the integration branch into dev, tag `dilim-N.M`, then this recipe; the closing message follows surec.md §7 (slice format). If context runs low mid-slice: stop agents, `WIP <id>` commit on their branches, record them in durum.md.
 - Prefer handing off when **no agent is running**: a new chat cannot resume an agent's context. If one must keep running, record its worktree path, branch, item id and the exact package text location (backlog row) so the next chat can re-launch it.
 - Every finished worktree: commit (`kalem-kapat`), merge into `faz2-int`, `import unit tools` + touched net scenarios, push.
 - Run or schedule the daily full `tools/ci_local.sh` if it has not run since the last merges; record the result.

@@ -53,7 +53,15 @@ Not: repoya dosya eklemeyen araştırma/ölçüm kalemleri (ör. IS-004) ve tasa
 - Faz, çıkış kriterlerinin hepsi sağlanınca ya da kalan maddeler kullanıcı onayıyla sonraki faza devredilince kapanır.
 - Yayın zinciri: `git checkout main && git merge --ff-only dev && git tag faz-N && git push origin main --tags && git checkout dev`. main her zaman oynanabilir son faz sürümüdür.
 - Kapanıştan önce tasarım değerlendirmesi (§5a).
+- Faz içi durma noktaları dilim sonlarıdır (§5b).
 - Kapanış: gecmis.md'ye satır (biten kalemler, ölçütler, retro 1-3 satır), durum.md baştan yazılır, kullanıcıya kapanış + sonraki faz planı mesajı (§7). **Kullanıcı "devam" demeden sonraki faz başlamaz** (durma noktası).
+
+## 5b. Dilim (KR-033) — context boyutlu iş birimi
+- Faz dilimlere bölünür (N.1, N.2 …): tek hedef, 5-8 kalem, tek kısa çıkış kriteri; bir sohbet context'ine sığar. Dilim listesi backlog §1a'da; dilime alınmayan kalem "Havuz (KR-033)".
+- **Dilim başı:** koordinatör dilimin kalemlerini ve çıkış kriterini kullanıcıya bir mesajda bildirir (kapsam soruları varsa burada, toplu).
+- **Dilim sonu (durma noktası):** dilim kalemleri Bitti/devredildi + entegrasyon dalında `ci_local.sh import unit tools` + dilimin ağ senaryoları yeşil → `git checkout dev && git merge --no-ff <faz-int> && git tag dilim-N.M && git push origin dev --tags` → `devir` skill'i (durum.md, pano) → dilim kapanış mesajı (§7) → **kullanıcı yeni sohbette "devam" demeden sonraki dilim başlamaz.**
+- Faz sonu = son dilimin sonu + §5 (Fable değerlendirmesi, main ff, `faz-N`).
+- Context emniyeti: dilim bitmeden context dolmaya yaklaşırsa çalışan ajanlar durdurulur, yarım işler kendi dalına `WIP <kimlik>` commit'lenir, devir yazılır, kullanıcıya durma önerilir.
 
 ## 5a. Tasarım değerlendirmesi (KR-016)
 tasarim ajanı (Fable) oyunun gidişatını belirli noktalarda değerlendirir; sonuç bağlayıcı değildir, kullanıcıya öneri olarak gider.
@@ -68,6 +76,17 @@ tasarim ajanı (Fable) oyunun gidişatını belirli noktalarda değerlendirir; s
 - `project.godot`'u değiştiren iki paket aynı anda çalışmaz.
 
 ## 7. Faz plan / kapanış mesajı
+Dilim kapanışı (KR-033, kısa):
+```
+Dilim N.M — <hedef>: kapanış (dilim-N.M, dev <hash>)
+Biten: … · Devreden: … (hangi dilime)
+Çıkış kriteri: <sağlandı mı, kanıt 1 satır>
+Oynanabilir: <varsa yeni paket / ne denenir>
+Sıradaki dilim N.M+1: <hedef> · kalemler: …
+Sizden gereken: …
+Yeni sohbet açıp "devam" yaz.
+```
+Faz kapanışı:
 ```
 Faz N — <ad>: kapanış + Faz N+1 planı
 Biten: US-… · IS-… (denetci PASS) · Devreden: … (gerekçe)

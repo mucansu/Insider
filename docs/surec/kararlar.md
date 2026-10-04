@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-033 — Dilim: context boyutlu iş birimi, her dilim sonu durma noktası (2026-10-04, kullanıcı; proje kuralı)
+- Faz = kilometre taşı (çıkış kriterleri, `faz-N` etiketi, main ff) aynen kalır; fazlar **dilimlere** (N.1, N.2 …) bölünür: tek hedef, 5-8 kalem, tek kısa çıkış kriteri — bir sohbet context'ine sığacak büyüklük.
+- **Her dilim sonu durma noktasıdır:** kalemler birleşik + CI yeşil → entegrasyon dalı dev'e birleşir + `dilim-N.M` etiketi → devir (durum.md, pano) → kullanıcıya dilim kapanış mesajı (surec.md §7) → kullanıcı yeni sohbet açıp "devam" demeden sonraki dilim başlamaz. Faz sonu = son dilimin sonu (+ Fable değerlendirmesi, main + `faz-N`).
+- Context emniyeti: dilim bitmeden context dolmaya yaklaşırsa açık işler WIP commit'lenir, devir yazılır, kullanıcıya durma önerilir.
+- Faz 2 kalanı 5 dilime bölündü (backlog §1a); dilime alınmayan ~28 kalem "Havuz (KR-033)" durumuna geçti — dilim planında yeniden seçilebilir.
+
 ### KR-032 — Bakkal denge ayarı (2026-10-04, IS-015 ölçümü → Fable → koordinatör)
 - Ölçüm (290 koşu, adil bot, oturum tohumu, alçak tezgâh; faz2-int 5c5da85, build/stats/20261004-011946): tek kişi send/distract %100 temiz (sahip dönmeden 0,7-0,8 sn önce kaçış), window %74, buy %80, rush %0; team 2 %100 temiz, team 3 %100 shouted (bot sırası: çanta hiç alınmadı, kasa erken boşaltıldı → servis keşfi).
 - Teşhis: kazanma düğmesi araçların sayıları değil, sahip döndüğünde boş kasanın bedelsiz kalması.
