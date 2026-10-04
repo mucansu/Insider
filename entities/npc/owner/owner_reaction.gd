@@ -143,6 +143,8 @@ func _hold_step() -> Vector2:
 	var player: Node2D = _b.senses.player(held_peer)
 	if player == null or not bool(player.call(&"is_held")):
 		_release()
+		_b.event_log.note("tutma bitti p%d (%s)" % [held_peer, "yakalandı" if player != null and bool(player.call(&"is_caught"))
+			else "serbest/yok"])  # IS-081
 		_b.suspicion.forget(held_peer)
 		held_peer = 0
 		_b.fsm.go(OwnerBrain.State.CHASE)

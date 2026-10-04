@@ -17,7 +17,8 @@ extends CharacterBody2D
 ## before shouting); event channel extended (`owner_serve`, `owner_talk`, `owner_sent`, `owner_listen`, `owner_again`, `owner_phone_found`,
 ## `owner_loiter`; balloons in NpcVisual). Dump additions: on every peer `talk_peer`, `facing`, `shouted`, `talk_gaze`; on the host `loiter_s`
 ## (peer -> s), `player_serves`, `sent_windows`, `distractions`, `phones_found`; IS-100: `send_costs` ([{peer, amount}], SEND return cost)
-## and `discoveries[].trigger` (return / serve / backroom / idle / direct).
+## and `discoveries[].trigger` (return / serve / backroom / idle / direct). IS-081: `log` (OwnerLog ring buffer, last 200: t, state, task,
+## facing, target, why, top_peer, top_value, ref -> discoveries/send_costs/sent_windows/detections index) and `log_dropped`.
 ## US-037 (KR-027): `Contact` component (NpcContact; created in `_ready` when active). The owner is an observer of shoves (range + line of
 ## sight -> `report_suspicion`); a calm shove adds suspicion and turns it to LOOK (`OwnerBrain.on_pushed`); while it staggers the brain is
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
@@ -491,6 +492,8 @@ func dump_state() -> Dictionary:
 		out["soothed"] = _brain.soothed.duplicate(true)
 		out["misdirects"] = misdirects.duplicate(true)
 		out["window_questions"] = _brain.window_questions.duplicate()
+		out["log"] = _brain.event_log.rows()  # IS-081: event log (OwnerLog; refers to the records above by index)
+		out["log_dropped"] = _brain.event_log.dropped
 	return out
 
 

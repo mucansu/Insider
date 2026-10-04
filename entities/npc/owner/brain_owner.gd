@@ -96,6 +96,15 @@ const TRIGGER_RETURN := &"return"
 const TRIGGER_SERVE := &"serve"
 const TRIGGER_BACKROOM := &"backroom"
 const TRIGGER_IDLE := &"idle"
+## Event log (IS-081): discovery reason per trigger and the throttle of repeated sound/bell notes (s).
+const DISCOVER_LINES := {
+	&"return": "kasa boş, dönüş kontrolü",
+	&"serve": "kasa boş, servis",
+	&"backroom": "çanta eksik, arka oda kontrolü",
+	&"idle": "kasa boş, boş tezgâh",
+	&"direct": "keşif",
+}
+const LOG_REPEAT_SEC := 2.0
 
 var owner_tuning: OwnerTuning
 var civilian_tuning: CivilianTuning
@@ -133,6 +142,8 @@ var soothed: Array[Dictionary] = []
 var window_questions: Array[int] = []
 ## SEND return costs applied (IS-100 AC3; dump/test): [{"peer", "amount"}].
 var send_costs: Array[Dictionary] = []
+## Event log (IS-081; dump `log`, host only): state/task changes and important events with a short reason.
+var event_log := OwnerLog.new()
 
 ## Components (setup connects; read).
 var body: CharacterBody2D = null
@@ -232,8 +243,14 @@ func held_peer() -> int:
 	return _reaction.held_peer if _reaction != null else 0
 
 
-## One step (host): senses -> suspicion -> layer selection -> desired velocity (global px/s).
+## One step (host): senses -> suspicion -> layer selection -> desired velocity (global px/s); then the event log entry (IS-081).
 func step(delta: float) -> Vector2:
+	var velocity: Vector2 = _step_layers(delta)
+	_log_tick()
+	return velocity
+
+
+func _step_layers(delta: float) -> Vector2:
 	senses.step(delta)
 	suspicion.tick(delta)
 	mover.close_enabled = not is_alarmed()  # IS-087 AC2: closes the inner door behind it only when calm
@@ -272,6 +289,8 @@ func serve_customer(customer_id: int = 0) -> bool:
 	_serve_id = customer_id
 	_serve_opened = false
 	_serve_results[customer_id] = Serve.PENDING
+	if customer_id > 0:
+		event_log.note("müşteri #%d sırada -> servis" % customer_id)
 	return true
 
 
@@ -299,6 +318,7 @@ func send_to_backroom(peer_id: int = 0) -> bool:
 	if ok:
 		_sent_at = fsm.clock
 		_sent_by = peer_id
+		event_log.note("GÖNDER: arka odaya gidiyor (isteyen p%d)" % peer_id)
 		if peer_id != 0:
 			event(&"owner_sent", peer_id)
 			social_action.emit(peer_id, &"send")
@@ -342,7 +362,10 @@ func _settle_for_interrupt() -> void:
 
 ## Door bell: stops, looks at the door.
 func ring_bell(door_pos: Vector2) -> bool:
-	return _interrupt(Agenda.Interrupt.BELL, owner_tuning.bell_sec, Vector2.INF, door_pos, false)
+	var ok: bool = _interrupt(Agenda.Interrupt.BELL, owner_tuning.bell_sec, Vector2.INF, door_pos, false)
+	event_log.note_throttled("bell:%s" % ok, "zil -> kapıya bakış" if ok else "zil, tepki yok (%s/%s)" % [state_name(),
+		agenda.task_name()], fsm.clock, LOG_REPEAT_SEC)
+	return ok
 
 
 ## Sound heard (Hearing `heard`, S8/S11): walks toward it (stops 64 px short) and looks. Excludes its own sounds
@@ -364,7 +387,11 @@ func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 		spot = pos + (here - pos).normalized() * owner_tuning.question_stop
 	var was_listening: bool = agenda.current_interrupt() == Agenda.Interrupt.LISTEN
 	if not _interrupt(Agenda.Interrupt.LISTEN, owner_tuning.listen_sec, spot, pos, false):
+		event_log.note_throttled("hear-no:%s" % kind, "ses '%s' duyuldu, tepki yok (%s/%s)" % [kind, state_name(),
+			agenda.task_name()], fsm.clock, LOG_REPEAT_SEC)
 		return false
+	event_log.note_throttled("hear:%s" % kind, "ses '%s' -> DİNLE%s" % [kind, " (dikkat dağıtma)" if distraction else ""],
+		fsm.clock, 0.0 if not was_listening else LOG_REPEAT_SEC)
 	_distraction_listen = distraction
 	_listen_phone = source if kind == StoreToolsTuning.KIND_CELLPHONE else null
 	if not was_listening:
@@ -413,6 +440,8 @@ func discover(source: int, trigger: StringName = &"direct") -> bool:
 	var full: bool = not is_alarmed() and fsm.state != State.DISCOVER \
 		and Game.alert_level() < maxi(civilian_tuning.alarm_level, 1)
 	discoveries.append({"source": SOURCE_NAMES[source], "t": snappedf(fsm.clock, 0.01), "full": full, "trigger": trigger})
+	event_log.note("%s (%s)%s" % [str(DISCOVER_LINES.get(trigger, "keşif")), SOURCE_NAMES[source],
+		"" if full else ", zaten alarmda: yalnız balon"], "discoveries[%d]" % (discoveries.size() - 1))
 	discovered.emit(source)
 	event(DISCOVER_EVENTS[source], 0)
 	if not full:
@@ -444,6 +473,7 @@ func _agenda_triggers(delta: float) -> bool:
 			and agenda.has_arrived() and agenda.interrupt_elapsed() >= owner_tuning.register_open_sec:
 		_serve_opened = true
 		register_opens += 1
+		event_log.note("servis: kasa açıldı")
 		register_opened.emit(_serve_id)
 		if senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER, TRIGGER_SERVE):
 			return fsm.state != State.AGENDA
@@ -455,7 +485,10 @@ func _agenda_triggers(delta: float) -> bool:
 		_backroom_checked = false
 	elif not _backroom_checked and agenda.has_arrived() and agenda.arrived_for() >= owner_tuning.backroom_check_sec:
 		_backroom_checked = true
-		if senses.prop_taken_near(owner_tuning.cash_marker) and discover(Source.CASH, TRIGGER_BACKROOM):
+		var cash_taken: bool = senses.prop_taken_near(owner_tuning.cash_marker)
+		if not cash_taken:
+			event_log.note("arka oda kontrolü: çanta yerinde")
+		if cash_taken and discover(Source.CASH, TRIGGER_BACKROOM):
 			return fsm.state != State.AGENDA
 	var at_counter: bool = interrupt == Agenda.Interrupt.NONE and task != null and task.home and agenda.has_arrived()
 	if owner_tuning.idle_discover_sec > 0.0 and at_counter and senses.customers_inside() == 0 \
@@ -476,7 +509,10 @@ func _return_check(delta: float) -> bool:
 		return false
 	_away_from_counter = false
 	_back_at_counter = 0.0
-	return senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER, TRIGGER_RETURN)
+	var taken: bool = senses.prop_taken_near(owner_tuning.register_marker)
+	if not taken:
+		event_log.note("dönüş kontrolü: kasa dolu")
+	return taken and discover(Source.REGISTER, TRIGGER_RETURN)
 
 
 ## Every step (any state): leaving ClerkSpot arms the return check; stepping off the spot restarts the "back at the counter" time.
@@ -653,6 +689,7 @@ func _sent_window_step() -> void:
 	var task: AgendaTask = agenda.current_task()
 	if task != null and task.home and agenda.has_arrived():
 		sent_windows.append(snappedf(fsm.clock - _sent_at, 0.01))
+		event_log.note("GÖNDER dönüşü: tezgâhta", "sent_windows[%d]" % (sent_windows.size() - 1))
 		_sent_at = -1.0
 		_send_return_cost()
 
@@ -671,6 +708,7 @@ func _send_return_cost() -> void:
 		return
 	suspicion.apply_delta(peer_id, amount)
 	send_costs.append({"peer": peer_id, "amount": amount})
+	event_log.note("GÖNDER dönüş bedeli p%d" % peer_id, "send_costs[%d]" % (send_costs.size() - 1))
 
 
 ## Reached the phone's LISTEN point: finds the phone.
@@ -731,6 +769,7 @@ func back_to_agenda(check_backroom: bool = false) -> void:
 	agenda.restart_home()
 	if check_backroom:
 		agenda.begin_task(owner_tuning.backroom_task)
+		event_log.note("sakinleşti -> ilk görev arka oda")
 	restore_cone()
 
 
@@ -783,6 +822,7 @@ func top_peer() -> int:
 
 ## Result event (AC10): the root broadcasts to everyone via reliable RPC.
 func event(kind: StringName, peer: int) -> void:
+	event_log.note_event(kind, peer)
 	if body.has_method(&"host_event"):
 		body.call(&"host_event", kind, peer)
 
@@ -821,7 +861,22 @@ func _record_peaks() -> void:
 func _on_threshold(peer_id: int, level: int) -> void:
 	if level == Suspicion.Level.NOTICE:
 		_notice_at[peer_id] = fsm.clock
+		event_log.note("şüphe eşiği ? p%d" % peer_id)
 	elif level == Suspicion.Level.DETECT and detections.size() < MAX_DETECTIONS:
 		var obs: Perception.Observation = suspicion.last_observations().get(peer_id) as Perception.Observation
 		detections.append(senses.detection_record(peer_id, obs, perception.global_position,
 			float(_notice_at.get(peer_id, -1.0)), fsm.clock))
+		event_log.note("tespit p%d" % peer_id, "detections[%d]" % (detections.size() - 1))
+
+
+## Event log entry at the end of a step (IS-081): state, task/interrupt, facing, target (held player in HOLD), highest suspicion.
+func _log_tick() -> void:
+	var top: int = 0
+	var top_value: float = 0.0
+	for peer_id: int in suspicion.peers():
+		var value: float = suspicion.value_of(peer_id)
+		if value > top_value:
+			top_value = value
+			top = peer_id
+	var who: int = target if target != 0 else held_peer()
+	event_log.tick(fsm.clock, state_name(), agenda.task_name(), perception.facing, who, top, top_value)
