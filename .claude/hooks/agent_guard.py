@@ -1,23 +1,23 @@
 #!/usr/bin/env python3
-"""Alt ajan PreToolUse koruması (IS-053): ajan kırmızı çizgilerini deterministik kapıya çevirir.
+"""Sub-agent PreToolUse guard (IS-053): turns the agents' red lines into a deterministic gate.
 
-Ajan frontmatter'ındaki `hooks.PreToolUse` bu betiği çağırır; Claude Code araç çağrısını stdin'e JSON
-olarak yazar (`tool_name`, `tool_input`, `cwd`, `scratchpad_dir`, `agent_type` ...). Engellenecekse Türkçe
-neden stderr'e yazılır ve çıkış kodu 2 olur (Claude Code çağrıyı durdurur, nedeni ajana iletir).
-Beklenmeyen girdi ya da iç hata: uyarı + çıkış 0 (koruma asla bütün ajanı kilitlemez).
+An agent's frontmatter `hooks.PreToolUse` calls this script; Claude Code writes the tool call to stdin as JSON
+(`tool_name`, `tool_input`, `cwd`, `scratchpad_dir`, `agent_type` ...). To block, a Turkish reason is written to stderr
+and the exit code is 2 (Claude Code stops the call and relays the reason to the agent).
+Unexpected input or an internal error: warning + exit 0 (the guard never locks up a whole agent).
 
-Kullanım:
-  agent_guard.py bash                       Bash/PowerShell: commit/push/merge/rebase/tag/dal değiştirme,
-                                            branch silme, worktree silme, depo kökü/.git'e `rm -r` engelli.
-  agent_guard.py edit [--allow KÖK ...]     Edit/Write/NotebookEdit: pano dosyaları ve .claude/{agents,hooks,
-                                            settings*.json} engelli; --allow verilirse depo içinde yalnız o
-                                            kökler (ör. docs/arastirma/) yazılabilir.
-  agent_guard.py readonly                   Denetçi: Edit/Write hepsi engelli; Bash'te `bash` kuralları +
-                                            depo içine yönlendirme/sed -i/cp/mv/rm/git yazma komutları engelli.
-                                            Geçici dizinler (/tmp, Temp, scratchpad) serbest.
+Usage:
+  agent_guard.py bash                       Bash/PowerShell: commit/push/merge/rebase/tag/branch switch,
+                                            branch delete, worktree delete, `rm -r` on the repo root/.git are blocked.
+  agent_guard.py edit [--allow ROOT ...]    Edit/Write/NotebookEdit: board files and .claude/{agents,hooks,
+                                            settings*.json} are blocked; with --allow only those roots inside the
+                                            repo (e.g. docs/arastirma/) are writable.
+  agent_guard.py readonly                   Auditor: all Edit/Write blocked; in Bash the `bash` rules + redirects into the
+                                            repo/sed -i/cp/mv/rm/git write commands are blocked.
+                                            Temp dirs (/tmp, Temp, scratchpad) are free.
 
-Yol kararları stdin'deki `cwd` ve araç yolundan verilir (worktree'de cwd worktree köküdür);
-CLAUDE_PROJECT_DIR yalnız ana depo kökünü bilmek için kullanılır. Yalnız standart kütüphane; Python 3.10+.
+Path decisions come from the `cwd` on stdin and the tool path (in a worktree cwd is the worktree root);
+CLAUDE_PROJECT_DIR is used only to know the main repo root. Standard library only; Python 3.10+.
 """
 
 from __future__ import annotations
@@ -53,20 +53,20 @@ WORKTREE_RE = re.compile(r"^(.*?/\.claude/worktrees/[^/]+)(/|$)")
 EDIT_TOOLS = {"edit", "write", "notebookedit", "multiedit"}
 SHELL_TOOLS = {"bash", "powershell"}
 
-# Komut başındaki sarmalayıcılar (komutun kendisi sonraki sözcüktür).
+# Wrappers at the start of a command (the command itself is the next word).
 WRAPPERS = {"sudo", "command", "env", "time", "nohup", "exec", "builtin", "nice", "stdbuf"}
 SHELLS = {"bash", "sh", "zsh", "dash"}
 SEPARATOR_CHARS = set(";&|()`\n")
 GIT_OPTS_WITH_VALUE = {"-c", "-C", "--git-dir", "--work-tree", "--namespace", "--super-prefix", "--config-env"}
 
-# readonly: yan etkisiz git alt komutları (geri kalanı engelli; branch/tag/stash/worktree/config/remote ayrıca).
+# readonly: side-effect-free git subcommands (the rest blocked; branch/tag/stash/worktree/config/remote handled separately).
 GIT_READONLY = {
     "status", "diff", "log", "show", "rev-parse", "ls-files", "ls-tree", "blame", "merge-base", "cat-file",
     "describe", "shortlog", "grep", "rev-list", "for-each-ref", "name-rev", "show-ref", "diff-tree",
     "diff-files", "diff-index", "count-objects", "version", "help", "check-ignore", "check-attr", "var",
     "whatchanged", "range-diff", "cherry", "show-branch", "--version", "--help",
 }
-# readonly: depo içine yazan dosya komutları ve hedef seçimi ("all" = bütün konumsal argümanlar, "last" = hedef).
+# readonly: file commands that write into the repo and target choice ("all" = all positional arguments, "last" = the target).
 WRITE_CMDS = {
     "cp": "last", "mv": "last", "install": "last", "ln": "last", "rsync": "last",
     "copy-item": "last", "move-item": "last", "cpi": "last", "mi": "last", "copy": "last", "move": "last",
@@ -83,14 +83,14 @@ POPD_CMDS = {"popd", "pop-location"}
 
 
 class Ctx:
-    """Bir hook çağrısının bağlamı: araç, cwd, depo kökleri, geçici dizinler."""
+    """Context of a hook call: tool, cwd, repo roots, temp dirs."""
 
     def __init__(self, data: dict, project_dir: str | None = None, temp_dirs: list[str] | None = None) -> None:
         self.tool = str(data.get("tool_name") or "")
-        # cwd_fs büyük/küçük harfi korur (dosya sistemi sorguları için); karşılaştırmalar küçük harfli `cwd` ile.
+        # cwd_fs keeps case (for file system queries); comparisons use the lower-case `cwd`.
         self.cwd_fs = norm(str(data.get("cwd") or os.getcwd()), "/", lower=False)
-        self.cwd_known = True  # zincirde değişkenli/çözülemeyen `cd` sonrası False
-        self.warnings: list[str] = []  # izin verilen ama denetlenemeyen durumlar (stderr'e yazılır)
+        self.cwd_known = True  # False after a `cd` with a variable/unresolvable target in the chain
+        self.warnings: list[str] = []  # allowed but unverifiable cases (written to stderr)
         self.powershell = self.tool.lower() == "powershell"
         roots: list[str] = []
         pd = project_dir if project_dir is not None else os.environ.get("CLAUDE_PROJECT_DIR", "")
@@ -119,7 +119,7 @@ class Ctx:
         return norm(path, self.cwd)
 
     def chdir(self, raw: str | None) -> None:
-        """Zincirdeki `cd` etkisi: hedef çözülebilirse cwd güncellenir, değilse cwd bilinmez olur."""
+        """Effect of a `cd` in a chain: if the target can be resolved cwd is updated, otherwise cwd becomes unknown."""
         if raw is None:
             raw = "~"
         if not raw or raw == "-" or raw.startswith(("$", "%")) or "`" in raw or "$(" in raw:
@@ -132,7 +132,7 @@ class Ctx:
         return any(under(abs_path, t) for t in self.temps)
 
     def repo_rel(self, abs_path: str) -> str | None:
-        """Depo içindeyse köke göre göreli yol (worktree öneki atılmış); değilse None."""
+        """Path relative to the root if inside the repo (worktree prefix removed); None otherwise."""
         for r in self.roots:
             if under(abs_path, r):
                 rel = abs_path[len(r):].lstrip("/") if r != "/" else abs_path.lstrip("/")
@@ -140,14 +140,14 @@ class Ctx:
         return None
 
     def in_repo(self, raw: str) -> bool:
-        """Yazma hedefi depo içinde mi (geçici dizinler ve bilinmeyen değişkenler hariç)."""
+        """Whether the write target is inside the repo (temp dirs and unknown variables excluded)."""
         if not raw or raw in {"-", "/dev/null"}:
             return False
         low = raw.lower()
         if low.startswith(("$claude_project_dir", "${claude_project_dir}", "$env:claude_project_dir")):
             return True
         if raw.startswith("$") or raw.startswith("%"):
-            return False  # değeri bilinmeyen değişken (ör. mktemp çıktısı): engelleme
+            return False  # variable with an unknown value (e.g. mktemp output): do not block
         if not self.cwd_known and not is_abs(raw):
             self.warnings.append(
                 f"agent_guard uyarı: zincirdeki `cd` hedefi çözülemedi; göreli yazma hedefi '{raw}' denetlenemedi "
@@ -160,7 +160,7 @@ class Ctx:
         return self.repo_rel(p) is not None
 
     def path_exists(self, raw: str) -> bool | None:
-        """Yol cwd'ye göre var mı; cwd bilinmiyorsa None."""
+        """Whether the path exists relative to cwd; None if cwd is unknown."""
         if not is_abs(raw) and not self.cwd_known:
             return None
         p = norm(raw, self.cwd_fs, lower=False)
@@ -179,7 +179,7 @@ def is_abs(raw: str) -> bool:
 
 
 def norm(path: str, cwd: str, lower: bool = True) -> str:
-    """Yolu karşılaştırılabilir biçime getirir: '/' ayırıcı, sürücü 'c:/', Git Bash '/c/' → 'c:/', küçük harf."""
+    """Normalises a path: '/' separator, drive 'c:/', Git Bash '/c/' -> 'c:/', lower case."""
     p = path.strip().strip('"').strip("'").replace("\\", "/")
     if p.startswith("~"):
         p = os.path.expanduser("~").replace("\\", "/") + p[1:]
@@ -209,7 +209,7 @@ def under(path: str, root: str) -> bool:
 
 
 def find_git_root(cwd: str) -> str | None:
-    """cwd'den yukarı `.git` (dizin ya da worktree dosyası) arar; yoksa None."""
+    """Searches upward from cwd for `.git` (a dir or worktree file); None if absent."""
     try:
         cur = cwd
         for _ in range(64):
@@ -226,11 +226,11 @@ def find_git_root(cwd: str) -> str | None:
     return None
 
 
-# --- Komut ayrıştırma ---------------------------------------------------------------------------------
+# --- Command parsing ---------------------------------------------------------------------------------
 
 
 def strip_heredocs(cmd: str) -> str:
-    """`<<EOF ... EOF` gövdelerini atar (gövdedeki metin komut sanılmasın)."""
+    """Drops `<<EOF ... EOF` bodies (text in the body must not be mistaken for a command)."""
     lines = cmd.split("\n")
     out: list[str] = []
     pending: list[str] = []
@@ -251,8 +251,8 @@ PLACEHOLDER_RE = re.compile(r"^AGQ(\d+)Q$")
 
 
 def protect_quoted_punct(cmd: str) -> tuple[str, list[str]]:
-    """Yalnız noktalama içeren tırnaklı argümanları (`">"`, `'>>'`, `"|"`) yer tutucuya çevirir; böylece
-    yönlendirme/ayırıcı sanılmaz. Yer tutucu sonra `segments` içinde düz sözcük olarak geri konur."""
+    """Turns quoted arguments containing only punctuation (`">"`, `'>>'`, `"|"`) into a placeholder so they are not
+    mistaken for a redirect/separator. The placeholder is later restored as a plain word in `segments`."""
     saved: list[str] = []
 
     def sub(m: re.Match[str]) -> str:
@@ -261,7 +261,7 @@ def protect_quoted_punct(cmd: str) -> tuple[str, list[str]]:
 
     out: list[str] = []
     pos = 0
-    # Soldan sağa: önce gelen tırnak türü kazanır (iç içe tırnaklar bozulmasın).
+    # Left to right: the quote kind that comes first wins (so nested quotes do not break).
     for m in QUOTED_RE.finditer(cmd):
         out.append(cmd[pos:m.start()])
         out.append(QUOTED_PUNCT_RE.sub(sub, m.group(0)) if QUOTED_PUNCT_RE.fullmatch(m.group(0)) else m.group(0))
@@ -276,10 +276,10 @@ def tokenize(cmd: str, powershell: bool) -> list[str]:
     lex.whitespace_split = True
     lex.commenters = "" if powershell else "#"
     if powershell:
-        lex.escape = ""  # PowerShell'de ters bölü yol ayırıcısıdır
+        lex.escape = ""  # in PowerShell backslash is a path separator
     try:
         return list(lex)
-    except ValueError:  # kapanmamış tırnak vb.: kaba bölme
+    except ValueError:  # unclosed quote etc.: rough split
         return re.findall(r"[;&|()`\n<>]+|[^\s;&|()`\n<>]+", cmd)
 
 
@@ -292,7 +292,7 @@ def is_separator(tok: str) -> bool:
 
 
 def segments(cmd: str, powershell: bool) -> list[tuple[list[str], list[str]]]:
-    """Komutu basit komutlara böler: [(sözcükler, yönlendirme hedefleri)]."""
+    """Splits a command into simple commands: [(words, redirect targets)]."""
     protected, saved = protect_quoted_punct(strip_heredocs(cmd))
     toks = tokenize(protected, powershell)
     segs: list[tuple[list[str], list[str]]] = []
@@ -303,15 +303,15 @@ def segments(cmd: str, powershell: bool) -> list[tuple[list[str], list[str]]]:
         t = toks[i]
         ph = PLACEHOLDER_RE.match(t)
         if ph and int(ph.group(1)) < len(saved):
-            words.append(saved[int(ph.group(1))])  # tırnaklı noktalama: düz argüman
+            words.append(saved[int(ph.group(1))])  # quoted punctuation: a plain argument
             i += 1
             continue
         if is_redirect(t):
             nxt = toks[i + 1] if i + 1 < len(toks) else ""
             if t.endswith("&") and (nxt.isdigit() or nxt == "-"):
-                i += 2  # 2>&1 gibi tanıtıcı kopyası
+                i += 2  # a descriptor copy like 2>&1
                 continue
-            # Sonundaki "2" gibi tanıtıcı numarası komut sözcüğü değildir.
+            # A trailing descriptor number like "2" is not the command word.
             if words and words[-1].isdigit():
                 words.pop()
             if nxt and not is_separator(nxt) and not is_redirect(nxt):
@@ -362,7 +362,7 @@ def strip_wrappers(words: list[str]) -> list[str]:
 
 
 def split_opts(args: list[str]) -> tuple[list[str], list[str], bool]:
-    """(seçenekler, konumsal argümanlar, '--' görüldü mü)."""
+    """(options, positional arguments, whether '--' was seen)."""
     opts: list[str] = []
     pos: list[str] = []
     dashdash = False
@@ -382,12 +382,12 @@ def has_short(opts: list[str], letters: str) -> bool:
     return any(o.startswith("-") and not o.startswith("--") and any(c in o[1:] for c in letters) for o in opts)
 
 
-# --- Kurallar -----------------------------------------------------------------------------------------
+# --- Rules -----------------------------------------------------------------------------------------
 
 
 def check_git(args: list[str], readonly: bool, ctx: Ctx | None = None) -> str | None:
     i = 0
-    git_dirs: list[str] = []  # `git -C <yol>`: yol varlığı bu dizine göre denetlenir
+    git_dirs: list[str] = []  # `git -C <path>`: path existence is checked relative to this dir
     while i < len(args):
         a = args[i]
         if a in GIT_OPTS_WITH_VALUE:
@@ -427,7 +427,7 @@ def check_git(args: list[str], readonly: bool, ctx: Ctx | None = None) -> str | 
         if {"-b", "-B", "--orphan", "--detach"} & set(opts):
             return f"'git checkout {' '.join(opts)}' engellendi (dal değiştirme). {COMMIT_REASON}"
         if not dashdash and len(pos) == 1 and "*" not in pos[0]:
-            # Tek argüman: mevcut bir yolsa dosya geri alma, değilse dal değiştirme (cwd bilinmiyorsa '.' sezgisi).
+            # A single argument: an existing path is a file restore, otherwise a branch switch (heuristic '.' if cwd is unknown).
             pctx = ctx
             if ctx and git_dirs:
                 pctx = copy.copy(ctx)
@@ -498,7 +498,7 @@ def check_gh(args: list[str]) -> str | None:
 
 
 def protected_delete_target(raw: str, ctx: Ctx) -> bool:
-    """`rm -r` hedefi depo kökü (ya da atası), .git ya da .claude/worktrees mi."""
+    """Whether the `rm -r` target is the repo root (or an ancestor), .git or .claude/worktrees."""
     low = raw.lower()
     if low.startswith(("$claude_project_dir", "${claude_project_dir}", "$env:claude_project_dir")):
         rest = re.sub(r"^\$\{?(env:)?claude_project_dir\}?", "", low).strip("/*")
@@ -525,7 +525,7 @@ def check_rm(name: str, args: list[str], ctx: Ctx) -> str | None:
     lo = [o.lower() for o in opts]
     if name == "rm":
         recursive = has_short(opts, "rR") or "--recursive" in lo
-    else:  # PowerShell Remove-Item ve takma adları (-Recurse kısaltılabilir: -r, -rec ...)
+    else:  # PowerShell Remove-Item and its aliases (-Recurse may be abbreviated: -r, -rec ...)
         recursive = any(o.startswith("-r") and not o.startswith("-readonly") for o in lo) or name in {"rd", "rmdir"}
     if not recursive:
         return None
@@ -569,8 +569,8 @@ def check_readonly_words(name: str, args: list[str], ctx: Ctx) -> str | None:
 def check_command(cmd: str, ctx: Ctx, readonly: bool, depth: int = 0) -> str | None:
     if depth > 4:
         return None
-    # Zincirdeki `cd`/`pushd`/`popd`/`Set-Location` izlenir: sonraki göreli hedefler yeni dizine göre çözülür.
-    # (Kopya: iç kabuktaki cd dışarı sızmaz; uyarı listesi ortak kalır.)
+    # `cd`/`pushd`/`popd`/`Set-Location` in a chain are tracked: later relative targets resolve against the new directory.
+    # (A copy: a cd in the inner shell does not leak out; the warning list stays shared.)
     ctx = copy.copy(ctx)
     dir_stack: list[tuple[str, bool]] = []
     for words, redirs in segments(cmd, ctx.powershell):
@@ -648,7 +648,7 @@ def check_edit_path(raw: str, ctx: Ctx, allow: list[str]) -> str | None:
 
 def evaluate(mode: str, data: dict, allow: list[str] | None = None, project_dir: str | None = None,
              temp_dirs: list[str] | None = None, warnings: list[str] | None = None) -> str | None:
-    """Engelleme nedeni (str) ya da None (izin). `warnings` verilirse denetlenemeyen durumlar eklenir."""
+    """Block reason (str) or None (allowed). If `warnings` is given, cases that cannot be checked are added."""
     allow = allow or []
     tool = str(data.get("tool_name") or "").lower()
     tool_input = data.get("tool_input") or {}
@@ -701,7 +701,7 @@ def main(argv: list[str]) -> int:
             raise ValueError("girdi JSON nesnesi değil")
         warnings: list[str] = []
         reason = evaluate(mode, data, allow, warnings=warnings)
-    except Exception as exc:  # noqa: BLE001 - koruma ajanı asla kilitlemez
+    except Exception as exc:  # noqa: BLE001 - the guard must never lock up the agent
         _err(f"agent_guard uyarı: girdi işlenemedi ({type(exc).__name__}: {exc}); denetim atlandı.")
         return 0
     if reason:

@@ -1,0 +1,46 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://ui/escape_panel.gd" id="1_escape"]
+
+[node name="EscapePanel" type="PanelContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudChip"
+script = ExtResource("1_escape")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="Objective" type="Label" parent="Box"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"EscapeLabel"
+horizontal_alignment = 1
+
+[node name="Rule" type="Label" parent="Box"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+horizontal_alignment = 1
+
+[node name="Police" type="Label" parent="Box"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"AlertLabel"
+horizontal_alignment = 1
+
+[node name="Count" type="Label" parent="Box"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+horizontal_alignment = 1

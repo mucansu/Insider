@@ -1,0 +1,19 @@
+{
+  "_doc": "discovery_clean.json c1 botu (US-039 AC10 iii): owner_window_c1 rotası (ön kapıdan gir, sahip raf düzeltmedeyken tezgâh ucundan dolanıp kasayı boşalt, müşteri tarafına dön), sonra beklemeden ön kapıdan çık, caddeye in (y≈576) ve doğuya kaçış bölgesine (x≈860) koşarak git (2,18 sn; caddede, sahibin duyma yarıçapı dışında). IS-103: kaçış geri sayımı (3 sn) işi uzattığı için soygun 1,5 sn erken başlar (sahip raf için 33,5'te ayrılır) ve cadde koşulur — sahip ~53 sn'de tezgâha dönüp boş kasayı görmeden iş ~50,6'da biter (~2,5 sn pay).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.672, "move": [0, 0]},
+    {"t": 34.5, "move": [1, 0]},
+    {"t": 36.115, "move": [0, -1]},
+    {"t": 36.63, "move": [0, 0]},
+    {"t": 36.8, "hold": "interact", "dur": 3.6},
+    {"t": 40.6, "move": [0, 1]},
+    {"t": 41.115, "move": [-1, 0]},
+    {"t": 42.73, "move": [0, 1]},
+    {"t": 43.744, "move": [1, 0]},
+    {"t": 43.744, "hold": "sprint", "dur": 2.182},
+    {"t": 45.926, "move": [0, 0]}
+  ]
+}

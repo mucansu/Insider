@@ -1,6 +1,6 @@
 extends TestCase
-## UiInput (S5, US-003 t1, IS-009): oyun içi menü açıkken oyun girdisi engeli; son girdi cihazı ve istem
-## tuş adı; duraklatma olayları `pause` eylemini okur.
+## UiInput (S5, US-003 t1, IS-009): gameplay input blocked while an in-game menu is open; last input device and prompt key name;
+## pause events read the `pause` action.
 
 
 func test_not_blocked_without_menus() -> void:

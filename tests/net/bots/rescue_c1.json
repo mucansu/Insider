@@ -1,0 +1,11 @@
+{
+  "_doc": "rescue.json c1 botu (US-008): owner_detect_c1 rotası (personel tarafı, sahibin konisinde durur → tutulur; tutulunca girdi kesilir). 12,6 sn'de batıya yürüme komutu: tutulmuşken etkisiz, ÇEK ile serbest kalınca uygulanır (sahipten kaçış; sahip 120 px/sn, yürüme 140).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.9, "move": [1, 0]},
+    {"t": 6.25, "move": [0, 0]},
+    {"t": 12.6, "move": [-1, 0]}
+  ]
+}

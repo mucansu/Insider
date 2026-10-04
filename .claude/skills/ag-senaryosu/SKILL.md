@@ -30,7 +30,7 @@ Keys (unknown key = FAIL): `_doc`, `level` (required), `player_scene`, `clients`
 
 ## Bot file `tests/net/bots/<name>.json`
 `{"steps":[{"t":SEC, ...}]}` - clock starts at the local player's first physics step:
-`{"t":1,"move":[x,y]}` · `{"t":2,"hold":"sprint|sneak|interact|intimidate","dur":3}` · `{"t":4,"press":"intimidate"}` · `{"t":5,"look":[x,y]}` · host hook `{"t":6,"heist":"alert|police|caught|shout|restart","data":{}}` · `"loop":{"from":F,"period":P}`.
+`{"t":1,"move":[x,y]}` · `{"t":2,"hold":"sprint|sneak|interact|intimidate","dur":3}` · `{"t":4,"press":"intimidate"}` · `{"t":5,"look":[x,y]}` · event wait `{"t":5,"wait":"owner_distracted","max":20}` (the clock stops until that session event is seen, later steps shift; use it instead of fixed times for windows that depend on join delay) · host hook `{"t":6,"heist":"alert|police|caught|shout|restart","data":{}}` · `"loop":{"from":F,"period":P}`.
 Positions: use markers in `levels/layouts/<level>.txt` (tile = 32 px).
 
 ## Pick a fixture (`tests/fixtures/`)

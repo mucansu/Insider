@@ -1,5 +1,5 @@
 extends TestCase
-## Args (autoload/args.gd, S6) ayrıştırma ve bot dosyası okuma (US-001 AC7).
+## Args (autoload/args.gd, S6) parsing and bot file reading (US-001 AC7).
 
 const ArgsScript := preload("res://autoload/args.gd")
 
@@ -38,7 +38,7 @@ func test_join_and_defaults() -> void:
 	eq(a.port, 7777)
 	is_true(a.wants_session())
 	is_false(a.is_automated())
-	# Yeniden ayrıştırma önceki değerleri sıfırlar.
+	# Re-parsing resets previous values.
 	a.parse(PackedStringArray([]))
 	eq(a.join_address, "")
 	is_false(a.wants_session())
@@ -117,7 +117,7 @@ func test_parse_bot_step_validation() -> void:
 
 
 func test_autoload_reads_process_arguments() -> void:
-	# Test koşucusu kullanıcı argümanlarıyla (ör. --filter) açılır; autoload bunları tanınmayan sayar.
+	# The test runner starts with user arguments (e.g. --filter); the autoload counts them as unrecognised.
 	is_false(Args.wants_session())
 	for raw: String in OS.get_cmdline_user_args():
 		has(Args.unknown, raw)

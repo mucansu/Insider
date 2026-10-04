@@ -1,16 +1,11 @@
 class_name TestCase
 extends RefCounted
-## Birim test tabanı ve doğrulama yardımcıları (mimari.md §5). Eklentisiz.
-##
-## Kullanım: tests/unit/test_<modül>.gd dosyası `extends TestCase` olur; `test_` ile başlayan,
-## argümansız her metot bir testtir (`await` kullanabilir). Koşucu her test için yeni örnek açar.
-##   func test_toplam() -> void:
-##       eq(1 + 1, 2)
-##       near(Vector2(0, 0), Vector2(3, 4), 5.0)
-## Doğrulamalar testi durdurmaz, başarısızlığı kaydeder ve bool döner (`if not is_true(x): return`).
-## Test sırasında oluşan betik hatası (SCRIPT ERROR) testi her zaman düşürür; push_error / motor
-## hatası da düşürür, test bunları bilerek tetikliyorsa önce `allow_errors()` çağırır.
-## (`true`/`false` GDScript anahtar sözcüğü olduğundan yardımcı adları `is_true`/`is_false`.)
+## Unit test base and assertion helpers (mimari.md §5). Plugin-free.
+## Usage: tests/unit/test_<module>.gd `extends TestCase`; every argument-less `test_*` method is a test
+## (may `await`). The runner opens a fresh instance per test. Assertions do not stop the test: they
+## record the failure and return bool (`if not is_true(x): return`).
+## A script error (SCRIPT ERROR) always fails the test; push_error / engine errors fail it too, so call
+## `allow_errors()` first when a test triggers them on purpose. Helpers are `is_true`/`is_false` because `true`/`false` are keywords.
 
 const _SELF_PATH := "res://tests/t.gd"
 
@@ -19,14 +14,14 @@ var _errors_allowed: bool = false
 var _autofree: Array[Object] = []
 
 
-## İki değer eşit olmalı (int/float birbiriyle, String/StringName birbiriyle karşılaştırılabilir).
+## Two values must be equal (int/float and String/StringName compare across types).
 func eq(actual: Variant, expected: Variant, msg: String = "") -> bool:
 	if _same(actual, expected):
 		return true
 	return _record("eq: beklenen %s, gelen %s" % [_show(expected), _show(actual)], msg)
 
 
-## İki değer farklı olmalı.
+## Two values must differ.
 func ne(actual: Variant, unexpected: Variant, msg: String = "") -> bool:
 	if not _same(actual, unexpected):
 		return true
@@ -45,7 +40,7 @@ func is_false(value: bool, msg: String = "") -> bool:
 	return _record("is_false: true geldi", msg)
 
 
-## Sayı ya da vektör (Vector2/3) farkı `tolerance` içinde olmalı.
+## Number or vector (Vector2/3) difference must be within `tolerance`.
 func near(actual: Variant, expected: Variant, tolerance: float, msg: String = "") -> bool:
 	var diff: float = INF
 	var numeric: Array[int] = [TYPE_INT, TYPE_FLOAT]
@@ -62,16 +57,38 @@ func near(actual: Variant, expected: Variant, tolerance: float, msg: String = ""
 	return _record("near: beklenen %s ± %s, gelen %s (fark %s)" % [_show(expected), tolerance, _show(actual), diff], msg)
 
 
-## Kap öğeyi içermeli: Array/Packed*Array (öğe), Dictionary (anahtar), String/StringName (alt dize).
+## Container must contain the item: Array/Packed*Array (item), Dictionary (key), String/StringName (substring).
 func has(container: Variant, item: Variant, msg: String = "") -> bool:
 	var found: bool = false
+	# Each container is cast to its own type and its own has() is called (unsafe_method_access = error; same as a dynamic
+	# Variant call: the item is cast to the parameter type at runtime).
 	match typeof(container):
 		TYPE_STRING, TYPE_STRING_NAME:
 			found = str(container).contains(str(item))
-		TYPE_ARRAY, TYPE_DICTIONARY, TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, \
-		TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_VECTOR2_ARRAY, \
-		TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY, TYPE_PACKED_VECTOR4_ARRAY:
-			found = container.has(item)
+		TYPE_ARRAY:
+			found = (container as Array).has(item)
+		TYPE_DICTIONARY:
+			found = (container as Dictionary).has(item)
+		TYPE_PACKED_BYTE_ARRAY:
+			found = (container as PackedByteArray).has(item)
+		TYPE_PACKED_INT32_ARRAY:
+			found = (container as PackedInt32Array).has(item)
+		TYPE_PACKED_INT64_ARRAY:
+			found = (container as PackedInt64Array).has(item)
+		TYPE_PACKED_FLOAT32_ARRAY:
+			found = (container as PackedFloat32Array).has(item)
+		TYPE_PACKED_FLOAT64_ARRAY:
+			found = (container as PackedFloat64Array).has(item)
+		TYPE_PACKED_STRING_ARRAY:
+			found = (container as PackedStringArray).has(item)
+		TYPE_PACKED_VECTOR2_ARRAY:
+			found = (container as PackedVector2Array).has(item)
+		TYPE_PACKED_VECTOR3_ARRAY:
+			found = (container as PackedVector3Array).has(item)
+		TYPE_PACKED_COLOR_ARRAY:
+			found = (container as PackedColorArray).has(item)
+		TYPE_PACKED_VECTOR4_ARRAY:
+			found = (container as PackedVector4Array).has(item)
 		_:
 			return _record("has: desteklenmeyen kap tipi %s" % type_string(typeof(container)), msg)
 	if found:
@@ -79,17 +96,17 @@ func has(container: Variant, item: Variant, msg: String = "") -> bool:
 	return _record("has: %s içinde %s yok" % [_show(container), _show(item)], msg)
 
 
-## Koşulsuz başarısızlık.
+## Unconditional failure.
 func fail(msg: String) -> bool:
 	return _record("fail", msg)
 
 
-## Testin push_error / motor hatası üretmesi bekleniyorsa çağrılır (betik hataları yine düşürür).
+## Call when the test is expected to emit push_error / engine errors (script errors still fail).
 func allow_errors() -> void:
 	_errors_allowed = true
 
 
-## Nesneyi test bitince serbest bırakılmak üzere kaydeder ve geri döner (sahneye eklenen düğümler için).
+## Registers the object to be freed when the test ends and returns it (for nodes added to the scene).
 func autofree(obj: Object) -> Object:
 	_autofree.append(obj)
 	return obj
@@ -99,7 +116,7 @@ func tree() -> SceneTree:
 	return Engine.get_main_loop() as SceneTree
 
 
-# --- koşucu (tests/run_tests.gd) için ---
+# --- for the runner (tests/run_tests.gd) ---
 
 func failures() -> PackedStringArray:
 	return _failures
@@ -131,7 +148,7 @@ func _record(what: String, msg: String) -> bool:
 	return false
 
 
-## Doğrulamayı çağıran test satırını bulur (t.gd dışındaki ilk betik çerçevesi).
+## Finds the test line that called the assertion (first script frame outside t.gd).
 func _caller_location() -> String:
 	for bt: ScriptBacktrace in Engine.capture_script_backtraces(false):
 		for i: int in bt.get_frame_count():

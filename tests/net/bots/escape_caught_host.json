@@ -1,0 +1,15 @@
+{
+  "_doc": "escape_after_caught.json host botu (IS-094): heist_host 1. iş rotası — kaldırımda sınıra yaslan, ön kapıdan gir, tezgâh ucundan personel tarafına dolan, kasayı 3,5 sn tutup boşalt (150 ekip nakdine), personel tarafında kal; t=20'de Game test kancasıyla yakalanır (yuva 0; sahipsiz fikstür).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.8, "move": [1, 0]},
+    {"t": 7.3, "move": [0, -1]},
+    {"t": 8.4, "move": [-1, 0]},
+    {"t": 9.4, "move": [0, 1]},
+    {"t": 9.88, "move": [0, 0]},
+    {"t": 10.2, "hold": "interact", "dur": 3.5},
+    {"t": 20.0, "heist": "caught", "data": {"slot": 0, "by": "chaser"}}
+  ]
+}

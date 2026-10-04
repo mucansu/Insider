@@ -1,33 +1,30 @@
 #!/usr/bin/env python3
-"""Ekran görüntüsü aracı (IS-022; mimari.md S6). Yalnız Python standart kütüphanesi.
+"""Screenshot tool (IS-022; mimari.md S6). Python standard library only.
 
-Kullanım:
-    python tools/screenshot.py --at 3,6,9 [--name ad] [--scenario tests/net/<senaryo>.json]
+Usage:
+    python tools/screenshot.py --at 3,6,9 [--name NAME] [--scenario tests/net/<scenario>.json]
         [--level res://levels/store_a.tscn] [--clients 2] [--bot host=res://... --bot c1=...]
         [--start-delay c2=1.0] [--player-scene res://...] [--peers host,c1|all] [--window-size 1280x720]
         [--out build/screens] [--godot-gui PATH] [--min-stddev 8] [--force] [--verbose]
 
-Seviye + botlarla host ve istemciler açılır (tools/net_smoke.py ile aynı düzen: boş UDP portu, host'un
-`INSIDERS_READY` satırı beklenir, istemciler `start_delay` sonra başlar, herkes `--quit-after` ile kapanır,
-sert zaman aşımında süreç ağaçları öldürülür). Görüntüsü istenen peer'lar (`--peers`) GPU'lu pencerede
-(GUI exe, `--window-size`), diğerleri `--headless` koşar. `--at` anları host'un saatine göre saniyedir (host
-main.gd açılışı ≈ READY satırı); her sürece kendi saatine çevrilip `--screenshot-at` olarak verilir (saat kayması
-= Popen farkı + açılış süresi farkı, bkz. clock_offset; peer'lar arası hizalama ~±0,5 sn; süreç başlamadan önceki an
-o peer için atlanır). Çıktı: `<out>/<ad>/<peer>_<an>.png` (ör. build/screens/store_walk/c1_6.png); eski PNG'ler silinir.
-Doğrulama: her PNG pencere boyutunda ve boş/siyah değil (parlaklık std sapması >= --min-stddev ve en az
-MIN_COLORS farklı renk); geçersiz olan `<peer>_<an>_INVALID.png` adıyla ayrılır ve FAIL'dir. Log'da ERROR satırı ya
-da sıfır olmayan çıkış kodu da başarısızlıktır. O peer'da seviye henüz yüklenmemişken (istemci bağlanıyor; Godot
-`INSIDERS_SCREENSHOT skipped ... reason=level_not_loaded` basar) ya da süreç başlamadan önceye düşen an FAIL değildir:
-"atlandı: <peer> <an> sn: <neden>" satırıyla raporlanır.
+Opens host and clients with a level + bots (same layout as tools/net_smoke.py: free UDP port, wait for the host's `INSIDERS_READY`
+line, clients start after `start_delay`, everyone exits via `--quit-after`, process trees are killed on a hard timeout). Peers whose
+image is wanted (`--peers`) run in a GPU window (GUI exe, `--window-size`), the others `--headless`. `--at` moments are seconds on
+the host's clock (host main.gd start ~ READY line); each is converted to the process's own clock and passed as `--screenshot-at`
+(clock offset = Popen difference + startup time difference, see clock_offset; cross-peer alignment ~+-0.5 s; a moment before the
+process starts is skipped for that peer). Output: `<out>/<name>/<peer>_<moment>.png` (e.g. build/screens/store_walk/c1_6.png); old PNGs are deleted.
+Validation: every PNG has the window size and is not empty/black (brightness std dev >= --min-stddev and at least MIN_COLORS
+distinct colours); an invalid one is set aside as `<peer>_<moment>_INVALID.png` and is a FAIL. An ERROR line in the log or a
+non-zero exit code is a failure too. A moment while the level is not yet loaded on that peer (client connecting; Godot prints
+`INSIDERS_SCREENSHOT skipped ... reason=level_not_loaded`) or before the process started is not a FAIL: it is reported as an
+"atlandı: <peer> <an> sn: <neden>" line.
 
-`--scenario`: net_smoke senaryosundan level, player_scene, clients, bots, start_delay, names okunur
-(beklentiler yok sayılır); komut satırı seçenekleri senaryonun üstüne yazar. Varsayılan seviye store_a,
-oyuncu sahnesi gerçek oyuncu (entities/player/player.tscn), 2 istemci, bot yok.
+`--scenario`: level, player_scene, clients, bots, start_delay, names are read from a net_smoke scenario (expectations ignored);
+command-line options override the scenario. Defaults: store_a level, the real player scene (entities/player/player.tscn), 2 clients, no bots.
 
-Godot: GUI exe `--godot-gui`, yoksa GODOT_GUI ortam değişkeni, yoksa GODOT `*_console.exe` ise yanındaki
-`*.exe` (Windows), yoksa GODOT'un kendisi. Headless süreçler için GODOT (yoksa tools/get_godot.sh).
-Ekran yoksa (CI ortam değişkeni, Linux'ta DISPLAY/WAYLAND_DISPLAY yok, Windows'ta masaüstü yok) "atlandı" der ve
-0 döner (`--force` bu denetimi kapatır). Çıkış kodu: 0 = bütün görüntüler alındı ve geçerli (ya da atlandı).
+Godot: GUI exe `--godot-gui`, else the GODOT_GUI env var, else the sibling `*.exe` if GODOT is a `*_console.exe` (Windows), else GODOT
+itself. GODOT (else tools/get_godot.sh) for headless processes. With no display (CI env var, no DISPLAY/WAYLAND_DISPLAY on Linux, no
+desktop on Windows) it prints "atlandı" and returns 0 (`--force` disables this check). Exit code: 0 = all images taken and valid (or skipped).
 """
 
 from __future__ import annotations
@@ -64,29 +61,29 @@ DEFAULT_LEVEL = "res://levels/store_a.tscn"
 DEFAULT_PLAYER_SCENE = "res://entities/player/player.tscn"
 DEFAULT_WINDOW = (1280, 720)
 DEFAULT_OUT = os.path.join("build", "screens")
-# Son andan sonra ortak --quit-after'a kadar pay (son görüntü yazılsın; geç açılan pencerenin saati kayık olabilir).
+# Margin from the last moment to the shared --quit-after (so the last image gets written; a late-opened window's clock may be off).
 TAIL_SEC = 2.0
-# Popen → main._start süresi tahmini (sn; Windows, RX 6650 XT ölçümü: pencereli 1,2-1,7, headless ~0,45).
-# Host'unki ölçülür (READY satırı); istemci host'la aynı türdeyse onunki, değilse bu tahmin kullanılır.
+# Estimated Popen -> main._start time (s; Windows, RX 6650 XT measurement: windowed 1.2-1.7, headless ~0.45).
+# The host's is measured (READY line); a client of the same kind as the host uses that, otherwise this estimate.
 STARTUP_ESTIMATE = {"window": 1.5, "headless": 0.4}
-# İstemcilerin ayrılış aralığı (sn); net_smoke'un LEAVE_STAGGER'ından geniş: saatler tahminle hizalı.
+# Gap between client leaves (s); wider than net_smoke's LEAVE_STAGGER: clocks are aligned by estimate.
 LEAVE_GAP = 1.0
-# Sürecin başlangıcından önceki ya da bu kadar yakın anlar o süreç için atlanır (pencere henüz çizilmemiş olur).
+# Moments before the process start or this close to it are skipped for that process (the window is not drawn yet).
 MIN_LOCAL_SEC = 0.1
 DEFAULT_MIN_STDDEV = 8.0
 MIN_COLORS = 16
 SAMPLE_STEP = 4
-# Pencereler basamaklı açılır (biri ötekini tamamen örtmesin).
+# Windows open in a cascade (so one does not fully cover another).
 WINDOW_ORIGIN = (40, 40)
 WINDOW_CASCADE = (60, 40)
 SCENARIO_KEYS_USED = ("level", "player_scene", "clients", "bots", "start_delay", "names")
 
 
-# --- saf yardımcılar (tools/test_screenshot.py) ---
+# --- pure helpers (tools/test_screenshot.py) ---
 
 
 def parse_moments(text: str) -> list[float]:
-    """"6,2.5,6" → [2.5, 6.0]; 0,01 sn çözünürlükte tekrarsız, artan. Bozuk/negatif öğe ValueError."""
+    """"6,2.5,6" -> [2.5, 6.0]; unique at 0.01 s resolution, ascending. A malformed/negative item raises ValueError."""
     out: set[float] = set()
     for part in text.split(","):
         s = part.strip()
@@ -100,7 +97,7 @@ def parse_moments(text: str) -> list[float]:
 
 
 def moment_label(t: float) -> str:
-    """Dosya adındaki an: 6.0 → "6", 2.5 → "2.5"."""
+    """Moment in a file name: 6.0 -> "6", 2.5 -> "2.5"."""
     return f"{round(t, 2):g}"
 
 
@@ -115,7 +112,7 @@ def parse_window_size(text: str) -> tuple[int, int]:
 
 
 def parse_kv(items: list[str], what: str) -> dict[str, str]:
-    """["host=a", "c1=b"] → {"host": "a", "c1": "b"}."""
+    """["host=a", "c1=b"] -> {"host": "a", "c1": "b"}."""
     out: dict[str, str] = {}
     for item in items:
         key, sep, value = item.partition("=")
@@ -130,7 +127,7 @@ def peer_names(clients: int) -> list[str]:
 
 
 def parse_peers(text: str, clients: int) -> list[str]:
-    """"all" ya da "host,c2" → geçerli peer adları (sıra korunur); bilinmeyen ad ValueError."""
+    """"all" or "host,c2" -> valid peer names (order kept); an unknown name raises ValueError."""
     names = peer_names(clients)
     if text.strip().lower() == "all":
         return names
@@ -147,8 +144,8 @@ def parse_peers(text: str, clients: int) -> list[str]:
 
 
 def local_moments(moments: list[float], offset: float) -> list[tuple[float, float]]:
-    """Host başlangıcına göre anları, host'tan `offset` sn sonra başlayan sürecin saatine çevirir:
-    [(küresel an, yerel an)]; yerel an MIN_LOCAL_SEC'ten küçükse (süreç henüz yok/çizmedi) atlanır."""
+    """Converts moments relative to the host start to the clock of a process started `offset` s after the host:
+    [(global moment, local moment)]; skipped if the local moment is below MIN_LOCAL_SEC (process not there/drawn yet)."""
     out: list[tuple[float, float]] = []
     for t in moments:
         local = round(t - offset, 2)
@@ -158,18 +155,18 @@ def local_moments(moments: list[float], offset: float) -> list[tuple[float, floa
 
 
 def clock_offset(launched_at: float, host_startup: float, kind: str, host_kind: str) -> float:
-    """Host saatinin sıfırına göre, host başlatılmasından `launched_at` sn sonra Popen'lanan sürecin saat sıfırı.
-    Host'un sıfırı ≈ Popen + host_startup (ölçülen, READY); sürecinki ≈ Popen + kendi açılış süresi (host'la aynı
-    türdeyse host_startup, değilse STARTUP_ESTIMATE). Pencereli açılış headless'tan ~1 sn yavaştır."""
+    """Clock zero of a process Popen'd `launched_at` s after the host launch, relative to the host clock's zero.
+    Host zero ~ Popen + host_startup (measured, READY); the process's ~ Popen + its own startup (host_startup if the
+    same kind as the host, else STARTUP_ESTIMATE). A windowed start is ~1 s slower than headless."""
     startup = host_startup if kind == host_kind else STARTUP_ESTIMATE[kind]
     return round(launched_at - host_startup + startup, 2)
 
 
 def quit_after_for(name: str, duration: float, offset: float, clients: int) -> float:
-    """Ayrılış sırası (host saatiyle): cN `duration + LEAVE_GAP x (N-1)` anında çıkar, host en son
-    (`duration + LEAVE_GAP x clients + LINGER_SEC`) — saat tahmini ±0,5 sn şaşsa da iki istemci aynı host karesinde
-    kopmaz (net_smoke LEAVE_STAGGER notu: motor "max channels: 0" hatası) ve istemciler host kaybı görmez.
-    `offset`: sürecin saat sıfırının host'unkine göre kayması (clock_offset)."""
+    """Leave order (host clock): cN leaves at `duration + LEAVE_GAP x (N-1)`, the host last
+    (`duration + LEAVE_GAP x clients + LINGER_SEC`) - even if the clock estimate is off by +-0.5 s two clients do not drop
+    in the same host frame (net_smoke LEAVE_STAGGER note: engine "max channels: 0" error) and clients do not see the host lost.
+    `offset`: the process clock zero's shift relative to the host's (clock_offset)."""
     if name == "host":
         return duration + (LEAVE_GAP * clients + LINGER_SEC if clients > 0 else 0.0)
     return max(1.0, duration - offset + LEAVE_GAP * (int(name[1:]) - 1))
@@ -180,7 +177,7 @@ def display_skip_reason(
     platform: str | None = None,
     has_desktop: Callable[[], bool] | None = None,
 ) -> str:
-    """Görüntü alınamayacak ortamın nedeni; ekran varsa boş dize."""
+    """Reason the environment cannot take images; empty string if there is a display."""
     env = dict(os.environ) if env is None else env
     platform = sys.platform if platform is None else platform
     ci = env.get("CI", "").strip().lower()
@@ -206,7 +203,7 @@ def _windows_has_desktop() -> bool:
 
 
 def resolve_gui_godot(explicit: str | None, env: dict[str, str] | None = None) -> str:
-    """Pencereli Godot: --godot-gui > GODOT_GUI > GODOT'un *_console.exe kardeşi > GODOT (ya da get_godot.sh)."""
+    """Windowed Godot: --godot-gui > GODOT_GUI > the *_console.exe sibling of GODOT > GODOT (or get_godot.sh)."""
     env = dict(os.environ) if env is None else env
     if explicit:
         return explicit
@@ -221,7 +218,7 @@ def resolve_gui_godot(explicit: str | None, env: dict[str, str] | None = None) -
     return console
 
 
-# --- PNG okuma ve doğrulama (yalnız stdlib) ---
+# --- PNG reading and validation (stdlib only) ---
 
 
 @dataclass
@@ -267,7 +264,7 @@ def _unfilter(raw: bytes, width: int, height: int, bpp: int) -> list[bytes]:
 
 
 def read_png_stats(path: str, step: int = SAMPLE_STEP) -> PngInfo:
-    """8 bit gri/RGB/RGBA, taramasız PNG'yi okur; `step` aralıklı örneklerde parlaklık std sapması ve renk sayısı."""
+    """Reads an 8-bit grey/RGB/RGBA non-interlaced PNG; brightness std dev and colour count over `step`-spaced samples."""
     with open(path, "rb") as f:
         data = f.read()
     if data[:8] != b"\x89PNG\r\n\x1a\n":
@@ -313,7 +310,7 @@ def read_png_stats(path: str, step: int = SAMPLE_STEP) -> PngInfo:
 
 
 def check_png(path: str, size: tuple[int, int], min_stddev: float) -> str:
-    """Geçerliyse boş dize, değilse sorun."""
+    """Empty string if valid, otherwise the problem."""
     if not os.path.exists(path):
         return "dosya yok"
     try:
@@ -327,7 +324,7 @@ def check_png(path: str, size: tuple[int, int], min_stddev: float) -> str:
     return ""
 
 
-# --- sonuç toplama ---
+# --- result collection ---
 
 SCREENSHOT_MARKER = "INSIDERS_SCREENSHOT"  # main.gd SCREENSHOT_MARKER
 _MARKER_LINE = re.compile(rf"^{SCREENSHOT_MARKER} (ok|skipped|failed) at=(\S+)(?: reason=(\S+))?")
@@ -336,7 +333,7 @@ INVALID_SUFFIX = "_INVALID"
 
 
 def parse_markers(lines: list[str]) -> dict[float, tuple[str, str]]:
-    """Godot'un `INSIDERS_SCREENSHOT <durum> at=SN [reason=R]` satırları → {yerel an: (durum, neden)}."""
+    """Godot's `INSIDERS_SCREENSHOT <state> at=SEC [reason=R]` lines -> {local moment: (state, reason)}."""
     out: dict[float, tuple[str, str]] = {}
     for line in lines:
         m = _MARKER_LINE.match(line.strip())
@@ -356,9 +353,9 @@ def collect_shots(
     window: tuple[int, int],
     min_stddev: float,
 ) -> tuple[list[str], list[str], list[str]]:
-    """Ham `shot_NN.png`'leri `<peer>_<an>.png` adına taşır ve doğrular → (geçerli yollar, atlanan anlar, hatalar).
-    Godot'un "skipped" dediği an (seviye yüklenmeden önce) hata değildir, açıkça atlandı listesine girer. Geçersiz
-    görüntü sonuç sanılmasın diye `<peer>_<an>_INVALID.png` adıyla bırakılır ve hata sayılır."""
+    """Moves the raw `shot_NN.png` files to `<peer>_<moment>.png` and validates -> (valid paths, skipped moments, errors).
+    A moment Godot reports as "skipped" (before the level loads) is not an error; it goes to the skipped list. An invalid
+    image is left as `<peer>_<moment>_INVALID.png` so it is not mistaken for a result, and counts as an error."""
     written: list[str] = []
     skipped: list[str] = []
     failures: list[str] = []
@@ -389,7 +386,7 @@ def collect_shots(
     return written, skipped, failures
 
 
-# --- koşu ---
+# --- run ---
 
 
 @dataclass
@@ -453,7 +450,7 @@ def build_plan(args: argparse.Namespace) -> Plan:
 
 def _prepare_out(out_dir: str) -> str:
     os.makedirs(out_dir, exist_ok=True)
-    # Proje içindeki çıktı kökü Godot içe aktarmasına girmesin (PNG'ler .import/.godot önbelleği üretmesin).
+    # Keep the output root inside the project out of Godot's import (PNGs must not create a .import/.godot cache).
     gdignore = os.path.join(os.path.dirname(out_dir), ".gdignore")
     if not os.path.exists(gdignore):
         open(gdignore, "w", encoding="utf-8").close()

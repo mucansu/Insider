@@ -1,29 +1,27 @@
 class_name InvitePanel
 extends VBoxContainer
-## Davet adresi bölümü (US-026): "DAVET ADRESİN 100.x.y.z:7777 [Kopyala]". Adres ConnectInfo'nun
-## seçtiği ilk adaydır (Tailscale > özel LAN > 127.0.0.1); birden çok aday varsa adres düğmesi hepsini
-## açılır listede gösterir, seçilen adres kopyalanır. Ana menünün host kartında ve host'un duraklat
-## menüsünde kullanılır. Testler adres kaynağını ve panoyu `addresses_provider` / `clipboard_setter` ile
-## değiştirir; "Kopyalandı" geri bildirimi `advance()` ile ilerletilir.
+## Invite address section (US-026): "YOUR INVITE ADDRESS 100.x.y.z:7777 [Copy]". The address is ConnectInfo's first candidate (Tailscale > private LAN > 127.0.0.1);
+## with several candidates the address button opens a dropdown and the chosen one is copied. Used on the main menu host card and the host's pause menu.
+## Tests replace the address source and clipboard via `addresses_provider` / `clipboard_setter`; the "Copied" feedback advances with `advance()`.
 
-## Odaklanabilir öğeler değişti (liste açıldı/kapandı, aday sayısı değişti): üst ekran odak sırasını yeniler.
+## Focusable items changed (list opened/closed, candidate count changed): the parent screen refreshes its focus order.
 signal focus_layout_changed()
 
-## "Kopyalandı" yazısının düğmede kalma süresi (sn).
+## How long (s) "Copied" stays on the button.
 const COPIED_SEC := 1.5
-## Açılır listede en fazla bu kadar adres (çok arabirimli makinede kart taşmasın).
+## Max addresses in the dropdown (so the card does not overflow on multi-interface machines).
 const MAX_LISTED := 5
 
-## Başlık satırı ("DAVET ADRESİN"); ana menüde kartın açıklaması başlık işini görür.
+## Title row ("YOUR INVITE ADDRESS"); on the main menu the card description acts as the title.
 @export var show_caption: bool = true
-## Birden çok aday varsa açılır liste; kapalıysa yalnız ilk aday gösterilir (ana menü, 720p'de yer kısıtı).
+## Dropdown when there are several candidates; when closed only the first is shown (main menu, space limit at 720p).
 @export var allow_list: bool = true
 
-## () -> PackedStringArray: ham arabirim adresleri (varsayılan IP.get_local_addresses).
+## () -> PackedStringArray: raw interface addresses (default IP.get_local_addresses).
 var addresses_provider: Callable = IP.get_local_addresses
-## (text: String) -> void: panoya yazar; atanmazsa DisplayServer panosu (destekliyorsa).
+## (text: String) -> void: writes to the clipboard; defaults to the DisplayServer clipboard (if supported).
 var clipboard_setter: Callable
-## Davette gösterilen port.
+## Port shown in the invite.
 var port: int = ConnectInfo.DEFAULT_PORT:
 	set(value):
 		port = value
@@ -53,7 +51,7 @@ func _process(delta: float) -> void:
 	advance(delta)
 
 
-## Adres adaylarını yeniden okur; seçim ilk adaya döner, liste kapanır.
+## Re-reads address candidates; selection returns to the first and the list closes.
 func refresh() -> void:
 	_candidates = ConnectInfo.invite_candidates(addresses_provider.call() as PackedStringArray)
 	if _candidates.size() > MAX_LISTED:
@@ -69,6 +67,11 @@ func refresh() -> void:
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.pressed.connect(_choose.bind(i))
 		_list.add_child(b)
+	# List buttons rebuilt after the screen sound was set up also get sound (IS-078).
+	var sfx: UiSfx = UiSfx.find_for(self)
+	if sfx != null:
+		for b: Node in _list.get_children():
+			UiSfx.wire_button(b as BaseButton, sfx)
 	var multiple: bool = allow_list and _candidates.size() > 1
 	_address_button.visible = multiple
 	_address_label.visible = not multiple
@@ -86,12 +89,12 @@ func selected_address() -> String:
 	return _candidates[_selected] if _selected < _candidates.size() else ConnectInfo.LOOPBACK
 
 
-## Gönderilecek davet: "adres:port".
+## Invite to send: "address:port".
 func invite_text() -> String:
 	return ConnectInfo.invite_text(selected_address(), port)
 
 
-## Daveti panoya yazar; düğmede kısa süre "Kopyalandı" görünür.
+## Writes the invite to the clipboard; the button briefly shows "Copied".
 func copy() -> void:
 	if clipboard_setter.is_valid():
 		clipboard_setter.call(invite_text())
@@ -105,7 +108,7 @@ func is_list_open() -> bool:
 	return _list.visible
 
 
-## Görünen odaklanabilir öğeler, yukarıdan aşağı.
+## Visible focusable items, top to bottom.
 func focus_controls() -> Array[Control]:
 	var out: Array[Control] = []
 	if _address_button.visible:

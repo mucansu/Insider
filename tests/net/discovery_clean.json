@@ -1,0 +1,27 @@
+{
+  "_doc": "US-039 AC10 (iii) + AC7: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn). Host baştan kaçış bölgesine yürür. c1 owner_window rotasıyla sahip raf düzeltmedeyken kasayı boşaltır, beklemeden ön kapıdan çıkıp kaçış bölgesine gider (cadde koşulur, IS-103 bot notu): herkes bölgede, ganimet 150 → iş biter, sonuç `clean` (uyarı hiç kımıldamaz; IS-103: önce 3 sn kaçış geri sayımı — host'ta karar sayacı `settle_peak_s` ~3, c1'de yerel HUD tahmini sonuç gelene dek sayar; eli boş sayacı hiç çalışmaz); keşif olayı yok (sahip kasayı açmadan iş bitti; iş bittikten sonra keşif üretilmez). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 56,
+  "bots": {
+    "host": "res://tests/net/bots/discovery_clean_host.json",
+    "c1": "res://tests/net/bots/discovery_clean_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["*.heist.result.outcome", "clean"]},
+    {"between": ["host.heist.settle_peak_s", 2.98, 3.05]},
+    {"between": ["c1.heist.settle_peak_s", 2.5, 3.6]},
+    {"eq": ["*.heist.abort_peak_s", 0]},
+    {"all_equal": "heist.result"},
+    {"eq": ["*.heist.result.max_alert", 0]},
+    {"eq": ["*.owner.events", []]},
+    {"len": ["host.owner.discoveries", 0]},
+    {"eq": ["*.alert.history", [0]]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]}
+  ]
+}

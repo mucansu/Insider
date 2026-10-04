@@ -334,3 +334,73 @@ Okunan kod: `faz2-int` (62af45a) ve US-008 çalışma kopyası (`.claude/worktre
 - Payday 2 sivil mekanikleri (wiki/forum, ikincil) — https://payday.fandom.com/wiki/File:Stockpiler.png · https://steamcommunity.com/app/218620/discussions/8/1631916887501002397
 - Rebellion, "Automated Game Testing Using a Numeric Domain Independent AI Planner", GDC AI Summit (başlık) — https://www.gdcvault.com/play/1027537/
 - Proje içi: `docs/tasarim/arastirma/faz2-bakkal-kalemleri.md` §3-§4, §6; GDD §9.2-9.3; `docs/surec/kararlar.md` günlük 2026-10-02 (IS-023 DİKKAT DAĞIT menzili, oyun-yz tur 1 kararları); mimari S5-S7, S11.
+
+---
+
+## Tur 3 — 2026-10-03 — Utility AI (fayda puanlaması)
+
+### Kapsam
+Kullanıcı sorusu: NPC karar vermede Utility AI Insiders'a uyar mı, nasıl? Yalnız karar katmanı; algı/gezinme tur 1-2'de. KR-018 (davranış ağacı/eklenti yok, düz FSM/HFSM-lite core'da) ve KR-028 (dar kapsam) gözetildi. Kod yazılmadı.
+
+### Mevcut durum (dosya:satır)
+- `core/fsm.gd:33-65` — `Fsm(initial, edges)`: izinli kenar tablosu, `go()` yalnız kenar varsa, zaman damgalı geçmiş (`history`/`history_times`), `route()` en kısa yol. Karar **vermez**; beyinler verir.
+- `entities/npc/owner/brain_owner.gd:32-56` — 9 durum, kenarlar sabit; karar noktaları: `_agenda_triggers` (293-318: kasa/çekmece keşfi, boş dükkânda keşif — if zinciri), `_agenda_step` (327-331: `level >= NOTICE` → LOOK), `top_peer` (421-433: en yüksek şüphe değerli **serbest** oyuncu, eşitlikte ilk gelen kazanır — zaten tek eksenli argmax, yani örtük utility).
+- `entities/npc/components/agenda.gd:313-322` — `_next()`: ev → rastgele "away" görevi (`_rng` tohumlu, aynısı peş peşe gelmez). Görev seçimi tohumlu rastgele, puan yok.
+- `entities/npc/civilian/brain_civilian.gd:135-146` — `_react()`: tanık → `_sees_owner()` ise TELL, değilse FLEE (ikili kural).
+- Veri: `data/npc/*_tuning.tres` (S10) var; eğri/ağırlık dosyası yok. Döküm: `states` geçmişi var; puan dökümü yok.
+
+### En iyi uygulamalar ve seçenekler
+**1. Ne / farkı.** Utility AI: her aday eylem için 0-1 arası puan = (girdi → normalize → tepki eğrisi → ağırlık) sonuçlarının çarpımı; en yüksek (ya da ağırlıklı rastgele) seçilir [O, GAIP1 §9 Graham]. FSM "hangi durumdayım + hangi kenar izinli" (yapı), BT "hangi dalı dene" (öncelik sırası), GOAP/HTN "hedefe plan" (arama); utility "şu an hangisi en iyi" (sürekli değerleme), geçiş kuralı yazmaz [O, GAIP1 §9; Rasmussen 2016]. Dave Mark IAUS (GW2 HoT, GDC 2015): consideration = (girdi, eğri m/k/b/c; 4 tip: doğrusal, polinom, lojistik, logit), **compensation factor** `mod = 1 - 1/n; puan += (1-puan)*mod*puan` (consideration sayısı arttıkça çarpımın sıfıra çökmesini telafi) [O, GDC 2015 "Building a Better Centaur"; formül konuşmadan, uintel belgesi de Mark'a atfediyor]. Geometrik ortalama alternatifi (Graham) [O, uintel]. **Momentum**: seçili eylemin puanına ×1,1-1,25 bonus → titreme (dithering) önlenir [O, uintel; Mark 2015]. The Sims: en yüksek değil, **en iyi N arasından ağırlıklı rastgele** (robotik görünmesin) [O, GMTK]. Dill "dual-utility" (GAIP2 §3, Zoo Tycoon 2): önce **rank** (kategori/öncelik), sonra kategori içinde ağırlık — "kaçış her zaman yemekten önce" gibi değişmezleri eğri hilesi olmadan verir [O].
+**2. Hibrit kalıp.** "Utility seçer, FSM/BT yürütür" yerleşik: GAIP1 §10 (Mark & Dill: BT selector'ını utility ile değiştir); Apex/Rasmussen (utility karar + FSM geçiş + BT yürütme); UE EQS (BT içinde puanlı konum seçimi) [O]. Looman (UE, 2026-04): utility'yi görev seçimi, kafa takibi hedefi, konum seçimi gibi **küçük argmax noktalarında** kullanmak BT dosya çoğalmasını azaltır [G, blog].
+**3. Godot örnekleri.** `Pennycook/godot-utility-ai` (MIT, Godot 4.2; Behavior/Consideration/ResponseCurve/Option Resource'ları, Inspector'da eğri) ve "Utility AI (GDExtension)" asset'i (düğüm tabanlı + Node Query System) [O]. Eklenti **almıyoruz** (KR-018); alınacak kalıp: eğri ve ağırlık `Resource`, puanlama saf fonksiyon, Godot `Curve` kaynağı.
+**4. Zayıflıklar (kaynaklar ortak).** Öngörülebilirlik: oyuncu "neyin neyi tetiklediğini" öğrenemez, tasarımcı "neden bunu seçti"yi puan dökümü olmadan çözemez; eğri ayarı yineleme ister; yasak geçişleri ceza ile yazmak ölçeklenmez (FSM kenarı daha dürüst) [O, GAIP1 §9; Aversa 2022]. Determinizm: puanlama saf matematik → aynı girdi aynı seçim; yalnız eşitlik bozma ve ağırlıklı rastgele tohum ister [G].
+
+### Bizim yapımıza uygunluk değerlendirmesi
+- **Okunabilirlik ilkesi** (GDD §9.3 "bir çift göz okunabilir ve yönetilebilir") utility'nin zıt ucunda: oyuncunun öğreneceği kural "≥ 30 bakar, ≥ 60 sorgular, 100 bağırır, kuyruk gelince tezgâha gelir" = eşik + kenar. Utility ile yazılırsa aynı girdiyle farklı tepki (ağırlıklı rastgele) ya da eğri kesişimlerinde açıklanamaz dönüşler çıkar. Sonuç [G]: **tepki zinciri FSM'de kalır**; utility yalnız "aynı kademede birden çok aday var, hangisi?" sorusuna.
+- **Sahip:** tepki (LOOK/QUESTION/SHOUT/HOLD) kalır. Değer katabileceği yer: `top_peer` (tek eksen: şüphe) → şüphe × görünürlük × mesafe × serbest; `_next()` görev seçimi ("uzun süredir gidilmemiş rafa git" ağırlığı). İkisi de bugün yeterli; örtü ×0,5 zaten `Suspicion`'da.
+- **Müşteri/yoldan geçen:** TELL/FLEE ikili kural; T1'de tek sonuç → utility fayda yok.
+- **Kovalayan:** hedef seçimi (en yakın görünen / en şüpheli / en son görülen) tek argmax; `top_peer` ile aynı yardımcı fonksiyon.
+- **T2 çalışan:** "düğmeye uzan / bağır / uy / kaç" seçimi sindirme, mesafe, silah, tanık sayısına bağlı → **ilk gerçek çok eksenli karar**; dual-utility (rank = tehdit kademesi, weight = mesafe/sindirme) tam uyar.
+- **T4 muhafız:** `SearchPlan` nokta puanı (LKP uzaklığı + NPC uzaklığı + sezgi; tur 2 §D) **zaten utility**; devriye/telsiz/arama kesme önceliği FSM kenarı kalır.
+- **Ağ/performans:** karar yalnız host (S2); 6 NPC × ≤ 5 aday × ≤ 4 consideration = 120 çarpım/karar, 15 Hz'de önemsiz. Replay (KR-009) için puanlama saf, eşitlik bozma tohumlu.
+
+### Bulgular
+1. [O] Doğru yaptığımız: `Fsm` kenar tablosu değişmezleri (I1-I7) açık tutuyor; `top_peer` ve `SearchPlan` puanı "utility'yi seçim fonksiyonu olarak göm" kalıbının (tur 1 §A) iki örneği zaten var.
+2. [G] Sapma yok; ama `top_peer` tek eksenli (görünürlük/mesafe yok) ve eşitlikte ilk peer kazanır — 3 oyuncu aynı anda eşit şüphede ise seçim peer kimliğine (host=1) bağlı, tasarımsal değil.
+3. [G] Risk: bütün beyni utility'ye taşımak okunabilirliği, test edilebilirliği (I3 geçiş günlüğü) ve determinizmi zayıflatır; KR-018 "çatı yok" ile çatışır. Dar kullanımda (argmax yardımcı) risk yok.
+4. [?] Ağırlıklı rastgele (The Sims) bizde yalnız ajanda görev seçiminde anlamlı; tepkide **asla** (aynı girdi aynı tepki; 150 ms ağda "neden bana bağırdı" tartışması çıkmasın).
+
+### Öneriler
+| # | Öncelik | Maliyet | Sahip | Kalem adayı | Kabul kriterleri (taslak) |
+|---|---|---|---|---|---|
+| 19 | P3 (T2 öncesi; şimdi değil) | S | oynanis (core) | **`core/utility.gd` düğümsüz puanlayıcı** (`RefCounted`; `Consideration(value: float, curve: Curve, weight: float)`, `Utility.score(candidates: Array[Dictionary], current: StringName) -> Dictionary{best, scores}`; compensation factor; momentum `commit_bonus` (varsayılan 1,15) `current` adayına; eşitlik bozma tohumlu — `Game.derive_seed(&"utility")`; `Curve` kaynağı `.tres`, S10) | (a) birim: sabit girdi → deterministik seçim; momentum ile aynı girdide seçim değişmez; consideration sayısı artınca puan çökmez (compensation testi); (b) dökümde `utility_scores` (aday → puan + kırılım) yalnız host, `--debug-ai` katmanında (tur 1 öneri 6) metin; (c) `core/` bağımlılık kuralı (Node yok) ve kapsülleme taraması geçer. |
+| 20 | P3 (öneri 19 ile) | XS | oynanis | **İlk kullanım: `top_peer` çok eksenli** (şüphe × görünürlük (0,2 sn kuralı) × mesafe × serbest; eşitlik tohumlu) | (a) `owner_detect` ve `rescue` senaryoları değişmez; (b) iki oyuncu eşit şüphede ise yakın olan seçilir (birim); (c) döküm `utility_scores.top_peer`. |
+| 21 | P3 (T2 kalemi içinde) | M | oynanis + tasarim | **T2 çalışan dual-utility** (rank = tehdit kademesi: silah > bağırış > şüphe; weight = düğme mesafesi, sindirme süresi, tanık sayısı) | (a) yüksek rank düşük rank'i her zaman yener (değişmez testi); (b) aynı tohum + aynı girdi → aynı eylem; (c) GDD T2 tablosuna karşı 4 senaryo (uyar/uzan/bağır/kaç). |
+
+Şimdi (bakkal, test-2 öncesi) **yapılmaz**: KR-028 dondurma + T1'de çok eksenli karar yok; mevcut if/argmax yeter. Eşitlik bozma (bulgu 2) istenirse XS: `top_peer`'da `value` eşitse mesafeyle kır — utility altyapısı gerekmez.
+
+### Karar gereken (koordinatöre)
+1. Yön: "utility yalnız seçim fonksiyonu (argmax yardımcı); tepki zinciri ve kenarlar FSM'de; ağırlıklı rastgele yalnız ajanda görev seçiminde" KR-018 eki olarak yazılsın mı? Öneri: evet, T2 planlamasında.
+2. `core/utility.gd` zamanı: T2 çalışan kalemiyle (öneri) mi, T4 `SearchPlan` ile mi? Öneri: T2 (ilk çok eksenli karar orada).
+
+### Sonraki tur için açık sorular
+- T2 çalışan kararı için GDD §9.1 T2 satırının eylem listesi ve girdileri (sindirme ölçeri var mı?) — tasarim.
+- `Curve` kaynağının replay'de versiyonlanması (eğri değişince eski replay bozulur; `data` sürüm damgası?).
+- Ağırlıklı rastgele ajanda seçimi "sahip her 2 dakikada arka odaya gidiyor" keşif bilgisini (GDD §9.2 keşif bağı) bozar mı — tasarım sorusu.
+
+### Kaynaklar
+- Graham, "An Introduction to Utility Theory", Game AI Pro 1 §9 — http://www.gameaipro.com/GameAIPro/GameAIPro_Chapter09_An_Introduction_to_Utility_Theory.pdf
+- Mark & Dill, "Building Utility Decisions into Your Existing Behavior Tree", GAIP1 §10 — http://www.gameaipro.com/
+- Dill, "Dual-Utility Reasoning", GAIP2 §3 — https://www.oreilly.com/library/view/game-ai-pro/9781482254792/K23980_C003.xhtml
+- Lewis, "Choosing Effective Utility-Based Considerations", GAIP3 §13 — http://www.gameaipro.com/GameAIPro3/GameAIPro3_Chapter13_Choosing_Effective_Utility-Based_Considerations.pdf
+- Mark & Dill, "Improving AI Decision Modeling Through Utility Theory", GDC 2010 — https://gdcvault.com/play/1012410
+- Mark & Lewis, "Building a Better Centaur: AI at Massive Scale", GDC 2015 (GW2 HoT, IAUS) — https://gdcvault.com/play/1021848 · IAUS özeti — https://gameai.com/iaus.php
+- Mark, "Embracing the Dark Art of Mathematical Modeling in AI", GDC 2012 — https://gdcvault.com/play/1015421
+- Rasmussen, "Are Behavior Trees a Thing of the Past?", Game Developer 2016 — https://gamedeveloper.com/programming/are-behavior-trees-a-thing-of-the-past-
+- Aversa, "Utility-based AI", 2022 — https://davideaversa.it/blog/utility-based-ai/
+- Looman, "Journey into Utility AI with Unreal Engine (Part 1)", 2026-04 — https://tomlooman.com/unreal-engine-utility-ai-part1/
+- Utility Worlds belgesi (compensation factor / geometrik ortalama / momentum bonus; ikincil) — https://uintel-ecs.utilityworlds.com/Documentation/UtilityIntelligence/Considerations/
+- Pennycook, godot-utility-ai (MIT, Godot 4.2) — https://github.com/Pennycook/godot-utility-ai · Godot Asset Library "Utility AI (GDExtension)" — https://godotengine.org/asset-library/asset/1937
+- GMTK, "The Genius AI Behind The Sims" (ikincil) — https://gameindustrylibrary.com/documents/gmtk-the-genius-ai-behind-the-sims
+- Wikipedia "Utility system" — https://en.wikipedia.org/wiki/Utility_system
+- Proje içi: `core/fsm.gd`, `brain_owner.gd:293-331, 421-433`, `agenda.gd:313-322`, `brain_civilian.gd:135-146`; KR-018, KR-028; GDD §9.2-9.3; `docs/tasarim/arastirma/muhafiz-davranisi.md` §3.

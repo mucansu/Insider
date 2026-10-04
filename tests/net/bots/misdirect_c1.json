@@ -1,0 +1,11 @@
+{
+  "_doc": "misdirect.json c1 botu (US-043, suçüstü): sola hizalan, sağa ön kapı hizasına, kapıdan girip tezgâh ucunun batısına (y≈436), doğuya personel tarafına (x≈548), kuzeye y≈400'e çık ve dur — sahibin konisinde yakın bant, personel tarafı: örtüsü bozulur, sahip bağırır, tutar, yakalar.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.672, "move": [1, 0]},
+    {"t": 5.958, "move": [0, -1]},
+    {"t": 6.215, "move": [0, 0]}
+  ]
+}

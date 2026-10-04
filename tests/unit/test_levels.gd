@@ -1,20 +1,19 @@
 extends TestCase
-## US-002: seviye sahneleri (mimari.md S4, S9; GDD §9 T1).
-## Zorunlu düğümler ve işaretler, spawn güvenliği, kapı boşlukları, kapılardan kasaya yol (ızgara BFS'i),
-## sabit renk yokluğu ve sahnenin düzen kaynağıyla (levels/layouts/*.txt) güncelliği.
-## Yürünebilirlik ızgarası `Walls` çarpışma şekillerinden çıkarılır; `Tiles` düzenine güvenmez, onunla ayrıca karşılaştırılır.
+## US-002: level scenes (mimari.md S4, S9; GDD §9 T1). Required nodes and markers, spawn safety, door gaps, path from doors
+## to the register (grid BFS), absence of hard-coded colours, and freshness against the layout source (levels/layouts/*.txt).
+## The walkability grid comes from the `Walls` collision shapes; it does not trust the `Tiles` layout and is compared against it separately.
 
 const STORE := "res://levels/store_a.tscn"
 const ARENA := "res://levels/test_arena.tscn"
 const LEVELS: Array[String] = [STORE, ARENA]
 const BUILDER := "res://levels/tools/build_levels.gd"
 const LAYOUT_DIR := "res://levels/layouts"
-const TMP_DIR := "user://test_levels_roundtrip"  # gidiş-dönüş testi depodaki sahnelere dokunmaz
+const TMP_DIR := "user://test_levels_roundtrip"  # the round-trip test does not touch scenes in the repo
 
 const TILE := 32
-const CHAR_RADIUS := 12.0     # karakter çapı ~24 px (S4)
-const INTERACT_RANGE := 40.0  # Interactable.interact_range varsayılanı (S7)
-const WORLD_LAYER := 1        # mimari.md §4
+const CHAR_RADIUS := 12.0     # character diameter ~24 px (S4)
+const INTERACT_RANGE := 40.0  # Interactable.interact_range default (S7)
+const WORLD_LAYER := PhysicsLayers.WORLD  # mimari.md §4 layer 1
 
 const REQUIRED: Array[String] = ["Walls", "SpawnPoints", "Players", "Props", "NPCs", "Markers"]
 const MARKERS: Array[String] = ["FrontDoor", "BackDoor", "Register", "Counter", "ClerkSpot", "BackroomSafe", "Exit"]
@@ -23,7 +22,7 @@ const STORE_DOORS: Array[String] = ["FrontDoor", "BackDoor", "BackroomDoor"]
 const DIRS: Array[Vector2i] = [Vector2i.UP, Vector2i.DOWN, Vector2i.LEFT, Vector2i.RIGHT]
 
 
-## Karo ızgarası: hücre, karakter (çap ~24 px) merkezde durup komşu hücre merkezine düz yürüyebiliyorsa açık.
+## Tile grid: a cell is open if a character (diameter ~24 px) centred there can walk straight to the neighbour cell centre.
 class Grid:
 	extends RefCounted
 	var origin: Vector2i
@@ -37,7 +36,7 @@ class Grid:
 	func is_open(cell: Vector2i) -> bool:
 		return has_cell(cell) and blocked[(cell.y - origin.y) * size.x + cell.x - origin.x] == 0
 
-	## Merkezi `pos`'a en fazla `radius` uzaklıktaki açık hücreler.
+	## Open cells at most `radius` from centre `pos`.
 	func open_cells_near(pos: Vector2, radius: float) -> Array[Vector2i]:
 		var out: Array[Vector2i] = []
 		for y: int in range(origin.y, origin.y + size.y):
@@ -47,7 +46,7 @@ class Grid:
 					out.append(cell)
 		return out
 
-	## 4-komşu BFS: `from` hücresinden `goals`tan birine, `closed` hücrelerine basmadan yol var mı.
+	## 4-neighbour BFS: is there a path from cell `from` to one of `goals` without stepping on `closed` cells.
 	func reaches(from: Vector2i, goals: Array[Vector2i], closed: Array[Vector2i] = []) -> bool:
 		if not is_open(from) or closed.has(from):
 			return false
@@ -255,8 +254,8 @@ func test_scenes_match_layout_sources() -> void:
 
 
 func test_builder_preserves_instanced_props() -> void:
-	# S4: Players/Props/NPCs altına eklenenler yeniden üretimde korunur. US-005 kasa/kapıyı Props altına alt sahne
-	# örneği olarak koyacak: örneğin değiştirilmiş değeri kalmalı, alt sahnenin değeri seviyeye sabitlenmemeli.
+	# S4: nodes added under Players/Props/NPCs survive regeneration. US-005 will place register/door as sub-scene instances
+	# under Props: the instance's overridden value must remain, the sub-scene's value must not be pinned by the level.
 	var builder: GDScript = load(BUILDER) as GDScript
 	if not is_true(builder != null, "üretici yüklenemedi"):
 		return
@@ -274,7 +273,7 @@ func test_builder_preserves_instanced_props() -> void:
 	prop.free()
 	eq(ResourceSaver.save(prop_scene, prop_path), OK, "alt sahne yazılmalı")
 	eq(builder.call("build_scene", layout_path, level_path), OK, "ilk üretim")
-	# Editörün yaptığı gibi: seviyeye alt sahne örneği ekle ve bir değerini değiştir.
+	# As the editor does: add a sub-scene instance to the level and override one value.
 	var level: Node = (ResourceLoader.load(level_path, "", ResourceLoader.CACHE_MODE_IGNORE) as PackedScene) \
 		.instantiate(PackedScene.GEN_EDIT_STATE_MAIN)
 	var instance: Area2D = (ResourceLoader.load(prop_path) as PackedScene) \
@@ -310,7 +309,7 @@ func test_builder_preserves_instanced_props() -> void:
 
 
 func test_visuals_take_colors_from_theme_tokens() -> void:
-	# Sahnelere renk yazılmaz; seviye betiklerinde renk sabiti yok (S9: renkler yalnız ThemeTokens'tan).
+	# No colours are written into scenes; level scripts have no colour constants (S9: colours only from ThemeTokens).
 	var literal := RegEx.create_from_string("Color\\s*\\(|Color8\\s*\\(|Color\\.(html|hex|from_)|Color\\.[A-Z]{2,}|\"#[0-9a-fA-F]{3,8}\"")
 	var files: PackedStringArray = [STORE, ARENA, "res://levels/level_layout.gd", BUILDER]
 	for path: String in files:
@@ -318,7 +317,7 @@ func test_visuals_take_colors_from_theme_tokens() -> void:
 		is_false(text.is_empty(), "%s okunamadı" % path)
 		var found: RegExMatch = literal.search(text)
 		is_true(found == null, "%s sabit renk içeriyor: %s" % [path, found.get_string() if found != null else ""])
-	# Zemin, duvar, raf ve tezgâh birbirinden ayrı okunur.
+	# Floor, wall, shelf and counter read as distinct.
 	var kinds: Array[LevelLayout.Kind] = [LevelLayout.Kind.FLOOR, LevelLayout.Kind.WALL, LevelLayout.Kind.SHELF, LevelLayout.Kind.COUNTER]
 	for i: int in kinds.size():
 		for j: int in range(i + 1, kinds.size()):
@@ -326,7 +325,7 @@ func test_visuals_take_colors_from_theme_tokens() -> void:
 			var b: Color = LevelLayout.color_of(kinds[j])
 			var diff: float = maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b)))
 			is_true(diff >= 0.05, "%s ile %s renkleri ayırt edilemiyor" % [_kind_name(kinds[i]), _kind_name(kinds[j])])
-	# Harita kenarı (tarama çizgisi) cadde ve kaldırımdan ayrı okunur.
+	# The map edge (scan line) reads distinct from street and sidewalk.
 	for outside: LevelLayout.Kind in [LevelLayout.Kind.STREET, LevelLayout.Kind.SIDEWALK]:
 		var a: Color = LevelLayout.edge_color(LevelLayout.Kind.BOUND)
 		var b: Color = LevelLayout.color_of(outside)
@@ -335,7 +334,7 @@ func test_visuals_take_colors_from_theme_tokens() -> void:
 
 
 func test_level_palette_comes_from_tone() -> void:
-	# IS-008: seviye renkleri etkin tonun seviye paletinden; noir değerleri ThemeTokens.LEVEL_*.
+	# IS-008: level colours come from the active tone's level palette; noir values are ThemeTokens.LEVEL_*.
 	var tokens: Dictionary = {
 		"level_floor_color": ThemeTokens.LEVEL_FLOOR, "level_backroom_color": ThemeTokens.LEVEL_BACKROOM,
 		"level_sidewalk_color": ThemeTokens.LEVEL_SIDEWALK, "level_street_color": ThemeTokens.LEVEL_STREET,
@@ -353,14 +352,16 @@ func test_level_palette_comes_from_tone() -> void:
 		LevelLayout.Kind.DOOR: "level_floor_color", LevelLayout.Kind.BACKROOM: "level_backroom_color",
 		LevelLayout.Kind.WALL: "level_wall_color", LevelLayout.Kind.WINDOW: "wall_color",
 		LevelLayout.Kind.SHELF: "level_shelf_color", LevelLayout.Kind.COUNTER: "level_counter_color",
+		LevelLayout.Kind.COOLER: "level_shelf_color", LevelLayout.Kind.CRATE: "level_counter_color",
 	}
 	var edge: Dictionary = {
 		LevelLayout.Kind.BOUND: "wall_color", LevelLayout.Kind.SIDEWALK: "wall_color",
 		LevelLayout.Kind.WALL: "level_wall_edge_color", LevelLayout.Kind.WINDOW: "level_glass_color",
 		LevelLayout.Kind.SHELF: "level_shelf_edge_color", LevelLayout.Kind.COUNTER: "level_counter_edge_color",
+		LevelLayout.Kind.COOLER: "level_glass_color", LevelLayout.Kind.CRATE: "level_counter_edge_color",
 	}
 	eq(fill.size(), LevelLayout.Kind.size(), "her karo türünün dolgu rengi tanımlı")
-	# Başka bir ton seviye renklerini de değiştirir: renkler çizim anında etkin tondan okunur.
+	# Another tone changes the level colours too: colours are read from the active tone at draw time.
 	var other: Tone = ThemeTokens.noir_tone()
 	other.id = &"test_level_tone"
 	for prop: String in tokens.keys() + ["bg_color", "wall_color"]:
@@ -372,16 +373,16 @@ func test_level_palette_comes_from_tone() -> void:
 		for kind: LevelLayout.Kind in edge:
 			eq(LevelLayout.edge_color(kind), tone.get(edge[kind]), "%s: %s kenarı ← %s" % [tone.id, _kind_name(kind), edge[kind]])
 	ThemeTokens.set_tone(null)
-	# Seviye betikleri ton dışı sabit renk okumaz (ThemeTokens.BG, .LEVEL_* vb.); ikinci ton seviyeyi de boyar.
+	# Level scripts read no non-tone constant colours (ThemeTokens.BG, .LEVEL_* etc.); a second tone paints the level too.
 	var direct := RegEx.create_from_string("ThemeTokens\\.[A-Z]")
 	for path: String in ["res://levels/level_layout.gd", BUILDER]:
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
 		for i: int in lines.size():
-			var code: String = lines[i].get_slice("#", 0)  # yorumlar hariç
+			var code: String = lines[i].get_slice("#", 0)  # excluding comments
 			is_true(direct.search(code) == null, "%s:%d ton yerine ThemeTokens sabiti okuyor: %s" % [path, i + 1, code.strip_edges()])
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
 func _load(path: String) -> Node2D:
 	var scene: PackedScene = load(path) as PackedScene
@@ -393,7 +394,7 @@ func _load(path: String) -> Node2D:
 	return autofree(level) as Node2D
 
 
-## `Walls` altındaki tüm dikdörtgen çarpışma şekilleri, seviye kökü koordinatında.
+## All rectangular collision shapes under `Walls`, in level-root coordinates.
 func _wall_rects(level: Node2D) -> Array[Rect2]:
 	var out: Array[Rect2] = []
 	var walls: Node = level.get_node_or_null("Walls")
@@ -410,8 +411,8 @@ func _wall_rects(level: Node2D) -> Array[Rect2]:
 	return out
 
 
-## Izgara: hücre merkezindeki artı biçimli yoklama (yatay 32×24, dikey 24×32 px) hiçbir şekle girmiyorsa açık.
-## Artı, karakterin (r = 12 px) komşu hücre merkezine düz yürürken taradığı alanı kapsar.
+## Grid: a cell is open if the plus-shaped probe at the cell centre (horizontal 32x24, vertical 24x32 px) enters no shape.
+## The plus covers the area a character (r = 12 px) sweeps walking straight to the neighbour cell centre.
 func _grid(level: Node2D) -> Grid:
 	var rects: Array[Rect2] = _wall_rects(level)
 	var grid := Grid.new()
@@ -451,7 +452,7 @@ func _marker_cell(level: Node2D, marker_name: String) -> Vector2i:
 	return _cell(marker.position)
 
 
-## .tscn metninde adı verilen düğümün bölümü (başlık satırı + özellikler).
+## The section (header line + properties) of the node named in the .tscn text.
 static func _node_block(text: String, node_name: String) -> String:
 	var start: int = text.find('[node name="%s"' % node_name)
 	if start < 0:

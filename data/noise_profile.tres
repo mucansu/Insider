@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="NoiseProfile" format=3]
+
+[ext_resource type="Script" uid="uid://blpwpgh0nb5p1" path="res://data/noise_profile.gd" id="1_noise"]
+
+[resource]
+script = ExtResource("1_noise")
+walk_radius = 0.0
+sneak_radius = 0.0
+sprint_radius = 120.0
+door_radius = 160.0
+register_radius = 90.0
+intimidate_radius = 140.0
+phone_radius = 160.0
+shelf_radius = 96.0
+bell_radius = 160.0
+step_interval = 0.35
+step_min_speed = 40.0
+register_interval = 1.0
+wall_factor = 0.5

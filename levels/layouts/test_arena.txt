@@ -1,28 +1,46 @@
-; test_arena — boş 20×15 karo oda (US-002 AC4). Lejant: levels/level_layout.gd.
-; İşaretler açık zeminde: seviyeye bağlı sistemler (oyuncu, kapı, kasa) burada yalıtık denenir.
+; test_arena — empty 20x15 tile room (US-002 AC4). Legend: levels/level_layout.gd. Markers on open floor: level-bound systems (player, door, register, NPC route, escape) are tried here in isolation.
+; IS-023: minimal counterparts of the shop's population markers (one of each sequential name) and three zones (non-overlapping; spawn points outside zones, "outside").
+; Zone line: = <letter> <Zone name> <floor char>; the letter's cells (with markers inside) form a filled rectangle.
+; Unpainted zone: = <Zone name> <col> <row> <width> <height> (tiles; a repeated name makes a multi-part zone).
 @ F FrontDoor .
 @ B BackDoor .
 @ R Register .
 @ C Counter .
 @ K ClerkSpot .
 @ V BackroomSafe .
+@ M BackroomCash .
 @ E Exit .
+@ a StreetRoute1 .
+@ b StreetRoute2 .
+@ c StreetRoute3 .
+@ N NeighbourSpawn .
+@ g WindowLook1 .
+@ j ShopSpot1 .
+@ q QueueSpot1 .
+@ o RestockSpot1 .
+@ P PhoneSpot .
+@ O BackroomSpot .
+@ x ShelfProp1 .
 @ 1 Spawn1 .
 @ 2 Spawn2 .
 @ 3 Spawn3 .
 @ 4 Spawn4 .
+= X EscapeZone .
+= CustomerArea 6 5 9 5
+= StaffArea 15 5 4 3
+= Backroom 1 1 4 3
 ####################
-#..................#
-#.V................#
+#...O.......g.....N#
+#.VM.......a....b..#
 #..................#
 #.........B........#
-#..................#
-#..............CR..#
-#...............K..#
-#..................#
+#........o.........#
+#......jx......CRP.#
+#.............q.K..#
+#...............c..#
 #.........F........#
 #..................#
-#..................#
-#.1234...........E.#
-#..................#
+#...............XXX#
+#.1234..........XEX#
+#...............XXX#
 ####################

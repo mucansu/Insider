@@ -1,0 +1,162 @@
+[gd_scene format=3 uid="uid://dfscna6q7c7gy"]
+
+[ext_resource type="Script" uid="uid://bhx3oqd4qmttr" path="res://ui/heist_end.gd" id="1_end"]
+[ext_resource type="Theme" uid="uid://c4jmsv73wdge0" path="res://ui/theme/noir.tres" id="2_theme"]
+
+[node name="HeistEnd" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme = ExtResource("2_theme")
+script = ExtResource("1_end")
+
+[node name="Dim" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"DimPanel"
+
+[node name="Center" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Card" type="PanelContainer" parent="Center"]
+custom_minimum_size = Vector2(960, 0)
+layout_mode = 2
+theme_type_variation = &"CardPanel"
+
+[node name="Box" type="VBoxContainer" parent="Center/Card"]
+layout_mode = 2
+
+[node name="Header" type="HBoxContainer" parent="Center/Card/Box"]
+layout_mode = 2
+theme_type_variation = &"LooseHBox"
+
+[node name="TitleBox" type="VBoxContainer" parent="Center/Card/Box/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="OutcomeTitle" type="Label" parent="Center/Card/Box/Header/TitleBox"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+
+[node name="OutcomeNote" type="Label" parent="Center/Card/Box/Header/TitleBox"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+
+[node name="CauseNote" type="Label" parent="Center/Card/Box/Header/TitleBox"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"AlertLabel"
+
+[node name="DurationBox" type="VBoxContainer" parent="Center/Card/Box/Header"]
+layout_mode = 2
+size_flags_vertical = 0
+
+[node name="DurationCaption" type="Label" parent="Center/Card/Box/Header/DurationBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_DURATION_LABEL"
+horizontal_alignment = 2
+
+[node name="DurationValue" type="Label" parent="Center/Card/Box/Header/DurationBox"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+horizontal_alignment = 2
+
+[node name="TopRule" type="HSeparator" parent="Center/Card/Box"]
+layout_mode = 2
+theme_type_variation = &"AccentSeparator"
+
+[node name="Body" type="HBoxContainer" parent="Center/Card/Box"]
+layout_mode = 2
+theme_type_variation = &"LooseHBox"
+
+[node name="PayoutBox" type="VBoxContainer" parent="Center/Card/Box/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="PayoutCaption" type="Label" parent="Center/Card/Box/Body/PayoutBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_PAYOUT_LABEL"
+
+[node name="PayoutGrid" type="GridContainer" parent="Center/Card/Box/Body/PayoutBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 2
+
+[node name="PlayersBox" type="VBoxContainer" parent="Center/Card/Box/Body"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_stretch_ratio = 1.4
+
+[node name="PlayersCaption" type="Label" parent="Center/Card/Box/Body/PlayersBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_PLAYERS_LABEL"
+
+[node name="PlayerGrid" type="GridContainer" parent="Center/Card/Box/Body/PlayersBox"]
+unique_name_in_owner = true
+layout_mode = 2
+columns = 4
+
+[node name="NotesBox" type="VBoxContainer" parent="Center/Card/Box"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="NotesCaption" type="Label" parent="Center/Card/Box/NotesBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_NOTES_LABEL"
+
+[node name="NoteRow" type="HBoxContainer" parent="Center/Card/Box/NotesBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="BottomRule" type="HSeparator" parent="Center/Card/Box"]
+layout_mode = 2
+
+[node name="Buttons" type="HBoxContainer" parent="Center/Card/Box"]
+layout_mode = 2
+size_flags_horizontal = 4
+theme_type_variation = &"LooseHBox"
+
+[node name="RetryButton" type="Button" parent="Center/Card/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+theme_type_variation = &"PrimaryButton"
+text = "END_RETRY"
+
+[node name="RetryHint" type="Label" parent="Center/Card/Box/Buttons"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "END_RETRY_HOST_ONLY"
+vertical_alignment = 1
+
+[node name="MenuButton" type="Button" parent="Center/Card/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+text = "END_MENU"

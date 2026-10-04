@@ -25,6 +25,9 @@ jobs:
     name: Godot içe aktarma + testler
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Uzak CI logu ayrıntılı kalsın (IS-090): ci_local.sh yerelde varsayılan kısa kipte, burada eski çıktı.
+    env:
+      CI_VERBOSE: "1"
     steps:
       - uses: actions/checkout@v7
 

@@ -1,0 +1,33 @@
+{
+  "_doc": "US-039 AC10 (i) + AC1/AC4/AC8, IS-100 AC1 (dönüşte kasa kontrolü): store_a, geç müşteri fikstürü (tests/fixtures/store_a_late_customer.tscn: tek müşteri 45. sn'de, tek raf noktası 8 sn; yoldan geçen yok). c1 owner_window rotası: sahip raf düzeltmedeyken (ajanda tohumu 3) kasayı boşaltır ve müşteri tarafında, ön kapının içinde kalır (sahip suçüstü görmez). IS-100 (KR-032): sahip raftan tezgâha dönünce (~52,7 sn) 1 sn içinde kasaya bakar, kasa boş → keşif (trigger `return`; eskiden müşteri servisinin 2. saniyesinde, \"kasa açılır\" kancası — o yol artık birim testte, test_discovery.gd): DISCOVER 1,5 sn (`owner_discover_register` balonu, `owner_discover` {source: register} oturum olayı her peer'da) → bağırış (uyarı 2). Kasa hiç açılmaz (register_opens 0); 45. sn'de giren müşteri bağırışla kaçar. Döküm komşu çıkmadan (bağırış ~55,3 + 8 sn) 60. sn'de alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_late_customer.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 60,
+  "bots": {
+    "c1": "res://tests/net/bots/owner_window_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_late_customer.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.team_cash", 150]},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["*.owner.events.0", "owner_discover_register"]},
+    {"eq": ["*.owner.events.1", "owner_shout"]},
+    {"eq": ["*.owner.event_peers.0", 0]},
+    {"eq": ["*.heist.events_main.0.kind", "owner_discover"]},
+    {"eq": ["*.heist.events_main.0.data.source", "register"]},
+    {"len": ["*.heist.events_main", 1]},
+    {"len": ["host.owner.discoveries", 1]},
+    {"eq": ["host.owner.discoveries.0.source", "register"]},
+    {"eq": ["host.owner.discoveries.0.full", true]},
+    {"eq": ["host.owner.discoveries.0.trigger", "return"]},
+    {"eq": ["host.owner.register_opens", 0]},
+    {"eq": ["host.owner.serves", 0]},
+    {"eq": ["*.alert.level", 2]},
+    {"all_equal": "alert.level"},
+    {"has": ["*.population.events", "customer_flee"]},
+    {"eq": ["host.population.served", 0]},
+    {"eq": ["*.chasers.spawned", 0]}
+  ]
+}

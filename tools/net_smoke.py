@@ -1,83 +1,83 @@
 #!/usr/bin/env python3
-"""Çok süreçli ağ duman testi (mimari.md S6, §5; US-001). Yalnız Python standart kütüphanesi.
+"""Multi-process network smoke test (mimari.md S6, §5; US-001). Python standard library only.
 
-Kullanım:
-    python3 tools/net_smoke.py tests/net/<senaryo>.json [--latency-ms 150] [--jitter-ms J] [--loss P]
-                               [--reorder] [--keep] [--verbose] [--duration SN]
---duration senaryonun duration'ını ezer (tools/soak.sh). GDD §12 "sert ağ": --latency-ms 150 --jitter-ms 30
---loss 0.01 (IS-013 AC2; ci_local'ın varsayılan adımında değil, ayrı komut).
-Godot: GODOT ortam değişkeni, yoksa tools/get_godot.sh. Çıkış kodu 0 = tüm beklentiler geçti.
+Usage:
+    python3 tools/net_smoke.py tests/net/<scenario>.json [--latency-ms 150] [--jitter-ms J] [--loss P]
+                               [--reorder] [--keep] [--verbose] [--duration SEC]
+--duration overrides the scenario's duration (tools/soak.sh). GDD §12 "hard network": --latency-ms 150 --jitter-ms 30
+--loss 0.01 (IS-013 AC2; not in ci_local's default step, a separate command).
+Godot: GODOT env var, else tools/get_godot.sh. Exit code 0 = all expectations passed.
 
-Akış: boş UDP portları bulunur → host `--headless` başlatılır ve stdout'ta `INSIDERS_READY` beklenir →
-(--latency-ms > 0 ise araya tools/latency_proxy.py konur: yön başına RTT/2 gecikme) → istemciler
-`start_delay` sonra başlatılır → her süreç `--quit-after` ile döker ve kapanır; sert zaman aşımında bütün
-süreç grupları öldürülür (asılı süreç kalmaz; SIGTERM'de de) → dökümler okunur, beklentiler değerlendirilir.
-Süreç ağacı öldürme (kill_process_tree): POSIX'te ayrı oturum + killpg SIGTERM, sonra SIGKILL. Windows'ta
-start_new_session işlemez: ayrı süreç grubu (CREATE_NEW_PROCESS_GROUP) + CTRL_BREAK_EVENT, sonra kök
-Popen tutamağıyla, torunlar `taskkill /F /PID` ile (Godot console exe'si asıl exe'yi çocuk olarak başlatır).
-Torunlar oluşturma zamanıyla süzülür: pid yeniden kullanımında ilgisiz süreç ağaca girmez (`/T` kullanılmaz).
-Başarısızlıkta her sürecin log'u basılır. Log'da `ERROR:` / `SCRIPT ERROR:` satırı da başarısızlıktır
-(`allow_log` hariç). --latency-ms > 0 iken gecikmenin uygulandığı ayrıca doğrulanır: proxy her istemciyi
-eşlemiş olmalı ve her istemci için ölçülen ping (kendi dökümünde ping_ms.1 ya da host'unkinde ping_ms.<id>)
->= 0,8 x gecikme olmalı.
+Flow: find free UDP ports -> start the host `--headless` and wait for `INSIDERS_READY` on stdout ->
+(if --latency-ms > 0 tools/latency_proxy.py is put in between: RTT/2 delay per direction) -> start clients after
+`start_delay` -> every process dumps and exits via `--quit-after`; on a hard timeout all process groups are killed (no hung
+process remains; also on SIGTERM) -> dumps are read and expectations evaluated.
+Process tree kill (kill_process_tree): on POSIX a separate session + killpg SIGTERM, then SIGKILL. On Windows start_new_session
+does not work: a separate process group (CREATE_NEW_PROCESS_GROUP) + CTRL_BREAK_EVENT, then the root via the Popen handle and
+descendants via `taskkill /F /PID` (the Godot console exe starts the real exe as a child). Descendants are filtered by creation
+time: on pid reuse an unrelated process does not enter the tree (`/T` is not used).
+Output (IS-090): one PASS line on success; on failure the failed expectations + error lines from each process log (first 20; if none
+the last 10 lines); with -v all expectations and full logs. An `ERROR:` / `SCRIPT ERROR:` line in a log is a failure too (except
+`allow_log`). With --latency-ms > 0 it is also verified that the delay was applied: the proxy must have mapped every client and the
+ping measured for every client (ping_ms.1 in its own dump or ping_ms.<id> in the host's) must be >= 0.8 x delay.
 
-Senaryo (JSON; "_doc" serbest açıklamadır):
-    level         res:// seviye (host'a --level)                        [zorunlu]
-    player_scene  res:// oyuncu sahnesi (herkese --player-scene)       [res://tests/fixtures/dummy_player.tscn]
-    clients       istemci sayısı (adları c1..cN)                       [2]
-    duration      host başlangıcından ortak döküm anına saniye         [8]
-    start_delay   {"c2": 2.0}: istemcinin host hazır olduktan sonra kaç sn sonra başlatılacağı   [0]
-    quit_after    {"c2": 4}: sürece özel --quit-after (o sürecin başlangıcına göre); verilmeyenler host
-                  başlangıcı + duration anında döker (cN, LEAVE_STAGGER x (N-1) sn sonra: istemciler aynı host
-                  karesinde kopmasın; bkz. LEAVE_STAGGER notu)
-    bots          {"host": "res://tests/net/bots/x.json", "c1": ...} (--bot). Bot dosyasında
-                  "loop": {"from": F, "period": P} varsa net_smoke t >= F adımlarını P aralıkla, yalnız tam
-                  turlar ve son tur bot saatinde quit_after - BOT_LOOP_END_MARGIN'de bitecek şekilde açar ve
-                  açılmış kopyayı (geçici dizin, mutlak yol) verir (expand_bot_loop; dayanıklılık koşusu;
-                  tur zamanları kare sınırına düşmemeli, bkz. expand_bot_loop)
-    names         {"c1": "ad"} (--name)                                [süreç adı]
-    exit_codes    {"c1": 0} beklenen çıkış kodları                     [hepsi 0]
-    allow_log     ["regex", ...] izin verilen ERROR (/WARNING) satırları [yok]
-    deny_warnings true ise log'daki WARNING satırı da başarısızlık   [false]
-    mem_sample_sec  > 0 ise her sürecin ağacının özel belleği (Windows PrivateUsage, kök + torunlar; Linux
-                  RssAnon, kök + torunlar) bu aralıkla örneklenir ve dökümüne "mem_mb": [[süreç başlangıcından
-                  sn, MB], ...] ve "mem_meta": {"every", "quit_after"} olarak eklenir (mem_stable için)  [0]
-    timeout       sert üst süre (sn)                                    [hesaplanır]
-    expect        beklenti listesi (aşağıda)                           [zorunlu, boş olamaz]
-Bilinmeyen anahtar içeren senaryo reddedilir (FAIL).
+Scenario (JSON; "_doc" is a free comment):
+    level         res:// level (--level to the host)                    [required]
+    player_scene  res:// player scene (--player-scene to everyone)      [res://tests/fixtures/dummy_player.tscn]
+    clients       number of clients (named c1..cN)                      [2]
+    duration      seconds from host start to the shared dump moment     [8]
+    start_delay   {"c2": 2.0}: how many s after the host is ready the client starts   [0]
+    quit_after    {"c2": 4}: per-process --quit-after (relative to that process's start); the rest dump at host start +
+                  duration (cN, c1 included, LEAVE_STAGGER x N s later: so clients do not drop after the host dump or in the
+                  same host frame; see the LEAVE_STAGGER note). If their real dump moments spread more than LINGER_SEC the run
+                  repeats (RACE_RETRIES; IS-095)
+    bots          {"host": "res://tests/net/bots/x.json", "c1": ...} (--bot). If a bot file has
+                  "loop": {"from": F, "period": P}, net_smoke expands the t >= F steps at P intervals, only whole laps, so the last
+                  lap ends on the bot clock at quit_after - BOT_LOOP_END_MARGIN, and passes the expanded copy (temp dir,
+                  absolute path) (expand_bot_loop; endurance run; lap times must not fall on a frame boundary, see expand_bot_loop)
+    names         {"c1": "name"} (--name)                               [process name]
+    exit_codes    {"c1": 0} expected exit codes                         [all 0]
+    allow_log     ["regex", ...] allowed ERROR (/WARNING) lines          [none]
+    deny_warnings if true a WARNING line in the log is a failure too    [false]
+    mem_sample_sec  if > 0 each process tree's private memory (Windows PrivateUsage, root + descendants; Linux
+                  RssAnon, root + descendants) is sampled at this interval and added to its dump as "mem_mb": [[sec from process
+                  start, MB], ...] and "mem_meta": {"every", "quit_after"} (for mem_stable)  [0]
+    timeout       hard upper limit (s)                                   [computed]
+    expect        list of expectations (below)                           [required, not empty]
+A scenario with an unknown key is rejected (FAIL).
 
-Yol ifadesi: "<süreç>.<anahtar>.<anahtar>..." — süreç host | c1..cN | * (her süreç için ayrı ayrı);
-anahtarlar sözlük anahtarı ya da liste indisi; "$host", "$c1"... o sürecin peer_id'si ile değiştirilir
-(peer kimlikleri rastgeledir). Dökümlere net_smoke "exit_code" (ve mem_sample_sec ile "mem_mb") ekler. Döküm alanları: main.gd ve
+Path expression: "<process>.<key>.<key>..." - process is host | c1..cN | * (separately for each process);
+keys are dict keys or list indices; "$host", "$c1"... are replaced with that process's peer_id (peer ids are random).
+net_smoke adds "exit_code" (and "mem_mb" with mem_sample_sec) to the dumps. Dump fields: main.gd and
 Game.collect_dump() (peer_id, is_host, peers, players{name,slot,pos}, team_cash, level, player_nodes,
 events, host_lost, ping_ms, exit_reason, samples).
-Beklentiler:
-    {"eq": [yol, değer]}            {"ne": [yol, değer]}
-    {"same": [yol, yol]}            iki yol eşit
-    {"all_equal": "alt.yol"}        dökümü olan bütün süreçlerde aynı (S6)
-    {"near": [yol, yol|değer, tol]} sayı ya da [x, y] farkı <= tol (S6)
-    {"len": [yol, n]}               liste/sözlük uzunluğu
-    {"has": [yol, öğe]}             sözlükte anahtar / listede öğe ("$c1" kullanılabilir)
-    {"lacks": [yol, öğe]}           yukarıdakinin tersi
-    {"between": [yol, alt, üst]}    alt <= değer <= üst; sınır sayı ya da "$rtt", "$rtt+200", "$rtt-10":
-                                    koşunun nominal RTT'si (--latency-ms) ± ms (ör. çıkış kriteri 3)
+Expectations:
+    {"eq": [path, value]}           {"ne": [path, value]}
+    {"same": [path, path]}          two paths equal
+    {"all_equal": "sub.path"}       the same in every process that has a dump (S6)
+    {"near": [path, path|value, tol]} number or [x, y] difference <= tol (S6)
+    {"len": [path, n]}              list/dict length
+    {"has": [path, item]}           key in a dict / item in a list ("$c1" allowed)
+    {"lacks": [path, item]}         the inverse of the above
+    {"between": [path, lo, hi]}     lo <= value <= hi; a bound is a number or "$rtt", "$rtt+200", "$rtt-10":
+                                    the run's nominal RTT (--latency-ms) +- ms (e.g. exit criterion 3)
     {"samples_players": {"count": 3, "min_slots": 100}}
-        Her süreçte örneklerdeki oyuncu sayısı ilk kez count'a ulaştıktan sonra hep count; o andan sonra en az
-        min_slots dilim (oyuncu sayısı kararlı).
+        In every process the player count in the samples stays `count` once it first reaches it; after that at least
+        min_slots slices (player count stable).
     {"mem_stable": {"warmup_sec": 60, "window": 5, "max_growth_mb": 24, "min_mb": 20}}
-        "mem_mb" (mem_sample_sec): ısınma (= min(warmup_sec, son örnek zamanı / 4)) sonrası ilk window örneğin
-        medyanından son window örneğin medyanına artış <= max_growth_mb; en az 2 x window örnek gerekir;
-        isteğe bağlı min_mb: ısınma sonrası her örnek >= min_mb; son örnek >= quit_after - 2 x mem_sample_sec
-        (dökümdeki "mem_meta"). Boş "procs" listesi FAIL'dir (samples_players için de).
+        "mem_mb" (mem_sample_sec): growth from the median of the first window samples after warm-up (= min(warmup_sec, last
+        sample time / 4)) to the median of the last window samples <= max_growth_mb; at least 2 x window samples needed;
+        optional min_mb: every sample after warm-up >= min_mb; last sample >= quit_after - 2 x mem_sample_sec
+        ("mem_meta" in the dump). An empty "procs" list is a FAIL (for samples_players too).
     {"samples_near": {"max_px": 32, "min_moving": 5, "move_px": 1.0}}
-        Duvar saatine hizalı aynı örnek diliminde (samples[].slot) her oyuncunun süreçler arası en büyük
-        konum farkı < max_px; oyuncunun önceki ortak dilime göre move_px'ten fazla yer değiştirdiği
-        en az min_moving karşılaştırma bulunmalı (hareket sırasında ölçüldüğünün kanıtı). Geçersiz konum ya da
-        bir sürecin örneklerinde hiç görünmeyen oyuncu da başarısızlıktır.
-        Eşik: fikstür oyuncuyla (tests/fixtures/dummy_player.tscn) max_px 40 — fikstürde ara değerleme yok ve
-        istemciler arası konum host üzerinden iki bacak gider (150 ms'de 35 px görüldü; IS-010 t1). Gerçek oyuncu
-        sahnesiyle (US-004) max_px 32.
-Değerlendirilemeyen beklenti (bozuk argüman, eksik alan) istisna fırlatmaz, FAIL sayılır.
+        In the same wall-clock-aligned sample slice (samples[].slot) the largest cross-process position difference of each
+        player < max_px; there must be at least min_moving comparisons where the player moved more than move_px since the
+        previous shared slice (proof it was measured while moving). An invalid position or a player never seen in a
+        process's samples is a failure too.
+        Threshold: with the fixture player (tests/fixtures/dummy_player.tscn) max_px 40 - the fixture has no interpolation and
+        client-to-client position goes two legs via the host (35 px seen at 150 ms; IS-010 t1). With the real player
+        scene (US-004) max_px 32.
+An expectation that cannot be evaluated (bad argument, missing field) does not throw, it counts as FAIL.
 """
 
 from __future__ import annotations
@@ -108,19 +108,31 @@ READY_MARKER = "INSIDERS_READY"
 DEFAULT_PLAYER_SCENE = "res://tests/fixtures/dummy_player.tscn"
 HOST_READY_TIMEOUT = 20.0
 LINGER_SEC = 1.0  # main.gd QUIT_LINGER_SEC
-# İki istemci aynı host poll'unda koparsa Godot 4.7 SceneMultiplayer._del_peer (server relay) diğer kopuk
-# peer'a DEL_PEER yollamaya çalışıp "Unable to send packet on channel 0, max channels: 0" basar (motor içi,
-# zararsız). Testlerde istemcilerin çıkışı bu kadar aralıkla kaydırılır; döküm anları yine bekleme payı içinde.
+# If two clients drop in the same host poll, Godot 4.7 SceneMultiplayer._del_peer (server relay) tries to send DEL_PEER to the other
+# dropped peer and prints "Unable to send packet on channel 0, max channels: 0" (internal to the engine, harmless). In tests the
+# clients' exits are staggered by this much; dump moments still stay within the wait margin.
 LEAVE_STAGGER = 0.3
-# Tur ("loop") içeren bot dosyasında son tam tur, bot saatinde sürecin quit_after'ından bu kadar önce biter
-# (expand_bot_loop). Bot saati süreç başlangıcından SONRA (yerel oyuncu doğunca: açılış + bağlanma, ~1-2 sn)
-# başladığından gerçek pay bu değer eksi doğma gecikmesidir.
+# IS-095 dump/exit race. Every process counts --quit-after on ITS OWN clock (SceneTreeTimer): the clock starts at main._start
+# (~1-2 s after launch; on the host before the level loads), never runs ahead of real time and may lag on long frames. When idle
+# the real dump moments of host and client differ by ~0.1-0.3 s (measure: the -v "zamanlama" line); under machine load (parallel
+# agent/CI runs) startup times diverge and can exceed 1 s, yet a process leaves LINGER_SEC after its dump. Therefore:
+# 1) clients dump LEAVE_STAGGER x N after the host's dump moment (cN, c1 included: the observed direction is the host being late;
+# the client spacing stays LEAVE_STAGGER) - default_quit_after;
+# 2) if the real dump times (file mtime) of processes tied to the shared dump moment spread by more than LINGER_SEC the run is
+# invalid (one may have left before another's dump / another may have gone before its own): the scenario is re-run RACE_RETRIES
+# times without evaluating expectations, and if it still spreads it FAILs (timing_race). Reason: a process leaves at the earliest
+# LINGER_SEC (real) after its dump, clocks only lag; if the spread is < LINGER_SEC every dump sees all the others in the session.
+RACE_RETRIES = 2
+RACE_RETRY = -1  # _run return: the run is invalid because of a timing race, re-run
+# With a bot file containing a lap ("loop") the last whole lap ends this long before the process's quit_after on the bot clock
+# (expand_bot_loop). The bot clock starts AFTER the process start (when the local player spawns: startup + connect, ~1-2 s), so the
+# real margin is this value minus the spawn delay.
 BOT_LOOP_END_MARGIN = 4.0
 SCENARIO_KEYS = {
     "_doc", "level", "player_scene", "clients", "duration", "start_delay", "quit_after", "bots", "names",
     "exit_codes", "allow_log", "timeout", "expect", "deny_warnings", "mem_sample_sec",
 }
-# --latency-ms > 0 iken gecikmenin gerçekten uygulandığının kanıtı: ölçülen ping >= bu oran x gecikme.
+# Proof the delay was really applied when --latency-ms > 0: measured ping >= this ratio x delay.
 LATENCY_PROOF_RATIO = 0.8
 ERROR_LINE = re.compile(r"^\s*(SCRIPT |USER )?ERROR:")
 WARNING_LINE = re.compile(r"^\s*(SCRIPT |USER )?WARNING:")
@@ -131,7 +143,7 @@ KILL_GRACE_SEC = 2.0
 
 
 def popen_group_kwargs() -> dict[str, Any]:
-    """Süreci kendi grubunda başlatan Popen argümanları (zaman aşımında bütün çocuklarıyla öldürülebilsin)."""
+    """Popen arguments that start the process in its own group (so it can be killed with all its children on timeout)."""
     if WINDOWS:
         return {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
     return {"start_new_session": True}
@@ -143,18 +155,18 @@ def descendants_from_table(
     ctime: Callable[[int], int | None],
     known: dict[int, int] | None = None,
 ) -> dict[int, int]:
-    """Süreç tablosundan (pid, ebeveyn pid) root_pid'in torunlarını {pid: oluşturma zamanı} olarak döner.
+    """Descendants of root_pid from the process table (pid, parent pid) as {pid: creation time}.
 
-    Windows ölü ebeveyni yeniden bağlamaz ve pid'ler yeniden kullanılır: bir sürecin th32ParentProcessID'si
-    çoktan ölmüş ilgisiz bir sürecin pid'i olabilir. Bu yüzden (psutil yöntemi) çocuk yalnız oluşturma zamanı
-    ebeveyninkinden ÖNCE DEĞİLSE ağaca girer; ebeveynin zamanı alınamazsa (ölmüş) kökün zamanı alt sınırdır ve
-    kökten önce oluşmuş hiçbir süreç ağaca girmez. Kökün zamanı alınamazsa ağaç boştur.
-    known: önceki taramada doğrulanmış torunlar {pid: zaman}; aradaki düğüm sonradan ölse de onun çocukları
-    kayıtlı zamanla aranır (ör. CTRL_BREAK ile ölen ara süreç, sinyali yok sayan torunu). Kayıtlı düğümün pid'i
-    şimdi başka bir sürece aitse (şimdiki oluşturma zamanı kayıttan farklı; IS-013 AC5) çocukları aranmaz:
-    onlar yeni (ilgisiz) sürecin çocuklarıdır. Düğümün kendisi sonuçta kalır; öldürme adımı zaten yalnız
-    zamanı kayıtla eşleşen pid'leri öldürür.
-    ctime(pid): canlı (ya da tutamağı açık) sürecin oluşturma zamanı, yoksa None.
+    Windows does not re-parent children of a dead parent and pids are reused: a process's th32ParentProcessID can be the
+    pid of an unrelated, long-dead process. So (the psutil method) a child enters the tree only if its creation time is NOT
+    BEFORE its parent's; if the parent's time cannot be read (dead) the root's time is the lower bound and no process created
+    before the root enters the tree. If the root's time cannot be read the tree is empty.
+    known: descendants verified in an earlier scan {pid: time}; even if an intermediate node died since, its children are
+    still searched by the recorded time (e.g. an intermediate killed by CTRL_BREAK, its signal-ignoring descendant). If a
+    recorded node's pid now belongs to another process (current creation time differs from the record; IS-013 AC5) its
+    children are not searched: they belong to the new (unrelated) process. The node itself stays in the result; the kill step
+    only kills pids whose time matches the record.
+    ctime(pid): creation time of a live (or handle-open) process, else None.
     """
     floor = ctime(root_pid)
     if floor is None:
@@ -172,7 +184,7 @@ def descendants_from_table(
         if node != root_pid and node in known:
             now_t = ctime(node)
             if now_t is not None and now_t != known[node]:
-                continue  # pid yeniden kullanılmış: kayıtlı ara düğüm artık başka süreç
+                continue  # pid reused: the recorded intermediate node is now another process
         node_t = floor if node == root_pid else known.get(node, out.get(node))
         if node_t is None:
             node_t = floor
@@ -181,7 +193,7 @@ def descendants_from_table(
                 continue
             t = ctime(pid)
             if t is None or t < node_t or t < floor:
-                continue  # ölmüş, erişilemiyor ya da pid'i yeniden kullanılmış ilgisiz (daha eski) süreç
+                continue  # dead, inaccessible, or an unrelated (older) process that reused the pid
             seen.add(pid)
             out[pid] = t
             todo.append(pid)
@@ -203,8 +215,8 @@ def _win_kernel32() -> Any:
 
 
 def _windows_ctime(pid: int) -> int | None:
-    """Sürecin oluşturma zamanı (FILETIME, 100 ns). Süreç yoksa ya da açılamıyorsa None. Ölmüş ama tutamağı
-    açık süreç (ör. bekletilmemiş Popen) hâlâ açılır: pid'i de o sürece kilitlidir, yeniden kullanılamaz."""
+    """Process creation time (FILETIME, 100 ns). None if the process does not exist or cannot be opened. A dead process with an
+    open handle (e.g. an un-waited Popen) can still be opened: its pid is pinned to it and cannot be reused."""
     kernel32 = _win_kernel32()
     handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
     if not handle:
@@ -219,7 +231,7 @@ def _windows_ctime(pid: int) -> int | None:
 
 
 def _windows_process_table() -> list[tuple[int, int]]:
-    """Toolhelp32 anlık görüntüsü: [(pid, ebeveyn pid)]."""
+    """Toolhelp32 snapshot: [(pid, parent pid)]."""
 
     class ProcessEntry32W(ctypes.Structure):
         _fields_ = [
@@ -259,7 +271,7 @@ def _windows_descendants(root_pid: int, known: dict[int, int] | None = None) -> 
 
 
 def _windows_private_bytes(pid: int) -> int | None:
-    """Sürecin özel (paylaşılmayan) belleği, bayt (PROCESS_MEMORY_COUNTERS_EX.PrivateUsage); okunamazsa None."""
+    """Process private (unshared) memory, bytes (PROCESS_MEMORY_COUNTERS_EX.PrivateUsage); None if unreadable."""
 
     class Counters(ctypes.Structure):
         _fields_ = [("cb", ctypes.c_uint32), ("PageFaultCount", ctypes.c_uint32)] + [
@@ -287,7 +299,7 @@ def _windows_private_bytes(pid: int) -> int | None:
 
 
 def _linux_private_bytes(pid: int) -> int | None:
-    """/proc/<pid>/status RssAnon (anonim yerleşik bellek; özel belleğe en yakın ölçü), bayt."""
+    """/proc/<pid>/status RssAnon (anonymous resident memory; closest to private memory), bytes."""
     try:
         with open(f"/proc/{pid}/status", encoding="ascii", errors="replace") as f:
             for line in f:
@@ -299,8 +311,8 @@ def _linux_private_bytes(pid: int) -> int | None:
 
 
 def _linux_descendants(root_pid: int) -> list[int]:
-    """/proc/<pid>/stat ebeveyn alanından root_pid'in canlı torunları (Linux). Linux ölü ebeveynin çocuğunu
-    init'e bağladığından pid yeniden kullanımı ağaca ilgisiz süreç sokmaz (yalnız anlık görüntü)."""
+    """Live descendants of root_pid from the /proc/<pid>/stat parent field (Linux). Linux re-parents a dead parent's
+    child to init, so pid reuse cannot bring an unrelated process into the tree (snapshot only)."""
     children: dict[int, list[int]] = {}
     try:
         names = os.listdir("/proc")
@@ -326,9 +338,9 @@ def _linux_descendants(root_pid: int) -> list[int]:
 
 
 def process_tree_memory_mb(popen: subprocess.Popen) -> float | None:
-    """Süreç ağacının özel belleği (MB): kök + torunların toplamı. Windows'ta Godot console exe'si (~1 MB)
-    asıl (belleği tutan) exe'yi çocuk olarak başlatır; torunlar oluşturma zamanıyla doğrulanır. Linux'ta
-    /proc ile. Diğer platformlarda ölçülmez. Kök ölmüşse ya da hiçbir değer okunamazsa None."""
+    """Private memory (MB) of the process tree: root + descendants summed. On Windows the Godot console exe (~1 MB)
+    starts the real (memory-holding) exe as a child; descendants are verified by creation time. On Linux via
+    /proc. Not measured on other platforms. None if the root died or no value could be read."""
     if popen.poll() is not None:
         return None
     if WINDOWS:
@@ -341,24 +353,24 @@ def process_tree_memory_mb(popen: subprocess.Popen) -> float | None:
 
 
 def kill_process_tree(popen: subprocess.Popen, grace: float = KILL_GRACE_SEC) -> None:
-    """popen_group_kwargs() ile başlatılmış süreci ve çocuklarını öldürür: önce zarif sinyal, grace sn sonra zorla."""
+    """Kills a process started with popen_group_kwargs() and its children: graceful signal first, then force after grace s."""
     if WINDOWS:
-        # Torunlar sinyalden önce de toplanır: ara süreç CTRL_BREAK ile ölüp torunu yaşarsa ebeveyn zinciri kopar.
-        # `taskkill /T` kullanılmaz (kendi ağaç taraması pid yeniden kullanımına karşı zaman denetimi yapmaz);
-        # yalnız oluşturma zamanıyla doğrulanmış açık pid'ler öldürülür. Kök, Popen tutamağıyla öldürülür.
+        # Descendants are also collected before the signal: if an intermediate dies from CTRL_BREAK while its descendant lives the parent chain breaks.
+        # `taskkill /T` is not used (its own tree scan does not check time against pid reuse); only open pids verified by creation time
+        # are killed. The root is killed via the Popen handle.
         tree = _windows_descendants(popen.pid)
         try:
-            popen.send_signal(signal.CTRL_BREAK_EVENT)  # süreç grubuna; konsol paylaşılmıyorsa OSError
+            popen.send_signal(signal.CTRL_BREAK_EVENT)  # to the process group; OSError if the console is not shared
             popen.wait(timeout=grace)
         except (OSError, subprocess.TimeoutExpired):
             pass
         tree = _windows_descendants(popen.pid, known=tree)
         if popen.poll() is None:
             try:
-                popen.kill()  # TerminateProcess(kendi tutamağımız)
+                popen.kill()  # TerminateProcess (our own handle)
             except OSError:
                 pass
-        victims = [pid for pid, t in tree.items() if _windows_ctime(pid) == t]  # hâlâ aynı süreç mi
+        victims = [pid for pid, t in tree.items() if _windows_ctime(pid) == t]  # still the same process?
         if victims:
             args = ["taskkill", "/F"]
             for pid in victims:
@@ -392,9 +404,10 @@ class Proc:
     ready: threading.Event = field(default_factory=threading.Event)
     reader: threading.Thread | None = None
     started_at: float = 0.0
+    ready_at: float = 0.0
     exit_code: int | None = None
     killed: bool = False
-    # Bellek örnekleri [(süreç başlangıcından sn, MB)] (senaryoda mem_sample_sec verildiyse).
+    # Memory samples [(sec from process start, MB)] (if the scenario gave mem_sample_sec).
     mem: list[tuple[float, float]] = field(default_factory=list)
 
     def start(self) -> None:
@@ -407,7 +420,7 @@ class Proc:
             stdin=subprocess.DEVNULL,
             text=True,
             errors="replace",
-            **popen_group_kwargs(),  # süreç grubu: zaman aşımında bütün çocuklarıyla öldürülür
+            **popen_group_kwargs(),  # process group: on timeout killed with all its children
         )
         self.reader = threading.Thread(target=self._read, daemon=True)
         self.reader.start()
@@ -418,6 +431,8 @@ class Proc:
             line = ANSI.sub("", raw.rstrip("\n"))
             self.lines.append(line)
             if line.startswith(READY_MARKER):
+                if not self.ready.is_set():
+                    self.ready_at = time.monotonic()
                 self.ready.set()
 
     def kill(self) -> None:
@@ -443,22 +458,22 @@ def free_udp_port() -> int:
 
 
 def res_to_path(res: str) -> str:
-    """res://a/b.json → <ROOT>/a/b.json; diğer yollar olduğu gibi."""
+    """res://a/b.json -> <ROOT>/a/b.json; other paths as they are."""
     return os.path.join(ROOT, *res[len("res://"):].split("/")) if res.startswith("res://") else res
 
 
 def expand_bot_loop(raw: dict, until: float) -> dict:
-    """Bot dosyasının "loop" bölümünü açar (IS-013, dayanıklılık koşusu). Biçim (S6 bot dosyasına ek; Godot
-    "loop"u yok sayar, dosya tek başına bir tur oynar):
+    """Expands the "loop" section of a bot file (IS-013, endurance run). Format (S6 bot file addition; Godot ignores
+    "loop", the file alone plays one lap):
         {"loop": {"from": F, "period": P}, "steps": [...]}
-    t < F adımları bir kez (giriş), t >= F adımları [F, F + P) aralığında bir tur sayılır ve yalnız TAM turlar
-    eklenir: F + (k + 1)·P <= until olan k = 0, 1, ... (yarım tur yok: döküm anında bot turun sonundaki
-    bilinen durumdadır, ör. her turda iki kez çevrilen kapı başlangıç durumunda). "loop" yoksa dosya olduğu
-    gibi döner. Bozuk biçim ValueError.
-    Kare sınırı: bot saati her fizik karesinde 1/60 sn ilerler ve adım `t <= saat` olan ilk karede uygulanır.
-    Tur adımlarının (ve t + dur) zamanları kare sınırına (t·60 tam sayı) düşmemeli, period·60 tam sayı
-    olmalı: aksi halde kayan nokta birikimi yüzünden bir bacak turdan tura ±1 kare değişir ve uzun koşuda
-    son konum kayar (test_net_smoke ExpandBotLoopTest bunu depodaki tur dosyaları için denetler).
+    Steps with t < F count once (entry), steps with t >= F count as one lap in [F, F + P), and only WHOLE laps are
+    added: k = 0, 1, ... with F + (k + 1)*P <= until (no half lap: at dump time the bot is in the known state at the end
+    of a lap, e.g. a door toggled twice per lap is in its initial state). Without "loop" the file is returned as is.
+    A malformed format raises ValueError.
+    Frame boundary: the bot clock advances 1/60 s each physics frame and a step is applied in the first frame with `t <= clock`.
+    Lap step times (and t + dur) must not fall on a frame boundary (t*60 an integer) and period*60 must be an integer:
+    otherwise floating-point accumulation shifts a leg by +-1 frame from lap to lap and the final position drifts in a long run
+    (test_net_smoke ExpandBotLoopTest checks this for the loop files in the repo).
     """
     loop = raw.get("loop")
     if loop is None:
@@ -484,17 +499,39 @@ def expand_bot_loop(raw: dict, until: float) -> dict:
     return {"steps": out}
 
 
+def default_quit_after(name: str, duration: float, elapsed: float) -> float:
+    """Client's default --quit-after (relative to its own start): host start + duration +
+    LEAVE_STAGGER x N (cN, c1 included; IS-095). elapsed = seconds from host start to this client's start."""
+    return max(1.0, duration - elapsed + LEAVE_STAGGER * int(name[1:]))
+
+
+def timing_race(dump_times: dict[str, float]) -> str:
+    """If the real dump times (s; e.g. file mtime) of processes tied to the shared dump moment are spread by LINGER_SEC or more,
+    returns an explanation, otherwise "" (IS-095; see the RACE_RETRIES note)."""
+    if len(dump_times) < 2:
+        return ""
+    first = min(dump_times, key=lambda n: dump_times[n])
+    last = max(dump_times, key=lambda n: dump_times[n])
+    spread = dump_times[last] - dump_times[first]
+    if spread < LINGER_SEC:
+        return ""
+    return (
+        f"zamanlama yarışı: {last} dökümü {first} dökümünden {spread:.2f} sn sonra (>= {LINGER_SEC:g} sn bekleme "
+        f"payı; {first} o anda oturumdan ayrılmış olabilir)"
+    )
+
+
 def find_godot() -> str:
     env = os.environ.get("GODOT")
     if env:
         return env
-    # shutil.which: Windows'ta CreateProcess "bash"ı PATH'ten önce System32'de (WSL) arar; Git Bash'inki seçilsin.
+    # shutil.which: on Windows CreateProcess looks for "bash" in System32 (WSL) before PATH; pick Git Bash's.
     bash = shutil.which("bash") or "bash"
     out = subprocess.run([bash, os.path.join(ROOT, "tools", "get_godot.sh")], capture_output=True, text=True, check=True)
     return out.stdout.strip().splitlines()[-1]
 
 
-# --- beklenti değerlendirme ---
+# --- expectation evaluation ---
 
 
 RTT_BOUND = re.compile(r"^\$rtt\s*(?:([+-])\s*(\d+(?:\.\d+)?))?$")
@@ -507,7 +544,7 @@ class Evaluator:
         self.rtt_ms = rtt_ms
 
     def bound(self, v: Any) -> float:
-        """Sayı ya da "$rtt", "$rtt+200", "$rtt-10": koşunun nominal RTT'si (--latency-ms) ± ms."""
+        """A number or "$rtt", "$rtt+200", "$rtt-10": the run's nominal RTT (--latency-ms) +- ms."""
         if isinstance(v, (int, float)) and not isinstance(v, bool):
             return float(v)
         m = RTT_BOUND.match(v.strip()) if isinstance(v, str) else None
@@ -572,7 +609,7 @@ class Evaluator:
             return [(False, f"bilinmeyen beklenti: {op}")]
         try:
             return fn(arg)
-        except Exception as e:  # noqa: BLE001 — bozuk beklenti/döküm testi çökertmesin, FAIL olsun
+        except Exception as e:  # noqa: BLE001 - a malformed expectation/dump must not crash the test, it should FAIL
             return [(False, f"{op}: değerlendirilemedi {short(arg)} ({type(e).__name__}: {e})")]
 
     def _single(self, arg: list, label: str, test) -> list[tuple[bool, str]]:
@@ -706,8 +743,8 @@ class Evaluator:
         return [(ok, text)]
 
     def op_samples_players(self, arg: dict) -> list[tuple[bool, str]]:
-        """Oyuncu sayısı kararlı: her süreçte örneklerde oyuncu sayısı ilk kez `count`'a ulaştıktan sonra
-        hep `count` kalır ve bu durumda en az `min_slots` örnek dilimi vardır."""
+        """Player count stable: in every process once the player count in the samples first reaches `count` it
+            stays `count`, and in that state there are at least `min_slots` sample slices."""
         count = int(arg["count"])
         min_slots = int(arg.get("min_slots", 1))
         procs = arg.get("procs", self.procs)
@@ -734,12 +771,12 @@ class Evaluator:
         return out
 
     def op_mem_stable(self, arg: dict) -> list[tuple[bool, str]]:
-        """Bellek kararlı (mem_sample_sec ile örneklenen "mem_mb"): ısınma sonrası ilk `window` örneğin medyanı
-        ile son `window` örneğin medyanı arasındaki artış <= max_growth_mb. Isınma = min(warmup_sec, son
-        örnek zamanının dörtte biri) (kısa koşuda da değerlendirilsin); en az 2 x window örnek gerekir.
-        min_mb (isteğe bağlı): ısınma sonrası her örnek >= min_mb (gerçek Godot sürecinin ölçüldüğünün kanıtı;
-        Windows'ta yalnız console sarmalayıcısı ~1 MB). Kapsam: "mem_meta" varsa son örnek >= quit_after -
-        2 x every olmalı (örnekleme koşu sonuna kadar sürdü)."""
+        """Memory stable (the "mem_mb" sampled with mem_sample_sec): growth from the median of the first `window` samples after warm-up
+            to the median of the last `window` samples <= max_growth_mb. Warm-up = min(warmup_sec, a quarter of the last
+            sample time) (so short runs are evaluated too); at least 2 x window samples needed.
+            min_mb (optional): every sample after warm-up >= min_mb (proof a real Godot process was measured;
+            on Windows only the console wrapper ~1 MB). Coverage: if "mem_meta" exists the last sample must be >= quit_after -
+            2 x every (sampling lasted to the end of the run)."""
         warmup = float(arg.get("warmup_sec", 60.0))
         window = int(arg.get("window", 5))
         max_growth = float(arg["max_growth_mb"])
@@ -783,11 +820,11 @@ def short(v: Any, limit: int = 120) -> str:
     return text if len(text) <= limit else text[: limit - 3] + "..."
 
 
-# --- koşu ---
+# --- run ---
 
 
 def load_scenario(path: str) -> tuple[dict | None, str]:
-    """Senaryoyu okur ve doğrular; (senaryo, "") ya da (None, hata) döner."""
+    """Reads and validates the scenario; returns (scenario, "") or (None, error)."""
     try:
         with open(path, encoding="utf-8") as f:
             sc = json.load(f)
@@ -808,7 +845,7 @@ def load_scenario(path: str) -> tuple[dict | None, str]:
 def latency_proof(
     latency_ms: float, proxy: LatencyProxy, procs: dict[str, Proc], dumps: dict[str, dict | None]
 ) -> list[tuple[bool, str]]:
-    """Gecikme gerçekten uygulandı mı: her istemci proxy'den geçti ve ölçülen ping >= oran x gecikme."""
+    """Whether the delay was really applied: every client went through the proxy and the measured ping >= ratio x delay."""
     clients = [n for n in procs if n != "host"]
     out = [
         (
@@ -833,7 +870,7 @@ def latency_proof(
 
 
 def log_failures(name: str, lines: list[str], allow: list[re.Pattern], deny_warnings: bool) -> list[str]:
-    """Sürecin log'undaki başarısızlık satırları: ERROR (deny_warnings ise WARNING de), allow_log hariç."""
+    """Failure lines in a process's log: ERROR (WARNING too if deny_warnings), except allow_log."""
     out = []
     for line in lines:
         bad = ERROR_LINE.match(line) or (deny_warnings and WARNING_LINE.match(line))
@@ -858,14 +895,20 @@ def run(
         return 1
     if duration is not None:
         sc["duration"] = duration
-    tmp = tempfile.mkdtemp(prefix="net_smoke_")
-    try:
-        return _run(sc, scenario_path, tmp, latency_ms, jitter_ms, loss, reorder, verbose)
-    finally:
-        if keep:
-            print(f"  geçici dizin: {tmp}")
-        else:
-            shutil.rmtree(tmp, ignore_errors=True)
+    for attempt in range(RACE_RETRIES + 1):  # IS-095: on a timing race (timing_race) the run repeats
+        tmp = tempfile.mkdtemp(prefix="net_smoke_")
+        try:
+            code = _run(
+                sc, scenario_path, tmp, latency_ms, jitter_ms, loss, reorder, verbose, attempt < RACE_RETRIES
+            )
+        finally:
+            if keep:
+                print(f"  geçici dizin: {tmp}")
+            else:
+                shutil.rmtree(tmp, ignore_errors=True)
+        if code != RACE_RETRY:
+            return code
+    return 1  # unreachable: can_retry is False on the last attempt
 
 
 def _run(
@@ -877,6 +920,7 @@ def _run(
     loss: float,
     reorder: bool,
     verbose: bool,
+    can_retry: bool = False,
 ) -> int:
     t_begin = time.monotonic()
     clients = int(sc.get("clients", 2))
@@ -898,7 +942,7 @@ def _run(
         label += f", jitter {jitter_ms:g} ms, kayıp {loss:g}" + (", sıra bozuk" if reorder else "")
     label += ")"
 
-    for name, path in bots.items():  # tur ("loop") biçimi süreçler başlamadan doğrulanır
+    for name, path in bots.items():  # the loop format is validated before processes start
         try:
             with open(res_to_path(path), encoding="utf-8") as f:
                 expand_bot_loop(json.load(f), 1.0)
@@ -911,9 +955,9 @@ def _run(
     join_port = host_port
 
     def bot_arg(name: str, quit_after: float) -> str:
-        """Bot yolu; dosyada "loop" varsa açılmış kopyası geçici dizine yazılır: tam turlar, son tur bot
-        saatinde quit_after - BOT_LOOP_END_MARGIN'de biter. Bot saati doğunca başladığından doğma gecikmesi
-        dökümden önceki gerçek payı AZALTIR (pay = BOT_LOOP_END_MARGIN - doğma gecikmesi)."""
+        """Bot path; if the file has "loop" an expanded copy is written to a temp dir: whole laps, the last lap ends at
+            quit_after - BOT_LOOP_END_MARGIN on the bot clock. The bot clock starts on spawn, so the spawn delay
+            REDUCES the real margin before the dump (margin = BOT_LOOP_END_MARGIN - spawn delay)."""
         path = bots[name]
         with open(res_to_path(path), encoding="utf-8") as f:
             raw = json.load(f)
@@ -949,7 +993,7 @@ def _run(
                     continue
                 try:
                     mb = process_tree_memory_mb(proc.popen)
-                except (OSError, ValueError, AttributeError):  # tek okuma hatası örneklemeyi durdurmasın
+                except (OSError, ValueError, AttributeError):  # a single read error must not stop sampling
                     mb = None
                 if mb is not None:
                     proc.mem.append((round(time.monotonic() - proc.started_at, 2), round(mb, 2)))
@@ -985,13 +1029,11 @@ def _run(
                 wait = t_ready + start_delay.get(name, 0.0) - time.monotonic()
                 if wait > 0:
                     time.sleep(wait)
-                elapsed = time.monotonic() - t0
-                stagger = LEAVE_STAGGER * (int(name[1:]) - 1)
-                qa = quit_override.get(name, max(1.0, duration - elapsed + stagger))
+                qa = quit_override.get(name, default_quit_after(name, duration, time.monotonic() - t0))
                 proc = make(name, qa)
                 procs[name] = proc
                 proc.start()
-        # Sert üst süre: en geç bitmesi gereken süreç + bekleme payı.
+        # Hard upper limit: the process that must finish last + margin.
         ends = [p.started_at + p.quit_after for p in procs.values()]
         deadline = (t0 + float(sc["timeout"])) if "timeout" in sc else max(ends) + LINGER_SEC + 10.0
         for proc in procs.values():
@@ -1040,6 +1082,21 @@ def _run(
             failures.append(f"{name} döküm yazmadı")
         dumps[name] = d
 
+    # IS-095: processes tied to the shared dump moment (quit_after not overridden, expected exit code 0) must have seen each other in the
+    # session; if not the run is invalid (expectations not evaluated, run() re-runs).
+    race = timing_race(
+        {
+            n: os.path.getmtime(procs[n].dump_path)
+            for n in all_names
+            if dumps.get(n) is not None and n not in quit_override and exit_codes.get(n, 0) == 0
+        }
+    )
+    if race:
+        if can_retry:
+            print(f"UYARI {label}: {race}; senaryo yeniden koşuluyor")
+            return RACE_RETRY
+        failures.append(race)
+
     results: list[tuple[bool, str]] = []
     ev = Evaluator(dumps, rtt_ms=latency_ms)
     for exp in sc["expect"]:
@@ -1060,14 +1117,47 @@ def _run(
     if verbose and proxy is not None:
         print(f"  proxy: {proxy.stats}")
     if verbose:
+        # Seconds relative to host start: launch, READY, --quit-after, real dump (mtime) - IS-095 race diagnosis.
+        mono_off = time.time() - time.monotonic()
+        t_host = procs["host"].started_at if "host" in procs else t_begin
+        parts = []
+        for name in all_names:
+            p = procs.get(name)
+            if p is None:
+                continue
+            dm = (os.path.getmtime(p.dump_path) - mono_off - t_host) if os.path.exists(p.dump_path) else math.nan
+            rd = (p.ready_at - t_host) if p.ready_at else math.nan
+            parts.append(f"{name} başla+{p.started_at - t_host:.2f} hazır+{rd:.2f} qa={p.quit_after:.2f} döküm+{dm:.2f}")
+        print("  zamanlama: " + "; ".join(parts))
         for name in all_names:
             d = dumps.get(name) or {}
             print(f"  {name}: peer_id={d.get('peer_id')} ping_ms={d.get('ping_ms')} exit={d.get('exit_code')}")
     if not ok:
         for proc in procs.values():
             print(f"----- {proc.name} log ({' '.join(proc.cmd[-8:])}) -----")
-            print("\n".join(proc.lines) if proc.lines else "(boş)")
+            if verbose:
+                print("\n".join(proc.lines) if proc.lines else "(boş)")
+            else:
+                print("\n".join(log_excerpt(proc.lines)))
+        if not verbose:
+            print("  (log'ların tamamı: --keep -v)")
     return 0 if ok else 1
+
+
+# Short-mode FAIL log (IS-090): error/warning lines and the "at:" lines right after them, at most `limit`;
+# if there are none (crash, hang) the last `tail` lines.
+LOG_PROBLEM = re.compile(r"(ERROR|WARNING|Traceback|Exception|FAIL|^\s+at: )")
+
+
+def log_excerpt(lines: list[str], limit: int = 20, tail: int = 10) -> list[str]:
+    if not lines:
+        return ["(boş)"]
+    picked = [ln for ln in lines if LOG_PROBLEM.search(ln)]
+    if not picked:
+        return [f"(hata satırı yok; son {min(tail, len(lines))} satır)"] + lines[-tail:]
+    if len(picked) > limit:
+        return picked[:limit] + [f"(+{len(picked) - limit} hata satırı daha)"]
+    return picked
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -1081,9 +1171,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("-v", "--verbose", action="store_true")
     ap.add_argument("--duration", type=float, default=None, help="senaryonun duration'ını ez (tools/soak.sh)")
     args = ap.parse_args(argv)
-    # SIGTERM (ör. CI iptali) SystemExit'e çevrilir: finally blokları çalışır, Godot süreçleri öldürülür.
+    # SIGTERM (e.g. a CI cancel) is turned into SystemExit: finally blocks run, Godot processes are killed.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
-    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (SIGTERM'in karşılığı)
+    if hasattr(signal, "SIGBREAK"):  # Windows: CTRL_BREAK_EVENT (the SIGTERM equivalent)
         signal.signal(signal.SIGBREAK, lambda *_: sys.exit(143))
     return run(
         args.scenario, args.latency_ms, args.jitter_ms, args.loss, args.reorder, args.keep, args.verbose, args.duration

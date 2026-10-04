@@ -1,7 +1,7 @@
 extends TestCase
-## IS-010: seviye kökü `Level` (levels/level.gd) ve S4 API'si (KR-018): kök düğümler, doğma noktaları
-## (players_root koordinatında, ağaç dışında da), işaret araması; üreticinin kök betiği ataması ve
-## idempotentliği; gerçek seviyelerin ve test fikstürlerinin Level kökü taşıması.
+## IS-010: level root `Level` (levels/level.gd) and the S4 API (KR-018): root nodes, spawn points (in players_root
+## coordinates, also outside the tree), marker lookup; the generator's root script assignment and idempotence; real
+## levels and test fixtures carry a Level root.
 
 const LEVELS: Array[String] = [
 	"res://levels/store_a.tscn", "res://levels/test_arena.tscn",
@@ -24,7 +24,7 @@ func test_levels_and_fixtures_use_level_root() -> void:
 		is_true(level.props_root() == level.get_node_or_null("Props") and level.props_root() != null, "%s: props_root" % path)
 		is_true(level.npcs_root() == level.get_node_or_null("NPCs") and level.npcs_root() != null, "%s: npcs_root" % path)
 		eq(level.spawn_count(), 4, "%s: Spawn1..4" % path)
-		# Ağaç dışında hesaplanan konum, ağaçtaki global dönüşümle aynı olmalı.
+		# A position computed outside the tree must equal the global transform in the tree.
 		var outside: Array[Vector2] = []
 		for i: int in level.spawn_count():
 			outside.append(level.spawn_position(i))
@@ -38,7 +38,7 @@ func test_levels_and_fixtures_use_level_root() -> void:
 
 func test_spawn_position_frames_and_wraps() -> void:
 	var level: Level = autofree(_make_level()) as Level
-	level.position = Vector2(1000, 1000)  # kökün kendi dönüşümü sonucu etkilemez
+	level.position = Vector2(1000, 1000)  # the root's own transform does not affect the result
 	eq(level.spawn_count(), 3)
 	# Spawn1 = (5, 6) + SpawnPoints (400, 0) - Players (10, 20)
 	eq(level.spawn_position(0), Vector2(395, -14))
@@ -67,20 +67,55 @@ func test_missing_children_are_safe() -> void:
 	eq(level.spawn_count(), 0)
 	eq(level.spawn_position(0), Vector2.ZERO)
 	is_true(level.marker(&"Exit") == null)
+	eq(level.marker_sequence(&"StreetRoute").size(), 0)
+	is_true(level.zone(&"EscapeZone") == null and level.navigation_region() == null and level.door_link(&"BackDoor") == null)
 	eq(level.map_rect(), Rect2(), "Tiles yoksa harita dikdörtgeni boş")
 
 
-## IS-027: harita dikdörtgeni = Tiles ızgarasının tamamı (sınır dolgusu dahil), köke göre.
+func test_sequence_zone_and_navigation_lookup() -> void:
+	# US-007 API addition: ordered markers, trigger zones, navigation region and door links.
+	var level: Level = autofree(_make_level()) as Level
+	var markers: Node = level.get_node("Markers")
+	for n: int in [2, 1, 4]:  # scene order is independent of the number; 3 missing -> the array ends at 2
+		_child(markers, "Patrol%d" % n, Vector2(n, 0), true)
+	var sequence: Array[Node2D] = level.marker_sequence(&"Patrol")
+	eq(sequence.size(), 2, "ilk eksik numarada durur")
+	if sequence.size() == 2:
+		is_true(sequence[0] == markers.get_node("Patrol1") and sequence[1] == markers.get_node("Patrol2"), "numara sırası")
+	eq(level.marker_sequence(&"Yok").size(), 0)
+	var zones := _child(level, "Zones", Vector2.ZERO)
+	var area := Area2D.new()
+	area.name = "EscapeZone"
+	zones.add_child(area)
+	var region := NavigationRegion2D.new()
+	region.name = "Navigation"
+	level.add_child(region)
+	var link := NavigationLink2D.new()
+	link.name = "BackDoor"
+	region.add_child(link)
+	is_true(level.zone(&"EscapeZone") == area, "Zones altındaki bölge")
+	is_true(level.zone(&"../Markers") == null and level.zone(&"") == null, "yol parçası/boş ad null")
+	is_true(level.navigation_region() == region, "gezinme bölgesi")
+	is_true(level.door_link(&"BackDoor") == link, "kapı bağı")
+	is_true(level.door_link(&"FrontDoor") == null and level.door_link(&"BackDoor/x") == null, "olmayan bağ null")
+	var store: Level = autofree((load(LEVELS[0]) as PackedScene).instantiate()) as Level
+	eq(store.marker_sequence(&"StreetRoute").size(), 6, "store_a: StreetRoute1..6 (IS-023)")
+	is_true(store.zone(&"EscapeZone") != null and store.navigation_region() != null, "store_a: EscapeZone ve Navigation")
+	for door: StringName in [&"FrontDoor", &"BackDoor", &"BackroomDoor"]:
+		is_true(store.door_link(door) != null, "store_a: %s bağı" % door)
+
+
+## IS-027: map rectangle = the whole Tiles grid (incl. border padding), relative to the root.
 func test_map_rect() -> void:
 	var store: Level = autofree((load(LEVELS[0]) as PackedScene).instantiate()) as Level
-	store.position = Vector2(500, 500)  # kökün kendi dönüşümü dahil değil
+	store.position = Vector2(500, 500)  # the root's own transform is not included
 	eq(store.map_rect(), Rect2(0, 0, 960, 640), "store_a 30×20 karo")
 	var arena: Level = autofree((load(LEVELS[1]) as PackedScene).instantiate()) as Level
 	var tiles: LevelLayout = arena.get_node("Tiles") as LevelLayout
 	eq(arena.map_rect().size, Vector2(tiles.size_in_tiles() * LevelLayout.TILE), "test_arena ızgarası")
 	var fixture: Level = autofree((load(LEVELS[2]) as PackedScene).instantiate()) as Level
 	eq(fixture.map_rect(), Rect2(), "Tiles'sız fikstür")
-	# Kaydırılmış Tiles ve boş ızgara.
+	# Shifted Tiles and an empty grid.
 	var level: Level = autofree(Level.new()) as Level
 	var layout := LevelLayout.new()
 	layout.name = "Tiles"
@@ -98,7 +133,7 @@ func test_builder_assigns_level_root_and_stays_idempotent() -> void:
 		return
 	_clear_tmp()
 	DirAccess.make_dir_recursive_absolute(TMP_DIR)
-	# Eski biçim: kökü düz Node2D olan, Props altında elle eklenmiş düğüm taşıyan sahne.
+	# Old format: a scene whose root is a plain Node2D, with a node hand-added under Props.
 	var old_path: String = TMP_DIR.path_join("old.tscn")
 	var old_root := Node2D.new()
 	old_root.name = "TestArena"
@@ -130,9 +165,9 @@ func test_builder_assigns_level_root_and_stays_idempotent() -> void:
 	_clear_tmp()
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
-## Kaydırılmış kaplarla küçük bir seviye: SpawnPoints (400, 0), Players (10, 20), 3 doğma noktası, 1 işaret.
+## A small level with shifted containers: SpawnPoints (400, 0), Players (10, 20), 3 spawn points, 1 marker.
 func _make_level() -> Level:
 	var level := Level.new()
 	var spawns := _child(level, "SpawnPoints", Vector2(400, 0))

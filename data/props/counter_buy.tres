@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="PropDef" format=3]
+
+[ext_resource type="Script" path="res://entities/props/interaction_requirement.gd" id="1_req"]
+[ext_resource type="Script" path="res://entities/props/prop_def.gd" id="2_def"]
+
+[sub_resource type="Resource" id="Resource_customer_side"]
+script = ExtResource("1_req")
+side = Vector2(-1, 0)
+side_min = 16.0
+
+[resource]
+script = ExtResource("2_def")
+action_key = "INTERACT_COUNTER_BUY"
+hold_time = 2.0
+interact_range = 40.0
+requirement = SubResource("Resource_customer_side")

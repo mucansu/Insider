@@ -1,0 +1,33 @@
+[gd_scene format=3 uid="uid://c55f072l2hflo"]
+
+[ext_resource type="Script" uid="uid://dht00a06p4jk0" path="res://ui/alert_ladder.gd" id="1_ladder"]
+
+[node name="AlertLadder" type="PanelContainer"]
+size_flags_horizontal = 4
+size_flags_vertical = 0
+mouse_filter = 2
+theme_type_variation = &"HudChip"
+script = ExtResource("1_ladder")
+
+[node name="Box" type="HBoxContainer" parent="."]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Steps" type="HBoxContainer" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+mouse_filter = 2
+
+[node name="LevelLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+vertical_alignment = 1
+
+[node name="TimerLabel" type="Label" parent="Box"]
+unique_name_in_owner = true
+visible = false
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"AlertLabel"
+vertical_alignment = 1

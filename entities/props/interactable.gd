@@ -1,37 +1,43 @@
 class_name Interactable
 extends Area2D
-## Etkileşim bileşeni (US-005; mimari.md S2, S7, KR-018): prop'un alt düğümü (Area2D, katman interactables).
-## Prop yalnız kendi durumunu tutar ve `completed`'e bağlanıp sonucu uygular; bu bileşen istek RPC'lerini,
-## host doğrulamasını, meşguliyeti ve süre sayımını taşır. Kurallar `InteractionRules`'ta (core/, düğümsüz).
-##
-## Akış (S7): yerel oyuncu yakındaki en yakın uygun bileşeni `can_start` ile bulur → `request_start(seq)` →
-## host doğrular (S2 menzil toleransı + requirement + meşguliyet + tekrar beklemesi), `busy_by` atar ve süreyi
-## sayar → oyuncu bırakırsa `request_cancel(seq)` (son TIME_TOLERANCE payındaysa tamamlanır), menzilden
-## (+ tolerans) çıkarsa ya da ayrılırsa host iptal eder → süre dolunca host `completed` yayar. İsteyen peer'a
-## sonuç `request_finished(seq, success)` ile döner (yalnız o peer'da yayılır). İstemci kendi başına sonuç
-## üretemez: `completed`/`cancelled` yalnız host'ta yayılır.
-## Aktör: `ACTOR_GROUP` grubundaki, yetkisi isteyen peer'da olan ve `interaction_position() -> Vector2`
-## (host'un bildiği en güncel konum) sunan düğüm; isteğe bağlı `interaction_tags() -> Dictionary`.
-## Çoğaltılan durum: `busy_by` (0 = boş) ve `progress` (sn), host yetkili MultiplayerSynchronizer
-## (değişince, güvenilir; `SYNC_INTERVAL`). `enabled` ve `action_key`'i prop kendi çoğaltılan durumundan
-## her peer'da türetir. `busy_by` her peer'da "kim etkileşimde" bilgisidir (`held_by`; uzak oyuncu göstergesi).
-## Host engeli (IS-014): prop `start_blocker`'a `func() -> bool` verebilir; host doğrulamasında true dönerse
-## istek `blocked` nedeniyle reddedilir (istemci istem süzgeci bakmaz: istem görünür kalır).
-## Genel host API'si (`host_start`, `host_cancel`, `step`) RPC gövdesi, yerel istek ve fizik adımı tarafından
-## çağrılır; testler de aynı yolu kullanır (§6: `_` üyelere dışarıdan erişim yok).
+## Interaction component (US-005; S2, S7, KR-018): child (Area2D, interactables layer) of a prop. The prop keeps only its own state and
+## connects to `completed` to apply the result; this component carries request RPCs, host validation, occupancy and the timer.
+## Rules live in `InteractionRules` (core/, node-free).
+## Flow (S7): local player finds the nearest eligible component with `can_start` -> `request_start(seq)` -> host validates (S2 range
+## tolerance + requirement + occupancy + repeat cooldown), sets `busy_by` and counts time -> if the player releases, `request_cancel(seq)`
+## (completes if within the last TIME_TOLERANCE), host cancels on leaving range (+ tolerance) or disconnect -> on timeout host emits
+## `completed`. The requester gets the result via `request_finished(seq, success)` (only on that peer). A client cannot produce results:
+## `completed`/`cancelled` are emitted on the host only.
+## Actor: node in `ACTOR_GROUP`, authority on the requesting peer, exposing `interaction_position() -> Vector2` (latest host-known
+## position); optional `interaction_tags() -> Dictionary`. Replicated state: `busy_by` (0 = free) and `progress` (s), host-authoritative
+## MultiplayerSynchronizer (on change, reliable; `SYNC_INTERVAL`). The prop derives `enabled` and `action_key` from its own replicated
+## state on every peer. `busy_by` is "who is interacting" on every peer (`held_by`; remote player indicator).
+## Host blocker (IS-014): prop may set `start_blocker` as `func() -> bool`; true during host validation rejects with `blocked`
+## (client prompt filter ignores it: prompt stays visible). Public host API (`host_start`, `host_cancel`, `step`) is called by RPC
+## bodies, local requests and the physics step; tests use the same path (§6: no outside access to `_` members).
+## NPC use (US-008, additive): `host_use_by_npc(actor_pos)` - actorless instant action on the host (owner and neighbours open doors);
+## only for non-hold, enabled, free components in range (+ S2 tolerance); emits `completed(0)` (peer 0 = NPC). Not counted in player
+## request counters (`stats().npc_uses`). Obeys repeat cooldown and `start_blocker`; the prop defines open/close meaning (NPCs only open doors).
+## Actor state (US-008 t2): host rejects requests from an actor exposing `is_free()` that is not free (held/caught) with `not_free` and
+## cancels their ongoing interaction; the prop may set `actor_filter` as `func(peer_id, actor) -> bool` (false -> `actor` reject;
+## e.g. PULL: a held player cannot start their own rescue).
+## US-010 additions: `input_action` is which input triggers this component (S5: `interact` E or `intimidate` Q; the player shows a separate
+## prompt per action, PlayerInteraction); `innocent` is a social action (buy, talk, send) not counted as tampering in the civilian
+## multiplier table; `start_blocker` may take a peer (`func(peer_id: int) -> bool`; 0-arg legacy form valid; peer 0 for NPC use);
+## `host_abort()` cancels the ongoing interaction on the host (e.g. owner interrupts a conversation).
 
-## Yalnız host'ta.
+## Host only.
 signal completed(peer_id: int)
-## Yalnız host'ta (bırakma, menzil dışı, aktör yok).
+## Host only (release, out of range, no actor).
 signal cancelled(peer_id: int)
-## Yalnız isteyen peer'da: host'un kararı (seq isteğin sıra numarası).
+## Requesting peer only: host's decision (seq is the request's sequence number).
 signal request_finished(seq: int, success: bool)
 
-const GROUP := &"interactables"
-## Etkileşebilen aktörlerin grubu (oyuncu kendini ekler).
-const ACTOR_GROUP := &"interaction_actors"
-## Fizik katmanı interactables (mimari.md §4: 4. katman).
-const LAYER_BIT := 1 << 3
+const GROUP := PhysicsLayers.INTERACTABLES_GROUP
+## Group of actors able to interact (players add themselves).
+const ACTOR_GROUP := PhysicsLayers.ACTORS_GROUP
+## Physics layer interactables (architecture §4: layer 4).
+const LAYER_BIT := PhysicsLayers.INTERACTABLES
 const SYNC_NAME := "InteractableSync"
 const SYNC_INTERVAL := 0.1
 
@@ -41,25 +47,32 @@ const SYNC_INTERVAL := 0.1
 	set = _set_interact_range
 @export var enabled: bool = true
 @export var requirement: InteractionRequirement
+## Triggering input action (S5; US-010): &"interact" (E) or &"intimidate" (Q, gamepad X).
+@export var input_action: StringName = &"interact"
+## Social action (US-010): while running it is not counted as tampering (TAMPER) in the civilian multiplier table.
+@export var innocent: bool = false
 
-## Çoğaltılan durum (host yazar).
+## Replicated state (host writes).
 var busy_by: int = 0
 var progress: float = 0.0
-## İsteğe bağlı host engeli: `func() -> bool` (true = şu an uygulanamaz; ret nedeni "blocked"). Yalnız host'ta
-## ve yalnız yeni istek doğrulanırken çağrılır.
+## Optional host blocker: `func() -> bool` or `func(peer_id: int) -> bool` (true = cannot apply now; reject reason "blocked").
+## Called on the host only, only while validating a new request.
 var start_blocker: Callable = Callable()
+## Optional host actor filter: `func(peer_id: int, actor: Node) -> bool` (false = reject "actor").
+var actor_filter: Callable = Callable()
 
 var _seq: int = 0
 var _cooldown_left: float = 0.0
 var _target := InteractionRules.Target.new()
-## Bileşenin kendi kurduğu menzil dairesi (sahne kendi şeklini verdiyse null); menzil değişince güncellenir.
+## Range circle built by the component itself (null if the scene supplies its own shape); updated when range changes.
 var _range_shape: CircleShape2D = null
-## Host istatistikleri (döküm): istek, kabul (busy_by atanan), tamamlanan, iptal ve nedene göre ret sayıları.
+## Host statistics (dump): requests, accepted (busy_by set), completed, cancelled and reject counts by reason.
 var _requests: int = 0
 var _accepted: int = 0
 var _completed: int = 0
 var _cancelled: int = 0
 var _rejected: Dictionary = {}
+var _npc_uses: int = 0
 
 
 func _ready() -> void:
@@ -80,7 +93,7 @@ func _physics_process(delta: float) -> void:
 	step(delta)
 
 
-## `peer_id`'nin tuttuğu (host'un çoğalttığı `busy_by`) bileşen; yoksa null. Her peer'da çalışır.
+## Component held by `peer_id` (host-replicated `busy_by`); null if none. Works on every peer.
 static func held_by(tree: SceneTree, peer_id: int) -> Interactable:
 	if tree == null or peer_id <= 0:
 		return null
@@ -91,14 +104,14 @@ static func held_by(tree: SceneTree, peer_id: int) -> Interactable:
 	return null
 
 
-## Bir zaman adımı: tekrar beklemesi azalır; host'ta süren etkileşimin süresi sayılır, aktör menzilden
-## (+ S2 toleransı) çıktıysa ya da ayrıldıysa iptal edilir. Fizik adımı çağırır.
+## One time step: repeat cooldown decreases; on the host the ongoing interaction's time counts, and it is cancelled if the actor leaves
+## range (+ S2 tolerance) or disconnects. Called by the physics step.
 func step(delta: float) -> void:
 	_cooldown_left = maxf(_cooldown_left - delta, 0.0)
 	if busy_by == 0 or not _is_host():
 		return
 	var actor: Node = _actor(busy_by)
-	if actor == null or not InteractionRules.keeps_going(_spec(), _actor_position(actor)):
+	if actor == null or not _actor_free(actor) or not InteractionRules.keeps_going(_spec(), _actor_position(actor)):
 		_finish(false)
 		return
 	progress = InteractionRules.advance(progress, delta)
@@ -106,22 +119,22 @@ func step(delta: float) -> void:
 		_finish(true)
 
 
-## İstemci tarafı uygunluk (toleranssız; istem ve hedef seçimi için). Host ayrıca doğrular.
+## Client-side eligibility (no tolerance; for prompt and target selection). Host validates again.
 func can_start(peer_id: int, actor_pos: Vector2, actor_tags: Dictionary = {}) -> bool:
 	return InteractionRules.check(_spec(), peer_id, actor_pos, actor_tags) == InteractionRules.Result.OK
 
 
-## Süren etkileşim için aktör hâlâ erişimde mi (S2 toleransıyla).
+## Whether the actor is still in reach for the ongoing interaction (with S2 tolerance).
 func in_reach(actor_pos: Vector2) -> bool:
 	return InteractionRules.keeps_going(_spec(), actor_pos)
 
 
-## 0..1 ilerleme (çoğaltılan durumdan; görseller okur).
+## 0..1 progress (from replicated state; visuals read it).
 func progress_ratio() -> float:
 	return InteractionRules.ratio(progress, hold_time) if busy_by != 0 else 0.0
 
 
-## Yerel oyuncu: etkileşim isteği (host'ta doğrudan, istemcide RPC).
+## Local player: interaction request (direct on the host, RPC on a client).
 func request_start(seq: int) -> void:
 	if _is_host():
 		host_start(multiplayer.get_unique_id(), seq)
@@ -129,7 +142,7 @@ func request_start(seq: int) -> void:
 		_rpc_start.rpc_id(1, seq)
 
 
-## Yerel oyuncu: bıraktı ya da uzaklaştı.
+## Local player: released or moved away.
 func request_cancel(seq: int) -> void:
 	if _is_host():
 		host_cancel(multiplayer.get_unique_id(), seq)
@@ -137,8 +150,8 @@ func request_cancel(seq: int) -> void:
 		_rpc_cancel.rpc_id(1, seq)
 
 
-## Host istatistikleri (S6 dökümü; istemcide sıfır). Değişmezler: requests = accepted + rejected_total;
-## accepted = completed + cancelled + (süren etkileşim varsa 1).
+## Host statistics (S6 dump; zero on a client). Invariants: requests = accepted + rejected_total;
+## accepted = completed + cancelled + (1 if an interaction is ongoing).
 func stats() -> Dictionary:
 	var rejected_total: int = 0
 	for reason: String in _rejected:
@@ -151,10 +164,11 @@ func stats() -> Dictionary:
 		"cancelled": _cancelled,
 		"rejected": _rejected.duplicate(),
 		"rejected_total": rejected_total,
+		"npc_uses": _npc_uses,
 	}
 
 
-# --- RPC (S2: istemci→host any_peer + gönderen doğrulaması; host→isteyen authority) ---
+# --- RPC (S2: client->host any_peer + sender validation; host->requester authority) ---
 
 @rpc("any_peer", "call_remote", "reliable")
 func _rpc_start(seq: int) -> void:
@@ -173,20 +187,25 @@ func _rpc_result(seq: int, success: bool) -> void:
 
 # --- host ---
 
-## Yalnız host'ta (değilse yok sayılır): `peer_id`'nin `seq` numaralı başlatma isteğini doğrular ve kabul ya da
-## reddeder (RPC gövdesi; host'un kendi isteği de buradan geçer).
+## Host only (ignored otherwise): validates `peer_id`'s start request numbered `seq`, accepting or rejecting (RPC body; the host's own
+## request goes through here too).
 func host_start(peer_id: int, seq: int) -> void:
 	if peer_id <= 0 or not _is_host():
 		return
 	if busy_by == peer_id:
-		_seq = seq  # aynı peer'ın yinelenen isteği: süren etkileşim sürer, karar yeni sıra numarasıyla gider
+		_seq = seq  # duplicate request from the same peer: ongoing interaction continues, decision goes out with the new sequence number
 		return
 	_requests += 1
 	var actor: Node = _actor(peer_id)
+	var refusal: String = _actor_refusal(peer_id, actor)
+	if not refusal.is_empty():
+		_rejected[refusal] = int(_rejected.get(refusal, 0)) + 1
+		_send_result(peer_id, seq, false)
+		return
 	var result: InteractionRules.Result = InteractionRules.Result.NO_ACTOR
 	if actor != null:
 		var spec: InteractionRules.Target = _spec()
-		spec.blocked = start_blocker.is_valid() and bool(start_blocker.call())
+		spec.blocked = is_blocked_for(peer_id)
 		result = InteractionRules.host_check(spec, peer_id, _actor_position(actor), _actor_tags(actor),
 			_cooldown_left)
 	if result != InteractionRules.Result.OK:
@@ -202,15 +221,44 @@ func host_start(peer_id: int, seq: int) -> void:
 		_finish(true)
 
 
-## Yalnız host'ta: `peer_id` bıraktı. Süren etkileşim o peer'ın ve aynı sıra numarasıyla değilse etkisiz; son
-## TIME_TOLERANCE payındaysa tamamlanır, değilse iptal.
+## Host only: `peer_id` released. No effect unless it is that peer's ongoing interaction with the same sequence number; completes if within
+## the last TIME_TOLERANCE, else cancels.
 func host_cancel(peer_id: int, seq: int) -> void:
 	if not _is_host() or busy_by != peer_id or seq != _seq:
-		return  # bitmiş ya da başkasının etkileşimi
+		return  # already finished or someone else's interaction
 	_finish(InteractionRules.release_completes(progress, hold_time))
 
 
-## Etkileşimi bitirir: ilerleme sıfırlanır (yarıda bırakılan dahil), sinyal yayılır, isteyene sonuç gider.
+## Host only: NPC's (actorless) instant use; if applied, emits `completed(0)` and returns true.
+func host_use_by_npc(actor_pos: Vector2) -> bool:
+	if not _is_host() or busy_by != 0 or hold_time > 0.0 or not enabled or _cooldown_left > 0.0:
+		return false
+	if not InteractionRules.keeps_going(_spec(), actor_pos):
+		return false
+	if is_blocked_for(0):
+		return false
+	_npc_uses += 1
+	_cooldown_left = InteractionRules.REPEAT_COOLDOWN
+	completed.emit(0)
+	return true
+
+
+## Host only: cancels the ongoing interaction (`cancelled` + failure result to the requester); no effect if idle.
+func host_abort() -> void:
+	if _is_host() and busy_by != 0:
+		_finish(false)
+
+
+## Host blocker for this peer (peer 0 = NPC): `start_blocker` may take 0 or 1 argument.
+func is_blocked_for(peer_id: int) -> bool:
+	if not start_blocker.is_valid():
+		return false
+	if start_blocker.get_argument_count() >= 1:
+		return bool(start_blocker.call(peer_id))
+	return bool(start_blocker.call())
+
+
+## Finishes the interaction: progress reset (including aborted), signal emitted, result sent to the requester.
 func _finish(success: bool) -> void:
 	var peer_id: int = busy_by
 	var seq: int = _seq
@@ -250,6 +298,22 @@ func _actor(peer_id: int) -> Node:
 	return null
 
 
+## Host actor check: empty = accept; else reject reason (`not_free`, `actor`).
+func _actor_refusal(peer_id: int, actor: Node) -> String:
+	if actor == null:
+		return ""
+	if not _actor_free(actor):
+		return "not_free"
+	if actor_filter.is_valid() and not bool(actor_filter.call(peer_id, actor)):
+		return "actor"
+	return ""
+
+
+## Whether the actor is free (US-008: an actor without `is_free()` counts as free; duck typing).
+static func _actor_free(actor: Node) -> bool:
+	return not actor.has_method(&"is_free") or bool(actor.call(&"is_free"))
+
+
 static func _actor_position(actor: Node) -> Vector2:
 	var pos: Variant = actor.call(&"interaction_position")
 	return pos if pos is Vector2 else Vector2.INF
@@ -262,7 +326,7 @@ static func _actor_tags(actor: Node) -> Dictionary:
 	return tags if tags is Dictionary else {}
 
 
-## Kuralların gördüğü hedef durumu (taraf kısıtı prop'la birlikte döner).
+## Target state as the rules see it (side constraint comes back with the prop).
 func _spec() -> InteractionRules.Target:
 	_target.position = global_position
 	_target.interact_range = interact_range

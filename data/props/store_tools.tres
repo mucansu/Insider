@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="StoreToolsTuning" format=3]
+
+[ext_resource type="Script" path="res://data/props/store_tools_tuning.gd" id="1_tools"]
+
+[resource]
+script = ExtResource("1_tools")
+buy_price = 10
+talk_max_sec = 8.0
+talk_range = 72.0
+topple_radius = 320.0
+phone_delay_sec = 3.0
+phone_radius = 240.0
+phone_ring_interval_sec = 2.0
+phone_ring_max = 8
+phone_find_px = 80.0
+again_suspicion = 30.0
+talk_soothe_steps = Array[float]([40.0, 20.0, 0.0])
+misdirect_min_alert = 2
+misdirect_hold_sec = 1.5
+misdirect_range = 64.0
+misdirect_radius = 480.0
+misdirect_run_sec = 8.0
+misdirect_run_px = 400.0
+misdirect_suspicion = 30.0

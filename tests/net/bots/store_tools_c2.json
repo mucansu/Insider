@@ -1,0 +1,15 @@
+{
+  "_doc": "store_interactions.json c2 botu (US-010, dikkat dağıtan): sola hizalan, sağa ön kapı hizasına (x≈368), kapıdan dümdüz kuzeye y≈272'ye (ShelfProp2'nin 32 px doğusu): telefonu bırak (Q, 0,7 sn tut); kuzeye y≈208'e (ShelfProp1'in 32 px doğusu): rafı devir (E, anında); güneye sokağa dön (y≈528) ve dışarıda bekle.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 5.829, "move": [0, 0]},
+    {"t": 6.0, "hold": "intimidate", "dur": 0.7},
+    {"t": 6.9, "move": [0, -1]},
+    {"t": 7.357, "move": [0, 0]},
+    {"t": 7.5, "press": "interact"},
+    {"t": 8.0, "move": [0, 1]},
+    {"t": 10.4, "move": [0, 0]}
+  ]
+}

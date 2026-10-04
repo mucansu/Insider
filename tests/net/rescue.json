@@ -1,0 +1,33 @@
+{
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 AC9 (+ AC7, ON-03): store_a'da sahip TUTMA ve ÇEK kurtarma. c1 personel tarafında sahibin konisinde durur: \"?\" → sorgu → bağırış → sahip kovalar ve tutar (28 px + 0,5 sn; c1 donar, girdi kesilir, 6 sn pencere). c2 tezgâh ucunun batısında c1'e ~28 px uzakta bekler, c1 tutulduktan sonra ÇEK'i (c1 üzerindeki Interactable, 32 px, 1 sn) basılı tutar: c1 serbest (6 sn dolmadan), sahip SENDELE (`owner_stagger`, 2 sn), kurtarana (c2) şüphe 100. İkisi batıya yürüyerek uzaklaşır (sahip 120 px/sn). Olay sırası tüm peer'larda aynı; oturum olayları player_held → player_rescued; kimse yakalanmadı. Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 15.5,
+  "bots": {
+    "c1": "res://tests/net/bots/rescue_c1.json",
+    "c2": "res://tests/net/bots/rescue_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.owner.events", ["owner_question", "owner_shout", "owner_held", "owner_stagger"]]},
+    {"all_equal": "owner.events"},
+    {"all_equal": "owner.event_peers"},
+    {"len": ["host.owner.rescues", 1]},
+    {"same": ["host.owner.rescues.0.peer", "c1.peer_id"]},
+    {"same": ["host.owner.rescues.0.by", "c2.peer_id"]},
+    {"eq": ["host.owner.peak.$c2", 100]},
+    {"eq": ["*.heist.events_main.0.kind", "player_held"]},
+    {"eq": ["*.heist.events_main.1.kind", "player_rescued"]},
+    {"len": ["*.heist.events_main", 2]},
+    {"all_equal": "events"},
+    {"eq": ["*.player_states.$c1.status", 0]},
+    {"eq": ["*.player_states.$c2.status", 0]},
+    {"eq": ["c2.interaction.successes", 1]},
+    {"eq": ["*.alert.history", [0, 1, 2]]},
+    {"eq": ["*.chasers.spawned", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]}
+  ]
+}

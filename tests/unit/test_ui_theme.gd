@@ -1,8 +1,8 @@
 extends TestCase
-## Tema ve ton altyapısı (US-003 AC4, S9, KR-005): üretilmiş temalar güncel, oyun renkleri tondan
-## bağımsız, palet okunur (kontrast), odak görünür, ui/ altında sabit renk yok.
+## Theme and tone infrastructure (US-003 AC4, S9, KR-005): generated themes are up to date, game colours are independent of the
+## tone, the palette is legible (contrast), focus is visible, no hard-coded colours under ui/.
 
-## Renk değerlerinin kaynağı (ThemeTokens) ve üreticisi; sabit renk taramasından muaf.
+## Source of colour values (ThemeTokens) and its generator; exempt from the hard-coded colour scan.
 const TOKEN_SOURCE_DIR := "res://ui/theme"
 
 
@@ -45,7 +45,7 @@ func test_tone_selection_api() -> void:
 	custom.id = &"test_missing_theme"
 	ThemeTokens.set_tone(custom)
 	eq(ThemeTokens.tone(), custom)
-	# Bu çağrı bilerek "tema yok" uyarısı verir; uyarı test çıktısına basılmaz (IS-009).
+	# This call deliberately emits a "no theme" warning; the warning is not printed to test output (IS-009).
 	var fallback: Theme = _quietly(func() -> Theme: return ThemeTokens.theme()) as Theme
 	eq(fallback.resource_path, "res://ui/theme/noir.tres", "teması üretilmemiş ton noir'e düşer")
 	ThemeTokens.set_tone(null)
@@ -57,7 +57,7 @@ func test_tone_selection_api() -> void:
 
 
 func test_palette_contrast() -> void:
-	# WCAG oranları: gövde metni ≥ 4,5, büyük metin/grafik ≥ 3; ana metin ≥ 7.
+	# WCAG ratios: body text >= 4.5, large text/graphics >= 3; primary text >= 7.
 	var surfaces: Dictionary = {"BG": ThemeTokens.BG, "SURFACE": ThemeTokens.SURFACE, "SURFACE_RAISED": ThemeTokens.SURFACE_RAISED}
 	for s: String in surfaces:
 		var bg: Color = surfaces[s]
@@ -67,6 +67,33 @@ func test_palette_contrast() -> void:
 		_contrast_at_least(ThemeTokens.GAMEPLAY_CASH, bg, 4.5, "GAMEPLAY_CASH / " + s)
 		_contrast_at_least(ThemeTokens.GAMEPLAY_ALERT, bg, 3.0, "GAMEPLAY_ALERT / " + s)
 	_contrast_at_least(ThemeTokens.BG, ThemeTokens.ACCENT, 4.5, "basılı birincil buton yazısı")
+
+
+func test_hud_chip_readable_over_world() -> void:
+	# US-013: the translucent HUD panel (HudChip) over the map; against the worst world floor blended with the panel's alpha, text
+	# FG/MUTED/CASH >= 4.5, ALERT (text and ladder box) >= 3.
+	for tone: Tone in ThemeTokens.available_tones():
+		var t: Theme = ThemeBuilder.build(tone)
+		var chip: Color = (t.get_stylebox(&"panel", &"HudChip") as StyleBoxFlat).bg_color
+		var world: Dictionary = {"bg": tone.bg_color, "wall_color": tone.wall_color}
+		for p: Dictionary in (Tone as Script).get_script_property_list():
+			var prop: String = p["name"]
+			if prop.begins_with("level_") and prop.ends_with("_color"):
+				world[prop] = tone.get(prop)
+		is_true(world.size() >= 12, "dünya renkleri bulunamadı")
+		var texts: Dictionary = {
+			"FG": [t.get_color(&"font_color", &"Label"), 4.5],
+			"MUTED": [t.get_color(&"font_color", &"MutedLabel"), 4.5],
+			"CAPTION": [t.get_color(&"font_color", &"CaptionLabel"), 4.5],
+			"CASH": [t.get_color(&"font_color", &"CashLabel"), 4.5],
+			"ALERT": [t.get_color(&"font_color", &"AlertLabel"), 3.0],
+		}
+		for w: String in world:
+			var under: Color = world[w]
+			var behind: Color = under.lerp(Color(chip, 1.0), chip.a)
+			for key: String in texts:
+				var spec: Array = texts[key]
+				_contrast_at_least(spec[0], behind, spec[1], "%s: %s / HudChip üstü %s" % [tone.id, key, w])
 
 
 func test_focus_is_always_visible() -> void:
@@ -81,7 +108,7 @@ func test_focus_is_always_visible() -> void:
 
 
 func test_scenes_use_tokens_only() -> void:
-	# Renk ve yazı tipi yalnız temadan (ajan kuralı 2): sahnelerde tema geçersiz kılma ve renk sabiti yok.
+	# Colour and font only from the theme (agent rule 2): no theme overrides or colour constants in scenes.
 	var banned_tscn: RegEx = RegEx.create_from_string("theme_override_(colors|fonts|font_sizes|styles)|Color\\(")
 	for path: String in _files_under("res://ui", ".tscn"):
 		var lines: PackedStringArray = FileAccess.get_file_as_string(path).split("\n")
@@ -98,17 +125,17 @@ func test_scenes_use_tokens_only() -> void:
 
 
 func test_screens_reference_noir_theme() -> void:
-	for scene: String in ["res://ui/main_menu.tscn", "res://ui/pause_menu.tscn", "res://ui/hud.tscn"]:
+	for scene: String in ["res://ui/main_menu.tscn", "res://ui/pause_menu.tscn", "res://ui/hud.tscn", "res://ui/heist_end.tscn"]:
 		has(FileAccess.get_file_as_string(scene), "path=\"res://ui/theme/noir.tres\"", "%s editörde noir temasıyla açılır" % scene)
 
 
-# --- yardımcılar ---
+# --- helpers ---
 
-## `fn`'i motorun hata/uyarı yazımı kapalıyken çağırıp sonucunu döner: beklenen push_warning birim test
-## çıktısına WARNING satırı basmasın (koşucunun allow_errors'u yalnız sayımı etkiler, yazımı değil).
-## Bu sürede koşucu da hata yakalamaz; yalnız sonucu ayrıca doğrulanan tek çağrı için kullanılır.
-## Çağrı `_invoke`ta: çağrı noktasındaki hata (geçersiz Callable, imza uyuşmazlığı) yalnız onu durdurur,
-## yazım yine geri açılır; sonuç null döner ve test kendi doğrulamasında düşer.
+## Calls `fn` with engine error/warning printing off and returns its result: an expected push_warning must not print a WARNING line
+## to unit test output (the runner's allow_errors only affects counting, not printing).
+## The runner catches no errors in this time either; use only for a single call whose result is verified separately.
+## The call is in `_invoke`: an error at the call site (invalid Callable, signature mismatch) stops only it, printing is restored
+## anyway; the result is null and the test fails in its own assertion.
 static func _quietly(fn: Callable) -> Variant:
 	var previous: bool = Engine.print_error_messages
 	Engine.print_error_messages = false
@@ -132,7 +159,7 @@ static func _contrast(a: Color, b: Color) -> float:
 	return (maxf(la, lb) + 0.05) / (minf(la, lb) + 0.05)
 
 
-## WCAG göreli parlaklığı (sRGB → doğrusal).
+## WCAG relative luminance (sRGB -> linear).
 static func _relative_luminance(c: Color) -> float:
 	var lin: Color = c.srgb_to_linear()
 	return 0.2126 * lin.r + 0.7152 * lin.g + 0.0722 * lin.b
@@ -165,7 +192,7 @@ static func _resource_snapshot(r: Resource) -> Variant:
 	if r == null:
 		return null
 	if not r.resource_path.is_empty() and not r.resource_path.contains("::"):
-		return r.resource_path  # dış kaynak (ör. yazı tipi dosyası): yoluyla karşılaştır
+		return r.resource_path  # external source (e.g. a font file): compare by path
 	var out: Dictionary = {"class": r.get_class()}
 	for p: Dictionary in r.get_property_list():
 		var prop: String = p["name"]
@@ -182,7 +209,7 @@ static func _resource_snapshot(r: Resource) -> Variant:
 	return out
 
 
-## İlk farkı "yol: beklenen ≠ gelen" biçiminde döner; fark yoksa boş.
+## Returns the first difference as "path: expected != actual"; empty if no difference.
 static func _diff(expected: Variant, actual: Variant, where: String) -> String:
 	if expected is Dictionary and actual is Dictionary:
 		var e: Dictionary = expected

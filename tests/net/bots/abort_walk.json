@@ -1,0 +1,8 @@
+{
+  "_doc": "abort.json botu (host ve c1 aynı dosya; US-040): doğma noktasından caddeye in (y≈576) ve doğuya kaçış bölgesine (x≈860-892) yürüyüp bekle; hiçbir şeye dokunma (ganimet 0).",
+  "steps": [
+    {"t": 0.2, "move": [0, 1]},
+    {"t": 0.543, "move": [1, 0]},
+    {"t": 5.886, "move": [0, 0]}
+  ]
+}

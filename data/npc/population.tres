@@ -1,0 +1,51 @@
+[gd_resource type="Resource" script_class="PopulationTuning" format=3]
+
+[ext_resource type="Script" path="res://data/npc/population_tuning.gd" id="1_pop"]
+
+[resource]
+script = ExtResource("1_pop")
+population_seed = 7
+max_npcs = 6
+neighbour_reserve = 1
+pause_alert_level = 2
+customer_first_min = 10.0
+customer_first_max = 20.0
+customer_interval = 35.0
+customer_jitter = 15.0
+customer_max = 2
+stay_min_sec = 25.0
+stay_max_sec = 45.0
+shop_spots_min = 1
+shop_spots_max = 2
+shop_min_sec = 8.0
+shop_max_sec = 12.0
+walk_margin_sec = 8.0
+queue_wait_sec = 20.0
+customer_speed = 90.0
+customer_spawn_marker = &"StreetRoute1"
+customer_exit_marker = &"StreetRoute1"
+front_door_marker = &"FrontDoor"
+shop_prefix = &"ShopSpot"
+queue_prefix = &"QueueSpot"
+queue_look_marker = &"Register"
+customer_half_angle_deg = 50.0
+customer_view_range = 160.0
+passerby_interval = 20.0
+passerby_jitter = 8.0
+passerby_max = 2
+passerby_speed = 110.0
+look_chance = 0.3
+look_sec = 2.0
+route_prefix = &"StreetRoute"
+window_prefix = &"WindowLook"
+passerby_half_angle_deg = 40.0
+passerby_view_range = 192.0
+watch_release_sec = 1.0
+owner_sight_range = 480.0
+tell_speed = 110.0
+tell_reach = 48.0
+tell_min_sec = 3.0
+tell_max_sec = 5.0
+tell_suspicion = 60.0
+flee_speed = 160.0
+convert_radius = 320.0

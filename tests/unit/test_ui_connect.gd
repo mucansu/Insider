@@ -1,11 +1,11 @@
 extends TestCase
-## Bağlantı kolaylığı (US-026): davet adresi seçimi, "adres[:port]" ayrıştırma, pano metninden adres,
-## ayar dosyası okuma/yazma, davet paneli (Kopyala, açılır liste) ve duraklat menüsünde yalnız host'ta görünmesi.
+## Connection ease (US-026): invite address choice, "address[:port]" parsing, address from clipboard text, settings file
+## read/write, the invite panel (Copy, dropdown) and visibility only for the host in the pause menu.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const INVITE_SCENE := preload("res://ui/invite_panel.tscn")
 const PAUSE_SCENE := preload("res://ui/pause_menu.tscn")
-## Geçici ayar dosyası (oyuncunun user://connect.cfg'sine dokunulmaz).
+## Temporary settings file (the player's user://connect.cfg is not touched).
 const TEMP_PATH := "user://test_ui_connect_io.cfg"
 
 
@@ -21,7 +21,7 @@ func _viewport() -> SubViewport:
 	return vp
 
 
-# --- adres seçici (saf) ---
+# --- address picker (pure) ---
 
 func test_invite_candidates_prefer_tailscale() -> void:
 	var real_windows: PackedStringArray = ["0:0:0:0:0:0:0:1", "127.0.0.1", "fe80:0:0:0:8c39:898c:33dc:6daf",
@@ -63,7 +63,7 @@ func test_invite_text_and_session_port() -> void:
 	eq(ConnectInfo.MAX_NAME_LENGTH, MainMenu.MAX_NAME_LENGTH)
 
 
-# --- host:port ayrıştırma ---
+# --- host:port parsing ---
 
 func test_parse_host_port() -> void:
 	eq(ConnectInfo.parse_host_port("100.64.0.2"), {"ok": true, "address": "100.64.0.2", "port": 7777})
@@ -109,7 +109,7 @@ func test_find_invite_ranking_and_ts_names() -> void:
 	is_false(ConnectInfo.find_invite("")["ok"])
 
 
-# --- ayar dosyası ---
+# --- settings file ---
 
 func test_settings_round_trip_and_merge() -> void:
 	_remove(TEMP_PATH)
@@ -152,7 +152,7 @@ func test_settings_default_path_is_user_connect_cfg() -> void:
 	Fakes.reset_connect_settings()
 
 
-# --- davet paneli ---
+# --- invite panel ---
 
 func _invite(addresses: PackedStringArray, copied: Array[String]) -> InvitePanel:
 	var panel: InvitePanel = INVITE_SCENE.instantiate() as InvitePanel
@@ -167,9 +167,9 @@ func test_invite_panel_single_address_copy() -> void:
 	var panel: InvitePanel = _invite(["fe80::1", "100.64.0.2"], copied)
 	panel.port = 7790
 	eq((panel.get_node("%AddressLabel") as Label).text, "100.64.0.2:7790")
-	is_true(panel.get_node("%AddressLabel").visible)
-	is_false(panel.get_node("%AddressButton").visible, "tek adayda liste yok")
-	is_false(panel.get_node("%NoteLabel").visible, "Tailscale varken not yok")
+	is_true((panel.get_node("%AddressLabel") as CanvasItem).visible)
+	is_false((panel.get_node("%AddressButton") as CanvasItem).visible, "tek adayda liste yok")
+	is_false((panel.get_node("%NoteLabel") as CanvasItem).visible, "Tailscale varken not yok")
 	var copy: Button = panel.get_node("%CopyButton") as Button
 	copy.pressed.emit()
 	eq(copied, ["100.64.0.2:7790"] as Array[String])
@@ -185,7 +185,7 @@ func test_invite_panel_lan_only_shows_note() -> void:
 	var copied: Array[String] = []
 	var panel: InvitePanel = _invite(["127.0.0.1", "192.168.1.20"], copied)
 	eq(panel.invite_text(), "192.168.1.20:7777")
-	is_true(panel.get_node("%NoteLabel").visible, "Tailscale yok notu")
+	is_true((panel.get_node("%NoteLabel") as CanvasItem).visible, "Tailscale yok notu")
 	panel.addresses_provider = func() -> PackedStringArray: return PackedStringArray()
 	panel.refresh()
 	eq(panel.invite_text(), "127.0.0.1:7777", "hiç arabirim yoksa loopback")
@@ -198,7 +198,7 @@ func test_invite_panel_list_selects_and_copies() -> void:
 	panel.focus_layout_changed.connect(func() -> void: focus_changes[0] += 1)
 	var choice: Button = panel.get_node("%AddressButton") as Button
 	is_true(choice.visible)
-	is_false(panel.get_node("%AddressLabel").visible)
+	is_false((panel.get_node("%AddressLabel") as CanvasItem).visible)
 	eq(choice.text, tr("MENU_INVITE_CHOICE") % ["100.100.1.1:7777", 2])
 	is_false(panel.is_list_open())
 	choice.button_pressed = true
@@ -213,7 +213,7 @@ func test_invite_panel_list_selects_and_copies() -> void:
 	eq(panel.selected_address(), "10.0.0.4")
 	eq(copied, ["10.0.0.4:7777"] as Array[String], "seçilen adres kopyalanır")
 	is_false(panel.is_list_open(), "seçince liste kapanır")
-	is_true(panel.get_node("%NoteLabel").visible, "seçilen Tailscale değil → not")
+	is_true((panel.get_node("%NoteLabel") as CanvasItem).visible, "seçilen Tailscale değil → not")
 	panel.refresh()
 	eq(panel.selected_address(), "100.100.1.1", "yenileyince ilk aday")
 
@@ -228,11 +228,11 @@ func test_invite_panel_list_is_capped_and_can_be_disabled() -> void:
 	eq(panel.get_node("%AddressList").get_child_count(), InvitePanel.MAX_LISTED)
 	panel.allow_list = false
 	panel.refresh()
-	is_false(panel.get_node("%AddressButton").visible, "liste kapalı: yalnız ilk aday")
+	is_false((panel.get_node("%AddressButton") as CanvasItem).visible, "liste kapalı: yalnız ilk aday")
 	eq((panel.get_node("%AddressLabel") as Label).text, "10.0.0.1:7777")
 
 
-# --- duraklat menüsü ---
+# --- pause menu ---
 
 func _pause(hosting: bool, addresses: PackedStringArray) -> PauseMenu:
 	var pair: Array = Fakes.make_pair(self)
@@ -249,7 +249,7 @@ func _pause(hosting: bool, addresses: PackedStringArray) -> PauseMenu:
 func test_pause_menu_shows_invite_only_to_host() -> void:
 	var client: PauseMenu = _pause(false, ["100.64.0.2"])
 	client.open()
-	is_false(client.get_node("%Invite").visible, "istemcide davet yok")
+	is_false((client.get_node("%Invite") as CanvasItem).visible, "istemcide davet yok")
 	eq(str(client.get_viewport().gui_get_focus_owner().name), "ResumeButton")
 	var host: PauseMenu = _pause(true, ["192.168.1.2", "100.64.0.2"])
 	ConnectInfo.hosted_port = 7790

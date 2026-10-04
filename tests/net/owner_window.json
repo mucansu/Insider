@@ -1,0 +1,28 @@
+{
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 AC9 (+ AC2/AC3): store_a'da sahibin ajanda penceresi. Ajanda tohumla belirlenimci (data/npc/owner_tuning.tres agenda_seed 3: tezgâh ~32 sn → raf düzeltme (RestockSpot*, rafa döner) → ~51 sn'de tezgâha dönüş). c1 ön kapıdan girip satış alanında müşteri gibi bekler (müşteri bölgesinde ilk 60 sn çarpan 0: görülse de dolmaz), sahip raf penceresindeyken tezgâh ucundan personel tarafına dolanır, kasayı boşaltır (3 sn) ve müşteri tarafına döner: ekip nakdi tüm peer'larda 150, uyarı 0 (merdiven hiç kımıldamaz), sahip hiç olay üretmez, c1'e şüphesi hiç dolmaz (peak 0), tespit kaydı yok. Host idle (dışarıda). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 50,
+  "bots": {
+    "c1": "res://tests/net/bots/owner_window_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.team_cash", 150]},
+    {"all_equal": "team_cash"},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["host.props.Register.interact.completed", 1]},
+    {"eq": ["c1.interaction.successes", 1]},
+    {"eq": ["*.alert.level", 0]},
+    {"eq": ["*.alert.history", [0]]},
+    {"eq": ["*.owner.events", []]},
+    {"eq": ["*.owner.bubbles", []]},
+    {"len": ["host.owner.detections", 0]},
+    {"eq": ["host.owner.peak.$c1", 0]},
+    {"has": ["host.owner.agenda", "restock"]},
+    {"eq": ["*.player_states.$c1.status", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

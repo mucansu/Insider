@@ -1,0 +1,21 @@
+{
+  "_doc": "IS-015a: kapalı döngü beyin, host tek başına gerçek bakkalda (levels/store_a.tscn: sahip + nüfus) `rush` stratejisi (bot dosyası brain_rush.json, tohum 1): doğrudan kasaya, boşalt, kaç. Sonucu kazanmak zorunda değil; beyin takılmadan bir sonuca ulaşır: iş biter (heist.result.outcome var), beyin `done` fazında, takılma süresi küçük, faz günlüğü dökümde. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 0,
+  "duration": 40,
+  "bots": {
+    "host": "res://tests/net/bots/brain_rush.json"
+  },
+  "expect": [
+    {"eq": ["host.level", "res://levels/store_a.tscn"]},
+    {"eq": ["host.brain.strategy", "rush"]},
+    {"eq": ["host.brain.seed", 1]},
+    {"eq": ["host.brain.role", "solo"]},
+    {"eq": ["host.brain.phase", "done"]},
+    {"eq": ["host.brain.phase_log.0.1", "go_register"]},
+    {"between": ["host.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"eq": ["host.heist.active", false]}
+  ]
+}

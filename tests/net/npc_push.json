@@ -1,0 +1,25 @@
+{
+  "_doc": "US-037 (KR-027): NPC teması ve itme, host yetkili. store_a hızlı nüfus fikstürü (tests/fixtures/store_a_busy.tscn: Customer1 2. sn'de gelir, ShopSpot1'de 8 sn). Sakin evre (uyarı ≤ 1): c1 satır 5'te koşarak Customer1'in içinden geçer → host itmeye karar verir (koşu kipi, ±60° ön koni, < 24 px): müşteri +30 şüphe (n = 1), 24 px kayar, 0,8 sn sendeler; oturum olayı npc_pushed {peer, npc, calm} güvenilir RPC ile herkese; kayma her peer'da 15 Hz NPC çoğaltmasıyla görünür (her peer olayın anındaki konuma göre en büyük yer değiştirmeyi ölçer: `contact.slid`). c1 kendi iten yavaşlamasını yerel tahminle uygular (`player_states.<c1>.contact.predicted`). Kızışmış evre: c2 personel tarafında sahibin konisinde durur → bağırış (uyarı ≥ 2), mahalleli gelir; c1 sokakta koşarak salınır ve gelen mahalleliye önden omuz atar: itme bedelsiz (hot_cost 0), mahalleli sendeler ve 4 sn bağışık. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_busy.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 46,
+  "bots": {
+    "c1": "res://tests/net/bots/npc_push_c1.json",
+    "c2": "res://tests/net/bots/npc_push_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_busy.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["host.contact.pushes.0.npc", "Customer1"]},
+    {"eq": ["host.contact.pushes.0.calm", true]},
+    {"same": ["host.contact.pushes.0.peer", "c1.peer_id"]},
+    {"eq": ["host.contact.pushes.0.n", 1]},
+    {"eq": ["host.contact.pushes.0.suspicion", 30]},
+    {"between": ["*.contact.slid.Customer1", 12, 32]},
+    {"between": ["c1.player_states.$c1.contact.predicted", 1, 60]},
+    {"between": ["host.contact.hot_chaser", 1, 60]},
+    {"eq": ["host.contact.hot_cost", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

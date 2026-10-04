@@ -1,0 +1,38 @@
+{
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 AC9 (+ AC3/AC4/AC5/AC7/AC8, ON-04): store_a'da bakkal sahibi tezgâhta (ajanda tohumu data/npc/owner_tuning.tres; ilk tezgâh görevi ≥ 25 sn). c1 ön kapıdan girip tezgâh ucunun önünden personel tarafına geçer ve sahibin konisinde durur: \"?\" (30) → sorgu (60, 64 px içinde hemen `owner_question`) → bağırış (100, ~1,5 sn; `owner_shout`) → kovalar ve tutar (`owner_held`; oyuncu tutuldu, durum 1). Sonuç olayları güvenilir RPC: tüm peer'larda aynı sırada; \"?\"/\"!\" göstergesi istemcide çoğaltılan ölçerden türetilir (bubbles = [1, 2]: önce \"?\" sonra \"!\"). Uyarı merdiveni her peer'da 0 → 1 → 2 (I4; Game S3 eki). c2 rafların arkasındaki batı koridorunda bekler: sahibin ölçeri hiç dolmaz (peak 0). Host tespit kaydı (AC8, muhafiz-davranisi §4 alanları + behaviour): bir kayıt, personel tarafı, \"?\" tespitten ≥ 0,5 sn + RTT önce (flagged false). Döküm komşu çıkmadan (bağırış + 8 sn) alınır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 14,
+  "bots": {
+    "c1": "res://tests/net/bots/owner_detect_c1.json",
+    "c2": "res://tests/net/bots/owner_detect_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.owner.events", ["owner_question", "owner_shout", "owner_held"]]},
+    {"all_equal": "owner.events"},
+    {"all_equal": "owner.event_peers"},
+    {"has": ["*.owner.event_peers", "$c1"]},
+    {"lacks": ["*.owner.event_peers", "$c2"]},
+    {"eq": ["*.owner.bubbles", [1, 2]]},
+    {"eq": ["*.owner.alarmed", true]},
+    {"eq": ["*.alert.level", 2]},
+    {"eq": ["*.alert.history", [0, 1, 2]]},
+    {"eq": ["*.alert.timer_left", -1]},
+    {"len": ["host.owner.detections", 1]},
+    {"same": ["host.owner.detections.0.peer", "c1.peer_id"]},
+    {"eq": ["host.owner.detections.0.behaviour", "staff_side"]},
+    {"eq": ["host.owner.detections.0.zone", "staff"]},
+    {"eq": ["host.owner.detections.0.flagged", false]},
+    {"eq": ["host.owner.peak.$c2", 0]},
+    {"eq": ["host.owner.peak.$c1", 100]},
+    {"eq": ["*.player_states.$c1.status", 1]},
+    {"eq": ["*.player_states.$c2.status", 0]},
+    {"eq": ["*.chasers.spawned", 0]},
+    {"eq": ["*.team_cash", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]}
+  ]
+}

@@ -15,6 +15,23 @@ size = Vector2(32, 448)
 [sub_resource type="RectangleShape2D" id="Wall_4"]
 size = Vector2(576, 32)
 
+[sub_resource type="RectangleShape2D" id="Zone_EscapeZone"]
+size = Vector2(96, 96)
+
+[sub_resource type="RectangleShape2D" id="Zone_CustomerArea"]
+size = Vector2(288, 160)
+
+[sub_resource type="RectangleShape2D" id="Zone_StaffArea"]
+size = Vector2(128, 96)
+
+[sub_resource type="RectangleShape2D" id="Zone_Backroom"]
+size = Vector2(128, 96)
+
+[sub_resource type="NavigationPolygon" id="Navigation_poly"]
+vertices = PackedVector2Array(596, 436, 44, 436, 44, 44, 596, 44)
+polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3)])
+agent_radius = 12.0
+
 [node name="TestArena" type="Node2D" unique_id=801292675]
 script = ExtResource("1_qdrqe")
 
@@ -81,5 +98,82 @@ position = Vector2(528, 240)
 [node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1037032414]
 position = Vector2(80, 80)
 
+[node name="BackroomCash" type="Marker2D" parent="Markers" unique_id=348829201]
+position = Vector2(112, 80)
+
 [node name="Exit" type="Marker2D" parent="Markers" unique_id=1300956725]
 position = Vector2(560, 400)
+
+[node name="StreetRoute1" type="Marker2D" parent="Markers" unique_id=808223146]
+position = Vector2(368, 80)
+
+[node name="StreetRoute2" type="Marker2D" parent="Markers" unique_id=872767230]
+position = Vector2(528, 80)
+
+[node name="StreetRoute3" type="Marker2D" parent="Markers" unique_id=2041332999]
+position = Vector2(528, 272)
+
+[node name="NeighbourSpawn" type="Marker2D" parent="Markers" unique_id=1734576712]
+position = Vector2(592, 48)
+
+[node name="WindowLook1" type="Marker2D" parent="Markers" unique_id=643714912]
+position = Vector2(400, 48)
+
+[node name="ShopSpot1" type="Marker2D" parent="Markers" unique_id=524626110]
+position = Vector2(240, 208)
+
+[node name="QueueSpot1" type="Marker2D" parent="Markers" unique_id=1307931877]
+position = Vector2(464, 240)
+
+[node name="RestockSpot1" type="Marker2D" parent="Markers" unique_id=1166232960]
+position = Vector2(304, 176)
+
+[node name="PhoneSpot" type="Marker2D" parent="Markers" unique_id=1198659410]
+position = Vector2(560, 208)
+
+[node name="BackroomSpot" type="Marker2D" parent="Markers" unique_id=74431630]
+position = Vector2(144, 48)
+
+[node name="ShelfProp1" type="Marker2D" parent="Markers" unique_id=2021456193]
+position = Vector2(272, 208)
+
+[node name="Zones" type="Node2D" parent="." unique_id=1616588774]
+
+[node name="EscapeZone" type="Area2D" parent="Zones" unique_id=537712261]
+position = Vector2(560, 400)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/EscapeZone" unique_id=634617319]
+shape = SubResource("Zone_EscapeZone")
+
+[node name="CustomerArea" type="Area2D" parent="Zones" unique_id=1667780379]
+position = Vector2(336, 240)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/CustomerArea" unique_id=886092224]
+shape = SubResource("Zone_CustomerArea")
+
+[node name="StaffArea" type="Area2D" parent="Zones" unique_id=989447681]
+position = Vector2(544, 208)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/StaffArea" unique_id=17824628]
+shape = SubResource("Zone_StaffArea")
+
+[node name="Backroom" type="Area2D" parent="Zones" unique_id=1440483277]
+position = Vector2(96, 80)
+collision_layer = 16
+collision_mask = 2
+monitorable = false
+
+[node name="Shape" type="CollisionShape2D" parent="Zones/Backroom" unique_id=1112418540]
+shape = SubResource("Zone_Backroom")
+
+[node name="Navigation" type="NavigationRegion2D" parent="." unique_id=1094834663]
+navigation_polygon = SubResource("Navigation_poly")

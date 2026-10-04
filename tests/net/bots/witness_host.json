@@ -1,0 +1,65 @@
+{
+  "_doc": "witness.json host botu (US-042): heist_host rotasıyla ön kapıdan girip tezgâh ucundan personel tarafına (kasanın yanı) dolanır ve durur — hiçbir şeye dokunmaz ama personel tarafı örtüyü bozar. t=14'te 'heist' test kancası polis getirir (Game, yalnız otomasyon + host).",
+  "steps": [
+    {
+      "t": 0.2,
+      "move": [
+        -1,
+        0
+      ]
+    },
+    {
+      "t": 1.6,
+      "move": [
+        1,
+        0
+      ]
+    },
+    {
+      "t": 4.0,
+      "move": [
+        0,
+        -1
+      ]
+    },
+    {
+      "t": 4.8,
+      "move": [
+        1,
+        0
+      ]
+    },
+    {
+      "t": 7.3,
+      "move": [
+        0,
+        -1
+      ]
+    },
+    {
+      "t": 8.4,
+      "move": [
+        -1,
+        0
+      ]
+    },
+    {
+      "t": 9.4,
+      "move": [
+        0,
+        1
+      ]
+    },
+    {
+      "t": 9.88,
+      "move": [
+        0,
+        0
+      ]
+    },
+    {
+      "t": 14.0,
+      "heist": "police"
+    }
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "_doc": "IS-015b: kapalı döngü beyin, team stratejisi; brain_disconnect.json senaryosunda üç süreç de bunu koşar (rol katılım sırasından: host oyalayıcı, c1 kasacı, c2 çantacı; c1 iş ortasında ayrılır). Biçim: entities/player/bot_brain.gd.",
+  "brain": "team",
+  "seed": 3,
+  "steps": []
+}

@@ -1,0 +1,10 @@
+{
+  "_doc": "owner_detect.json c1 botu (US-008): sola sınır duvarına hizalan, sağa ön kapı hizasına yürü, kapıdan gir (y≈404: tezgâhın alt kenarına değmeden), tezgâh ucunun önünden personel tarafına geç (x≈553) ve sahibin konisinde dur (ClerkSpot'tan ~52 px, batıdan ~45°, yakın bant).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.9, "move": [1, 0]},
+    {"t": 6.25, "move": [0, 0]}
+  ]
+}

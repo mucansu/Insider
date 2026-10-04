@@ -1,8 +1,8 @@
 extends TestCase
-## IS-014 (3): uzak oyuncunun "etkileşimde" göstergesi diğer peer'larda da çizilir. Uzak kopya durumu host'un
-## çoğalttığı `Interactable.busy_by`'dan türetir (ek ağ alanı yok); görsel yerel ve uzak oyuncuda aynı yoldan
-## (Player.is_interacting()) aynı noktayı, etkin tonun renginde (ThemeTokens) çizer. Tek süreç: çevrimdışı
-## tekil kimlik 1 = host. Ayrıca (4): test_interaction*.gd dosyaları `_` önekli üyelere erişmez (§6, KR-018).
+## IS-014 (3): the remote player's "interacting" indicator is also drawn on other peers. The remote copy derives the state from
+## the host-replicated `Interactable.busy_by` (no extra network field); the visual draws the same point in the active tone's
+## colour (ThemeTokens) via the same path (Player.is_interacting()) for local and remote players. Single process: offline
+## singular id 1 = host. Also (4): test_interaction*.gd files do not access `_`-prefixed members (§6, KR-018).
 
 const REGISTER_SCENE := "res://entities/props/register.tscn"
 const PLAYER_SCENE := "res://entities/player/player.tscn"
@@ -46,7 +46,7 @@ func test_remote_player_shows_indicator_from_host_state() -> void:
 	await _frames(2)
 	is_false(remote.is_interacting())
 	is_false(_visual(remote).shows_interaction(), "boşta gösterge yok")
-	# Host uzak peer'ın isteğini kabul eder (RPC gövdesi): busy_by = 7.
+	# The host accepts the remote peer's request (RPC body): busy_by = 7.
 	item.host_start(7, 1)
 	eq(item.busy_by, 7)
 	await _frames(2)
@@ -60,7 +60,7 @@ func test_remote_player_shows_indicator_from_host_state() -> void:
 	is_false(_visual(remote).shows_interaction())
 
 
-## İstemcide: çoğaltılan busy_by eşitleyiciden yazılınca (burada doğrudan) aynı gösterge.
+## On the client: once the replicated busy_by is written from the synchroniser (directly here), the same indicator.
 func test_replicated_busy_by_drives_remote_indicator() -> void:
 	var item: Interactable = _register()
 	var remote: Player = _player(5, STAFF)
@@ -72,7 +72,7 @@ func test_replicated_busy_by_drives_remote_indicator() -> void:
 	is_false(_visual(remote).shows_interaction())
 
 
-## Yerel oyuncu basışta hemen gösterir (GDD §12); görünüm uzak kopyayla aynı (aynı nokta, aynı renk).
+## The local player shows it immediately on press (GDD §12); the look matches the remote copy (same point, same colour).
 func test_local_indicator_same_look() -> void:
 	var item: Interactable = _register()
 	var local: Player = _player(1, STAFF)
@@ -89,7 +89,7 @@ func test_local_indicator_same_look() -> void:
 	eq(_visual(local).interaction_marker_color(), _visual(remote).interaction_marker_color(), "aynı renk")
 
 
-## KR-018 §6: etkileşim testleri sınıfların `_` önekli üyelerine dışarıdan erişmez (genel API ya da kanca).
+## KR-018 §6: interaction tests do not reach `_`-prefixed class members from outside (public API or hook).
 func test_interaction_tests_use_public_api() -> void:
 	var pattern := RegEx.create_from_string("\\._[a-z]\\w*")
 	var checked: int = 0

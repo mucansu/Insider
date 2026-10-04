@@ -14,6 +14,10 @@ MENU_ADDRESS_PLACEHOLDER,ör. 100.64.0.2,e.g. 100.64.0.2
 MENU_PORT_LABEL,PORT,PORT
 MENU_HOST_BUTTON,Host ol,Host
 MENU_JOIN_BUTTON,Katıl,Join
+MENU_VISION_LABEL,GÖRÜŞ,VISION
+MENU_VISION_OMNI,Çevresel 360°,All-round 360°
+MENU_VISION_DIRECTIONAL,Yönlü,Directional
+MENU_VISION_HINT,Herkese aynı. Yönlü: fare / sağ çubuk.,Same for all. Directional: your aim.
 MENU_QUIT_BUTTON,Çıkış,Quit
 MENU_CANCEL_BUTTON,Vazgeç,Cancel
 MENU_CONNECTING,%s:%d adresine bağlanılıyor…,Connecting to %s:%d…
@@ -42,13 +46,18 @@ NUMBER_GROUP_SEPARATOR,.,","
 HUD_PING_MS,%d ms,%d ms
 HUD_PING_HOST,Host,Host
 HUD_PING_UNKNOWN,— ms,— ms
-HUD_PLAYERS_LABEL,EKİP,CREW
 HUD_PLAYER_YOU,%s (sen),%s (you)
 HUD_PLAYER_UNNAMED,Oyuncu %d,Player %d
 HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
 EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.
 EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
+EVENT_POLICE_ARRIVED,Polis geldi.,The police are here.
+EVENT_SHOUT,Biri bağırdı.,Someone shouted.
+EVENT_PLAYER_HELD,{name} tutuldu! Kurtarın.,{name} is being held! Get them out.
+EVENT_PLAYER_CAUGHT,{name} yakalandı.,{name} got caught.
+EVENT_PLAYER_RESCUED,{name} kurtarıldı.,{name} was pulled free.
+EVENT_OWNER_DISCOVERED,Bakkal soyulduğunu fark etti.,The grocer noticed the robbery.
 PAUSE_TITLE,Menü,Menu
 PAUSE_NOTE,Oyun arkada sürüyor; ekip seni bekliyor olabilir.,The game keeps running; your crew may be waiting.
 PAUSE_RESUME,Devam,Resume
@@ -56,3 +65,120 @@ PAUSE_LEAVE,Oturumdan ayrıl,Leave session
 INTERACT_REGISTER_EMPTY,Kasayı boşalt,Empty the register
 INTERACT_DOOR_OPEN,Kapıyı aç,Open the door
 INTERACT_DOOR_CLOSE,Kapıyı kapat,Close the door
+INTERACT_BAG_TAKE,Çantayı al,Grab the bag
+INTERACT_BAG_HANDOFF,Çantayı devral,Take over the bag
+ALERT_GENERIC,Uyarı,Alert
+ALERT_T1_0,Sakin,Calm
+ALERT_T1_1,Şüphe,Suspicion
+ALERT_T1_2,Bağırdı,Shouted
+ALERT_T1_3,Mahalle geldi,Neighbours out
+ALERT_T1_4,—,—
+ALERT_T1_5,Polis,Police
+HUD_ALERT_LEVEL,%d · %s,%d · %s
+HUD_ALERT_TIMER,Polis gelir: %s,Police in %s
+HUD_EXPOSURE_HIDDEN,Gizli,Hidden
+HUD_EXPOSURE_VISIBLE,Görünür,Visible
+HUD_EXPOSURE_SEEN,Görüldü,Spotted
+HUD_ESCAPE_OBJECTIVE,Kaçış noktasına git,Get to the escape point
+HUD_ESCAPE_RULE,Ekip birlikte oradayken kaçarsınız.,You get away once the whole crew is there.
+HUD_ESCAPE_POLICE,Polis gelmesine: %s,Police arrive in %s
+HUD_ESCAPE_COUNT,Kaçış noktasında: %d/%d,At the escape point: %d/%d
+HUD_ESCAPE_ABORT,Eli boş çekiliyorsunuz… %d,Leaving empty-handed… %d
+HUD_ESCAPE_SETTLE,Minibüs kalkıyor… %d,Van leaving… %d
+HUD_COVER_INTACT,Müşteri gibisin,You look like a customer
+HUD_COVER_BROKEN,Örtün bozuldu,Your cover is blown
+END_DURATION_LABEL,SÜRE,TIME
+END_PAYOUT_LABEL,ÖDEME,PAYOUT
+END_LOOT,Ganimet,Loot
+END_RATIO,× Aracı oranı,× Fence rate
+END_RATIO_VALUE,%%%d,%d%%
+END_PAYOUT,= Ekip ödemesi,= Crew payout
+END_BAIL,− Kefalet,− Bail
+END_TEAM_CASH,Ekip kasası,Crew cash
+END_TEAM_CASH_CHANGE,%s → %s,%s → %s
+END_PLAYERS_LABEL,EKİP,CREW
+END_STATUS_ESCAPED,Kaçtı,Escaped
+END_STATUS_CAUGHT,Yakalandı,Caught
+END_STATUS_INSIDE,İçeride kaldı,Left inside
+END_STATUS_CAUGHT_POLICE,Yakalandı (polis),Caught (police)
+END_STATUS_CAUGHT_CHASER,Yakalandı (mahalleli),Caught (neighbour)
+END_STATUS_CAUGHT_OWNER,Yakalandı (dükkân sahibi),Caught (shopkeeper)
+END_STATUS_WITH_BAIL,%s · Kefalet: %s,%s · Bail: %s
+END_STATUS_WITNESS,"Tanık, serbest","Witness, released"
+END_STATUS_LEFT,Ayrıldı,Left the game
+END_LOOT_NONE,—,—
+END_CAUSE_POLICE,Polis geldiğinde kaçış noktasında değildin.,You weren't at the escape point when the police arrived.
+END_CAUSE_CHASER,Mahalleli seni yakaladı.,A neighbour caught you.
+END_CAUSE_OWNER,Dükkân sahibi seni tuttu; kimse çekip kurtarmadı.,The shopkeeper held you and nobody pulled you free.
+END_WITNESS_RELEASED,"Tanık olarak sorgulandın, serbest bırakıldın (tanındın).","You were questioned as a witness and released (you were recognised)."
+END_NOTES_LABEL,NOTLAR,NOTES
+END_NOTE_TEAM,Ekip,Crew
+END_RETRY,Bir daha,Again
+END_RETRY_HOST_ONLY,Yeni işi host başlatır.,The host starts the next job.
+END_MENU,Menü,Menu
+END_OUTCOME_GENERIC,İŞ BİTTİ,JOB OVER
+END_OUTCOME_CLEAN,TEMİZ İŞ,CLEAN JOB
+END_OUTCOME_CLEAN_NOTE,Kimse bir şey fark etmedi.,Nobody noticed a thing.
+END_OUTCOME_SHOUTED,BAĞIRIŞLI KAÇIŞ,LOUD GETAWAY
+END_OUTCOME_SHOUTED_NOTE,Bakkal bağırdı ama siz çoktan çıkmıştınız.,"The grocer shouted, but you were already out."
+END_OUTCOME_HOT,SICAK KAÇIŞ,HOT GETAWAY
+END_OUTCOME_HOT_NOTE,Mahalle peşinizdeydi; ganimet ucuza gitti.,The neighbours were on your heels; the loot sold cheap.
+END_OUTCOME_CAUGHT_ALL,EKİP YAKALANDI,CREW BUSTED
+END_OUTCOME_CAUGHT_ALL_NOTE,Kimse dışarı çıkamadı.,Nobody made it out.
+END_OUTCOME_POLICE,POLİS GELDİ,POLICE ARRIVED
+END_OUTCOME_POLICE_NOTE,Polis geldiğinde kaçış noktasında olmayan herkes yakalandı.,Everyone who wasn't at the escape point when the police arrived was caught.
+END_OUTCOME_ABORTED,ELİ BOŞ KAÇTINIZ,EMPTY-HANDED GETAWAY
+END_OUTCOME_ABORTED_NOTE,Kimse yakalanmadı ama dükkândan bir şey alamadınız.,"Nobody got caught, but you left the shop with nothing."
+NOTE_GENERIC,Kayda değer,Noteworthy
+NOTE_GENERIC_DESC,Bu işte göze battı.,Stood out on this job.
+NOTE_GHOST_CREW,Hayalet ekip,Ghost crew
+NOTE_GHOST_CREW_DESC,Kimse sizi görmedi.,Nobody ever saw you.
+NOTE_SHADOW,Gölge,Shadow
+NOTE_SHADOW_DESC,Görüş konilerinde en az kalan.,Spent the least time in sight.
+NOTE_WINDOW_STAR,Vitrin yıldızı,Window star
+NOTE_WINDOW_STAR_DESC,Cam önünde en uzun duran.,Lingered longest in front of the glass.
+NOTE_MARATHON,Maratoncu,Marathoner
+NOTE_MARATHON_DESC,En çok koşan.,Ran the most.
+NOTE_BAIL,Kefalet,Bail
+NOTE_BAIL_DESC,Yakalandı; ekip bunu unutmayacak.,Got caught; the crew won't forget it.
+NOTE_PORTER,Hamal,Pack mule
+NOTE_PORTER_DESC,En çok çanta taşıyan.,Carried the most bags.
+NOTE_DOOR_SLAMMER,Kapı çarpan,Door slammer
+NOTE_DOOR_SLAMMER_DESC,En gürültülü olan.,The loudest one.
+NOTE_OWNER_FAVOURITE,Bakkalın gözdesi,Grocer's favourite
+NOTE_OWNER_FAVOURITE_DESC,En çok alışveriş yapan.,Bought the most.
+NOTE_SLIPPER,Terlik yedi,Took a slipper
+NOTE_SLIPPER_DESC,Bir mahalleliye yakalandı.,Got caught by a neighbour.
+NOTE_PULLED_FREE,Çekti kurtardı,Pulled free
+NOTE_PULLED_FREE_DESC,Tutulan bir arkadaşını kurtardı.,Freed a crewmate who was being held.
+INTERACT_RESCUE,Çek kurtar,Pull free
+OWNER_QUESTION,Ne yapıyorsun orada?,What are you doing back there?
+OWNER_SHRUG,Neyse… bir şey yok herhalde.,Huh… never mind.
+OWNER_SHOUT,Hırsız var! Yetişin!,Thief! Somebody help!
+OWNER_HELD,Yakaladım seni!,Got you!
+OWNER_DISCOVER_REGISTER,Kasa boş?!,The till is empty?!
+OWNER_DISCOVER_CASH,Para nerede?!,Where is the money?!
+CIVILIAN_TELL,Şu adam bir iş çeviriyor!,That one is up to something!
+CIVILIAN_FLEE,Ben karışmam!,Not my business!
+INTERACT_COUNTER_BUY,Satın al,Buy something
+INTERACT_COUNTER_SEND,Arka odaya gönder,Send to the back room
+INTERACT_OWNER_TALK,Oyala (sohbet et),Stall (chat)
+INTERACT_SHELF_TOPPLE,Rafı devir,Knock over the shelf
+INTERACT_PHONE_DROP,Telefonunu bırak,Leave your phone
+OWNER_SERVE,Buyrun?,Yes please?
+OWNER_TALK,Buyrun abi?,What can I do for you?
+OWNER_SENT,Hemen geliyorum!,Be right back!
+OWNER_LISTEN,Bu ses ne?,What was that?
+OWNER_AGAIN,Yine mi?!,Again?!
+OWNER_PHONE_FOUND,Bu kimin telefonu?,Whose phone is this?
+OWNER_LOITER,Bu adam ne istiyor?,What does this guy want?
+EVENT_PURCHASE,{name} alışveriş yaptı.,{name} bought something.
+EVENT_OWNER_SENT,Bakkal arka odaya gitti.,The grocer went to the back room.
+EVENT_OWNER_DISTRACTED,Bakkal sese yöneldi.,The grocer is checking a noise.
+EVENT_PHONE_FOUND,Bakkal telefonu buldu.,The grocer found the phone.
+INTERACT_MISDIRECT,O tarafa kaçtı! (yönlendir),He went that way! (misdirect)
+OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
+OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
+OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
+EVENT_MISDIRECT,{name} mahalleliyi yanlış yöne yolladı.,{name} sent the neighbours the wrong way.
+EVENT_NPC_PUSHED,{name} birine omuz attı.,{name} shoved someone.

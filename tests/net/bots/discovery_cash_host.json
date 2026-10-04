@@ -1,0 +1,12 @@
+{
+  "_doc": "discovery_cash.json host botu (IS-104, oyalayıcı): sınır duvarına hizalanıp 4,6. sn'ye kadar bekler (c1'in arka kapı önüne varması yük altında da önce olsun: c1 ~1,5-3 sn geç katılır, kapıya kendi saatiyle 11,2'de varır), sonra store_tools_c2 rotasıyla ön kapıdan kuzeye ShelfProp1'in 32 px doğusuna (y≈208) gelir, 16,2. sn'de rafı devirir (E, anında): sahip DİNLE (6 sn) + tezgâha yürüyüş = oturum olayı `owner_distracted`; c1 kapıda bu olayı bekler (bot `wait` adımı), arka kapı (B) açılışı ve iki geçişi bu pencerede kalır (zil duyulmaz). Sonra güneye sokağa döner (y≈528) ve dışarıda bekler.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 4.6, "move": [1, 0]},
+    {"t": 7.0, "move": [0, -1]},
+    {"t": 9.286, "move": [0, 0]},
+    {"t": 16.2, "press": "interact"},
+    {"t": 16.6, "move": [0, 1]},
+    {"t": 19.0, "move": [0, 0]}
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "_doc": "IS-094 (oyun testi bulgusu): kasayı boşaltan yakalanınca bölgedeki arkadaşı yine kazanır. Sahipsiz bakkal (tests/fixtures/store_a_quiet.tscn). Host kasayı boşaltır (150, anında ekip nakdine) ve personel tarafında kalır; c1 ganimetsiz kaçış bölgesinde bekler (host bölge dışında: eli boş çekilme işlemez). t=20'de host test kancasıyla yakalanır → tek serbest oyuncu c1 bölgede, ekibin güvenceye aldığı ganimet 150 → kazanma (eski kural ganimeti yalnız serbestlerden saydığı için iş bitmiyordu; US-040 ile 'aborted' olurdu). Sonuç her peer'da aynı: temiz %90, ganimet 150, ödeme 135, host yakalandı (payı 0, kefalet 100), c1 kaçtı; kasa 0 → 35. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 26,
+  "bots": {
+    "host": "res://tests/net/bots/escape_caught_host.json",
+    "c1": "res://tests/net/bots/escape_caught_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["*.heist.result.outcome", "clean"]},
+    {"between": ["host.heist.settle_peak_s", 2.98, 3.05]},
+    {"eq": ["*.heist.result.loot_total", 150]},
+    {"eq": ["*.heist.result.payout", 135]},
+    {"eq": ["*.heist.result.bail", 100]},
+    {"eq": ["*.heist.result.players.$host.caught", true]},
+    {"eq": ["*.heist.result.players.$host.loot", 0]},
+    {"eq": ["*.heist.result.players.$c1.escaped", true]},
+    {"eq": ["*.heist.result.cash_after", 35]},
+    {"eq": ["*.team_cash", 35]},
+    {"all_equal": "heist.result"}
+  ]
+}

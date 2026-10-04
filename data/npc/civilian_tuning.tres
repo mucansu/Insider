@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="CivilianTuning" format=3]
+
+[ext_resource type="Script" path="res://data/npc/civilian_tuning.gd" id="1_ctune"]
+
+[resource]
+script = ExtResource("1_ctune")
+half_angle_deg = 50.0
+view_range = 224.0
+hysteresis_angle_deg = 3.0
+hysteresis_range = 14.0
+loiter_grace_sec = 60.0
+loiter_factor = 0.25
+sneak_factor = 0.5
+sprint_factor = 1.0
+staff_factor = 1.5
+bag_or_lock_factor = 1.5
+cash_factor = 2.5
+alarm_factor = 2.5
+alarm_level = 2
+innocent_decay_per_sec = 10.0
+cover_factor = 0.5
+outside_stare_grace_sec = 6.0
+outside_stare_factor = 0.15
+outside_stare_px = 64.0
+outside_stare_dot = 0.7
+outside_stare_max_speed = 40.0
+outside_stare_cap = 90.0
+bubble_hysteresis = 5.0
+contact_reach = 28.0
+contact_time = 0.5
+lead_cap_sec = 0.1

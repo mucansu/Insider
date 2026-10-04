@@ -5,6 +5,9 @@
 [ext_resource type="Script" uid="uid://wmpwougwl3ct" path="res://entities/player/player_input.gd" id="3_8fjmc"]
 [ext_resource type="Script" uid="uid://darsokpflurd1" path="res://entities/player/player_visual.gd" id="4_qiwj3"]
 [ext_resource type="Script" uid="uid://x7acb2lvcbri" path="res://entities/player/player_interaction.gd" id="5_intr"]
+[ext_resource type="PackedScene" uid="uid://cocb50xosg2kf" path="res://entities/player/puppet/puppet.tscn" id="6_pupt"]
+[ext_resource type="Script" path="res://entities/player/player_status.gd" id="6_stat"]
+[ext_resource type="Script" uid="uid://jj1b1o1pjvo1" path="res://entities/props/interactable.gd" id="7_int"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_26q78"]
 radius = 12.0
@@ -22,10 +25,13 @@ properties/2/replication_mode = 1
 properties/3/path = NodePath(".:net_time")
 properties/3/spawn = false
 properties/3/replication_mode = 1
+properties/4/path = NodePath(".:net_look")
+properties/4/spawn = false
+properties/4/replication_mode = 1
 
 [node name="Player" type="CharacterBody2D" unique_id=394301989]
 collision_layer = 2
-collision_mask = 5
+collision_mask = 1
 motion_mode = 1
 script = ExtResource("1_bls4j")
 tuning = ExtResource("2_fkugw")
@@ -39,12 +45,20 @@ script = ExtResource("3_8fjmc")
 [node name="PlayerInteraction" type="Node" parent="." unique_id=1093384021]
 script = ExtResource("5_intr")
 
+[node name="Status" type="Node2D" parent="."]
+script = ExtResource("6_stat")
+
+[node name="Rescue" type="Area2D" parent="Status"]
+script = ExtResource("7_int")
+
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1614282656]
 replication_interval = 0.05
 replication_config = SubResource("SceneReplicationConfig_bectd")
 
 [node name="Visual" type="Node2D" parent="." unique_id=1842051851]
 script = ExtResource("4_qiwj3")
+
+[node name="Puppet" parent="Visual" unique_id=517204688 instance=ExtResource("6_pupt")]
 
 [node name="NameLabel" type="Label" parent="Visual" unique_id=1860742169]
 auto_translate_mode = 2

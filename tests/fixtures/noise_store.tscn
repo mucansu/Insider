@@ -1,0 +1,21 @@
+[gd_scene format=3]
+
+[ext_resource type="PackedScene" uid="uid://dxuom62r2b1ry" path="res://levels/store_a.tscn" id="1_store"]
+[ext_resource type="Script" uid="uid://danxfm0yacpdq" path="res://tests/fixtures/noise_probe.gd" id="2_probe"]
+[ext_resource type="Script" uid="uid://dsxhlih73jdm8" path="res://entities/npc/components/hearing.gd" id="3_hear"]
+
+[node name="NoiseStore" instance=ExtResource("1_store")]
+
+[node name="ProbeStreet" type="Node2D" parent="NPCs"]
+position = Vector2(592, 592)
+script = ExtResource("2_probe")
+
+[node name="Hearing" type="Node2D" parent="NPCs/ProbeStreet"]
+script = ExtResource("3_hear")
+
+[node name="ProbeInside" type="Node2D" parent="NPCs"]
+position = Vector2(592, 432)
+script = ExtResource("2_probe")
+
+[node name="Hearing" type="Node2D" parent="NPCs/ProbeInside"]
+script = ExtResource("3_hear")

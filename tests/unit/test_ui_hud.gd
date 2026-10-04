@@ -1,6 +1,6 @@
 extends TestCase
-## HUD (US-003 AC2, AC3, AC5; IS-009): ekip nakdi, ping, oyuncu listesi, oturum olayı bildirimi, sahte
-## oyuncunun S7 sinyallerine tepki, `pause` eylemiyle (Esc/Start) duraklat menüsü, ayrılma ve kopma akışı.
+## HUD (US-003 AC2, AC3, AC5; IS-009): team cash, ping, player list, session event notices, reaction to the fake player's S7
+## signals, the pause menu via the `pause` action (Esc/Start), leave and disconnect flow.
 
 const Fakes := preload("res://tests/unit/test_ui_fakes.gd")
 const HUD_SCENE := preload("res://ui/hud.tscn")
@@ -11,11 +11,11 @@ var journal: Fakes.CallLog
 var viewport: SubViewport
 var hud: Hud
 var menu_requests: Array[StringName] = []
-## HUD'un geliştirici uyarıları (eksik metin anahtarı); çıktıya WARNING basılmaz.
+## The HUD's developer warnings (missing text key); no WARNING is printed to output.
 var warnings: Array[String] = []
 
 
-## `before_ready` HUD sahneye eklenmeden önce sahteleri hazırlamak içindir.
+## `before_ready` is for preparing the fakes before the HUD is added to the scene.
 func _open(before_ready: Callable = Callable()) -> void:
 	var pair: Array = Fakes.make_pair(self)
 	net = pair[0]
@@ -61,7 +61,7 @@ func _toast_texts() -> Array[String]:
 	return out
 
 
-# --- ekip nakdi ---
+# --- team cash ---
 
 func test_cash_initial_and_on_signal() -> void:
 	await _open(func() -> void: game.cash = 1250)
@@ -113,13 +113,13 @@ func test_ping_states() -> void:
 	eq(label.text, tr("HUD_PING_HOST"))
 
 
-# --- oyuncu listesi ---
+# --- player list ---
 
 func test_players_list_follows_signal() -> void:
 	await _open()
 	eq(_player_rows(), [] as Array[String])
 	net.my_peer_id = 2
-	# S3: players() renk değil slot taşır; peer 7 3. sırada ama 4. yuvada (ayrılanın yuvası boş kalmış).
+	# S3: players() carries a slot, not a colour; peer 7 is 3rd in order but in the 4th slot (the departed one's slot stayed empty).
 	game.roster = {
 		2: {"name": "Bo", "slot": 1},
 		1: {"name": "Ayşe", "slot": 0},
@@ -137,7 +137,7 @@ func test_players_list_follows_signal() -> void:
 	eq(_player_rows().size(), 2, "ayrılan oyuncu listeden düşer")
 
 
-# --- oturum olayları ---
+# --- session events ---
 
 func test_session_event_shows_keyed_toast() -> void:
 	await _open()
@@ -160,6 +160,34 @@ func test_session_event_data_fills_placeholders() -> void:
 	TranslationServer.remove_translation(t)
 
 
+func test_player_events_show_named_text() -> void:
+	# IS-080: US-008 player events (player_status.gd) do not fall to generic text, they carry the player's name.
+	await _open()
+	game.roster = {1: {"name": "Ayla", "slot": 0}, 7: {"name": "", "slot": 1}}
+	game.session_event.emit(&"player_held", {"peer": 1, "window": 3.0})
+	game.session_event.emit(&"player_caught", {"peer": 1, "by": &"owner"})
+	game.session_event.emit(&"player_rescued", {"peer": 7, "by": 1})
+	var unnamed: String = tr("HUD_PLAYER_UNNAMED") % 7
+	eq(_toast_texts(), [tr("EVENT_PLAYER_HELD").format({"name": "Ayla"}),
+		tr("EVENT_PLAYER_CAUGHT").format({"name": "Ayla"}),
+		tr("EVENT_PLAYER_RESCUED").format({"name": unnamed})] as Array[String])
+	eq(warnings, [] as Array[String], "üç olayın da metni var")
+	has(_toast_texts()[0], "Ayla")
+	has(_toast_texts()[2], unnamed)
+	for text: String in _toast_texts():
+		is_false(text.contains("{"), "yer tutucu açıkta kalmaz: %s" % text)
+		is_true(text != tr("EVENT_GENERIC"), "genel metne düşmez")
+
+
+func test_unknown_peer_and_silent_events() -> void:
+	await _open()
+	eq(hud.event_text(&"player_caught", {"peer": 42}), tr("EVENT_PLAYER_CAUGHT").format(
+		{"name": tr("HUD_PLAYER_UNNAMED") % 42}), "listede olmayan oyuncu: Oyuncu N")
+	game.session_event.emit(&"alert_level", {"level": 2})
+	eq(_toast_texts(), [] as Array[String], "alert_level uyarı merdiveninde; bildirim yok")
+	eq(warnings, [] as Array[String])
+
+
 func test_toasts_expire_and_are_capped() -> void:
 	await _open()
 	for i: int in Hud.MAX_TOASTS + 2:
@@ -172,7 +200,7 @@ func test_toasts_expire_and_are_capped() -> void:
 	eq(_node("Toasts").get_child_count(), 0, "süresi dolan kalkar")
 
 
-# --- etkileşim (S7 sinyalleri, sahte oyuncu) ---
+# --- interaction (S7 signals, fake player) ---
 
 func test_interaction_progress_from_local_player_signals() -> void:
 	await _open()
@@ -227,7 +255,7 @@ func test_rebinding_local_player() -> void:
 	is_false((_node("Interaction") as Control).visible)
 
 
-# --- etkileşim istemi (S7 interaction_target_changed) ---
+# --- interaction prompt (S7 interaction_target_changed) ---
 
 func test_prompt_follows_target_and_input_device() -> void:
 	await _open()
@@ -273,6 +301,69 @@ func test_prompt_gives_way_to_progress() -> void:
 	is_false(prompt.visible)
 
 
+# --- IS-091: second prompt line (Q / intimidate) ---
+
+func test_alt_prompt_row_follows_alt_target_and_device() -> void:
+	await _open()
+	UiInput.using_gamepad = false
+	var player: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var prompt: Control = _node("Prompt") as Control
+	var main_row: Control = _node("PromptLabel") as Control
+	var alt_row: Control = _node("PromptAltLabel") as Control
+	game.local_player_changed.emit(player)
+	player.interaction_alt_target_changed.emit("INTERACT_COUNTER_SEND")
+	is_true(prompt.visible, "yalnız Q hedefi varken de istem görünür")
+	is_false(main_row.visible, "E hedefi yokken E satırı gizli")
+	is_true(alt_row.visible)
+	eq(_text("PromptAltLabel"), tr("HUD_PROMPT") % ["Q", tr("INTERACT_COUNTER_SEND")], "klavye: [Q] eylem")
+	player.interaction_target_changed.emit("PAUSE_RESUME")
+	is_true(main_row.visible and alt_row.visible, "iki hedef: iki satır")
+	is_true(main_row.get_index() < alt_row.get_index(), "E satırı üstte")
+	var pad := InputEventJoypadButton.new()
+	pad.button_index = JOY_BUTTON_Y
+	pad.pressed = true
+	viewport.push_input(pad)
+	eq(_text("PromptAltLabel"), tr("HUD_PROMPT") % ["X", tr("INTERACT_COUNTER_SEND")], "gamepad: [X]")
+	eq(_text("PromptLabel"), tr("HUD_PROMPT") % ["A", tr("PAUSE_RESUME")], "gamepad: [A]")
+	player.interaction_alt_target_changed.emit("")
+	is_false(alt_row.visible, "boş Q anahtarı satırı gizler")
+	is_true(prompt.visible and main_row.visible, "E satırı kalır")
+	player.interaction_target_changed.emit("")
+	is_false(prompt.visible, "hiç hedef yokken istem gizli")
+	UiInput.using_gamepad = false
+
+
+func test_alt_action_progress_uses_same_bar() -> void:
+	await _open()
+	var player: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var prompt: Control = _node("Prompt") as Control
+	var progress: Control = _node("Interaction") as Control
+	game.local_player_changed.emit(player)
+	player.interaction_target_changed.emit("PAUSE_LEAVE")
+	player.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	player.interaction_started.emit("INTERACT_PHONE_DROP", 2.0)
+	is_false(prompt.visible, "Q eylemi sürerken istem yok")
+	is_true(progress.visible)
+	eq(_text("InteractionLabel"), tr("INTERACT_PHONE_DROP"))
+	hud.advance(1.0)
+	near((_node("InteractionBar") as ProgressBar).value, 0.5, 0.01, "Q basılı tutma ilerlemesi")
+	player.interaction_finished.emit(true)
+	hud.advance(Hud.INTERACTION_LINGER_SEC + 0.05)
+	is_true(prompt.visible and (_node("PromptAltLabel") as Control).visible, "Q hedefi sürüyorsa satır geri gelir")
+
+
+func test_alt_prompt_resets_on_player_change() -> void:
+	await _open()
+	var first: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	var second: Fakes.FakePlayer = autofree(Fakes.FakePlayer.new()) as Fakes.FakePlayer
+	game.local_player_changed.emit(first)
+	first.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	game.local_player_changed.emit(second)
+	is_false((_node("Prompt") as Control).visible, "oyuncu değişince Q satırı sıfırlanır")
+	first.interaction_alt_target_changed.emit("INTERACT_PHONE_DROP")
+	is_false((_node("Prompt") as Control).visible, "eski oyuncunun Q sinyali dinlenmez")
+
+
 func test_player_without_prompt_signals_is_tolerated() -> void:
 	await _open()
 	var legacy: Node = autofree(Node.new()) as Node
@@ -288,7 +379,7 @@ func test_player_without_prompt_signals_is_tolerated() -> void:
 	is_false((_node("Prompt") as Control).visible, "eski oyuncunun hedef sinyali dinlenmez")
 
 
-# --- AC3: duraklat menüsü ---
+# --- AC3: pause menu ---
 
 func test_pause_menu_blocks_gameplay_input() -> void:
 	await _open()
@@ -355,7 +446,7 @@ func test_host_disconnected_returns_to_menu_with_error() -> void:
 
 
 func test_connection_failed_after_level_load_returns_to_menu() -> void:
-	# El sıkışma bitmeden seviye yüklendi (ana menü kalktı), sonra bağlantı kurulamadı.
+	# The level loaded before the handshake finished (main menu gone), then the connection could not be made.
 	await _open()
 	net.connection_failed.emit()
 	eq(menu_requests, [&"MENU_ERROR_CONNECTION_FAILED"] as Array[StringName])

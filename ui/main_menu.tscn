@@ -110,7 +110,7 @@ allow_list = false
 
 [node name="Grid" type="GridContainer" parent="Center/Column/Form/Cards/HostCard/Box"]
 layout_mode = 2
-columns = 2
+columns = 4
 
 [node name="PortLabel" type="Label" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
 layout_mode = 2
@@ -122,6 +122,29 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 max_length = 5
+
+[node name="VisionLabel" type="Label" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "MENU_VISION_LABEL"
+
+[node name="VisionOption" type="OptionButton" parent="Center/Column/Form/Cards/HostCard/Box/Grid"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_horizontal = 3
+tooltip_text = "MENU_VISION_HINT"
+
+[node name="VisionHint" type="Label" parent="Center/Column/Form/Cards/HostCard/Box"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(1, 0)
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+text = "MENU_VISION_HINT"
+autowrap_mode = 3
 
 [node name="Spacer" type="Control" parent="Center/Column/Form/Cards/HostCard/Box"]
 layout_mode = 2

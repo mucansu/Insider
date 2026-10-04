@@ -1,0 +1,25 @@
+{
+  "_doc": "Seviye: store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; US-016). US-008 taşıma (S3 eki, US-012 bağı): yakalayan oturum olayında. c2 owner_detect rotasıyla personel tarafında sahibin konisinde durur → bağırış → sahip tutar → 6 sn pencere dolar: `player_caught {peer: c2, by: owner}`. Bağırıştan 8 sn sonra komşu NeighbourSpawn'da çıkar, yan sokak ağzında duran c1'i (kısa koşuyla örtüsü bozuk; US-043: mahalleli örtüsü sağlam seyirciyi kovalamaz) görür ve yakalar: `player_caught {peer: c1, by: chaser}` (US-012 Terlik notu bu olaydan üretilir; test_heist_game aynı yükü sınar). Olaylar tüm peer'larda aynı sırada. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 23,
+  "bots": {
+    "c1": "res://tests/net/bots/owner_slipper_c1.json",
+    "c2": "res://tests/net/bots/owner_detect_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"eq": ["*.heist.events_main.0.kind", "player_held"]},
+    {"eq": ["*.heist.events_main.1.kind", "player_caught"]},
+    {"eq": ["*.heist.events_main.1.data.by", "owner"]},
+    {"same": ["host.heist.events_main.1.data.peer", "c2.peer_id"]},
+    {"eq": ["*.heist.events_main.2.kind", "player_caught"]},
+    {"eq": ["*.heist.events_main.2.data.by", "chaser"]},
+    {"same": ["host.heist.events_main.2.data.peer", "c1.peer_id"]},
+    {"all_equal": "events"},
+    {"eq": ["*.player_states.$c1.status", 2]},
+    {"eq": ["*.player_states.$c2.status", 2]},
+    {"eq": ["*.chasers.spawned", 1]}
+  ]
+}

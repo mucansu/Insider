@@ -1,14 +1,13 @@
 class_name PauseMenu
 extends Control
-## Duraklat menüsü (US-003 AC3): Devam / Ayrıl. Online oyunda ağaç durmaz; menü yalnız örtüdür,
-## açıkken oyun girdisi engellenir (UiInput.is_gameplay_input_blocked, S5).
-## Açıp kapama (Esc / gamepad B ya da Start) ve ayrılma akışı HUD'dadır (ui/hud.gd).
-## US-026: host'ta davet adresi bölümü (InvitePanel, Kopyala) görünür; istemcide gizli.
+## Pause menu (US-003 AC3): Resume / Leave. The tree keeps running online; this is only an overlay that blocks gameplay input
+## (UiInput.is_gameplay_input_blocked, S5). Open/close (Esc / gamepad B or Start) and the leave flow live in the HUD (ui/hud.gd).
+## US-026: the host sees the invite address section (InvitePanel, Copy); clients do not.
 
-## "Ayrıl" seçildi.
+## "Leave" was chosen.
 signal leave_requested()
 
-## Host mu bilgisi buradan okunur (S1 is_host); testler sahte nesneyle değiştirir.
+## Host check read from here (S1 is_host); tests swap in a fake.
 var net: Object = Net
 
 @onready var _resume_button: Button = %ResumeButton
@@ -18,6 +17,7 @@ var net: Object = Net
 
 func _ready() -> void:
 	ThemeTokens.apply(self)
+	UiSfx.wire_buttons(self)
 	hide()
 	UiInput.block_gameplay_while_visible(self)
 	_resume_button.pressed.connect(close)
@@ -50,7 +50,7 @@ func is_open() -> bool:
 	return visible
 
 
-## Odak: (davet bölümü, host'ta) → Devam → Ayrıl, halka.
+## Focus ring: (invite section, host only) -> Resume -> Leave.
 func _setup_focus() -> void:
 	var order: Array[Control] = []
 	if _invite.visible:

@@ -1,6 +1,6 @@
 {
-  "_doc": "IS-013 AC1 (Faz 1 çıkış kriterleri 2, 3): store_a'da gerçek oyuncu sahnesiyle tam soygun. c2 arka sokaktan dolanıp kapalı arka kapıyı açar (istemci isteği), kapıdan arka odaya ve iç kapıdan personel alanına geçer (son konum geçişin kanıtı); c1 ön kapıdan girip tezgâh arkasından kasayı tek seferde boşaltır (3,5 sn tut); host bu sırada satış alanında hep hareketlidir. Sonuç: tüm peer'larda ekip nakdi 150, kasa boş, arka kapı açık (1 değişim), ön kapı açık (değişim yok), kapı durumları eşit. Kriter 3: sonucun her peer'da görünme gecikmesi (props.*.visible_delay_ms: host kararından o peer'da görünene, duvar saati) ve isteyenin basıştan sonucu görmesine kadarki fazlalık (interaction.result_delay_ms: basış → sonuç − tutma süresi) <= RTT + 200 ms ($rtt = koşunun --latency-ms değeri). Kriter 2: hareket sırasında aynı örnek diliminde konum farkı host↔istemci < 32 px, istemci↔istemci (host üzerinden iki bacak) < 48 px (S6). Son konumlar: herkesin gördüğü = sahibinin (< 8 px); c1 ve c2 rotaları duvar/sınır hizalı (deterministik, ± 2 px). Kimse duvar/kapı içinde değil. Sert ağ (150 ms + 30 ms jitter + %1 kayıp; GDD §12) ayrı komutla koşulur, ci_local'da değil. Biçim: tools/net_smoke.py docstring.",
-  "level": "res://levels/store_a.tscn",
+  "_doc": "US-008: sahipsiz bakkalda koşar (tests/fixtures/store_a_quiet.tscn: store_a, sahip ve uyarı yöneticisi etkin değil; sahip davranışı owner_*.json/rescue.json). IS-013 AC1 (Faz 1 çıkış kriterleri 2, 3): store_a'da gerçek oyuncu sahnesiyle tam soygun. c2 arka sokaktan dolanıp kapalı arka kapıyı açar (istemci isteği), kapıdan arka odaya ve iç kapıdan personel alanına geçer (son konum geçişin kanıtı); c1 ön kapıdan girip tezgâh arkasından kasayı tek seferde boşaltır (3,5 sn tut); host bu sırada satış alanında hep hareketlidir. Sonuç: tüm peer'larda ekip nakdi 150, kasa boş, arka kapı açık (1 değişim), ön kapı açık (değişim yok), kapı durumları eşit. Kriter 3: sonucun her peer'da görünme gecikmesi (props.*.visible_delay_ms: host kararından o peer'da görünene, duvar saati) ve isteyenin basıştan sonucu görmesine kadarki fazlalık (interaction.result_delay_ms: basış → sonuç − tutma süresi) <= RTT + 200 ms ($rtt = koşunun --latency-ms değeri). Kriter 2: hareket sırasında aynı örnek diliminde konum farkı host↔istemci < 32 px, istemci↔istemci (host üzerinden iki bacak) < 48 px (S6). Son konumlar: herkesin gördüğü = sahibinin (< 8 px); c1 ve c2 rotaları duvar/sınır hizalı (deterministik, ± 2 px). Kimse duvar/kapı içinde değil. Sert ağ (150 ms + 30 ms jitter + %1 kayıp; GDD §12) ayrı komutla koşulur, ci_local'da değil. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 22,
@@ -11,7 +11,7 @@
     "c2": "res://tests/net/bots/full_c2.json"
   },
   "expect": [
-    {"eq": ["*.level", "res://levels/store_a.tscn"]},
+    {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
     {"len": ["*.player_nodes", 3]},
     {"all_equal": "player_nodes"},
     {"eq": ["*.team_cash", 150]},

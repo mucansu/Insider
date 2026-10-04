@@ -1,13 +1,13 @@
 class_name InteractionRequirement
 extends Resource
-## Etkileşim gereksinimi (US-005; mimari.md S7): Interactable'ın isteğe bağlı koşulu. Kurallar
-## `core/interaction_rules.gd`'de; bu dosya yalnız veridir (S10 kalıbı). Örnek: kasa yalnız tezgâh arkasından
-## (personel tarafı) boşaltılır → `side` = prop'un yerel ekseninde personel yönü, `side_min` = tezgâh kenarı.
+## Interaction requirement (US-005; S7): optional Interactable condition. Rules live in `core/interaction_rules.gd`; this file is data only
+## (S10 pattern). Example: the register can only be emptied from behind the counter (staff side) -> `side` = staff direction in the prop's
+## local axes, `side_min` = counter edge.
 
-## Gereken etiket (ör. &"lockpick"; boş = yok) ve en düşük kademesi (Faz 2+: loadout/perk verisinden).
+## Required tag (e.g. &"lockpick"; empty = none) and its minimum tier (Phase 2+: from loadout/perk data).
 @export var required_tag: StringName = &""
 @export_range(0, 10) var min_tier: int = 0
-## Taraf kısıtı: aktörün bulunması gereken yön, prop'un YEREL ekseninde (prop dönünce birlikte döner);
-## ZERO = kısıt yok. Aktör, Interactable merkezinden bu yön boyunca en az `side_min` px ötede olmalı.
+## Side constraint: direction the actor must be on, in the prop's LOCAL axes (rotates with the prop); ZERO = no constraint.
+## Actor must be at least `side_min` px from the Interactable center along this direction.
 @export var side: Vector2 = Vector2.ZERO
 @export_range(-64.0, 64.0, 1.0, "suffix:px") var side_min: float = 0.0

@@ -1,0 +1,16 @@
+{
+  "_doc": "owner_window.json c1 botu (US-008): ön kapıdan gir, satış alanında tezgâh ucunun batısında (y≈436) müşteri gibi bekle; sahip raf düzeltmeye (ajanda tohumu 3: ilk pencere görevi RAF, tezgâhtan ~32 sn'de ayrılır, ~51 sn'de döner) gidince tezgâh ucundan personel tarafına dolan, kasanın yanına çık (x≈590), 3,5 sn tut (kasa boşalır), aynı yoldan müşteri tarafına dön.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.672, "move": [0, 0]},
+    {"t": 36.0, "move": [1, 0]},
+    {"t": 37.615, "move": [0, -1]},
+    {"t": 38.13, "move": [0, 0]},
+    {"t": 38.3, "hold": "interact", "dur": 3.6},
+    {"t": 42.1, "move": [0, 1]},
+    {"t": 42.615, "move": [-1, 0]},
+    {"t": 44.23, "move": [0, 0]}
+  ]
+}

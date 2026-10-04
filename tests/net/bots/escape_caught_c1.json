@@ -1,0 +1,8 @@
+{
+  "_doc": "escape_after_caught.json c1 botu (IS-094): doğma noktasından kaldırım boyunca doğuya, güneye kaçış bölgesine (güneydoğu köşe) yürü ve orada bekle; hiçbir şeye dokunmaz (ganimetsiz).",
+  "steps": [
+    {"t": 0.2, "move": [1, 0]},
+    {"t": 5.5, "move": [0, 1]},
+    {"t": 5.85, "move": [0, 0]}
+  ]
+}

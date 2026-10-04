@@ -1,5 +1,5 @@
 {
-  "_doc": "faz1_full.json c2 botu (IS-013): kaldırımda sağa (sınır), yan sokaktan arka sokağa kadar yukarı (sınır), arka kapının hizasına sola, kapalı arka kapıya yaslan (kapı merkezine 28 px) ve aç; 0,6 sn sonra kapıdan arka odaya in (duvar; kapı geç açılsa da 0,6 sn itme payı var), iç kapı (BackroomDoor) hizasına sola, iç kapıdan personel alanına in, dur. Kapı açılmasaydı arka sokakta kalırdı: son konum geçişin kanıtı.",
+  "_doc": "faz1_full.json c2 botu (IS-013): kaldırımda sağa (sınır), yan sokaktan arka sokağa kadar yukarı (sınır), arka kapının hizasına sola, kapalı arka kapıya yaslan (kapı merkezine 28 px) ve aç; 0,6 sn sonra kapıdan arka odaya in (arka oda kolisi (20,6), US-033; kapı geç açılsa da 0,6 sn itme payı var), iç kapı (BackroomDoor) hizasına sola, iç kapıdan personel alanına in, dur. Kapı açılmasaydı arka sokakta kalırdı: son konum geçişin kanıtı.",
   "steps": [
     {"t": 0.2, "move": [1, 0]},
     {"t": 5.8, "move": [0, -1]},
@@ -12,6 +12,6 @@
     {"t": 15.2, "move": [-1, 0]},
     {"t": 15.44, "move": [0, 0]},
     {"t": 15.7, "move": [0, 1]},
-    {"t": 16.4, "move": [0, 0]}
+    {"t": 16.85, "move": [0, 0]}
   ]
 }

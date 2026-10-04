@@ -1,8 +1,10 @@
 extends Node2D
-## Kapı yer tutucu görseli (US-005): kapalıyken boşluğu kapatan kanat, açıkken menteşe çevresinde 90° dönmüş
-## ince kanat. Yalnız ebeveyn Door'un durumunu okur (KR-003). Renkler etkin tondan (S9: ahşap = tezgâh rengi).
+## Door placeholder visual (US-005): closed = leaf covering the gap, open = thin leaf rotated 90 deg around the hinge. Only reads the
+## parent Door's state (KR-003). Colours from the active tone (S9: wood = counter colour). Memory (US-011b AC5; GDD §6.5 item 7): with
+## local fog the door updates only while its tile is seen (visible or peripheral); otherwise frozen at the last seen state
+## (VisionRules.Latch). Logic and collision unaffected. No fog: live state.
 
-## Kanat boyu (1 karo) ve kalınlığı; menteşe -x ucunda.
+## Leaf length (1 tile) and thickness; hinge at the -x end.
 const LENGTH := 32.0
 const THICKNESS := 6.0
 const OPEN_THICKNESS := 3.0
@@ -10,6 +12,7 @@ const OUTLINE_WIDTH := 1.0
 
 var _door: Door = null
 var _drawn: Variant = null
+var _memory := VisionRules.Latch.new()
 
 
 func _ready() -> void:
@@ -20,9 +23,15 @@ func _ready() -> void:
 
 
 func _process(_delta: float) -> void:
-	if _drawn != _door.is_open:
-		_drawn = _door.is_open
+	_memory.update(FogView.is_seen(self, _door.global_position), _door.is_open)
+	if _drawn != shown_open():
+		_drawn = shown_open()
 		queue_redraw()
+
+
+## Drawn state: live while seen, last seen otherwise (live if never seen).
+func shown_open() -> bool:
+	return bool(_memory.value()) if _memory.has_value() else _door.is_open
 
 
 func _draw() -> void:
@@ -31,8 +40,8 @@ func _draw() -> void:
 	var tone: Tone = ThemeTokens.tone()
 	var half: float = LENGTH * 0.5
 	var rect: Rect2
-	if _door.is_open:
-		# Menteşe -x ucunda; açık kanat duvar boşluğunun kenarına (kasaya) yaslanır.
+	if shown_open():
+		# Hinge at the -x end; the open leaf rests against the wall gap edge (frame).
 		rect = Rect2(Vector2(-half, -half), Vector2(OPEN_THICKNESS, LENGTH))
 	else:
 		rect = Rect2(Vector2(-half, -THICKNESS * 0.5), Vector2(LENGTH, THICKNESS))
