@@ -1,0 +1,24 @@
+{
+  "_doc": "IS-101: kapalı döngü beyin, host tek başına gerçek bakkalda (levels/store_a.tscn) `bag` stratejisi (bot dosyası brain_bag.json, tohum 1): yan sokaktan ara sokağa (dükkânın içinden değil), arka oda boşken (sahip arka odada değil) arka kapı B'den girer, çantayı alır (2 sn), B'den ara sokağa döner, yan sokaktan kaçış bölgesine; kasaya dokunmaz. Beklenti: faz günlüğü stage -> wait -> go_bag, beyin `done`, çanta alındı ve arka kapı kullanıldı, kasa boşaltılmadı, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 0,
+  "duration": 70,
+  "bots": {
+    "host": "res://tests/net/bots/brain_bag.json"
+  },
+  "expect": [
+    {"eq": ["host.brain.strategy", "bag"]},
+    {"eq": ["host.brain.role", "solo"]},
+    {"eq": ["host.brain.phase", "done"]},
+    {"eq": ["host.brain.phase_log.0.1", "stage"]},
+    {"eq": ["host.brain.phase_log.1.1", "wait"]},
+    {"eq": ["host.brain.phase_log.2.1", "go_bag"]},
+    {"between": ["host.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"between": ["host.heist.result.strategy.cash_bag_taken_at_s", 1, 60]},
+    {"eq": ["host.heist.result.strategy.back_door_used", true]},
+    {"eq": ["host.heist.result.strategy.register_emptied_at_s", -1.0]},
+    {"eq": ["host.heist.active", false]}
+  ]
+}

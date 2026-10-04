@@ -19,6 +19,7 @@ extends RefCounted
 ## "runs": [{"outcome", "time_s", "strategy", "seed", "phase", "duration_s", "stuck_s", "wait_timeouts", "retreats", "failures",
 ## "owner_seen_s"}] (finished runs; outcome "unfinished" if the level changed before the job ended). Top-level phase, phase_log and
 ## counters describe the current run; "time_s" is the whole brain clock.
+## IS-101: spot `alley` (bag route staging, from the BackDoor marker) for the `bag` strategy and the team bagger.
 
 const DUMP_KEY := "brain"
 ## Bot file keys selecting a brain.
@@ -49,6 +50,12 @@ const PRESS_DOOR := -2
 ## Marker names (S4) and stand offsets (store_a geometry: register staff side east, counter customer side west).
 const MARKER_FRONT_DOOR := &"FrontDoor"
 const MARKER_QUEUE := &"QueueSpot1"
+## Join slot of the team bagger (BotRules.role_for).
+const BAGGER_SLOT := 2
+## IS-101: back alley staging spot of the bag route = one tile north-west of the back door (outside, off the street route's door
+## tile); without a BackDoor marker the front pavement spot stands in.
+const MARKER_BACK_DOOR := &"BackDoor"
+const ALLEY_FROM_BACK_DOOR := Vector2(-BotRules.TILE, -BotRules.TILE)
 const REGISTER_STAND := Vector2(BotRules.TILE, 0.0)
 const COUNTER_STAND := Vector2(-BotRules.TILE, 0.0)
 const QUEUE_FALLBACK := Vector2(-BotRules.TILE, BotRules.TILE)
@@ -63,6 +70,9 @@ var _player: Player = null
 var _level: Node = null
 var _level_id: int = 0
 var _grid: AStarGrid2D = null
+## IS-101: outdoor grid (doors other than the back door blocked) for paths to the alley spot; null without a BackDoor marker.
+var _alley_grid: AStarGrid2D = null
+var _path_grid: AStarGrid2D = null
 var _doors: Dictionary = {}
 var _register: Register = null
 var _counter: ShopCounter = null
@@ -271,6 +281,7 @@ func _ensure_world() -> bool:
 	_level = level
 	_level_id = level.get_instance_id()
 	_grid = null
+	_alley_grid = null
 	_doors.clear()
 	_register = null
 	_counter = null
@@ -282,6 +293,8 @@ func _ensure_world() -> bool:
 	if typeof(rows) != TYPE_PACKED_STRING_ARRAY or (rows as PackedStringArray).is_empty():
 		return false
 	_grid = BotRules.build_grid(rows)
+	var back_door: Vector2 = _marker_pos(MARKER_BACK_DOOR)
+	_alley_grid = BotRules.outside_grid(rows, BotRules.cell_of(back_door)) if back_door != Vector2.INF else null
 	var props: Node = level.call(&"props_root") as Node
 	if props != null:
 		for child: Node in props.get_children():
@@ -349,6 +362,11 @@ func _view() -> BotRules.View:
 	var front: Vector2 = _marker_pos(MARKER_FRONT_DOOR)
 	if front != Vector2.INF:
 		v.spots[BotRules.SPOT_OUTSIDE] = front + OUTSIDE_FROM_DOOR
+	var back: Vector2 = _marker_pos(MARKER_BACK_DOOR)
+	if back != Vector2.INF:
+		v.spots[BotRules.SPOT_ALLEY] = back + ALLEY_FROM_BACK_DOOR
+	elif v.spots.has(BotRules.SPOT_OUTSIDE):
+		v.spots[BotRules.SPOT_ALLEY] = v.spots[BotRules.SPOT_OUTSIDE]
 	_read_team(v, me)
 	var escape: Vector2 = Game.escape_point()
 	if escape != Vector2.INF:
@@ -358,11 +376,15 @@ func _view() -> BotRules.View:
 	return v
 
 
-## Team (replicated session list and player nodes): size, own slot (-1 until listed), thief at the queue spot, nearest held teammate.
+## Team (replicated session list and player nodes): size, own slot (-1 until listed), bagger slot taken, thief at the queue spot,
+## nearest held teammate.
 func _read_team(v: BotRules.View, me: int) -> void:
 	var players: Dictionary = Game.players()
 	v.team_size = maxi(players.size(), 1)
 	v.slot = int((players[me] as Dictionary).get("slot", 0)) if players.has(me) else -1
+	for id: Variant in players:
+		if int((players[id] as Dictionary).get("slot", -1)) == BAGGER_SLOT:
+			v.bagger_present = true
 	var root: Node = _level.call(&"players_root") as Node
 	if root == null:
 		return
@@ -478,7 +500,8 @@ func _act(v: BotRules.View, intent: BotRules.Intent, delta: float) -> void:
 		else:
 			_release()
 		return
-	if _follow_path(v.pos, goal):
+	var grid: AStarGrid2D = _alley_grid if intent.spot == BotRules.SPOT_ALLEY and _alley_grid != null else _grid
+	if _follow_path(v.pos, goal, grid):
 		_stuck.feed(_time, delta, v.pos, false)  # waiting for a door: not stuck
 		return
 	_release()
@@ -494,10 +517,10 @@ func _act(v: BotRules.View, intent: BotRules.Intent, delta: float) -> void:
 
 
 ## Moves along the A* path to `goal`; true while it stopped to open a closed door on the path.
-func _follow_path(pos: Vector2, goal: Vector2) -> bool:
+func _follow_path(pos: Vector2, goal: Vector2, grid: AStarGrid2D) -> bool:
 	var goal_cell: Vector2i = BotRules.cell_of(goal)
-	if goal_cell != _path_goal or _path.is_empty():
-		_plan_path(pos, goal)
+	if goal_cell != _path_goal or _path.is_empty() or grid != _path_grid:
+		_plan_path(pos, goal, grid)
 	if _path.is_empty():
 		_move = BotRules.steer(pos, goal, STOP_PX, SLOW_PX)
 		return false
@@ -515,10 +538,14 @@ func _follow_path(pos: Vector2, goal: Vector2) -> bool:
 	return false
 
 
-func _plan_path(pos: Vector2, goal: Vector2) -> void:
+## `grid`: the level grid, or the outdoor grid for the alley spot (IS-101; falls back to the level grid if that finds no path).
+func _plan_path(pos: Vector2, goal: Vector2, grid: AStarGrid2D) -> void:
 	_clear_path()
 	_path_goal = BotRules.cell_of(goal)
-	var cells: Array[Vector2i] = BotRules.find_path(_grid, BotRules.cell_of(pos), _path_goal)
+	_path_grid = grid
+	var cells: Array[Vector2i] = BotRules.find_path(grid, BotRules.cell_of(pos), _path_goal)
+	if cells.is_empty() and grid != _grid:
+		cells = BotRules.find_path(_grid, BotRules.cell_of(pos), _path_goal)
 	if cells.is_empty():
 		return
 	cells.remove_at(0)  # the current cell

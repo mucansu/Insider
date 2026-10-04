@@ -3,16 +3,26 @@ extends RefCounted
 ## Node-free rules of the closed-loop bot brain (IS-015a; S2, S6). `BotBrain` (entities/player/bot_brain.gd) reads only the replicated
 ## world of its own peer into a `View` every physics step; `Mind.decide(view)` walks the strategy plan and returns an `Intent` (spot to
 ## reach, action to hold, movement mode, look). Paths (`build_grid`, `find_path`) and stuck detection (`StuckMeter`) are here too.
-## Strategies (`--brain` value; `STRATEGIES`), `+bag` suffix (`window+bag`: after the register also take the back-room cash bag):
+## Strategies (`--brain` value; `STRATEGIES`):
 ##   rush     straight to the register, empty it, escape
 ##   window   wait outside (front pavement) until the owner is away from the register / facing away, then register, escape
 ##   send     SEND TO BACKROOM (Q) at the counter, wait for the window it opens, register, escape
 ##   distract wait at a shelf end until the owner is at the counter, topple it (E), wait at the queue spot for the window, register
 ##   buy      BUY (E) at the counter (keeps cover, resets loitering; rebuys every REBUY_*, at most MAX_REBUYS), take the window,
 ##            register, escape
-##   team     roles by join slot: 0 lure (counter; SEND once the thief stands at the queue spot or after TEAM_WAIT_S alone, then stays as a
-##            customer until the register is emptied), 1 thief (queue spot, window -> register), 2 bagger (outside, owner at the shelves
-##            or phone -> back room bag); any free teammate within PULL_RANGE_PX pulls a held one (PULL)
+##   bag      (IS-101) bag only, never the register: back alley -> back door B once the back room is clear (owner not in it) -> cash bag
+##            -> back out to the alley -> escape. B is ~264 px from the counter, its 160 px door sound is not heard there.
+##   team     roles by join slot, "register last" (IS-101): 2 bagger goes first (the `bag` route: alley, B, bag, alley, escape);
+##            0 lure (counter; acts once the thief stands at the queue spot AND the bag is taken - or there is no bagger (< 3
+##            players) - or after TEAM_WAIT_S / TEAM_BAG_WAIT_S alone: SEND when the bag is not part of the job (`team`, 2 players),
+##            else distract (topple a shelf once the owner is at the counter; a SEND would walk the owner into the back room and its
+##            missing-bag check), then stays as a customer until the register is emptied, then escapes); 1 thief (queue spot; window
+##            AND bag taken (no bagger: window only) -> register, escape). Any free teammate within PULL_RANGE_PX pulls a held one (PULL)
+## Suffixes (any order, once each): `+bag` - the bag is part of the job: solo strategies and the team thief take it AFTER the register
+## (inner door D is 3 tiles from the register stand; with 2 players the thief is the bagger too, with 3 the bagger usually has it
+## already and the step is skipped; skipped to the escape if the owner is seen in the back room); the team lure never goes for it;
+## invalid on `bag` itself. `+omni` - all-knowing view (below).
+## `+human` - human-like reaction delay after a WAIT condition turns true (REACTION_HUMAN_*, default REACTION_*).
 ## Global overrides: job over or caught -> done; held -> held (resumes); alert >= ALERT_FLEE -> escape (sprint) unless the register is
 ## being emptied. Randomness only from the seeded RNG at decision points (wait timeout, reaction delay, retry, rebuy), so the same seed
 ## and the same view sequence give the same phase log.
@@ -23,17 +33,22 @@ extends RefCounted
 ## MEMORY_STALE_S or before the owner was ever seen. `+omni` suffix (`window+omni`, `team+bag+omni`): the old all-knowing view
 ## (`owner_seen` always true). No sharing between teammates: every brain has its own eyes.
 
-enum Phase { START, STAGE, WAIT, LURE, GO_REGISTER, EMPTY, GO_BAG, TAKE_BAG, ESCAPE, PULL, HELD, DONE }
+## LEAVE (IS-101): back out to the alley with the bag before the escape (bag route).
+enum Phase { START, STAGE, WAIT, LURE, GO_REGISTER, EMPTY, GO_BAG, TAKE_BAG, ESCAPE, PULL, HELD, DONE, LEAVE }
 const PHASE_NAMES: Array[String] = ["start", "stage", "wait", "lure", "go_register", "empty", "go_bag", "take_bag", "escape", "pull",
-	"held", "done"]
+	"held", "done", "leave"]
 enum Role { SOLO, LURE, THIEF, BAGGER }
 const ROLE_NAMES: Array[String] = ["solo", "lure", "thief", "bagger"]
 enum Step { GO, USE, WAIT }
 
-const STRATEGIES: Array[String] = ["rush", "window", "send", "distract", "buy", "team"]
+const STRATEGIES: Array[String] = ["rush", "window", "send", "distract", "buy", "team", "bag"]
+## Base strategy of the bag-only route (IS-101).
+const BAG_BASE := "bag"
 const BAG_SUFFIX := "+bag"
 ## All-knowing view (IS-058b; default is fair sight).
 const OMNI_SUFFIX := "+omni"
+## Human-like reaction delay (IS-101).
+const HUMAN_SUFFIX := "+human"
 
 ## Spots (BotBrain resolves them to world positions from the level and props).
 const SPOT_NONE := &""
@@ -41,6 +56,7 @@ const SPOT_REGISTER := &"register"   # staff side of the register (EMPTY)
 const SPOT_COUNTER := &"counter"     # customer side of the counter (BUY / SEND)
 const SPOT_QUEUE := &"queue"         # queue spot in front of the register (customer area)
 const SPOT_OUTSIDE := &"outside"     # front pavement, away from the windows
+const SPOT_ALLEY := &"alley"         # back alley next to the back door B (bag route staging; IS-101)
 const SPOT_SHELF := &"shelf"         # aisle side of the nearest untoppled shelf end
 const SPOT_BAG := &"bag"             # the cash bag
 const SPOT_ESCAPE := &"escape"       # escape zone (per-slot offset)
@@ -59,6 +75,17 @@ const COND_CARRYING := &"carrying"
 const COND_OWNER_AT_COUNTER := &"owner_at_counter"
 const COND_TEAM_READY := &"team_ready"
 const COND_LURE_HOLD := &"lure_hold"
+## IS-101: back room clear (bag route), lure may SEND (thief ready + bag taken / no bagger), thief may go (window + bag taken / no
+## bagger); abort conditions of a GO step (`abort_if`): owner back at the counter (register run), owner seen in the back room (bag run).
+const COND_BACK_CLEAR := &"back_clear"
+const COND_LURE_GO := &"lure_go"
+const COND_THIEF_GO := &"thief_go"
+const COND_OWNER_BACK := &"owner_back"
+const COND_OWNER_IN_BACKROOM := &"owner_in_backroom"
+## IS-101 team lure: skip SEND (already used, a bagger is in the team, or the bag is gone - the SEND would walk the owner into the
+## back room and its missing-bag check, KR-031); skip the shelf distraction (SEND used, register emptied, or the window is open).
+const COND_NO_SEND := &"no_send"
+const COND_NO_DISTRACT := &"no_distract"
 
 ## Interaction result of the last step (consumed by `Mind.decide`).
 const RESULT_NONE := -1
@@ -74,6 +101,8 @@ const TASK_SENT := &"sent"
 const WINDOW_TASKS: Array[StringName] = [&"restock", &"backroom", &"phone", &"sent", &"listen"]
 ## Tasks during which the back room is free (owner at the west shelves or the phone wall).
 const BAG_TASKS: Array[StringName] = [&"restock", &"phone"]
+## Tasks that take the owner into the back room (agenda back room, SEND TO BACKROOM; IS-101 bag route).
+const BACKROOM_TASKS: Array[StringName] = [&"backroom", &"sent"]
 
 # Tuning (file-top consts; first guesses, IS-015b measures).
 ## Owner at least this far from the register counts as "away" (4 tiles: GDD §9.3 KAP-KAÇ).
@@ -84,6 +113,9 @@ const UNSEEN_OPEN_S := 3.0
 const MEMORY_STALE_S := 15.0
 ## Owner at least this far from the bag counts as "away from the back room".
 const BAG_SAFE_PX := 160.0
+## Owner closer than this to the bag counts as "in the back room" whatever the task (IS-101; BackroomSpot is ~115 px from the bag,
+## the counter stand 160 px).
+const BACKROOM_PX := 128.0
 ## Owner facing . direction(owner -> register) below this = facing away (cone half-angle 25 deg is far above).
 const FACING_AWAY_DOT := 0.2
 ## Owner counts as "at the counter" within this distance of the register.
@@ -95,11 +127,16 @@ const MAX_RETREATS := 2
 ## Reaction delay after a WAIT condition turns true (s).
 const REACTION_MIN_S := 0.3
 const REACTION_MAX_S := 1.2
+## `+human` reaction delay (s; IS-101).
+const REACTION_HUMAN_MIN_S := 1.0
+const REACTION_HUMAN_MAX_S := 2.5
 ## WAIT gives up after this long and goes anyway (s; the job must end within a test/statistics run).
 const WAIT_MAX_MIN_S := 60.0
 const WAIT_MAX_MAX_S := 90.0
 ## Team lure waits this long for a thief before acting alone (s).
 const TEAM_WAIT_S := 20.0
+## With a bagger (join slot 2) the lure also waits for the bag; this is its longer limit (s; alley route ~15-25 s; IS-101).
+const TEAM_BAG_WAIT_S := 45.0
 ## Thief counts as ready within this distance of the queue spot.
 const READY_PX := 48.0
 ## Retry delay after a failed interaction (s) and attempts before giving the step up.
@@ -171,6 +208,8 @@ class View:
 	## Own join slot; < 0 while the session has not listed the local peer yet (the Mind waits).
 	var slot: int = 0
 	var thief_ready: bool = false
+	## A teammate holds the bagger slot (join slot 2; IS-101: the lure and the thief wait for the bag).
+	var bagger_present: bool = false
 	## Position of a held teammate (INF = none).
 	var mate_held_pos: Vector2 = Vector2.INF
 
@@ -241,24 +280,29 @@ class Sighting:
 		v.owner_task = task
 
 
-## Strategy name -> {"base": String, "bag": bool, "omni": bool, "valid": bool}. Suffixes `+bag` / `+omni` in any order, once each.
+## Strategy name -> {"base": String, "bag": bool, "omni": bool, "human": bool, "valid": bool}. Suffixes `+bag` / `+omni` / `+human`
+## in any order, once each; `+bag` is invalid on the `bag` base (it is the bag already).
 static func parse_strategy(strategy_name: String) -> Dictionary:
 	var parts: PackedStringArray = strategy_name.strip_edges().to_lower().split("+")
 	var base: String = parts[0] if not parts.is_empty() else ""
 	var bag: bool = false
 	var omni: bool = false
+	var human: bool = false
 	var valid: bool = STRATEGIES.has(base)
 	for i: int in range(1, parts.size()):
 		match "+" + parts[i]:
 			BAG_SUFFIX:
-				valid = valid and not bag
+				valid = valid and not bag and base != BAG_BASE
 				bag = true
 			OMNI_SUFFIX:
 				valid = valid and not omni
 				omni = true
+			HUMAN_SUFFIX:
+				valid = valid and not human
+				human = true
 			_:
 				valid = false
-	return {"base": base, "bag": bag, "omni": omni, "valid": valid}
+	return {"base": base, "bag": bag, "omni": omni, "human": human, "valid": valid}
 
 
 static func is_valid_strategy(strategy_name: String) -> bool:
@@ -339,6 +383,43 @@ static func owner_back(v: View) -> bool:
 		and v.owner_pos.distance_to(v.register_pos) <= OWNER_BACK_PX
 
 
+## Owner pose/task (live or remembered) puts them in the back room: on a back-room task or within BACKROOM_PX of the bag.
+static func owner_in_backroom(v: View) -> bool:
+	if not v.owner_present:
+		return false
+	if BACKROOM_TASKS.has(v.owner_task):
+		return true
+	return v.bag_pos != Vector2.INF and v.owner_pos != Vector2.INF and v.owner_pos.distance_to(v.bag_pos) < BACKROOM_PX
+
+
+## Owner seen in the back room now (abort a bag run that has not committed yet; the bot sees in once the back door is open).
+static func owner_seen_in_backroom(v: View) -> bool:
+	return v.owner_present and v.owner_seen and owner_in_backroom(v)
+
+
+## Back room clear for the bag route through the back door (IS-101): no owner, or not shouted and not in the back room. Unseen
+## owner: the last sighting decides while fresh (not in the back room); never seen / stale = unknown -> go and look (the bag run
+## aborts if the open back door shows the owner inside).
+static func backroom_clear(v: View) -> bool:
+	if not v.owner_present:
+		return true
+	if v.owner_shouted:
+		return false
+	if not v.owner_seen and v.owner_age > MEMORY_STALE_S:
+		return true
+	return not owner_in_backroom(v)
+
+
+## Bag no longer on the floor (someone carries it, or the level has none; prop state, all-knowing).
+static func bag_done(v: View) -> bool:
+	return not v.bag_present or v.bag_carrier != 0
+
+
+## A bagger is in the team (join slot 2 is taken; it stays so if another teammate leaves).
+static func has_bagger(v: View) -> bool:
+	return v.bagger_present
+
+
 static func condition(cond: StringName, v: View) -> bool:
 	match cond:
 		COND_WINDOW:
@@ -357,6 +438,20 @@ static func condition(cond: StringName, v: View) -> bool:
 			return v.team_size >= 2 and v.thief_ready
 		COND_LURE_HOLD:
 			return v.register_emptied if v.team_size >= 2 else window_open(v)
+		COND_BACK_CLEAR:
+			return backroom_clear(v)
+		COND_LURE_GO:
+			return v.team_size >= 2 and v.thief_ready and (not has_bagger(v) or bag_done(v))
+		COND_THIEF_GO:
+			return window_open(v) and (not has_bagger(v) or bag_done(v))
+		COND_OWNER_BACK:
+			return owner_back(v)
+		COND_OWNER_IN_BACKROOM:
+			return owner_seen_in_backroom(v)
+		COND_NO_SEND:
+			return v.send_used or has_bagger(v) or bag_done(v)
+		COND_NO_DISTRACT:
+			return v.send_used or v.register_emptied or window_open(v)
 	return false
 
 
@@ -389,30 +484,47 @@ static func plan_for(base: String, bag: bool, role: Role) -> Array[Dictionary]:
 			var w: Dictionary = _wait(SPOT_COUNTER, COND_WINDOW)
 			w["loop_to"] = buy_at
 			p.append(w)
+		BAG_BASE:
+			_append_bag_route(p)
+			return p
 		"team":
 			match role:
 				Role.LURE:
 					p.append(_go(Phase.STAGE, SPOT_COUNTER))
-					p.append(_wait(SPOT_COUNTER, COND_TEAM_READY, TEAM_WAIT_S))
-					p.append(_use(Phase.LURE, SPOT_COUNTER, ACTION_ALT, COND_SENT))
+					var lure_wait: Dictionary = _wait(SPOT_COUNTER, COND_LURE_GO, TEAM_WAIT_S)
+					lure_wait["timeout_bag"] = TEAM_BAG_WAIT_S
+					p.append(lure_wait)
+					if not bag:
+						p.append(_use(Phase.LURE, SPOT_COUNTER, ACTION_ALT, COND_NO_SEND))
+					# Bag job (bagger in the team, or `+bag`): distract instead of SEND - the owner goes to the shelves, the back room stays
+					# empty for the thief's bag and no missing-bag check fires. Also the fallback after a failed SEND.
+					var shelf_go: Dictionary = _go(Phase.STAGE, SPOT_SHELF, COND_NO_DISTRACT)
+					p.append(shelf_go)
+					var shelf_wait: Dictionary = _wait(SPOT_SHELF, COND_OWNER_AT_COUNTER, TEAM_WAIT_S)
+					shelf_wait["skip"] = COND_NO_DISTRACT
+					p.append(shelf_wait)
+					p.append(_use(Phase.LURE, SPOT_SHELF, ACTION_INTERACT, COND_NO_DISTRACT))
 					wait_at = p.size()
 					p.append(_wait(SPOT_COUNTER, COND_LURE_HOLD))
+					bag = false  # the lure keeps its cover; the thief (2 players) or the bagger (3) takes the bag
 				Role.THIEF:
 					p.append(_go(Phase.STAGE, SPOT_QUEUE))
 					wait_at = p.size()
-					p.append(_wait(SPOT_QUEUE, COND_WINDOW))
+					p.append(_wait(SPOT_QUEUE, COND_THIEF_GO))
 				Role.BAGGER:
-					p.append(_go(Phase.STAGE, SPOT_OUTSIDE))
-					p.append(_wait(SPOT_OUTSIDE, COND_BAG_WINDOW))
-					_append_bag(p)
-					p.append(_go(Phase.ESCAPE, SPOT_ESCAPE))
+					_append_bag_route(p)
 					return p
 	var go_register: Dictionary = _go(Phase.GO_REGISTER, SPOT_REGISTER, COND_EMPTIED)
 	go_register["abort_to"] = wait_at
+	go_register["abort_if"] = COND_OWNER_BACK
 	p.append(go_register)
 	p.append(_use(Phase.EMPTY, SPOT_REGISTER, ACTION_INTERACT, COND_EMPTIED))
 	if bag:
+		# After the register (inner door D): skipped straight to the escape if the owner is seen in the back room.
 		_append_bag(p)
+		var go_bag: Dictionary = p[p.size() - 2]
+		go_bag["abort_to"] = p.size()
+		go_bag["abort_if"] = COND_OWNER_IN_BACKROOM
 	p.append(_go(Phase.ESCAPE, SPOT_ESCAPE))
 	return p
 
@@ -422,20 +534,39 @@ static func _append_bag(p: Array[Dictionary]) -> void:
 	p.append(_use(Phase.TAKE_BAG, SPOT_BAG, ACTION_INTERACT, COND_CARRYING))
 
 
+## Bag route through the back door (IS-101; `bag` strategy, team bagger): stage in the alley, wait until the back room is clear, bag
+## (the run backs off to the alley if the open door shows the owner inside), back out to the alley, escape.
+static func _append_bag_route(p: Array[Dictionary]) -> void:
+	p.append(_go(Phase.STAGE, SPOT_ALLEY))
+	var wait_at: int = p.size()
+	p.append(_wait(SPOT_ALLEY, COND_BACK_CLEAR))
+	_append_bag(p)
+	var go_bag: Dictionary = p[wait_at + 1]
+	go_bag["abort_to"] = wait_at
+	go_bag["abort_if"] = COND_OWNER_IN_BACKROOM
+	p.append(_go(Phase.LEAVE, SPOT_ALLEY))
+	p.append(_go(Phase.ESCAPE, SPOT_ESCAPE))
+
+
 static func _go(phase: Phase, spot: StringName, skip: StringName = COND_NONE) -> Dictionary:
-	return {"kind": Step.GO, "phase": phase, "spot": spot, "action": &"", "until": COND_NONE, "skip": skip, "abort_to": -1,
-		"loop_to": -1, "timeout": -1.0}
+	return _step(Step.GO, phase, spot, &"", COND_NONE, skip, -1.0)
 
 
 static func _use(phase: Phase, spot: StringName, action: StringName, skip: StringName) -> Dictionary:
-	return {"kind": Step.USE, "phase": phase, "spot": spot, "action": action, "until": COND_NONE, "skip": skip, "abort_to": -1,
-		"loop_to": -1, "timeout": -1.0}
+	return _step(Step.USE, phase, spot, action, COND_NONE, skip, -1.0)
 
 
 ## `timeout` < 0: drawn from WAIT_MAX_MIN_S..WAIT_MAX_MAX_S.
 static func _wait(spot: StringName, until: StringName, timeout: float = -1.0) -> Dictionary:
-	return {"kind": Step.WAIT, "phase": Phase.WAIT, "spot": spot, "action": &"", "until": until, "skip": COND_NONE, "abort_to": -1,
-		"loop_to": -1, "timeout": timeout}
+	return _step(Step.WAIT, Phase.WAIT, spot, &"", until, COND_NONE, timeout)
+
+
+## Step keys: "abort_to"/"abort_if" (GO: back to that step while `abort_if` holds and the run has not committed), "loop_to" (WAIT:
+## rebuy loop), "timeout" (WAIT; < 0 random), "timeout_bag" (WAIT; used instead of "timeout" while a bagger is in the team; < 0 none).
+static func _step(kind: Step, phase: Phase, spot: StringName, action: StringName, until: StringName, skip: StringName,
+		timeout: float) -> Dictionary:
+	return {"kind": kind, "phase": phase, "spot": spot, "action": action, "until": until, "skip": skip, "abort_to": -1,
+		"abort_if": COND_NONE, "loop_to": -1, "timeout": timeout, "timeout_bag": -1.0}
 
 
 ## Stateful decider of one bot (one per process; the plan is built on the first decide, when the join slot is known).
@@ -446,6 +577,8 @@ class Mind:
 	var bag: bool = false
 	## All-knowing view (`+omni`; BotBrain fills the View accordingly).
 	var omni: bool = false
+	## Human-like reaction delay (`+human`; IS-101).
+	var human: bool = false
 	var seed_value: int = 0
 	var role: Role = Role.SOLO
 	var phase: Phase = Phase.START
@@ -469,6 +602,8 @@ class Mind:
 	## A WAIT timed out ("go anyway"): the following run does not retreat (keeps the job bounded in time).
 	var _committed: bool = false
 	var _loops: int = 0
+	## Own SEND succeeded (the replicated `send_used` may arrive a little after the interaction result; IS-101 lure skips).
+	var _sent: bool = false
 
 	func _init(strategy_name: String, run_seed: int) -> void:
 		var parsed: Dictionary = BotRules.parse_strategy(strategy_name)
@@ -476,6 +611,7 @@ class Mind:
 		base = str(parsed["base"])
 		bag = bool(parsed["bag"])
 		omni = bool(parsed["omni"])
+		human = bool(parsed["human"])
 		seed_value = run_seed
 		rng.seed = hash("%d:%s" % [run_seed, strategy])
 
@@ -517,6 +653,8 @@ class Mind:
 		return v.interacting and _index >= 0 and int(_plan[_index]["phase"]) == Phase.EMPTY
 
 	func _run(v: View, intent: Intent) -> Intent:
+		if _sent:
+			v.send_used = true
 		for _guard: int in _plan.size() + 1:
 			var step: Dictionary = _plan[_index]
 			var skip: StringName = step["skip"]
@@ -531,8 +669,9 @@ class Mind:
 					if int(step["phase"]) == Phase.ESCAPE:
 						return intent  # terminal: stay at the escape spot
 					var abort_to: int = int(step["abort_to"])
-					if abort_to >= 0 and not _committed and retreats < BotRules.MAX_RETREATS and BotRules.owner_back(v) \
-							and not v.at(intent.spot) and v.pos.distance_to(v.register_pos) > BotRules.COMMIT_PX:
+					if abort_to >= 0 and not _committed and retreats < BotRules.MAX_RETREATS \
+							and BotRules.condition(step["abort_if"], v) and not v.at(intent.spot) \
+							and v.pos.distance_to(_commit_point(step, v)) > BotRules.COMMIT_PX:
 						retreats += 1
 						_enter(abort_to, v)
 						continue
@@ -543,6 +682,9 @@ class Mind:
 				Step.USE:
 					if v.result == BotRules.RESULT_OK:
 						v.result = BotRules.RESULT_NONE
+						if StringName(step["action"]) == BotRules.ACTION_ALT:
+							_sent = true
+							v.send_used = true
 						_enter(_index + 1, v)
 						continue
 					if v.result == BotRules.RESULT_FAIL:
@@ -562,13 +704,17 @@ class Mind:
 					if BotRules.condition(step["until"], v):
 						if _cond_since < 0.0:
 							_cond_since = v.t
-							_react = rng.randf_range(BotRules.REACTION_MIN_S, BotRules.REACTION_MAX_S)
+							_react = rng.randf_range(BotRules.REACTION_HUMAN_MIN_S, BotRules.REACTION_HUMAN_MAX_S) if human \
+								else rng.randf_range(BotRules.REACTION_MIN_S, BotRules.REACTION_MAX_S)
 						if v.t - _cond_since >= _react:
 							_enter(_index + 1, v)
 							continue
 					else:
 						_cond_since = -1.0
-					if v.t - _step_t >= _timeout:
+					var limit: float = _timeout
+					if float(step["timeout_bag"]) >= 0.0 and BotRules.has_bagger(v):
+						limit = float(step["timeout_bag"])
+					if v.t - _step_t >= limit:
 						wait_timeouts += 1
 						_enter(_index + 1, v)
 						_committed = true
@@ -580,6 +726,12 @@ class Mind:
 						continue
 					return intent
 		return intent
+
+	## Point a GO step commits to (no retreat within COMMIT_PX): the bag for a bag run, else the register.
+	func _commit_point(step: Dictionary, v: View) -> Vector2:
+		if StringName(step["abort_if"]) == BotRules.COND_OWNER_IN_BACKROOM:
+			return v.bag_pos
+		return v.register_pos
 
 	func _enter(index: int, v: View) -> void:
 		_index = clampi(index, 0, _plan.size() - 1)
@@ -650,6 +802,19 @@ static func build_grid(rows: PackedStringArray) -> AStarGrid2D:
 				grid.set_point_solid(Vector2i(x, y), true)
 			elif ch == DOOR_CHAR:
 				grid.set_point_weight_scale(Vector2i(x, y), DOOR_WEIGHT)
+	return grid
+
+
+## Grid of the outdoor route to the back alley (IS-101): every door cell except `keep_door` (the back door) is blocked, so the path
+## from the street goes round by the side street instead of through the shop (and the way out of the back room uses the back door).
+static func outside_grid(rows: PackedStringArray, keep_door: Vector2i) -> AStarGrid2D:
+	var grid: AStarGrid2D = build_grid(rows)
+	for y: int in rows.size():
+		var row: String = rows[y]
+		for x: int in row.length():
+			var cell := Vector2i(x, y)
+			if row[x] == DOOR_CHAR and cell != keep_door and grid.is_in_boundsv(cell):
+				grid.set_point_solid(cell, true)
 	return grid
 
 

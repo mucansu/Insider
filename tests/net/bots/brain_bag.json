@@ -1,0 +1,6 @@
+{
+  "_doc": "IS-101: kapalı döngü beyin, tek kişi bag stratejisi (ara sokak -> arka kapı B -> çanta -> ara sokak -> kaçış; kasaya dokunmaz). Biçim: entities/player/bot_brain.gd.",
+  "brain": "bag",
+  "seed": 1,
+  "steps": []
+}
