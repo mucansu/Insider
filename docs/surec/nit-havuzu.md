@@ -56,3 +56,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-106 (oynanis) | core/tuning_overrides.gd | Ezme iç içe görev alanlarını (tasks/restock/min_sec) desteklemiyor |
 | 2026-10-04 | IS-106 (oynanis) | core/bot_rules.gd | BACKROOM_PX/BAG_SAFE_PX Backroom bölgesine dayalı hale getirilebilir (store_b ölçümünden sonra) |
 | 2026-10-04 | IS-107 (seviye) | tests/net/store_b_brain_team.json | Tohum 0'da 0 ms clean / 150 ms caught_all; senaryo sonucu sabitlemiyor |
+| 2026-10-05 | US-045 (oynanis) | entities/props | Dökülen ürün dünyada kalmıyor; damacana taşıyan sahip görseli yok; elle bırakılan damacana sessiz; ürün fiyatları harita başına ezilemiyor |
+| 2026-10-05 | US-045 (denetci) | tests/net | Elde ürünle geç katılma için kalıcı senaryo yok (denetci geçici senaryoyla 0/150 ms PASS) |
+| 2026-10-05 | US-045 (denetci) | entities/props/shop_counter.gd | `_buy.action_key` alanına çevrilmiş metin yazılıyor (anahtar değil); dil değişiminde 1 kare gecikme |
