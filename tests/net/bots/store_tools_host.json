@@ -1,17 +1,9 @@
 {
-  "_doc": "store_interactions.json host botu (US-010, kasacı): sola hizalan, sağa ön kapı hizasına, kapıdan girip tezgâh ucunun batısında (y≈436) müşteri gibi bekle; sahip arka odaya gönderilince (c1, ~37. sn) tezgâh ucundan personel tarafına dolan, kasanın yanına çık (x≈594, y≈364), 3,6 sn tut (kasa boşalır), aynı yoldan müşteri tarafına ve sokağa dön.",
+  "_doc": "store_interactions.json host botu (US-010; IS-100'den beri kasaya dokunmaz): sola hizalan, sağa ön kapı hizasına, kapıdan girip tezgâh ucunun batısında (y≈436) müşteri gibi bekle. IS-100 (KR-032) öncesi GÖNDER penceresinde kasayı boşaltıyordu; artık sahip dönüşte kasaya bakıp keşfettiği için (bağırış → uyarı 2) senaryonun sonraki adımı (OYALA) koşamazdı. Dönüş kontrolü test_discovery_return.gd ve discovery.json'da.",
   "steps": [
     {"t": 0.2, "move": [-1, 0]},
     {"t": 1.6, "move": [1, 0]},
     {"t": 4.0, "move": [0, -1]},
-    {"t": 4.672, "move": [0, 0]},
-    {"t": 39.0, "move": [1, 0]},
-    {"t": 40.615, "move": [0, -1]},
-    {"t": 41.13, "move": [0, 0]},
-    {"t": 41.3, "hold": "interact", "dur": 3.6},
-    {"t": 45.1, "move": [0, 1]},
-    {"t": 45.615, "move": [-1, 0]},
-    {"t": 47.23, "move": [0, 1]},
-    {"t": 47.902, "move": [0, 0]}
+    {"t": 4.672, "move": [0, 0]}
   ]
 }

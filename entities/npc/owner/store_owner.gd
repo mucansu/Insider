@@ -16,7 +16,8 @@ extends CharacterBody2D
 ## owner (STALL: E, hold, `talk_range`; innocent action; enabled from replicated state on every peer: in calm agenda, outside service/sent,
 ## before shouting); event channel extended (`owner_serve`, `owner_talk`, `owner_sent`, `owner_listen`, `owner_again`, `owner_phone_found`,
 ## `owner_loiter`; balloons in NpcVisual). Dump additions: on every peer `talk_peer`, `facing`, `shouted`, `talk_gaze`; on the host `loiter_s`
-## (peer -> s), `player_serves`, `sent_windows`, `distractions`, `phones_found`.
+## (peer -> s), `player_serves`, `sent_windows`, `distractions`, `phones_found`; IS-100: `send_costs` ([{peer, amount}], SEND return cost)
+## and `discoveries[].trigger` (return / serve / backroom / idle / direct).
 ## US-037 (KR-027): `Contact` component (NpcContact; created in `_ready` when active). The owner is an observer of shoves (range + line of
 ## sight -> `report_suspicion`); a calm shove adds suspicion and turns it to LOOK (`OwnerBrain.on_pushed`); while it staggers the brain is
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
@@ -484,6 +485,7 @@ func dump_state() -> Dictionary:
 		out["loiter_s"] = _senses.loiter_dump()
 		out["player_serves"] = _brain.player_serves
 		out["sent_windows"] = _brain.sent_windows.duplicate()
+		out["send_costs"] = _brain.send_costs.duplicate(true)
 		out["distractions"] = _brain.distractions.count
 		out["phones_found"] = _brain.phones_found
 		out["soothed"] = _brain.soothed.duplicate(true)
