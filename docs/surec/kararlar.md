@@ -11,9 +11,9 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
-### KR-039 — Yaylı arka kapı: zil yalnız açılma/kapanmada (2026-10-04, koordinatör; GB-11)
+### KR-039 — Yaylı arka kapı: zil yalnız açılma/kapanmada (2026-10-04, koordinatör + kullanıcı onayı; GB-11)
 - Açık arka kapıdan geçmek zil çalmaz/gürültü yapmaz (gerçekçi değil, GB-11). IS-104'ün amacı (kapıyı açık bırakıp serbestçe girip çıkma açığını kapamak) **yaylı kapı** ile korunur: arka kapı B, eşikte kimse yokken açık kaldıktan `back_door_autoclose_sec` (≈ 3 sn, ayar) sonra kendiliğinden kapanır (mevcut kapanma sesi/gürültüsü kuralı; kendiliğinden kapanma zili çalmaz, NPC kapatması gibi). Her yeniden açılış zili çalar. Ön kapı (giriş zili, müşteri sensörü gibi) değişmez.
-- Kalem IS-108 (oynanis; US-045 paketiyle). Kullanıcı aksini isterse geri alınır.
+- Kalem IS-108 (oynanis; US-045 paketiyle). Kullanıcı onayladı (2026-10-04).
 
 ### KR-038 — US-045 alışveriş v0 ayrıntıları ve GB-08 örtü kuralı (2026-10-04, koordinatör; Fable danışması `docs/tasarim/danisma/us-045-store-b.md`)
 - Ürünler v0: Sakız 3 (tezgâh, bugünkü SATIN AL), Ekmek 5 (raf; kılık, oyalanma sıfırlar), Kola 10 (soğutucu; Q "Bırak" → kırılır, 160 px gürültü), Damacana 40 (tezgâhta Q sipariş). Konserve v0 dışı. Elde en çok 1 ürün; elde ürün örtüyü bozmaz; ödenmemiş ürünle çıkış v0'da bedelsiz.

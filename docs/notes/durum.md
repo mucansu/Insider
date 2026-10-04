@@ -9,10 +9,10 @@ Deneme paketi (test-2 için): `build/Insiders-faz2-a01ac86-windows.zip` (debug, 
 Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kasa kontrolü, sent 7/listen 6, GÖNDER +20), IS-101 (bot takım sırası, bag, +human), IS-081 (sahip olay günlüğü `owner.log[]`, geç yakalanma hatası), IS-103 (kaçış 3 sn geri sayımı "Minibüs kalkıyor"), IS-104 (arka kapı zili), IS-015 (ölçüm: `docs/surec/olcum/`), heist_stats `.gdignore`, bot `wait` adımı, level_change kararlılığı. Kararlar: KR-034 (denge ilkesi test-2 sonrası; geri sayım + zil), KR-035 (bilgi bölünmesi / zorunlu ekip iletişimi tasarım hedefi).
 
 ## Sürüyor / yarım kalan
-- Biten: **IS-106** (faz2-int 47eaf9d; harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone; S10 eki). **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
+- Biten: **IS-107** (faz2-int f4617ef; store_b + ezmeler + brain senaryoları; ölçüm `docs/surec/olcum/20261004-2330-is107-store-a-vs-b.md`). **IS-106** (faz2-int 47eaf9d; harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone; S10 eki). **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
 - **US-045 + IS-108** — oynanis, ajan worktree'si (2026-10-04 23:00): KR-038 alışveriş v0, damacana, örtü A, ShopItem işaretten üretim (store_a'ya işaret), KR-039 yaylı arka kapı (GB-11), witness 150 ms kararsızlığı.
-- **IS-107 aşama 2** — seviye, ajan worktree'si (2026-10-04 23:00): store_b tuning_overrides (shout_radius, neighbour_delay), heist_stats store_b vs store_a, brain tabanlı store_b net senaryoları. (Aşama 1 faz2-int 2fe744f.)
-- Sırada: ikisi birleşince tam ci_local + yeni test-2 paketi (duman + `--log-on-exit` exe yanı kontrolü) → dilim 2.2 kapanışı.
+- Kullanıcı isteği (2026-10-04): dilim 2.2 kapanışından sonra bilgisayarı kapat (`shutdown /s /t 120`).
+- Sırada: US-045 birleşince tam ci_local + yeni test-2 paketi (duman + `--log-on-exit` exe yanı kontrolü) → dilim 2.2 kapanışı.
 
 ## Yeni sohbette ilk adımlar
 1. Sürüyor listesindeki ajan raporlarını al (kalem-kapat), sıradakileri başlat.

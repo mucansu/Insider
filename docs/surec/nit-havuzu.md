@@ -55,3 +55,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-106 (oynanis) | tests/fixtures/build_mirror.gd | Her çalıştırmada sahnedeki unique_id'leri yeniler (gürültülü diff) |
 | 2026-10-04 | IS-106 (oynanis) | core/tuning_overrides.gd | Ezme iç içe görev alanlarını (tasks/restock/min_sec) desteklemiyor |
 | 2026-10-04 | IS-106 (oynanis) | core/bot_rules.gd | BACKROOM_PX/BAG_SAFE_PX Backroom bölgesine dayalı hale getirilebilir (store_b ölçümünden sonra) |
+| 2026-10-04 | IS-107 (seviye) | tests/net/store_b_brain_team.json | Tohum 0'da 0 ms clean / 150 ms caught_all; senaryo sonucu sabitlemiyor |
