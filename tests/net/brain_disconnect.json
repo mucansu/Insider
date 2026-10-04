@@ -1,5 +1,5 @@
 {
-  "_doc": "IS-015b AC3: 3 kişilik team (gerçek bakkal; host oyalayıcı, c1 kasacı, c2 çantacı) — kasacı c1 iş ortasında (sırada pencere beklerken, kasa boşalmadan) oturumdan ayrılır (quit_after 7). Host ve c2 hatasız sürer: c1'in oyuncusu her yerden silinir, kalanların rolü değişmez (yuvalar sıkışmaz), oyalayıcı bekleme zaman aşımıyla (60-90 sn, tohumlu) kasayı kendisi boşaltır, çantacı çantayı alır, iş bir sonuca varır; sonuç, ödeme ve süre host ile c2'de aynı. Ölçülen mevcut davranış: ayrılan oyuncu iş sonucunun `players` kaydında yer almaz (kayıt yalnız kalanlar). Süre ~150 sn (oyalayıcının bekleme zaman aşımı). Biçim: tools/net_smoke.py docstring.",
+  "_doc": "IS-015b AC3: 3 kişilik team (gerçek bakkal; host oyalayıcı, c1 kasacı, c2 çantacı) — kasacı c1 iş ortasında (sırada pencere beklerken, kasa boşalmadan) oturumdan ayrılır (quit_after 7). Host ve c2 hatasız sürer: c1'in oyuncusu her yerden silinir, kalanların rolü değişmez (yuvalar sıkışmaz), oyalayıcı bekleme zaman aşımıyla (60-90 sn, tohumlu) kasayı kendisi boşaltır, çantacı çantayı alır, iş bir sonuca varır; sonuç, ödeme ve süre host ile c2'de aynı. IS-099: ayrılan oyuncu iş sonucunun `players` kaydında `left: true` ile yer alır (pay 0, kefalet 0, kaçmadı/yakalanmadı; ekonomi değişmez), kalanlarda `left: false`. Süre ~150 sn (oyalayıcının bekleme zaman aşımı). Biçim: tools/net_smoke.py docstring.",
   "level": "res://levels/store_a.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
@@ -37,9 +37,17 @@
     {"same": ["host.heist.result.outcome", "c2.heist.result.outcome"]},
     {"same": ["host.heist.result.payout", "c2.heist.result.payout"]},
     {"same": ["host.heist.result.duration_s", "c2.heist.result.duration_s"]},
-    {"len": ["host.heist.result.players", 2]},
-    {"lacks": ["host.heist.result.players", "$c1"]},
+    {"len": ["host.heist.result.players", 3]},
+    {"has": ["host.heist.result.players", "$c1"]},
+    {"eq": ["host.heist.result.players.$c1.left", true]},
+    {"eq": ["host.heist.result.players.$c1.loot", 0]},
+    {"eq": ["host.heist.result.players.$c1.bail", 0]},
+    {"eq": ["host.heist.result.players.$c1.escaped", false]},
+    {"eq": ["host.heist.result.players.$c1.caught", false]},
+    {"eq": ["host.heist.result.players.$c1.slot", 1]},
     {"has": ["host.heist.result.players", "$c2"]},
+    {"eq": ["host.heist.result.players.$c2.left", false]},
+    {"eq": ["host.heist.result.players.$host.left", false]},
     {"same": ["host.heist.result.players", "c2.heist.result.players"]},
     {"eq": ["c2.host_lost", false]}
   ]

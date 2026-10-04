@@ -425,6 +425,9 @@ func _host_drop_peer(peer_id: int) -> void:
 	if not Net.is_host() or _peer_ids.has(peer_id):
 		return
 	_catchup.erase(peer_id)
+	# IS-099: a player leaving mid-job still shows in the job result (`left: true`).
+	if _heist != null and _players.has(peer_id):
+		_heist.note_left(peer_id, _players[peer_id] as Dictionary)
 	if _players.erase(peer_id):
 		_broadcast_players()
 	_despawn_player(peer_id)
@@ -928,6 +931,8 @@ static func _sanitize_name(value: Variant) -> String:
 #   `suspicion()`/`perception()`; cone + line of sight) breaks cover, and each observer that sees gives that player +60 suspicion (owner: customer-witness path `report_suspicion`).
 #   Broken cover goes to all as `session_event` &"cover_broken" {peer, reason} (HUD silent; local indicator `cover_state()`); wire layout unchanged. When police arrive a player with intact cover, no loot,
 #   not held and outside the zone is released (`witness_released`: no bail, recognised +1, team heat +2).
+# - IS-099 left player: a peer dropped mid-job (`_host_drop_peer`, before the roster erase) goes to `Tracker.note_left`; the result's `players` lists it with
+#   `left: true` and zero share/bail (economy unchanged); roster players carry `left: false`.
 # - US-042 strategy label: result `strategy` (Tracker.strategy) and dump `heist.strategy`; interaction count from every level Interactable's `completed` (player) + RESCUE; back door = a player used the `BackDoor` prop.
 # Dump (S6 "heist", --dump only): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s", "cover" {peer: bool}, "strategy"}.
 # =====================================================================================================================

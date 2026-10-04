@@ -110,6 +110,7 @@ Kök `Level` (`levels/level.gd`, `class_name Level extends Node2D`, build_levels
 - Kasa: `cash_after = cash_before + payout − bail − purchases`; `result.purchases` iş içi alışveriş toplamı; "Bir daha" kasayı sıfırlamaz (KR-029).
 - Döküm `heist.events_main` (örtü olayları hariç oturum olayları; senaryolar sıra denetimini bununla yapar), `heist.recognized` (tanınma: tanık sorgusu, vitrin sorgusu), `heist.strategy`.
 - İş sürerken mahalleli (chaser) yalnız örtüsü bozuk oyuncuyu kovalar; örtüsü sağlam olan seyircidir (US-043; Fable onayı bekliyor). İş yokken herkesi kovalar.
+- Oyuncu kaydı `left: bool` taşır (IS-099): iş ortasında kopan oyuncu `players`'ta `left: true`, pay/kefalet 0, yakalandı/kaçtı false (ekonomi değişmez); iş sonu ekranı yalnız "Ayrıldı" gösterir.
 - Oturum tohumu (IS-058b): `Game.session_seed() -> int` host'ta her seviye başında NPC'lerden önce seçilir: `--seed=N` → ilk iş N, döngüdeki sonraki işler N'den iş sırasıyla türetilir; otomasyonda (`--bot`/`--brain`/`--dump`/`--quit-after`/`-s`) 0; gerçek oyunda her iş rastgele ≠ 0. 0 = eski davranış birebir (`derive(oturum, taban, tuz)` tabanı döndürür); `agenda_seed_override` ≥ 0 önceliklidir. Çoğaltılmaz (istemcide 0); döküm `session_seed` yalnız host.
 - NPC teması (US-037, KR-027): host oturum olayı `npc_pushed` {peer, npc, calm} (`raise_session_event`; yeni RPC/senkron alanı yok); döküm `contact` (itme günlüğü: t, peer, npc, sakin/kızışmış, n, şüphe; peer başına `slid`).
 

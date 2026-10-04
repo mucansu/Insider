@@ -160,6 +160,21 @@ static func associates(marked_age_s: float, distance: float, observed: bool, win
 	return observed and marked_age_s >= 0.0 and marked_age_s <= window_s and distance <= radius
 
 
+## Result `players` record of a player who left mid-job (IS-099): `departed` = {"name", "slot"}; no share, no bail, not caught/escaped.
+static func left_entry(departed: Dictionary) -> Dictionary:
+	return {
+		"name": str(departed.get("name", "")),
+		"slot": int(departed.get("slot", 0)),
+		"escaped": false,
+		"caught": false,
+		"loot": 0,
+		"bail": 0,
+		"witness_released": false,
+		"recognized": 0,
+		"left": true,
+	}
+
+
 ## Witness questioning (US-042 AC2): whether a player left outside the zone when police arrive is released.
 static func witness_released(cover_intact: bool, loot: int, held: bool) -> bool:
 	return cover_intact and loot <= 0 and not held
@@ -440,6 +455,9 @@ class Tracker:
 	var purchases_paid: int = 0
 	## Extra recognition (US-044: player questioned by the owner at the door while staring at the window): peer -> count.
 	var recognized_extra: Dictionary = {}
+	## Players who left the session mid-job (IS-099): peer -> {"name", "slot"} (roster entry at the moment they left).
+	## They appear in the result's `players` with `left: true`; economy is unchanged (no share, no bail).
+	var departed: Dictionary = {}
 
 	func set_alert(level: int) -> void:
 		max_alert = maxi(max_alert, level)
@@ -532,6 +550,12 @@ class Tracker:
 	func is_released(peer: int) -> bool:
 		return released.has(peer)
 
+	## A player left the session mid-job (IS-099); `entry` = their roster entry {"name", "slot"}. Ignored once the job is finished.
+	func note_left(peer: int, entry: Dictionary) -> void:
+		if finished or peer <= 0:
+			return
+		departed[peer] = {"name": str(entry.get("name", "")), "slot": int(entry.get("slot", 0))}
+
 	## Police arrived: every uncaught player outside the escape zone is caught (held included); one with intact cover, no loot
 	## and not held is released by witness questioning (US-042 AC2).
 	func arrive_police(views: Dictionary) -> void:
@@ -598,6 +622,8 @@ class Tracker:
 		return total
 
 	## Result dict (S3 addendum): `roster` = Game.players() (peer -> {"name", "slot"}). `bail_each`: bail per caught player (KR-029);
+	## `players[str(peer)]` = {"name", "slot", "escaped", "caught", "loot", "bail", "witness_released", "recognized", "left"};
+	## `left` is true only for a player who left mid-job (IS-099, see `left_entry`), false for everyone in the roster.
 	## `cash_before`: team cash before the job (excluding raw register cash that entered instantly).
 	func build_result(decision: StringName, views: Dictionary, roster: Dictionary, bail_each: int = 0,
 			cash_before: int = 0) -> Dictionary:
@@ -633,7 +659,15 @@ class Tracker:
 				"bail": bail,
 				"witness_released": witness,
 				"recognized": (1 if witness else 0) + int(recognized_extra.get(id, 0)),
+				"left": false,
 			}
+		# IS-099: players who left mid-job are listed with `left: true` and zero share/bail (economy as before: they are not
+		# in the roster, so they never counted toward loot, bail, notes or strategy).
+		for key: Variant in departed:
+			var id: int = int(key)
+			if players.has(str(id)):
+				continue
+			players[str(id)] = HeistRules.left_entry(departed[key])
 		var pct: int = HeistRules.ratio_pct(outcome, shouted())
 		var caught_now: Dictionary = {}
 		for id: Variant in state:
