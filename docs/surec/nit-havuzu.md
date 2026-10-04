@@ -47,3 +47,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-104 (oynanis) | tests/net/discovery_cash.json | Pencere payı dar (~0,6 / ~1 sn; istemci ~2,7 sn geç katılıyor) — yük altında oynaklık riski; gerekirse oyalayıcı telefon da bırakır |
 | 2026-10-04 | IS-015 (koordinatör) | tests/net | 150 ms 20 dk beyin döngüsü dayanıklılık koşusu yapılmadı (IS-015 AC kalıntısı) |
 | 2026-10-04 | IS-095 (cekirdek) | tests/net/*.json | Süreçler arası `near` kalıbı: döküm hareket halinde alınabilir; net_smoke'a 'hareketli döküm' uyarısı adayı (faz1_full, move_sync, store_move payı ~1,9-2,2 sn) |
+| 2026-10-04 | IS-102 (cekirdek) | autoload/game.gd | --log-on-exit: aynı süreçte ikinci oturum ilk oturumun `session_end` günlüğünün üstüne yazar (test-2'de genelde tek oturum; gerekirse dosya adına oturum sırası) |
+| 2026-10-04 | IS-102 (cekirdek) | autoload/args.gd | Dışa aktarımda göreli yolun exe yanına çözülmesi pakette denenmedi — test-2 paket dumanında kontrol |
+| 2026-10-04 | IS-102 (cekirdek) | entities/** | Döküm sağlayıcıları `Args.dump_path` boşluğuna bakıyor; `Args.dump_enabled()` gibi tek fonksiyona geçiş (oynanis) |

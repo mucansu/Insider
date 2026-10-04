@@ -9,9 +9,9 @@ Deneme paketi (test-2 için): `build/Insiders-faz2-a01ac86-windows.zip` (debug, 
 Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kasa kontrolü, sent 7/listen 6, GÖNDER +20), IS-101 (bot takım sırası, bag, +human), IS-081 (sahip olay günlüğü `owner.log[]`, geç yakalanma hatası), IS-103 (kaçış 3 sn geri sayımı "Minibüs kalkıyor"), IS-104 (arka kapı zili), IS-015 (ölçüm: `docs/surec/olcum/`), heist_stats `.gdignore`, bot `wait` adımı, level_change kararlılığı. Kararlar: KR-034 (denge ilkesi test-2 sonrası; geri sayım + zil), KR-035 (bilgi bölünmesi / zorunlu ekip iletişimi tasarım hedefi).
 
 ## Sürüyor / yarım kalan
+- Biten: **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
 - **US-045** — Fable danışması bitti → KR-038 (rapor `docs/tasarim/danisma/us-045-store-b.md`). Uygulama oynanis'e IS-106 birleşince (ürünler, damacana, örtü A, metinler; ShopItem1/2 işaretleri store_a'ya).
 - **IS-107** — seviye, ajan worktree'si, aşama 1 (store_b.txt/.tscn + props + kısa net senaryosu + ekran görüntüsü). Aşama 2 (store_b ayar ezmeleri + bot/heist_stats) IS-106 sonrası.
-- **IS-102** — cekirdek, ajan worktree'si (`level_started {run}` + restart'ta olay geçmişi korunur + `--log-on-exit`).
 - **IS-106** — oynanis, ajan worktree'si (denetim tablosu, harita başına alan bazlı ayar ezme, bot işaret tabanlı, store_a ayna fikstürüyle kanıt).
 - Sırada: US-045 uygulama, IS-107 aşama 2, sonra yeni test-2 paketi (tam ci_local + duman).
 

@@ -41,7 +41,7 @@ Seeds: no session seed yet (IS-058); use `owner_tuning.agenda_seed`, `population
 
 ## What the dump contains
 Base: `peer_id is_host peers players team_cash level player_nodes events host_lost ping_ms ping alert vision`.
-Providers (registered only when `--dump` is given): `heist`, `owner`, `population`, `chasers`, `player_states`, `interaction`, `noise`, `props`. New field: `Game.register_dump_provider(KEY, callable)` (base keys cannot be overridden).
+Providers (registered only when `--dump` or `--log-on-exit` is given): `heist`, `owner`, `population`, `chasers`, `player_states`, `interaction`, `noise`, `props`. New field: `Game.register_dump_provider(KEY, callable)` (base keys cannot be overridden). IS-102: host `events` starts with a host-local `level_started {run, level, seed}` marker per level start (clients lack it) - compare peers with `all_equal "heist.events_shared"`, not `events`.
 
 ## Run
 ```bash
