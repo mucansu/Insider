@@ -10,7 +10,7 @@
     "c1": "res://tests/net/bots/events_c1.json"
   },
   "expect": [
-    {"eq": ["*.team_cash", 150]},
+    {"eq": ["*.team_cash", 200]},
     {"all_equal": "team_cash"},
     {"len": ["host.events", 3]},
     {"eq": ["host.events.0.kind", "level_started"]},

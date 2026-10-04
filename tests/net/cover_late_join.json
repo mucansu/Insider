@@ -1,0 +1,21 @@
+{
+  "_doc": "US-045 (GB-08 seçenek A + witness.json kararsızlığının kökü): store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn). host ön kapıdan girip sahibin konisinde kısa koşar → örtüsü bozulur (gören: Owner, neden `run`; olay verisinde `by`). c1 bundan SONRA (host hazır + 10 sn) katılır: eskiden geç katılan, katılmadan önceki `cover_broken` olayını hiç almadığı için host'un örtüsünü sağlam görüyordu (witness.json 150 ms'de ara sıra FAIL: c1 yükü/katılması gecikince olay katılmadan önceye düşüyordu). Düzeltme: host, işe sonradan kabul edilen peer'a bozulmuş örtüleri yeniden gönderir (Game `_heist_replay_cover`). Örtü durumu, nedeni ve gören iki peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 16,
+  "start_delay": {"c1": 10.0},
+  "bots": {
+    "host": "res://tests/net/bots/cover_late_join_host.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.cover.$host", false]},
+    {"eq": ["*.heist.cover.$c1", true]},
+    {"all_equal": "heist.cover"},
+    {"eq": ["*.heist.cover_reason.$host", "run"]},
+    {"eq": ["*.heist.seen_by.$host", "Owner"]},
+    {"all_equal": "heist.seen_by"}
+  ]
+}

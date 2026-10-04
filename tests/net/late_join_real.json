@@ -17,7 +17,7 @@
     {"all_equal": "player_nodes"},
     {"has": ["c2.player_nodes", "$c1"]},
     {"has": ["c2.player_nodes", 1]},
-    {"eq": ["*.team_cash", 150]},
+    {"eq": ["*.team_cash", 200]},
     {"all_equal": "team_cash"},
     {"eq": ["*.props.Register.emptied", true]},
     {"eq": ["*.props.FrontDoor.open", false]},

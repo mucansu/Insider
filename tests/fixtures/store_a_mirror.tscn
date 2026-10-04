@@ -119,161 +119,161 @@ vertices = PackedVector2Array(916, 44, 916, 84, 298, 84, 298, 54, 44, 44, 246, 5
 polygons = Array[PackedInt32Array]([PackedInt32Array(0, 1, 2, 3), PackedInt32Array(4, 0, 3, 5), PackedInt32Array(5, 6, 7, 4), PackedInt32Array(8, 4, 7, 9), PackedInt32Array(10, 8, 9, 11), PackedInt32Array(12, 13, 14, 15), PackedInt32Array(13, 12, 16), PackedInt32Array(17, 13, 16), PackedInt32Array(13, 17, 18), PackedInt32Array(19, 20, 21, 22, 13), PackedInt32Array(19, 13, 18, 23), PackedInt32Array(23, 18, 24), PackedInt32Array(25, 17, 16, 26), PackedInt32Array(14, 27, 28, 29), PackedInt32Array(30, 31, 14, 29, 32), PackedInt32Array(29, 33, 34, 35), PackedInt32Array(32, 36, 37), PackedInt32Array(37, 38, 39, 40), PackedInt32Array(41, 42, 43, 44), PackedInt32Array(41, 44, 23, 39), PackedInt32Array(39, 23, 24, 25), PackedInt32Array(39, 25, 26), PackedInt32Array(39, 26, 40), PackedInt32Array(32, 37, 40, 45), PackedInt32Array(29, 35, 32), PackedInt32Array(45, 30, 32), PackedInt32Array(45, 40, 12, 15), PackedInt32Array(15, 14, 31), PackedInt32Array(46, 47, 48, 49), PackedInt32Array(49, 48, 50, 51), PackedInt32Array(51, 50, 52, 53), PackedInt32Array(54, 47, 46, 53), PackedInt32Array(54, 53, 52), PackedInt32Array(55, 54, 52), PackedInt32Array(55, 52, 56, 57)])
 agent_radius = 12.0
 
-[node name="StoreAMirror" type="Node2D" unique_id=1618389558]
+[node name="StoreAMirror" type="Node2D" unique_id=2061417007]
 script = ExtResource("1_4r7kp")
 
-[node name="Tiles" type="Node2D" parent="." unique_id=271611116]
+[node name="Tiles" type="Node2D" parent="." unique_id=629168103]
 script = ExtResource("2_xbale")
 rows = PackedStringArray("%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%", "%____,,,,,,,,,,,,,,,,,,,,,,,,%", "%____,,,G,,,,,,,,,,,,,,,,,,,,%", "%____,,##+###################%", "%____,,#:::::::#..SSSSSSSS..#%", "%____,,#:::::::#I...........#%", "%____,,#:G::SS:#I...SSSSSS.S#%", "%____,,#::::SS:#I..........S#%", "%____,,###+#####....SSSSSS.S#%", "%____,,#....T..............S#%", "%____,,w....T.......SSSSSS.S#%", "%____,,w....T..............S#%", "%____,,#....................#%", "%____,,#....................#%", "%____,,######wwww#+#wwwwwww##%", "%____,,,,,,,,,,,,,,,,,,,,,,,,%", "%____,,,,,,,,,,,,,,,,,,,,,,,,%", "%____________________________%", "%____________________________%", "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
-[node name="Walls" type="StaticBody2D" parent="." unique_id=1903316608]
+[node name="Walls" type="StaticBody2D" parent="." unique_id=1230592258]
 collision_mask = 0
 
-[node name="Bound1" type="CollisionShape2D" parent="Walls" unique_id=433997280]
+[node name="Bound1" type="CollisionShape2D" parent="Walls" unique_id=215916365]
 position = Vector2(480, 16)
 shape = SubResource("Bound_1")
 
-[node name="Bound2" type="CollisionShape2D" parent="Walls" unique_id=2026734828]
+[node name="Bound2" type="CollisionShape2D" parent="Walls" unique_id=1558466264]
 position = Vector2(16, 336)
 shape = SubResource("Bound_2")
 
-[node name="Bound3" type="CollisionShape2D" parent="Walls" unique_id=1056248219]
+[node name="Bound3" type="CollisionShape2D" parent="Walls" unique_id=574994997]
 position = Vector2(944, 336)
 shape = SubResource("Bound_3")
 
-[node name="Bound4" type="CollisionShape2D" parent="Walls" unique_id=1254657573]
+[node name="Bound4" type="CollisionShape2D" parent="Walls" unique_id=984845828]
 position = Vector2(480, 624)
 shape = SubResource("Bound_4")
 
-[node name="Wall1" type="CollisionShape2D" parent="Walls" unique_id=697022431]
+[node name="Wall1" type="CollisionShape2D" parent="Walls" unique_id=71539308]
 position = Vector2(256, 112)
 shape = SubResource("Wall_1")
 
-[node name="Wall2" type="CollisionShape2D" parent="Walls" unique_id=294219732]
+[node name="Wall2" type="CollisionShape2D" parent="Walls" unique_id=1770137903]
 position = Vector2(624, 112)
 shape = SubResource("Wall_2")
 
-[node name="Wall3" type="CollisionShape2D" parent="Walls" unique_id=1021696977]
+[node name="Wall3" type="CollisionShape2D" parent="Walls" unique_id=252787898]
 position = Vector2(240, 224)
 shape = SubResource("Wall_3")
 
-[node name="Wall4" type="CollisionShape2D" parent="Walls" unique_id=506407492]
+[node name="Wall4" type="CollisionShape2D" parent="Walls" unique_id=112448278]
 position = Vector2(496, 208)
 shape = SubResource("Wall_4")
 
-[node name="Wall5" type="CollisionShape2D" parent="Walls" unique_id=1701374262]
+[node name="Wall5" type="CollisionShape2D" parent="Walls" unique_id=869957166]
 position = Vector2(912, 304)
 shape = SubResource("Wall_5")
 
-[node name="Wall6" type="CollisionShape2D" parent="Walls" unique_id=689383632]
+[node name="Wall6" type="CollisionShape2D" parent="Walls" unique_id=586423588]
 position = Vector2(288, 272)
 shape = SubResource("Wall_6")
 
-[node name="Wall7" type="CollisionShape2D" parent="Walls" unique_id=1856681716]
+[node name="Wall7" type="CollisionShape2D" parent="Walls" unique_id=1267872349]
 position = Vector2(416, 272)
 shape = SubResource("Wall_7")
 
-[node name="Wall8" type="CollisionShape2D" parent="Walls" unique_id=149119792]
+[node name="Wall8" type="CollisionShape2D" parent="Walls" unique_id=2068332386]
 position = Vector2(240, 432)
 shape = SubResource("Wall_8")
 
-[node name="Wall9" type="CollisionShape2D" parent="Walls" unique_id=318100235]
+[node name="Wall9" type="CollisionShape2D" parent="Walls" unique_id=1327666563]
 position = Vector2(336, 464)
 shape = SubResource("Wall_9")
 
-[node name="Wall10" type="CollisionShape2D" parent="Walls" unique_id=1538527088]
+[node name="Wall10" type="CollisionShape2D" parent="Walls" unique_id=1938403693]
 position = Vector2(560, 464)
 shape = SubResource("Wall_10")
 
-[node name="Wall11" type="CollisionShape2D" parent="Walls" unique_id=314414559]
+[node name="Wall11" type="CollisionShape2D" parent="Walls" unique_id=268040285]
 position = Vector2(624, 464)
 shape = SubResource("Wall_11")
 
-[node name="Wall12" type="CollisionShape2D" parent="Walls" unique_id=1860756720]
+[node name="Wall12" type="CollisionShape2D" parent="Walls" unique_id=859184182]
 position = Vector2(880, 464)
 shape = SubResource("Wall_12")
 
-[node name="Window1" type="StaticBody2D" parent="Walls" unique_id=788698173 groups=["see_through"]]
+[node name="Window1" type="StaticBody2D" parent="Walls" unique_id=36550505 groups=["see_through"]]
 position = Vector2(240, 352)
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="Walls/Window1" unique_id=1336910700]
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window1" unique_id=278518495]
 shape = SubResource("Window_1")
 
-[node name="Window2" type="StaticBody2D" parent="Walls" unique_id=721013695 groups=["see_through"]]
+[node name="Window2" type="StaticBody2D" parent="Walls" unique_id=1493856067 groups=["see_through"]]
 position = Vector2(480, 464)
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="Walls/Window2" unique_id=543238714]
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window2" unique_id=1404989458]
 shape = SubResource("Window_2")
 
-[node name="Window3" type="StaticBody2D" parent="Walls" unique_id=752151355 groups=["see_through"]]
+[node name="Window3" type="StaticBody2D" parent="Walls" unique_id=1544579498 groups=["see_through"]]
 position = Vector2(752, 464)
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="Walls/Window3" unique_id=1341027748]
+[node name="Shape" type="CollisionShape2D" parent="Walls/Window3" unique_id=1874817543]
 shape = SubResource("Window_3")
 
-[node name="Shelf1" type="CollisionShape2D" parent="Walls" unique_id=1977119350]
+[node name="Shelf1" type="CollisionShape2D" parent="Walls" unique_id=823904895]
 position = Vector2(704, 144)
 shape = SubResource("Shelf_1")
 
-[node name="Shelf2" type="CollisionShape2D" parent="Walls" unique_id=385320134]
+[node name="Shelf2" type="CollisionShape2D" parent="Walls" unique_id=1899925553]
 position = Vector2(416, 224)
 shape = SubResource("Shelf_2")
 
-[node name="Shelf3" type="CollisionShape2D" parent="Walls" unique_id=1978768862]
+[node name="Shelf3" type="CollisionShape2D" parent="Walls" unique_id=1967642965]
 position = Vector2(736, 208)
 shape = SubResource("Shelf_3")
 
-[node name="Shelf4" type="CollisionShape2D" parent="Walls" unique_id=601543144]
+[node name="Shelf4" type="CollisionShape2D" parent="Walls" unique_id=426145643]
 position = Vector2(880, 288)
 shape = SubResource("Shelf_4")
 
-[node name="Shelf5" type="CollisionShape2D" parent="Walls" unique_id=1463951598]
+[node name="Shelf5" type="CollisionShape2D" parent="Walls" unique_id=1633584431]
 position = Vector2(736, 272)
 shape = SubResource("Shelf_5")
 
-[node name="Shelf6" type="CollisionShape2D" parent="Walls" unique_id=367976877]
+[node name="Shelf6" type="CollisionShape2D" parent="Walls" unique_id=17608506]
 position = Vector2(736, 336)
 shape = SubResource("Shelf_6")
 
-[node name="Counter1" type="StaticBody2D" parent="Walls" unique_id=919500494 groups=["low_obstacle"]]
+[node name="Counter1" type="StaticBody2D" parent="Walls" unique_id=389156722 groups=["low_obstacle"]]
 position = Vector2(400, 336)
 collision_mask = 0
 
-[node name="Shape" type="CollisionShape2D" parent="Walls/Counter1" unique_id=52569918]
+[node name="Shape" type="CollisionShape2D" parent="Walls/Counter1" unique_id=1253713027]
 shape = SubResource("Counter_1")
 
-[node name="Cooler1" type="CollisionShape2D" parent="Walls" unique_id=1480288298]
+[node name="Cooler1" type="CollisionShape2D" parent="Walls" unique_id=746842337]
 position = Vector2(528, 208)
 shape = SubResource("Cooler_1")
 
-[node name="Crate1" type="CollisionShape2D" parent="Walls" unique_id=1199956645]
+[node name="Crate1" type="CollisionShape2D" parent="Walls" unique_id=1017055859]
 position = Vector2(272, 80)
 shape = SubResource("Crate_1")
 
-[node name="Crate2" type="CollisionShape2D" parent="Walls" unique_id=992582861]
+[node name="Crate2" type="CollisionShape2D" parent="Walls" unique_id=2023377215]
 position = Vector2(304, 208)
 shape = SubResource("Crate_2")
 
-[node name="SpawnPoints" type="Node2D" parent="." unique_id=1024807145]
+[node name="SpawnPoints" type="Node2D" parent="." unique_id=588217107]
 
-[node name="Spawn1" type="Marker2D" parent="SpawnPoints" unique_id=697624663]
+[node name="Spawn1" type="Marker2D" parent="SpawnPoints" unique_id=605626732]
 position = Vector2(848, 528)
 
-[node name="Spawn2" type="Marker2D" parent="SpawnPoints" unique_id=695068693]
+[node name="Spawn2" type="Marker2D" parent="SpawnPoints" unique_id=1144710691]
 position = Vector2(816, 528)
 
-[node name="Spawn3" type="Marker2D" parent="SpawnPoints" unique_id=362355849]
+[node name="Spawn3" type="Marker2D" parent="SpawnPoints" unique_id=841543373]
 position = Vector2(784, 528)
 
-[node name="Spawn4" type="Marker2D" parent="SpawnPoints" unique_id=861037238]
+[node name="Spawn4" type="Marker2D" parent="SpawnPoints" unique_id=126064154]
 position = Vector2(752, 528)
 
-[node name="Players" type="Node2D" parent="." unique_id=442024849]
+[node name="Players" type="Node2D" parent="." unique_id=587981748]
 
-[node name="Props" type="Node2D" parent="." unique_id=5552332]
+[node name="Props" type="Node2D" parent="." unique_id=2140557363]
 
 [node name="Register" parent="Props" unique_id=930580291 instance=ExtResource("2_hxv87")]
 position = Vector2(400, 368)
@@ -282,208 +282,214 @@ position = Vector2(400, 368)
 position = Vector2(592, 464)
 is_open = true
 
-[node name="BackDoor" parent="Props" unique_id=1115991963 instance=ExtResource("5_r48fw")]
+[node name="BackDoor" parent="Props" unique_id=510462597 instance=ExtResource("5_r48fw")]
 position = Vector2(304, 112)
 
-[node name="BackroomDoor" parent="Props" unique_id=1621134079 instance=ExtResource("5_r48fw")]
+[node name="BackroomDoor" parent="Props" unique_id=2085646539 instance=ExtResource("5_r48fw")]
 position = Vector2(336, 272)
 
-[node name="Bag" parent="Props" unique_id=1467959723 instance=ExtResource("8_p14qg")]
+[node name="Bag" parent="Props" unique_id=83611945 instance=ExtResource("8_p14qg")]
 position = Vector2(464, 240)
 
-[node name="Counter" parent="Props" unique_id=2080059324 instance=ExtResource("11_8l8ml")]
+[node name="Counter" parent="Props" unique_id=1287182936 instance=ExtResource("11_8l8ml")]
 position = Vector2(400, 336)
 
-[node name="ShelfProp1" parent="Props" unique_id=1586581214 instance=ExtResource("16_6gjut")]
+[node name="ShelfProp1" parent="Props" unique_id=1779511028 instance=ExtResource("16_6gjut")]
 position = Vector2(624, 208)
 
-[node name="ShelfProp2" parent="Props" unique_id=329429999 instance=ExtResource("16_6gjut")]
+[node name="ShelfProp2" parent="Props" unique_id=221633450 instance=ExtResource("16_6gjut")]
 position = Vector2(624, 272)
 
-[node name="ShelfProp3" parent="Props" unique_id=1746215030 instance=ExtResource("16_6gjut")]
+[node name="ShelfProp3" parent="Props" unique_id=1858875872 instance=ExtResource("16_6gjut")]
 position = Vector2(624, 336)
 
-[node name="NPCs" type="Node2D" parent="." unique_id=388219981]
+[node name="NPCs" type="Node2D" parent="." unique_id=523602131]
 
-[node name="Owner" parent="NPCs" unique_id=552515994 instance=ExtResource("20_wtb6r")]
+[node name="Owner" parent="NPCs" unique_id=1525732676 instance=ExtResource("20_wtb6r")]
 position = Vector2(368, 368)
 
-[node name="ChaserSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=1841830300]
+[node name="ChaserSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=276024253]
 spawn_path = NodePath("..")
 
-[node name="StoreAlert" type="Node" parent="NPCs" unique_id=1051310543]
+[node name="StoreAlert" type="Node" parent="NPCs" unique_id=992175311]
 script = ExtResource("24_tnpiq")
 
-[node name="PopulationSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=1240720476]
+[node name="PopulationSpawner" type="MultiplayerSpawner" parent="NPCs" unique_id=215159980]
 spawn_path = NodePath("..")
 
-[node name="Population" type="Node" parent="NPCs" unique_id=1975659457]
+[node name="Population" type="Node" parent="NPCs" unique_id=1255373552]
 script = ExtResource("25_8gfnq")
 
-[node name="Markers" type="Node2D" parent="." unique_id=1571408253]
+[node name="Markers" type="Node2D" parent="." unique_id=1504484660]
 
-[node name="FrontDoor" type="Marker2D" parent="Markers" unique_id=2114960267]
+[node name="FrontDoor" type="Marker2D" parent="Markers" unique_id=983543754]
 position = Vector2(592, 464)
 
-[node name="BackDoor" type="Marker2D" parent="Markers" unique_id=883660586]
+[node name="BackDoor" type="Marker2D" parent="Markers" unique_id=1464145084]
 position = Vector2(304, 112)
 
-[node name="BackroomDoor" type="Marker2D" parent="Markers" unique_id=687075155]
+[node name="BackroomDoor" type="Marker2D" parent="Markers" unique_id=456160685]
 position = Vector2(336, 272)
 
-[node name="Register" type="Marker2D" parent="Markers" unique_id=617014777]
+[node name="Register" type="Marker2D" parent="Markers" unique_id=1757469085]
 position = Vector2(400, 368)
 
-[node name="Counter" type="Marker2D" parent="Markers" unique_id=1487196140]
+[node name="Counter" type="Marker2D" parent="Markers" unique_id=1228895230]
 position = Vector2(400, 336)
 
-[node name="ClerkSpot" type="Marker2D" parent="Markers" unique_id=108833291]
+[node name="ClerkSpot" type="Marker2D" parent="Markers" unique_id=1042712729]
 position = Vector2(368, 368)
 
-[node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=256795224]
+[node name="BackroomSafe" type="Marker2D" parent="Markers" unique_id=1692135945]
 position = Vector2(464, 144)
 
-[node name="BackroomCash" type="Marker2D" parent="Markers" unique_id=187012380]
+[node name="BackroomCash" type="Marker2D" parent="Markers" unique_id=1546676786]
 position = Vector2(464, 240)
 
-[node name="Exit" type="Marker2D" parent="Markers" unique_id=41822013]
+[node name="Exit" type="Marker2D" parent="Markers" unique_id=1715021419]
 position = Vector2(80, 592)
 
-[node name="StreetRoute1" type="Marker2D" parent="Markers" unique_id=287042204]
+[node name="StreetRoute1" type="Marker2D" parent="Markers" unique_id=1600139647]
 position = Vector2(848, 496)
 
-[node name="StreetRoute2" type="Marker2D" parent="Markers" unique_id=2032207146]
+[node name="StreetRoute2" type="Marker2D" parent="Markers" unique_id=1383200452]
 position = Vector2(624, 496)
 
-[node name="StreetRoute3" type="Marker2D" parent="Markers" unique_id=972595371]
+[node name="StreetRoute3" type="Marker2D" parent="Markers" unique_id=2008152092]
 position = Vector2(208, 496)
 
-[node name="StreetRoute4" type="Marker2D" parent="Markers" unique_id=1652690371]
+[node name="StreetRoute4" type="Marker2D" parent="Markers" unique_id=2081098940]
 position = Vector2(208, 336)
 
-[node name="StreetRoute5" type="Marker2D" parent="Markers" unique_id=668111049]
+[node name="StreetRoute5" type="Marker2D" parent="Markers" unique_id=727401466]
 position = Vector2(208, 80)
 
-[node name="StreetRoute6" type="Marker2D" parent="Markers" unique_id=247507263]
+[node name="StreetRoute6" type="Marker2D" parent="Markers" unique_id=1067275227]
 position = Vector2(304, 48)
 
-[node name="NeighbourSpawn" type="Marker2D" parent="Markers" unique_id=1166050171]
+[node name="NeighbourSpawn" type="Marker2D" parent="Markers" unique_id=24141752]
 position = Vector2(176, 272)
 
-[node name="WindowLook1" type="Marker2D" parent="Markers" unique_id=1110709328]
+[node name="WindowLook1" type="Marker2D" parent="Markers" unique_id=540466847]
 position = Vector2(752, 496)
 
-[node name="WindowLook2" type="Marker2D" parent="Markers" unique_id=555129400]
+[node name="WindowLook2" type="Marker2D" parent="Markers" unique_id=1590153150]
 position = Vector2(496, 496)
 
-[node name="WindowLook3" type="Marker2D" parent="Markers" unique_id=317481926]
+[node name="WindowLook3" type="Marker2D" parent="Markers" unique_id=1755297020]
 position = Vector2(208, 368)
 
-[node name="ShopSpot1" type="Marker2D" parent="Markers" unique_id=786104323]
+[node name="ShopSpot1" type="Marker2D" parent="Markers" unique_id=1475629839]
 position = Vector2(720, 176)
 
-[node name="ShopSpot2" type="Marker2D" parent="Markers" unique_id=163926538]
+[node name="ShopSpot2" type="Marker2D" parent="Markers" unique_id=1611705179]
 position = Vector2(624, 240)
 
-[node name="ShopSpot3" type="Marker2D" parent="Markers" unique_id=1760207948]
+[node name="ShopSpot3" type="Marker2D" parent="Markers" unique_id=1577841535]
 position = Vector2(720, 304)
 
-[node name="ShopSpot4" type="Marker2D" parent="Markers" unique_id=1549337192]
+[node name="ShopSpot4" type="Marker2D" parent="Markers" unique_id=1174348455]
 position = Vector2(624, 368)
 
-[node name="ShopSpot5" type="Marker2D" parent="Markers" unique_id=703539814]
+[node name="ShopSpot5" type="Marker2D" parent="Markers" unique_id=1085131550]
 position = Vector2(848, 368)
 
-[node name="QueueSpot1" type="Marker2D" parent="Markers" unique_id=440489831]
+[node name="QueueSpot1" type="Marker2D" parent="Markers" unique_id=298515902]
 position = Vector2(432, 368)
 
-[node name="QueueSpot2" type="Marker2D" parent="Markers" unique_id=453811879]
+[node name="QueueSpot2" type="Marker2D" parent="Markers" unique_id=913590982]
 position = Vector2(432, 336)
 
-[node name="RestockSpot1" type="Marker2D" parent="Markers" unique_id=473080213]
+[node name="RestockSpot1" type="Marker2D" parent="Markers" unique_id=2015478858]
 position = Vector2(816, 176)
 
-[node name="RestockSpot2" type="Marker2D" parent="Markers" unique_id=1049616984]
+[node name="RestockSpot2" type="Marker2D" parent="Markers" unique_id=789909141]
 position = Vector2(816, 240)
 
-[node name="RestockSpot3" type="Marker2D" parent="Markers" unique_id=519371727]
+[node name="RestockSpot3" type="Marker2D" parent="Markers" unique_id=610008244]
 position = Vector2(816, 304)
 
-[node name="PhoneSpot" type="Marker2D" parent="Markers" unique_id=410796633]
+[node name="PhoneSpot" type="Marker2D" parent="Markers" unique_id=1187868372]
 position = Vector2(272, 400)
 
-[node name="BackroomSpot" type="Marker2D" parent="Markers" unique_id=1869448078]
+[node name="BackroomSpot" type="Marker2D" parent="Markers" unique_id=1410620090]
 position = Vector2(368, 176)
 
-[node name="ShelfProp1" type="Marker2D" parent="Markers" unique_id=1568914145]
+[node name="ShelfProp1" type="Marker2D" parent="Markers" unique_id=1244543011]
 position = Vector2(624, 208)
 
-[node name="ShelfProp2" type="Marker2D" parent="Markers" unique_id=116233710]
+[node name="ShelfProp2" type="Marker2D" parent="Markers" unique_id=1630107856]
 position = Vector2(624, 272)
 
-[node name="ShelfProp3" type="Marker2D" parent="Markers" unique_id=2058134020]
+[node name="ShelfProp3" type="Marker2D" parent="Markers" unique_id=2020033126]
 position = Vector2(624, 336)
 
-[node name="Zones" type="Node2D" parent="." unique_id=1222706354]
+[node name="ShopItem1" type="Marker2D" parent="Markers" unique_id=174897776]
+position = Vector2(656, 368)
 
-[node name="EscapeZone" type="Area2D" parent="Zones" unique_id=1573016666]
+[node name="ShopItem2" type="Marker2D" parent="Markers" unique_id=1065042480]
+position = Vector2(560, 176)
+
+[node name="Zones" type="Node2D" parent="." unique_id=738863979]
+
+[node name="EscapeZone" type="Area2D" parent="Zones" unique_id=1587290040]
 position = Vector2(96, 576)
 collision_layer = 16
 collision_mask = 2
 monitorable = false
 
-[node name="Shape" type="CollisionShape2D" parent="Zones/EscapeZone" unique_id=2089826180]
+[node name="Shape" type="CollisionShape2D" parent="Zones/EscapeZone" unique_id=2010994259]
 shape = SubResource("Zone_EscapeZone")
 
-[node name="CustomerArea" type="Area2D" parent="Zones" unique_id=1066642771]
+[node name="CustomerArea" type="Area2D" parent="Zones" unique_id=1690247309]
 position = Vector2(656, 288)
 collision_layer = 16
 collision_mask = 2
 monitorable = false
 
-[node name="Shape" type="CollisionShape2D" parent="Zones/CustomerArea" unique_id=1477970157]
+[node name="Shape" type="CollisionShape2D" parent="Zones/CustomerArea" unique_id=728621241]
 position = Vector2(48, 0)
 shape = SubResource("Zone_CustomerArea")
 
-[node name="Shape2" type="CollisionShape2D" parent="Zones/CustomerArea" unique_id=1095924079]
+[node name="Shape2" type="CollisionShape2D" parent="Zones/CustomerArea" unique_id=1521750682]
 position = Vector2(-192, 80)
 shape = SubResource("Zone_CustomerArea_2")
 
-[node name="StaffArea" type="Area2D" parent="Zones" unique_id=927676202]
+[node name="StaffArea" type="Area2D" parent="Zones" unique_id=2107094152]
 position = Vector2(336, 368)
 collision_layer = 16
 collision_mask = 2
 monitorable = false
 
-[node name="Shape" type="CollisionShape2D" parent="Zones/StaffArea" unique_id=475417239]
+[node name="Shape" type="CollisionShape2D" parent="Zones/StaffArea" unique_id=291718540]
 shape = SubResource("Zone_StaffArea")
 
-[node name="Backroom" type="Area2D" parent="Zones" unique_id=610190938]
+[node name="Backroom" type="Area2D" parent="Zones" unique_id=1953820173]
 position = Vector2(368, 192)
 collision_layer = 16
 collision_mask = 2
 monitorable = false
 
-[node name="Shape" type="CollisionShape2D" parent="Zones/Backroom" unique_id=596054266]
+[node name="Shape" type="CollisionShape2D" parent="Zones/Backroom" unique_id=318109310]
 shape = SubResource("Zone_Backroom")
 
-[node name="Navigation" type="NavigationRegion2D" parent="." unique_id=1597174067]
+[node name="Navigation" type="NavigationRegion2D" parent="." unique_id=876121839]
 navigation_polygon = SubResource("Navigation_poly")
 
-[node name="FrontDoor" type="NavigationLink2D" parent="Navigation" unique_id=790039177]
+[node name="FrontDoor" type="NavigationLink2D" parent="Navigation" unique_id=1416367031]
 position = Vector2(592, 464)
 start_position = Vector2(0, -32)
 end_position = Vector2(0, 32)
 
-[node name="BackDoor" type="NavigationLink2D" parent="Navigation" unique_id=643171116]
+[node name="BackDoor" type="NavigationLink2D" parent="Navigation" unique_id=1107106419]
 position = Vector2(304, 112)
 start_position = Vector2(0, -32)
 end_position = Vector2(0, 32)
 
-[node name="BackroomDoor" type="NavigationLink2D" parent="Navigation" unique_id=801677546]
+[node name="BackroomDoor" type="NavigationLink2D" parent="Navigation" unique_id=749993041]
 position = Vector2(336, 272)
 start_position = Vector2(0, -32)
 end_position = Vector2(0, 32)
 
-[node name="EscapeMarker" type="Node2D" parent="." unique_id=2116909741]
+[node name="EscapeMarker" type="Node2D" parent="." unique_id=1864249772]
 script = ExtResource("26_gy0ec")

@@ -124,6 +124,11 @@ func shop_owner() -> Node:
 	return null
 
 
+## Host (US-045, GB-08 A cover witness; Game duck types it): whether the neighbour sees `pos` now (sight range + line of sight).
+func sees_point(pos: Vector2) -> bool:
+	return global_position.distance_to(pos) <= tuning.sight_range and _perception.has_line_of_sight(global_position, pos)
+
+
 ## Whether the player's cover is intact (from the owner's senses; false if no owner: everyone is chased).
 func _cover_intact(peer_id: int) -> bool:
 	var o: Node = shop_owner()

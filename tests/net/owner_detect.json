@@ -31,7 +31,7 @@
     {"eq": ["*.player_states.$c1.status", 1]},
     {"eq": ["*.player_states.$c2.status", 0]},
     {"eq": ["*.chasers.spawned", 0]},
-    {"eq": ["*.team_cash", 0]},
+    {"eq": ["*.team_cash", 50]},
     {"eq": ["*.player_states.$c1.wall_frames", 0]},
     {"eq": ["*.player_states.$c2.wall_frames", 0]}
   ]

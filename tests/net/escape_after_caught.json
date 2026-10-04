@@ -20,8 +20,8 @@
     {"eq": ["*.heist.result.players.$host.caught", true]},
     {"eq": ["*.heist.result.players.$host.loot", 0]},
     {"eq": ["*.heist.result.players.$c1.escaped", true]},
-    {"eq": ["*.heist.result.cash_after", 35]},
-    {"eq": ["*.team_cash", 35]},
+    {"eq": ["*.heist.result.cash_after", 85]},
+    {"eq": ["*.team_cash", 85]},
     {"all_equal": "heist.result"}
   ]
 }

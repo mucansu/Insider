@@ -9,6 +9,7 @@ side = Vector2(1, 0)
 side_min = 16.0
 side_zone = &"CustomerArea"
 side_zone_away = true
+forbidden_tag = &"heavy"
 
 [resource]
 script = ExtResource("2_def")

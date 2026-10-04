@@ -9,6 +9,7 @@ extends Node2D
 ## `value` comes from the definition and counts as the carrier's loot on escape (Game reads it).
 ## Replicated state (host writes, MultiplayerSynchronizer, on change): `carrier` (0 = on floor), `floor_position` (Props space), `drops`.
 ## Position is derived from state on every peer. Visual (`Visual`) only reads state (KR-003). Dump (S6 "props"): `dump_state()`.
+## US-045 (KR-038): taking the bag drops the shop product in the taker's hand (PlayerHand.host_drop: silent, the glass bottle breaks).
 
 ## Host only: bag picked up or taken over (note: "Hamal").
 signal taken(peer_id: int)
@@ -186,6 +187,10 @@ func _give(peer_id: int) -> void:
 	_run_s = 0.0
 	_takes += 1
 	carrier = peer_id
+	var taker: Node2D = _carrier_node()
+	var hand: Node = taker.get_node_or_null(^"Status/Hand") if taker != null else null
+	if hand != null and hand.has_method(&"host_drop"):
+		hand.call(&"host_drop")  # US-045: the bag needs the hand
 	taken.emit(peer_id)
 
 

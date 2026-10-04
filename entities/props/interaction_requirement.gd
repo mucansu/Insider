@@ -7,6 +7,8 @@ extends Resource
 ## Required tag (e.g. &"lockpick"; empty = none) and its minimum tier (Phase 2+: from loadout/perk data).
 @export var required_tag: StringName = &""
 @export_range(0, 10) var min_tier: int = 0
+## US-045: tag the actor must not have (e.g. &"heavy" - a damacana in the hands hides register and bag prompts). Empty = none.
+@export var forbidden_tag: StringName = &""
 ## Side constraint: direction the actor must be on, in the prop's LOCAL axes (rotates with the prop); ZERO = no constraint.
 ## Actor must be at least `side_min` px from the Interactable center along this direction.
 @export var side: Vector2 = Vector2.ZERO

@@ -424,6 +424,12 @@ position = Vector2(336, 272)
 [node name="ShelfProp3" type="Marker2D" parent="Markers" unique_id=2052992343]
 position = Vector2(336, 336)
 
+[node name="ShopItem1" type="Marker2D" parent="Markers" unique_id=1747199595]
+position = Vector2(304, 368)
+
+[node name="ShopItem2" type="Marker2D" parent="Markers" unique_id=599249641]
+position = Vector2(400, 176)
+
 [node name="Zones" type="Node2D" parent="." unique_id=793638371]
 
 [node name="EscapeZone" type="Area2D" parent="Zones" unique_id=1532794941]

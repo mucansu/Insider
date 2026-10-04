@@ -4,7 +4,7 @@ extends Node
 ## (Level `Zones`: CustomerArea/StaffArea/Backroom), in-shop time (loitering), ongoing interaction (`Interactable.held_by`: register/cash ->
 ## CASH, other held ones -> TAMPER) and bag state (`is_carrying_bag()` if present) and turns them into a `CivilianRules` context;
 ## `factor_for` is the perception component's `factor_query`. Emits `door_crossed` (bell) on entering/leaving via the front door
-## and `back_door_rang` when a player opens/closes or crosses the back-bell door (IS-104).
+## and `back_door_rang` when a player opens/closes the back-bell door (IS-104; crossing no longer rings, IS-108).
 ## Position is always the synchronizer's latest (`interaction_position()`, S7): decisions against the player (AC8). Reaches the level only
 ## via the S4 Level API (duck typing: `zone`, `marker`, `marker_sequence`, `props_root`).
 ## US-010 additions: loiter counter (`loiter_s`) resets on leaving the shop (GDD §9.3), dump `loiter_dump()`; innocent (social)
@@ -13,8 +13,9 @@ extends Node
 
 ## Host only: player crossed the front door threshold (in/out).
 signal door_crossed(peer_id: int, door_pos: Vector2)
-## Host only (IS-104, KR-034): a player opened/closed the back-bell door (`back_bell_door`) or crossed its threshold (in/out, within
-## `bell_radius`); one ring per BACK_RING_REPEAT_S (open + step through = one ring). `door_pos` = the door prop's position.
+## Host only (IS-104, KR-034; IS-108 KR-039): a player opened or closed the back-bell door (`back_bell_door`); crossing an open door's
+## threshold no longer rings (spring door: it closes by itself after `back_autoclose_sec`, without a bell). One ring per
+## BACK_RING_REPEAT_S. `door_pos` = the door prop's position.
 signal back_door_rang(peer_id: int, door_pos: Vector2)
 
 const ZONE_NAMES := {
@@ -39,6 +40,8 @@ var bell_radius: float = 0.0
 ## Back-bell door (IS-104): Props node whose open/close or threshold crossing by a player emits `back_door_rang` (empty = none). Hooked
 ## on the first step.
 var back_bell_door: StringName = &""
+## IS-108 (KR-039): spring close delay given to the back-bell door when it is hooked (s; 0 = off).
+var back_autoclose_sec: float = 0.0
 ## Test/diagnostics: this value is used instead of RTT (ms) (< 0 = measured from Net).
 var rtt_override_ms: int = -1
 ## Query for customers inside (US-016 cover; func() -> int). Only the population spawner connects it to the owner's senses;
@@ -171,7 +174,6 @@ func step(delta: float) -> void:
 		_hook_back_door()
 	_back_ring_left = maxf(_back_ring_left - maxf(delta, 0.0), 0.0)
 	var door: Vector2 = marker_position(bell_marker)
-	var back: Vector2 = _back_door.global_position if is_instance_valid(_back_door) else Vector2.INF
 	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
 		if not node.has_method(&"interaction_position"):
 			continue
@@ -190,9 +192,6 @@ func step(delta: float) -> void:
 		if was != null and bool(was) != inside and door.is_finite() and bell_radius > 0.0 \
 				and pos.distance_to(door) <= bell_radius:
 			door_crossed.emit(peer_id, door)
-		if was != null and bool(was) != inside and back.is_finite() and bell_radius > 0.0 \
-				and pos.distance_to(back) <= bell_radius:
-			_ring_back(peer_id)
 
 
 ## Back-bell door (IS-104): connects the prop's Interactable `completed` (host only; every completion opens or closes the door).
@@ -206,6 +205,8 @@ func _hook_back_door() -> void:
 		return
 	_back_door = door
 	item.completed.connect(_on_back_door_used)
+	if back_autoclose_sec > 0.0 and &"autoclose_sec" in door:
+		door.set(&"autoclose_sec", back_autoclose_sec)  # IS-108: spring door
 
 
 ## NPC completions (peer 0: an NPC closing the door behind it) do not ring.

@@ -8,6 +8,8 @@
 [ext_resource type="PackedScene" uid="uid://cocb50xosg2kf" path="res://entities/player/puppet/puppet.tscn" id="6_pupt"]
 [ext_resource type="Script" path="res://entities/player/player_status.gd" id="6_stat"]
 [ext_resource type="Script" uid="uid://jj1b1o1pjvo1" path="res://entities/props/interactable.gd" id="7_int"]
+[ext_resource type="Script" path="res://entities/player/player_hand.gd" id="8_hand"]
+[ext_resource type="Script" path="res://entities/player/held_item_visual.gd" id="9_held"]
 
 [sub_resource type="CircleShape2D" id="CircleShape2D_26q78"]
 radius = 12.0
@@ -51,6 +53,12 @@ script = ExtResource("6_stat")
 [node name="Rescue" type="Area2D" parent="Status"]
 script = ExtResource("7_int")
 
+[node name="Hand" type="Node2D" parent="Status"]
+script = ExtResource("8_hand")
+
+[node name="Drop" type="Area2D" parent="Status/Hand"]
+script = ExtResource("7_int")
+
 [node name="MultiplayerSynchronizer" type="MultiplayerSynchronizer" parent="." unique_id=1614282656]
 replication_interval = 0.05
 replication_config = SubResource("SceneReplicationConfig_bectd")
@@ -59,6 +67,9 @@ replication_config = SubResource("SceneReplicationConfig_bectd")
 script = ExtResource("4_qiwj3")
 
 [node name="Puppet" parent="Visual" unique_id=517204688 instance=ExtResource("6_pupt")]
+
+[node name="HeldItem" type="Node2D" parent="Visual"]
+script = ExtResource("9_held")
 
 [node name="NameLabel" type="Label" parent="Visual" unique_id=1860742169]
 auto_translate_mode = 2

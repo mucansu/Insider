@@ -10,6 +10,8 @@ const PATH := "res://data/heist_tuning.tres"
 ## Escape settle (IS-103, KR-034): seconds all uncaught players stay in the escape zone with loot (nobody shouted yet) before the job is won;
 ## a shout (alert >= 2) meanwhile ends it as `shouted`. 0 = instant win.
 @export_range(0.0, 30.0, 0.1, "suffix:s") var escape_settle_s: float = 0.0
+## Team starting cash (KR-038 "harçlık", Faz 2 trial value): team cash at session start; shop purchases are refused when cash is short.
+@export_range(0, 100000) var start_cash: int = 0
 ## Bail: venue tier -> amount deducted from team cash for each player caught at job end.
 ## A tier not in the table uses the nearest lower tier's amount (HeistRules.bail_for_tier).
 @export var bail_by_tier: Dictionary[int, int] = {}

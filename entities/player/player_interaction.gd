@@ -10,6 +10,7 @@ extends Node
 ## US-010 (prompt lines): each Interactable is bound to an input action (`input_action`: `interact` E, `intimidate` Q). The target is picked
 ## per action (nearest eligible); `target_changed` reports the E line, `alt_target_changed` the Q line (two lines). One interaction runs at
 ## a time; a running interaction ends when its own action's key is released.
+## US-045: an own component marked `self_only` (the hand's Q "Bırak") is a target for this player only; another player's never is.
 
 signal target_changed(action_key: String)
 ## Target of the Q (`intimidate`) line changed (empty = none; US-010).
@@ -108,8 +109,11 @@ func _select_target(actor_pos: Vector2, peer_id: int, actor_tags: Dictionary) ->
 		actor = null
 	for node: Node in get_tree().get_nodes_in_group(Interactable.GROUP):
 		var item: Interactable = node as Interactable
-		if item == null or (actor != null and actor.is_ancestor_of(item)):
-			continue  # the player's own component (PULL, US-008) is never its own target
+		if item == null:
+			continue
+		var own: bool = actor != null and actor.is_ancestor_of(item)
+		if own != item.self_only:
+			continue  # own components (PULL, US-008) are never targets, except the actor's own tools (US-045 drop); never others' tools
 		if item.can_start(peer_id, actor_pos, actor_tags):
 			if item.input_action == ALT_ACTION:
 				alt_candidates.append(item)

@@ -123,11 +123,13 @@ func test_host_session_flow() -> void:
 	(players[1] as Dictionary)["name"] = "değişti"
 	eq(Game.players()[1]["name"], "Birim")
 
-	Game.add_team_cash(100)
+	var start: int = HeistTuning.load_default().start_cash  # US-045 (KR-038): session allowance
+	eq(Game.team_cash(), start, "oturum başında harçlık")
+	Game.add_team_cash(100 - start)
 	Game.add_team_cash(50)
 	Game.add_team_cash(0)
 	eq(Game.team_cash(), 150)
-	eq(_cash_values, [100, 150])
+	eq(_cash_values.slice(-2), [100, 150])
 
 	Game.raise_session_event(&"police_called", {"at": Vector2(3, 4)})
 	Game.raise_session_event(&"alarm")

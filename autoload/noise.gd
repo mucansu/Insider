@@ -8,6 +8,8 @@ extends Node
 ## Spreading: the host calls `hear_noise(pos, radius, kind)` on `noise_listener` group nodes (duck typing) and sends a visual ring event to
 ## everyone (`authority`, unreliable, visual only); each peer emits `noise_shown` and adds a ring visual (`RING_SCENE`, loaded by path).
 ## Dump (S6, `--dump` only): "noise" key — `stats()`.
+## US-045 addition: `dispatching_peer()` = source peer of the sound being spread right now (valid only inside a listener's
+## `hear_noise` call on the host; 0 = world) - the owner charges a dropped bottle to the dropper ("again?").
 
 ## Ring event (on every peer; on the host together with local spreading).
 signal noise_shown(pos: Vector2, radius: float, kind: StringName)
@@ -34,6 +36,8 @@ var _rings: int = 0
 var _ring_kinds: Dictionary = {}
 ## Host: sender peer -> time of its last accepted request (seconds; rate limit).
 var _last_accept: Dictionary = {}
+## Host: source peer of the sound being dispatched (0 outside `_dispatch`).
+var _dispatch_peer: int = 0
 
 
 func _ready() -> void:
@@ -51,7 +55,7 @@ func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int 
 		return
 	if _is_host():
 		_emitted += 1
-		_dispatch(pos, radius, kind)
+		_dispatch(pos, radius, kind, source_peer)
 	elif _is_connected():
 		_emitted += 1
 		_rpc_request.rpc_id(1, pos, kind, source_peer)
@@ -83,7 +87,7 @@ func host_request(sender: int, pos: Vector2, kind: StringName, source_peer: int,
 		return result
 	_last_accept[sender] = now
 	_accepted += 1
-	_dispatch(pos, radius, kind)
+	_dispatch(pos, radius, kind, source_peer)
 	return result
 
 
@@ -118,12 +122,20 @@ func _rpc_ring(pos: Vector2, radius: float, kind: StringName) -> void:
 
 # --- host ---
 
-func _dispatch(pos: Vector2, radius: float, kind: StringName) -> void:
+## Host only: source peer of the sound being spread right now (inside a listener's `hear_noise`; 0 = world / outside a dispatch).
+func dispatching_peer() -> int:
+	return _dispatch_peer
+
+
+func _dispatch(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void:
 	_dispatched += 1
+	var outer: int = _dispatch_peer
+	_dispatch_peer = maxi(source_peer, 0)
 	for node: Node in get_tree().get_nodes_in_group(LISTENER_GROUP):
 		if node.has_method(LISTENER_METHOD):
 			_delivered += 1
 			node.call(LISTENER_METHOD, pos, radius, kind)
+	_dispatch_peer = outer
 	_show_ring(pos, radius, kind)
 	if not multiplayer.get_peers().is_empty():
 		_rpc_ring.rpc(pos, radius, kind)

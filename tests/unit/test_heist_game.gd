@@ -3,10 +3,14 @@ extends TestCase
 ## clean 90%; bag + alert 2: shouted 85%, heat +5), lose (police: those still inside are caught; caught_all), team cash =
 ## payout, request_restart (same level, cash 0, result reset), venue_tier, no job tracking on a level without an escape
 ## zone. Without US-008 events, fake owner events are fed as S3 session_events (&"alert_level", &"police_arrived",
-## &"player_caught"). Multi-process: tests/net/heist_full.json.
+## &"player_caught"). Multi-process: tests/net/heist_full.json. US-045: team cash starts at HeistTuning.start_cash (allowance, KR-038);
+## cover breaks only while an NPC sees the player (GB-08 A: unseen sprint keeps it, sprint in the owner's cone breaks it, `by` = observer).
 
 const STORE := "res://levels/store_a.tscn"
 const PLAIN_LEVEL := "res://tests/fixtures/empty_level.tscn"
+const NOPOP := "res://tests/fixtures/store_a_nopop.tscn"
+## Customer side of the counter, inside the owner's cone (US-045 AC4).
+const COUNTER_FRONT := Vector2(536, 336)
 const PLAYER := "res://entities/player/player.tscn"
 const IN_ZONE := Vector2(860, 576)
 const STAFF := Vector2(588, 368)
@@ -14,6 +18,8 @@ const NEAR_BAG := Vector2(496, 256)
 const DT := 1.0 / 60.0
 ## IS-103: physics frames that cover the 3 s escape settle (data/heist_tuning.tres) with margin.
 const SETTLE_FRAMES := 190
+## US-045 (KR-038): session start cash (allowance).
+var START: int = HeistTuning.load_default().start_cash
 
 var _results: Array[Dictionary] = []
 var _previous_scene: PackedScene = null
@@ -73,7 +79,7 @@ func test_clean_win_pays_ninety_percent_of_register() -> void:
 	eq(Game.heist_result(), {}, "iş sürerken sonuç yok")
 	me.position = STAFF
 	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
-	eq(Game.team_cash(), 150, "kasa anında ekip nakdine (US-005)")
+	eq(Game.team_cash(), START + 150, "kasa anında ekip nakdine (US-005)")
 	await _frames()
 	eq(_results.size(), 0, "kaçış bölgesine girmeden bitmez")
 	eq(Game.escape_settle_left(), -1.0, "bölge dışında: kaçış geri sayımı yok")
@@ -94,14 +100,14 @@ func test_clean_win_pays_ninety_percent_of_register() -> void:
 		eq(r["players"]["1"]["loot"], 150)
 		has(r["notes"], {"kind": &"ghost_crew", "peer": 0}, "hiç uyarı yok: hayalet ekip")
 		eq(Game.heist_result(), r, "geç katılan için de aynı sonuç")
-	eq(Game.team_cash(), 135, "ekip nakdi = ödeme (ham kasa nakdi ödemeyle değişti)")
+	eq(Game.team_cash(), START + 135, "ekip nakdi = ödeme (ham kasa nakdi ödemeyle değişti)")
 	await _frames()
 	eq(_results.size(), 1, "iş bitti: yeniden karar yok")
 	# Again (host): same level, register carried over (KR-029, US-042 package), result reset, register prop refilled.
 	var old_level: Level = _level()
 	Game.request_restart()
 	is_true(_level() != old_level and _level() != null, "seviye yeniden yüklendi")
-	eq(Game.team_cash(), 135, "ekip kasası yeniden başlatmada sıfırlanmaz")
+	eq(Game.team_cash(), START + 135, "ekip kasası yeniden başlatmada sıfırlanmaz")
 	eq(Game.heist_result(), {}, "yeni iş: sonuç sıfır")
 	is_false((_level().props_root().get_node("Register") as Register).emptied, "prop'lar sıfırlandı")
 	await _stop()
@@ -127,7 +133,7 @@ func test_bag_and_shout_is_shouted_win() -> void:
 		eq(r["payout"], 383)
 		eq(r["heat"], 5)
 		has(r["notes"], {"kind": &"porter", "peer": 1}, "Hamal")
-	eq(Game.team_cash(), 383)
+	eq(Game.team_cash(), START + 383)
 	await _stop()
 
 
@@ -181,7 +187,7 @@ func test_police_catches_player_inside() -> void:
 		eq(r["players"]["1"]["escaped"], false)
 		eq(r["payout"], 0)
 		has(r["notes"], {"kind": &"bail", "peer": 1})
-	eq(Game.team_cash(), -100, "kasa nakdi kayboldu; kefalet 100 düştü (US-041, KR-029)")
+	eq(Game.team_cash(), START - 100, "kasa nakdi kayboldu; kefalet 100 düştü (US-041, KR-029)")
 	await _stop()
 
 
@@ -235,7 +241,7 @@ func test_loot_locked_after_finish() -> void:
 	for i: int in roundi(2.2 / DT):
 		reg.step(DT)
 	is_true((_level().props_root().get_node("Register") as Register).emptied, "süren boşaltma bitti")
-	eq(Game.team_cash(), -100, "sonuçtan sonra nakit eklenmez (geri alındı); kefalet 100 (KR-029)")
+	eq(Game.team_cash(), START - 100, "sonuçtan sonra nakit eklenmez (geri alındı); kefalet 100 (KR-029)")
 	var bag: Bag = _level().props_root().get_node("Bag") as Bag
 	me.position = NEAR_BAG
 	(bag.get_node("Take") as Interactable).host_start(1, 2)
@@ -315,9 +321,9 @@ func test_empty_handed_abort() -> void:
 		eq(r["bail"], 0)
 		eq(r["players"]["1"]["escaped"], true, "yakalanmadı, kaçtı sayılır")
 		eq(r["players"]["1"]["caught"], false)
-		eq([r["cash_before"], r["cash_after"]], [0, 0], "kasa değişmez")
+		eq([r["cash_before"], r["cash_after"]], [START, START], "kasa değişmez")
 	eq(Game.abort_left(), -1.0, "iş bitti: sayaç yok")
-	eq(Game.team_cash(), 0)
+	eq(Game.team_cash(), START)
 	await _stop()
 
 
@@ -328,7 +334,7 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
-	me.position = STAFF  # staff side: cover breaks (US-042), police catch
+	me.position = STAFF  # staff side next to the owner: cover breaks (US-042; seen, US-045), police catch
 	await _frames()
 	Game.raise_session_event(&"police_arrived")
 	await _frames()
@@ -337,14 +343,14 @@ func test_bail_debt_closed_by_next_payout() -> void:
 		eq(r["outcome"], &"police")
 		eq(r["bail"], 100, "bir yakalanan: 100")
 		eq(r["players"]["1"]["bail"], 100)
-		eq([r["cash_before"], r["cash_after"]], [0, -100])
-	eq(Game.team_cash(), -100, "borç")
+		eq([r["cash_before"], r["cash_after"]], [START, START - 100])
+	eq(Game.team_cash(), START - 100, "borç")
 	Game.start_level(STORE)
 	me = Game.local_player() as Player
-	eq(Game.team_cash(), -100, "borç sonraki işe taşınır")
+	eq(Game.team_cash(), START - 100, "borç sonraki işe taşınır")
 	me.position = STAFF
 	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
-	eq(Game.team_cash(), 50, "kasa nakdi anında (-100 + 150)")
+	eq(Game.team_cash(), START + 50, "kasa nakdi anında (-100 + 150)")
 	me.position = IN_ZONE
 	await _frames(SETTLE_FRAMES)
 	if eq(_results.size(), 2):
@@ -352,8 +358,8 @@ func test_bail_debt_closed_by_next_payout() -> void:
 		eq(r["outcome"], &"clean")
 		eq(r["payout"], 135)
 		eq(r["bail"], 0)
-		eq([r["cash_before"], r["cash_after"]], [-100, 35], "iş öncesi + ödeme − kefalet")
-	eq(Game.team_cash(), 35, "ödeme borcu kapattı")
+		eq([r["cash_before"], r["cash_after"]], [START - 100, START + 35], "iş öncesi + ödeme − kefalet")
+	eq(Game.team_cash(), START + 35, "ödeme borcu kapattı")
 	await _stop()
 
 
@@ -370,10 +376,34 @@ func test_cover_state_breaks_on_staff_side() -> void:
 	await _frames()
 	eq(Game.cover_state(), 0, "personel tarafı: örtü bozuldu")
 	var events: Array = Game.collect_dump()["events"]
-	has(events, {"kind": "cover_broken", "data": {"peer": 1, "reason": "staff"}}, "olay herkese gider")
+	has(events, {"kind": "cover_broken", "data": {"peer": 1, "reason": "staff", "by": "Owner"}},
+		"olay herkese gider; gören sahip (GB-08 A)")
 	me.position = IN_ZONE + Vector2(-300, 0)
 	await _frames()
 	eq(Game.cover_state(), 0, "geri gelmez")
+	await _stop()
+
+
+## US-045 AC4 (GB-08 option A, KR-038): sprinting on the street with nobody looking keeps the cover; sprinting inside the owner's cone
+## breaks it and the event / dump name the observer (`by`, `seen_by`).
+func test_cover_breaks_only_when_seen() -> void:
+	var me: Player = _start(NOPOP)
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	(me.get_node(^"PlayerInput") as PlayerInput).use_bot(BotTimeline.from_raw([
+		{"t": 0.05, "move": [1, 0]}, {"t": 0.05, "hold": "sprint", "dur": 30.0}, {"t": 1.5, "move": [-1, 0]}]))
+	var sprinted: Array[bool] = [false]
+	for i: int in 80:
+		await tree().physics_frame
+		sprinted[0] = sprinted[0] or me.is_sprinting()
+	is_true(sprinted[0], "sokakta koştu")
+	eq(Game.cover_state(), 1, "kimse görmedi: örtü sağlam")
+	me.position = COUNTER_FRONT
+	await _frames(30)
+	eq(Game.cover_state(), 0, "sahip konisinde koştu: bozuk")
+	var events: Array = Game.collect_dump()["events"]
+	has(events, {"kind": "cover_broken", "data": {"peer": 1, "reason": "run", "by": "Owner"}}, "gören: sahip")
 	await _stop()
 
 
@@ -394,7 +424,7 @@ func test_police_releases_witness() -> void:
 		eq(r["heat"], HeistRules.HEAT_POLICE + 2, "tanık: ekip ısısı +2 (data/heist_tuning.tres)")
 		eq(r["strategy"]["cover_intact"], {"1": true})
 		eq(r["strategy"]["class"], &"zaman")
-	eq(Game.team_cash(), 0, "kefalet yok")
+	eq(Game.team_cash(), START, "kefalet yok")
 	await _stop()
 
 

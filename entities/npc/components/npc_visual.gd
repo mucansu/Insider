@@ -59,6 +59,9 @@ const BALLOON_KEYS := {
 	&"owner_soothe_refused": "OWNER_SOOTHE_REFUSED",
 	&"owner_misdirect": "OWNER_MISDIRECT",
 	&"owner_question_window": "OWNER_QUESTION_WINDOW",
+	&"owner_order_ready": "OWNER_ORDER_READY",
+	&"owner_order_unpaid": "OWNER_ORDER_UNPAID",
+	&"owner_no_money": "OWNER_NO_MONEY",
 	&"customer_tell": "CIVILIAN_TELL",
 	&"passerby_tell": "CIVILIAN_TELL",
 	&"customer_flee": "CIVILIAN_FLEE",
@@ -312,6 +315,8 @@ func _draw_balloon(p: Node, tone: Tone) -> void:
 		return
 	var font: Font = tone.font if tone.font != null else ThemeDB.fallback_font
 	var text: String = tr(str(BALLOON_KEYS[kind]))
+	if p.has_method(&"balloon_args"):
+		text = text.format(p.call(&"balloon_args", kind) as Dictionary)  # US-045: "Buyrun, {price} lira."
 	var size: int = tone.font_size_small
 	var width: float = font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x
 	var origin: Vector2 = BALLOON_OFFSET - Vector2(width * 0.5, 0.0)
