@@ -21,7 +21,7 @@
     {"eq": ["*.heist.events_main.0.kind", "player_held"]},
     {"eq": ["*.heist.events_main.1.kind", "player_rescued"]},
     {"len": ["*.heist.events_main", 2]},
-    {"all_equal": "events"},
+    {"all_equal": "heist.events_shared"},
     {"eq": ["*.player_states.$c1.status", 0]},
     {"eq": ["*.player_states.$c2.status", 0]},
     {"eq": ["c2.interaction.successes", 1]},

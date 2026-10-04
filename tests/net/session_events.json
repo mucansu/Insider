@@ -1,5 +1,5 @@
 {
-  "_doc": "US-001 AC5: Game.add_team_cash host'ta toplanır ve herkese yayılır (geç katılan c2 dahil); Game.raise_session_event o an bağlı herkese ulaşır ve dökümde events listesinde görünür; istemcinin host'a özgü çağrıları etkisizdir. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-001 AC5: Game.add_team_cash host'ta toplanır ve herkese yayılır (geç katılan c2 dahil); Game.raise_session_event o an bağlı herkese ulaşır ve dökümde events listesinde görünür; istemcinin host'a özgü çağrıları etkisizdir. IS-102: host'un events listesi seviye başındaki yerel koşu işaretiyle (level_started, run 1) başlar; istemcide yoktur, karşılaştırma işaretsiz görünümle (heist.events_shared). Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/empty_level.tscn",
   "player_scene": "res://tests/fixtures/dummy_player.tscn",
   "clients": 2,
@@ -12,8 +12,11 @@
   "expect": [
     {"eq": ["*.team_cash", 150]},
     {"all_equal": "team_cash"},
-    {"len": ["host.events", 2]},
-    {"same": ["host.events", "c1.events"]},
+    {"len": ["host.events", 3]},
+    {"eq": ["host.events.0.kind", "level_started"]},
+    {"eq": ["host.events.0.data.run", 1]},
+    {"len": ["c1.events", 2]},
+    {"same": ["host.heist.events_shared", "c1.events"]},
     {"eq": ["c1.events.0.kind", "police_called"]},
     {"eq": ["c1.events.0.data.by", "host"]},
     {"eq": ["c1.events.0.data.level", 2]},

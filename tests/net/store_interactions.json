@@ -48,7 +48,7 @@
     {"eq": ["host.owner.loiter_s.$c2", 0]},
     {"all_equal": "owner.events"},
     {"all_equal": "owner.event_peers"},
-    {"all_equal": "events"},
+    {"all_equal": "heist.events_shared"},
     {"eq": ["*.player_states.$c1.wall_frames", 0]}
   ]
 }

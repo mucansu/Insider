@@ -17,7 +17,7 @@
     {"eq": ["*.heist.events_main.2.kind", "player_caught"]},
     {"eq": ["*.heist.events_main.2.data.by", "chaser"]},
     {"same": ["host.heist.events_main.2.data.peer", "c1.peer_id"]},
-    {"all_equal": "events"},
+    {"all_equal": "heist.events_shared"},
     {"eq": ["*.player_states.$c1.status", 2]},
     {"eq": ["*.player_states.$c2.status", 2]},
     {"eq": ["*.chasers.spawned", 1]}
