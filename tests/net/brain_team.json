@@ -1,15 +1,11 @@
 {
-  "_doc": "IS-015a: kapalı döngü beyin, host + 2 istemci gerçek bakkalda (levels/store_a.tscn) `team` stratejisi (üçü aynı bot dosyası brain_team.json; her süreç kendi beynini koşar, rolü katılım sırasından; IS-101 sırası: çantacı önce, oyalayıcı sonra, kasa en son: c2 2 çantacı = ara sokak, arka oda boşken arka kapı B, çanta, ara sokak, kaçış; host 0 oyalayıcı = tezgâhta kasacı hazır + çanta alınana dek bekler, sonra raf devirir (çantacı varken GÖNDER yok: sahip arka odada eksik çantayı görürdü), müşteri gibi bekler; c1 1 kasacı = sıra noktasında pencere + çanta alındı -> kasa). c1/c2 sırayla katılır (rol sırası sabit). Beyin yalnız çoğaltılmış durumu okur: istemcilerde de aynı çalışır. Sonucu kazanmak zorunda değil; iş biter, sonuç üç süreçte aynı, her beyin `done`, roller doğru, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "IS-015a + IS-104: kapalı döngü beyin, host + 2 istemci gerçek bakkalda (levels/store_a.tscn) `team` stratejisi (üçü aynı bot dosyası brain_team.json; her süreç kendi beynini koşar, rolü katılım sırasından; IS-104 sırası (KR-034 arka kapı zili): oyalayıcı önce, çanta onun penceresinde, kasa en son: host 0 oyalayıcı = tezgâhta kasacı sırada + çantacı ara sokakta olana dek bekler, SATIN AL (servis: sahip tezgâhta, zil duyulmaz), çantayı bekler, sonra raf devirir (çantacı varken GÖNDER yok), müşteri gibi bekler; c2 2 çantacı = ara sokak, SATIN AL/raf devirme olayı taze iken (LURE_WINDOW_S) arka kapı B, çanta, arka odada saklanır, sonraki pencerede B'den ara sokağa, kaçış; c1 1 kasacı = sıra noktasında pencere + çanta alındı -> kasa). c1/c2 sırayla katılır (rol sırası sabit). Beyin yalnız çoğaltılmış durumu ve ekibin gördüğü HUD olaylarını okur: istemcilerde de aynı çalışır. Sonucu kazanmak zorunda değil; iş biter, sonuç üç süreçte aynı, her beyin `done`, roller doğru, takılma küçük. Biçim: tools/net_smoke.py docstring.",
   "level": "res://levels/store_a.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 2,
   "duration": 120,
   "start_delay": {"c2": 2.0},
-  "bots": {
-    "host": "res://tests/net/bots/brain_team.json",
-    "c1": "res://tests/net/bots/brain_team.json",
-    "c2": "res://tests/net/bots/brain_team.json"
-  },
+  "bots": {"host": "res://tests/net/bots/brain_team.json", "c1": "res://tests/net/bots/brain_team.json", "c2": "res://tests/net/bots/brain_team.json"},
   "expect": [
     {"len": ["*.player_nodes", 3]},
     {"eq": ["*.brain.strategy", "team"]},
@@ -23,6 +19,7 @@
     {"eq": ["host.heist.result.strategy.back_door_used", true]},
     {"between": ["host.heist.result.strategy.cash_bag_taken_at_s", 1, 110]},
     {"all_equal": "heist.result.outcome"},
-    {"eq": ["*.heist.active", false]}
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["host.brain.phase_log.2.1", "lure"]}
   ]
 }

@@ -3,7 +3,8 @@ extends Node
 ## Civilian observer's player context (US-008 AC1/AC3/AC7; GDD §6.1, §9.3; S2, S4, S11). Meaningful on the host only. Reads players' zone
 ## (Level `Zones`: CustomerArea/StaffArea/Backroom), in-shop time (loitering), ongoing interaction (`Interactable.held_by`: register/cash ->
 ## CASH, other held ones -> TAMPER) and bag state (`is_carrying_bag()` if present) and turns them into a `CivilianRules` context;
-## `factor_for` is the perception component's `factor_query`. Emits `door_crossed` (bell) on entering/leaving via the front door.
+## `factor_for` is the perception component's `factor_query`. Emits `door_crossed` (bell) on entering/leaving via the front door
+## and `back_door_rang` when a player opens/closes or crosses the back-bell door (IS-104).
 ## Position is always the synchronizer's latest (`interaction_position()`, S7): decisions against the player (AC8). Reaches the level only
 ## via the S4 Level API (duck typing: `zone`, `marker`, `marker_sequence`, `props_root`).
 ## US-010 additions: loiter counter (`loiter_s`) resets on leaving the shop (GDD §9.3), dump `loiter_dump()`; innocent (social)
@@ -12,6 +13,9 @@ extends Node
 
 ## Host only: player crossed the front door threshold (in/out).
 signal door_crossed(peer_id: int, door_pos: Vector2)
+## Host only (IS-104, KR-034): a player opened/closed the back-bell door (`back_bell_door`) or crossed its threshold (in/out, within
+## `bell_radius`); one ring per BACK_RING_REPEAT_S (open + step through = one ring). `door_pos` = the door prop's position.
+signal back_door_rang(peer_id: int, door_pos: Vector2)
 
 const ZONE_NAMES := {
 	CivilianRules.Zone.CUSTOMER: &"CustomerArea",
@@ -20,6 +24,8 @@ const ZONE_NAMES := {
 }
 ## US-042 cover-broken session event (Game HEIST_EVENT_COVER).
 const COVER_EVENT := &"cover_broken"
+## Back-bell rings closer together than this (s) count as one (IS-104: opening the door and stepping through).
+const BACK_RING_REPEAT_S := 1.5
 ## Prop radius (px; from marker) at which backroom cash counts as "taken".
 const CASH_PROP_RADIUS := 32.0
 ## Prop of a distraction sound: the sound is emitted at the prop position (px margin).
@@ -30,6 +36,9 @@ var rules: CivilianRules.Params = null
 ## Door marker that counts as the bell, and its radius (0 = no bell).
 var bell_marker: StringName = &""
 var bell_radius: float = 0.0
+## Back-bell door (IS-104): Props node whose open/close or threshold crossing by a player emits `back_door_rang` (empty = none). Hooked
+## on the first step.
+var back_bell_door: StringName = &""
 ## Test/diagnostics: this value is used instead of RTT (ms) (< 0 = measured from Net).
 var rtt_override_ms: int = -1
 ## Query for customers inside (US-016 cover; func() -> int). Only the population spawner connects it to the owner's senses;
@@ -49,6 +58,11 @@ var _loiter: Dictionary = {}
 var _inside: Dictionary = {}
 ## Marker name -> props initially next to it (prop_taken_near).
 var _watched: Dictionary = {}
+## Back-bell door prop once hooked, and whether the hook was tried (IS-104; once, on the first step).
+var _back_door: Node2D = null
+var _back_hook_tried: bool = false
+## Time left until another back-bell ring counts (s).
+var _back_ring_left: float = 0.0
 ## US-044: window (glass) rects (global) and peer -> continuous gazing time (s).
 var _windows: Array[Rect2] = []
 var _stare: Dictionary = {}
@@ -127,9 +141,14 @@ static func zone_rects(level: Node) -> Dictionary:
 	return out
 
 
-## One step: players' zones, loiter time and front-door crossing.
+## One step: players' zones, loiter time, front-door and back-bell door crossing.
 func step(delta: float) -> void:
+	if not _back_hook_tried and not back_bell_door.is_empty():
+		_back_hook_tried = true
+		_hook_back_door()
+	_back_ring_left = maxf(_back_ring_left - maxf(delta, 0.0), 0.0)
 	var door: Vector2 = marker_position(bell_marker)
+	var back: Vector2 = _back_door.global_position if is_instance_valid(_back_door) else Vector2.INF
 	for node: Node in get_tree().get_nodes_in_group(Interactable.ACTOR_GROUP):
 		if not node.has_method(&"interaction_position"):
 			continue
@@ -148,6 +167,35 @@ func step(delta: float) -> void:
 		if was != null and bool(was) != inside and door.is_finite() and bell_radius > 0.0 \
 				and pos.distance_to(door) <= bell_radius:
 			door_crossed.emit(peer_id, door)
+		if was != null and bool(was) != inside and back.is_finite() and bell_radius > 0.0 \
+				and pos.distance_to(back) <= bell_radius:
+			_ring_back(peer_id)
+
+
+## Back-bell door (IS-104): connects the prop's Interactable `completed` (host only; every completion opens or closes the door).
+func _hook_back_door() -> void:
+	if _level == null or not _level.has_method(&"props_root"):
+		return
+	var props: Node = _level.call(&"props_root") as Node
+	var door: Node2D = props.get_node_or_null(NodePath(String(back_bell_door))) as Node2D if props != null else null
+	var item: Interactable = door.get_node_or_null(^"Interactable") as Interactable if door != null else null
+	if item == null:
+		return
+	_back_door = door
+	item.completed.connect(_on_back_door_used)
+
+
+## NPC completions (peer 0: an NPC closing the door behind it) do not ring.
+func _on_back_door_used(peer_id: int) -> void:
+	if peer_id != 0:
+		_ring_back(peer_id)
+
+
+func _ring_back(peer_id: int) -> void:
+	if _back_ring_left > 0.0 or not is_instance_valid(_back_door):
+		return
+	_back_ring_left = BACK_RING_REPEAT_S
+	back_door_rang.emit(peer_id, _back_door.global_position)
 
 
 ## Whether gazing through a window (US-044): within `outside_stare_px` of a window, look (`look_dir`) toward it, slow.

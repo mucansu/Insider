@@ -1,5 +1,5 @@
 {
-  "_doc": "backroom_door.json c1 botu (IS-086): discovery_cash_c1 rotasıyla ara sokaktan arka kapıyı açıp arka odaya girer (x≈656, y≈176); batıya iç kapının batı yanına (x≈600) yürür, güneye duvara dayanır (y≈244; kapı merkezine ~37 px, etkileşim menzili 40) ve iç kapıyı (D) açar. Durduğu yer kapı boşluğunun batısında: ne ClerkSpot'tan ne de sahibin dinleme noktasından görüş hattı var (duvar keser). Sonra orada bekler.",
+  "_doc": "backroom_door.json c1 botu (IS-086): discovery_cash_c1 rotasıyla ara sokaktan arka kapıyı açıp arka odaya girer (x≈656, y≈176); batıya iç kapının batı yanına (x≈600) yürür, güneye duvara dayanır (y≈244; kapı merkezine ~37 px, etkileşim menzili 40) ve 19. sn'de (host'un SATIN AL servisi bitince; IS-104) iç kapıyı (D) açar. Durduğu yer kapı boşluğunun batısında: ne ClerkSpot'tan ne de sahibin dinleme noktasından görüş hattı var (duvar keser). Sonra orada bekler.",
   "steps": [
     {"t": 0.2, "move": [-1, 0]},
     {"t": 1.6, "move": [1, 0]},
@@ -12,6 +12,6 @@
     {"t": 12.486, "move": [-1, 0]},
     {"t": 12.886, "move": [0, 1]},
     {"t": 13.5, "move": [0, 0]},
-    {"t": 13.8, "press": "interact"}
+    {"t": 19.0, "press": "interact"}
   ]
 }

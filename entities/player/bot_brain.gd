@@ -20,6 +20,9 @@ extends RefCounted
 ## "owner_seen_s"}] (finished runs; outcome "unfinished" if the level changed before the job ended). Top-level phase, phase_log and
 ## counters describe the current run; "time_s" is the whole brain clock.
 ## IS-101: spot `alley` (bag route staging, from the BackDoor marker) for the `bag` strategy and the team bagger.
+## IS-104 (back bell, KR-034): spots `peek` (side street by the side window, WindowLook3 marker; solo bag) and `hide` (back room by the
+## cash bag spot, BackroomCash marker); team-wide HUD session events `purchase` / `owner_distracted` -> View `buy_age` /
+## `distract_age` (the lure's "now!"); `mate_at_alley` (a teammate at the alley spot). Paths to `peek` use the outdoor grid too.
 
 const DUMP_KEY := "brain"
 ## Bot file keys selecting a brain.
@@ -56,6 +59,12 @@ const BAGGER_SLOT := 2
 ## tile); without a BackDoor marker the front pavement spot stands in.
 const MARKER_BACK_DOOR := &"BackDoor"
 const ALLEY_FROM_BACK_DOOR := Vector2(-BotRules.TILE, -BotRules.TILE)
+## IS-104: side-window watch spot (falls back to the alley spot) and the back-room hiding spot (cash marker; falls back to the bag).
+const MARKER_PEEK := &"WindowLook3"
+const MARKER_CASH := &"BackroomCash"
+## Session events the whole team sees (HUD): BUY accepted, owner distracted.
+const EVENT_PURCHASE := &"purchase"
+const EVENT_DISTRACTED := &"owner_distracted"
 const REGISTER_STAND := Vector2(BotRules.TILE, 0.0)
 const COUNTER_STAND := Vector2(-BotRules.TILE, 0.0)
 const QUEUE_FALLBACK := Vector2(-BotRules.TILE, BotRules.TILE)
@@ -112,12 +121,24 @@ var _run_start: float = 0.0
 var _run_recorded: bool = false
 var _restart_at: float = INF
 var _runs: Array[Dictionary] = []
+## IS-104: brain time of the last BUY / distraction session event this run (-INF = none).
+var _buy_t: float = -INF
+var _distract_t: float = -INF
 
 
 func _init(strategy_name: String, seed_value: int) -> void:
 	_strategy = strategy_name.strip_edges().to_lower()
 	_seed = seed_value
 	_start_mind(seed_value)
+	if not Game.session_event.is_connected(_on_session_event):
+		Game.session_event.connect(_on_session_event)
+
+
+func _on_session_event(kind: StringName, _data: Dictionary) -> void:
+	if kind == EVENT_PURCHASE:
+		_buy_t = _time
+	elif kind == EVENT_DISTRACTED:
+		_distract_t = _time
 
 
 ## Whether the process asked for a brain (`--brain`, or a `--bot` file that selects one).
@@ -367,6 +388,18 @@ func _view() -> BotRules.View:
 		v.spots[BotRules.SPOT_ALLEY] = back + ALLEY_FROM_BACK_DOOR
 	elif v.spots.has(BotRules.SPOT_OUTSIDE):
 		v.spots[BotRules.SPOT_ALLEY] = v.spots[BotRules.SPOT_OUTSIDE]
+	var peek: Vector2 = _marker_pos(MARKER_PEEK)
+	if peek != Vector2.INF:
+		v.spots[BotRules.SPOT_PEEK] = peek
+	elif v.spots.has(BotRules.SPOT_ALLEY):
+		v.spots[BotRules.SPOT_PEEK] = v.spots[BotRules.SPOT_ALLEY]
+	var hide: Vector2 = _marker_pos(MARKER_CASH)
+	if hide != Vector2.INF:
+		v.spots[BotRules.SPOT_HIDE] = hide
+	elif v.bag_pos != Vector2.INF:
+		v.spots[BotRules.SPOT_HIDE] = v.bag_pos
+	v.buy_age = _time - _buy_t
+	v.distract_age = _time - _distract_t
 	_read_team(v, me)
 	var escape: Vector2 = Game.escape_point()
 	if escape != Vector2.INF:
@@ -389,6 +422,7 @@ func _read_team(v: BotRules.View, me: int) -> void:
 	if root == null:
 		return
 	var queue: Vector2 = v.spots.get(BotRules.SPOT_QUEUE, Vector2.INF)
+	var alley: Vector2 = v.spots.get(BotRules.SPOT_ALLEY, Vector2.INF)
 	var best: float = INF
 	for child: Node in root.get_children():
 		var mate: Player = child as Player
@@ -398,6 +432,8 @@ func _read_team(v: BotRules.View, me: int) -> void:
 		if int(entry.get("slot", -1)) == 1 and queue != Vector2.INF \
 				and mate.global_position.distance_to(queue) <= BotRules.READY_PX:
 			v.thief_ready = true
+		if alley != Vector2.INF and mate.global_position.distance_to(alley) <= BotRules.READY_PX:
+			v.mate_at_alley = true
 		if mate.is_held() and not mate.is_caught():
 			var d: float = mate.global_position.distance_to(v.pos)
 			if d < best:
@@ -477,6 +513,8 @@ func _start_mind(seed_value: int) -> void:
 	_pressing = false
 	_result = BotRules.RESULT_NONE
 	_nudge_until = -1.0
+	_buy_t = -INF
+	_distract_t = -INF
 
 
 func _marker_pos(marker_name: StringName) -> Vector2:
@@ -500,7 +538,8 @@ func _act(v: BotRules.View, intent: BotRules.Intent, delta: float) -> void:
 		else:
 			_release()
 		return
-	var grid: AStarGrid2D = _alley_grid if intent.spot == BotRules.SPOT_ALLEY and _alley_grid != null else _grid
+	var outdoor: bool = intent.spot == BotRules.SPOT_ALLEY or intent.spot == BotRules.SPOT_PEEK
+	var grid: AStarGrid2D = _alley_grid if outdoor and _alley_grid != null else _grid
 	if _follow_path(v.pos, goal, grid):
 		_stuck.feed(_time, delta, v.pos, false)  # waiting for a door: not stuck
 		return

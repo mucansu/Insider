@@ -29,6 +29,11 @@ extends Resource
 @export_range(0.0, 128.0, 1.0, "suffix:px") var arm_reach_px: float = 0.0
 ## Radius for counting a front-door pass as a bell (px; from the door marker).
 @export_range(0.0, 256.0, 1.0, "suffix:px") var bell_radius: float = 0.0
+## Back door bell (IS-104, KR-034): a player opening/closing this door (Props node name) or crossing its threshold (in/out, within
+## `bell_radius`) rings it. Heard only while the owner stands
+## calm at ClerkSpot (AGENDA, home task arrived, no interrupt) -> LISTEN at `backroom_marker` for `listen_sec` + the bag check
+## (`backroom_check_sec` after arrival). Busy (service, listen, sent, talk, other task, reaction, alarm) = not heard. Empty = off.
+@export var back_bell_door: StringName = &""
 ## Markers for customer service and the back-room interruption.
 @export var counter_marker: StringName = &""
 @export var backroom_marker: StringName = &""
