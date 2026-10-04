@@ -8,7 +8,7 @@ Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **5c5da85** (worktre
 Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5, IS-096, GDD v0.6, IS-015b, IS-098, IS-058b · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-- **IS-015 ölçümü** koşuyor: `python tools/heist_stats.py --seeds 1-50 --cell team:2,3:1-20 --jobs 8` (290 koşu; adil bot + oturum tohumu + alçak tezgâh) → sonuç Fable'a zorluk sorusu (KR-026 260 px eşiği, KR-031 shouted > %70 eşiği). Birleşik ağaç: unit 801 + 12 ağ senaryosu 0 ms yeşil (2026-10-04).
+- IS-015 ölçümü bitti (290 koşu, build/stats/20261004-011946) → Fable teşhisi → **KR-032**. Sürüyor: **IS-100** sahip dönüş kontrolü + ayar (oynanis), **IS-101** bot takım sırası + tek kişi bag (oynanis). İkisi birleşince heist_stats yeniden (hedefler KR-032'de).
 - Sırada: IS-081 (owner.log; IS-058b brain_owner'a dokunduğu için sonra), 150 ms 20 dk beyin döngüsüyle dayanıklılık.
 - Not: GDD ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
 

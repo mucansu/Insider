@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-032 — Bakkal denge ayarı (2026-10-04, IS-015 ölçümü → Fable → koordinatör)
+- Ölçüm (290 koşu, adil bot, oturum tohumu, alçak tezgâh; faz2-int 5c5da85, build/stats/20261004-011946): tek kişi send/distract %100 temiz (sahip dönmeden 0,7-0,8 sn önce kaçış), window %74, buy %80, rush %0; team 2 %100 temiz, team 3 %100 shouted (bot sırası: çanta hiç alınmadı, kasa erken boşaltıldı → servis keşfi).
+- Teşhis: kazanma düğmesi araçların sayıları değil, sahip döndüğünde boş kasanın bedelsiz kalması.
+- Kararlar: (1) dönüşte kasa kontrolü — sahip uzak görevden ClerkSpot'a varınca `return_check_sec` 1,0 içinde kasa boşsa DISCOVER (KR-031 servis/45 sn kuralları kalır, önüne eklenir); (2) `sent_sec` 10 → 7, `listen_sec` 8 → 6; (3) GÖNDER dönüş bedeli +20 (GDD'de vardı, kodda yoktu); (4) KR-026'nın koşullu 260 px maddesi uygulanmaz (raflar 258/273/302 px — iki raf sessizce devre dışı kalırdı), 320 kalır; (5) KR-031'in 45 → 60 maddesi uygulanmaz (shouted kaynağı bot sırası). Tek kişi kasa-kap-kaç'ın "çoğunlukla shouted (128 + ısı 5)" olması kabul; kasa 150 kalır, test-2 sonrası yeniden bakılır.
+- Hedef (bot = üst sınır): send/distract temiz ≤ %40, shouted ≥ %40, caught ≤ %15; window %60-80; buy %60-80; tek kişi bag temiz ≤ %35; 2 vs 3 temiz farkı ≤ 15 puan (ikisi de kasa+çanta hedeflerken). Bot düzeltmesi (takım sırası, tek kişi bag) ayarla paralel: IS-101.
+
 ### KR-031 — Görülmeyen ihlal ve sahip okunurluğu (2026-10-03, Fable → koordinatör; IS-081)
 - GB-05a/b denemesi (faz2-int 22e9392) eksik ganimet keşfinden (US-039, IS-086, IS-087) önceydi; o build'de tepkisizlik beklenendi. Mevcut model korunur: arka oda girişi yalnız iz (kapı sesi → DİNLE), çanta eksik = sahip arka odaya varınca keşif, kasa boş = sonraki servis ya da 45 sn → DISCOVER → bağırış → uyarı 2. Geç keşif sonucu `shouted` kalır (ayrı "sonradan anlaşıldı" sonucu yok; test-2 / IS-015 verisiyle yeniden bakılır — IS-015'te `shouted` > %70 ise `idle_discover_sec` 45 → 60).
 - GB-04a'nın olası kökü okunurluk (sahip telefonda/rafta iken "önümde" okunuyor, koni α 0,07 neredeyse görünmez) → IS-096: koni α sakin 0,15 / yerel oyuncu konide 0,25 + kenar 0,35; sahip üstünde görev glifi.
