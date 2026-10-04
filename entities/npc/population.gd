@@ -53,8 +53,7 @@ var _stats: Dictionary = {"customers_spawned": 0, "passersby_spawned": 0, "serve
 
 
 func _ready() -> void:
-	if tuning == null:
-		tuning = load(TUNING_PATH) as PopulationTuning
+	tuning = VenueTuning.of(self, VenueTuning.POPULATION, tuning) as PopulationTuning  # IS-106: + per-map overrides
 	_owner = get_node_or_null(owner_path) as StoreOwner
 	_alert = get_node_or_null(alert_path) as StoreAlert
 	_spawner = get_node_or_null(spawner_path) as MultiplayerSpawner

@@ -188,10 +188,10 @@ const PULL_RANGE_PX := 256.0
 const ARRIVE_PX := 8.0
 const MATE_ARRIVE_PX := 24.0
 
-# Path grid (tile layout of `levels/layouts/*.txt`; legend LevelLayout - core may not reference levels/, so the characters are listed here).
-const TILE := 32
+# Path grid (tile layout of `levels/layouts/*.txt`; legend LevelLayout - core may not reference levels/; the single core copy is MapGrid).
+const TILE := MapGrid.TILE
 ## Colliding tile characters (border, wall, window, shelf, counter, cooler, crate).
-const SOLID_CHARS := "%#wSTIG"
+const SOLID_CHARS := MapGrid.SOLID_CHARS
 const DOOR_CHAR := "+"
 ## A* weight of a door cell (a closed door costs an open/close and noise; prefer open routes).
 const DOOR_WEIGHT := 3.0
@@ -250,6 +250,9 @@ class View:
 	var distract_age: float = INF
 	var mate_at_alley: bool = false
 	var bag_job: bool = false
+	## IS-106 (KR-037): how far the owner's counter spot (ClerkSpot) lies from the register beyond one tile (px; store_a 0). Widens the
+	## "owner at the counter" radii (AT_COUNTER_PX, OWNER_BACK_PX) on maps where the clerk stands farther from the register.
+	var counter_slack: float = 0.0
 
 	## Whether the bot stands at `spot` (within ARRIVE_PX; MATE_ARRIVE_PX next to a held teammate).
 	func at(spot: StringName) -> bool:
@@ -412,13 +415,13 @@ static func owner_at_counter(v: View) -> bool:
 	if not v.owner_seen and v.owner_age > MEMORY_STALE_S:
 		return false
 	return not v.owner_shouted and v.owner_state == OWNER_STATE_AGENDA and v.owner_task == TASK_COUNTER \
-		and v.owner_pos.distance_to(v.register_pos) <= AT_COUNTER_PX
+		and v.owner_pos.distance_to(v.register_pos) <= AT_COUNTER_PX + v.counter_slack
 
 
 ## Owner came back to the counter (abort a run to the register that has not committed yet). Fair sight: only when seen now.
 static func owner_back(v: View) -> bool:
 	return v.owner_present and v.owner_seen and not v.owner_shouted and v.owner_task == TASK_COUNTER \
-		and v.owner_pos.distance_to(v.register_pos) <= OWNER_BACK_PX
+		and v.owner_pos.distance_to(v.register_pos) <= OWNER_BACK_PX + v.counter_slack
 
 
 ## Owner pose/task (live or remembered) puts them in the back room: on a back-room task or within BACKROOM_PX of the bag.

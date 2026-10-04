@@ -40,8 +40,8 @@ func _ready() -> void:
 		buy_def = load(BUY_DEF_PATH) as PropDef
 	if send_def == null:
 		send_def = load(SEND_DEF_PATH) as PropDef
-	if tuning == null:
-		tuning = StoreToolsTuning.load_default()
+	# IS-106: global default (or the scene's) + the level's per-map overrides.
+	tuning = VenueTuning.of(self, VenueTuning.STORE_TOOLS, tuning if tuning != null else StoreToolsTuning.load_default()) 		as StoreToolsTuning
 	_setup(_buy, buy_def)
 	_setup(_send, send_def)
 	_send.input_action = &"intimidate"

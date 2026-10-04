@@ -50,8 +50,7 @@ var _shout_at: Vector2 = Vector2.INF
 
 
 func _ready() -> void:
-	if tuning == null:
-		tuning = load(OWNER_TUNING_PATH) as OwnerTuning
+	tuning = VenueTuning.of(self, VenueTuning.OWNER, tuning) as OwnerTuning  # IS-106: global default + per-map overrides
 	_owner = get_node_or_null(owner_path) as StoreOwner
 	_spawner = get_node_or_null(spawner_path) as MultiplayerSpawner
 	_chaser_scene = load(CHASER_SCENE) as PackedScene

@@ -139,10 +139,9 @@ func _ready() -> void:
 		collision_layer = 0
 		set_physics_process(false)
 		return
-	if owner_tuning == null:
-		owner_tuning = load(OWNER_TUNING_PATH) as OwnerTuning
-	if civilian_tuning == null:
-		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
+	# IS-106: per-map overrides of the level (VenueTuning) over the scene's / global tuning.
+	owner_tuning = VenueTuning.of(self, VenueTuning.OWNER, owner_tuning) as OwnerTuning
+	civilian_tuning = VenueTuning.of(self, VenueTuning.CIVILIAN, civilian_tuning) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
 	_contact = NpcContact.attach(self, false, _perception, report_suspicion, _on_pushed)
 	var visual: Node2D = get_node_or_null(^"Visual") as Node2D
@@ -308,7 +307,7 @@ func misdirect_interactable() -> Interactable:
 ## the Interactable requirement (tag `cover`).
 func misdirect_open() -> bool:
 	return active and not net_misdirected \
-		and Game.alert_level() >= StoreToolsTuning.load_default().misdirect_min_alert
+		and Game.alert_level() >= _tools().misdirect_min_alert
 
 
 ## Host API (US-043 REDIRECT "they ran that way!"): a player with intact cover `peer_id` points -> neighbours within `misdirect_radius` of the
@@ -320,7 +319,7 @@ func misdirect(peer_id: int) -> bool:
 	var player: Node2D = _senses.player(peer_id)
 	if player == null:
 		return false
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	var at: Vector2 = CivilianSenses.position_of(player)
 	var level: Node = _level()
 	var point: Vector2 = CivilianRules.misdirect_point(at, _escape_point(level), tools.misdirect_run_px)
@@ -529,9 +528,14 @@ func _set_task(value: StringName) -> void:
 	task_changed.emit(value)
 
 
+## Store tools tuning of this level (IS-106: global default with the level's per-map overrides; VenueTuning caches the copy).
+func _tools() -> StoreToolsTuning:
+	return VenueTuning.of(self, VenueTuning.STORE_TOOLS, StoreToolsTuning.load_default()) as StoreToolsTuning
+
+
 ## STALL component (US-010): values from StoreToolsTuning; never enabled if the owner is not active.
 func _setup_talk() -> void:
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	_talk.action_key = TALK_ACTION_KEY
 	_talk.hold_time = tools.talk_max_sec
 	_talk.interact_range = tools.talk_range
@@ -548,7 +552,7 @@ func _refresh_talk() -> void:
 
 ## REDIRECT component (US-043): E, hold, range; innocent action; only a player with intact cover (tag `cover`).
 func _setup_misdirect() -> void:
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	setup_misdirect_item(_misdirect, tools)
 	_misdirect.completed.connect(func(peer_id: int) -> void: misdirect(peer_id))
 	_refresh_misdirect()

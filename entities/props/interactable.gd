@@ -64,6 +64,9 @@ var actor_filter: Callable = Callable()
 var _seq: int = 0
 var _cooldown_left: float = 0.0
 var _target := InteractionRules.Target.new()
+## IS-106: side derived from the level's zones (`requirement.side_zone`; resolved once in the tree) and whether it was resolved.
+var _zone_side: Vector2 = Vector2.ZERO
+var _zone_side_done: bool = false
 ## Range circle built by the component itself (null if the scene supplies its own shape); updated when range changes.
 var _range_shape: CircleShape2D = null
 ## Host statistics (dump): requests, accepted (busy_by set), completed, cancelled and reject counts by reason.
@@ -334,7 +337,7 @@ func _spec() -> InteractionRules.Target:
 	_target.busy_by = busy_by
 	_target.blocked = false
 	if requirement != null:
-		_target.side = requirement.side.rotated(global_rotation)
+		_target.side = _required_side()
 		_target.side_min = requirement.side_min
 		_target.tag = requirement.required_tag
 		_target.tier = requirement.min_tier
@@ -344,6 +347,42 @@ func _spec() -> InteractionRules.Target:
 		_target.tag = &""
 		_target.tier = 0
 	return _target
+
+
+## Side constraint in global axes: `requirement.side` rotated with the prop, or (IS-106) derived from the level's zones
+## (`side_zone`; MapGrid.zone_side) once the prop is in a level - the same level data on every peer gives the same side.
+func _required_side() -> Vector2:
+	var hint: Vector2 = requirement.side.rotated(global_rotation)
+	if requirement.side_zone.is_empty() or hint.is_zero_approx():
+		return hint
+	if not _zone_side_done and is_inside_tree():
+		_zone_side_done = true
+		var rects: Array[Rect2] = zone_rects_of(_level_of(self), requirement.side_zone)
+		_zone_side = MapGrid.zone_side(global_position, rects, hint, requirement.side_zone_away) if not rects.is_empty() else hint
+	return _zone_side if _zone_side_done else hint
+
+
+## Global rect shapes of the level zone `zone_name` (Level `zone()`; duck typed). Empty if the level or zone is missing.
+static func zone_rects_of(level: Node, zone_name: StringName) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var area: Area2D = level.call(&"zone", zone_name) as Area2D if level != null and level.has_method(&"zone") else null
+	if area == null:
+		return out
+	for node: Node in area.find_children("*", "CollisionShape2D", false, false):
+		var cs: CollisionShape2D = node as CollisionShape2D
+		var box: RectangleShape2D = cs.shape as RectangleShape2D
+		if box != null:
+			var size: Vector2 = box.size * cs.global_scale.abs()
+			out.append(Rect2(cs.global_position - size * 0.5, size))
+	return out
+
+
+## Nearest ancestor with the Level API (`zone`); null if none.
+static func _level_of(node: Node) -> Node:
+	var at: Node = node.get_parent()
+	while at != null and not at.has_method(&"zone"):
+		at = at.get_parent()
+	return at
 
 
 func _make_sync() -> MultiplayerSynchronizer:

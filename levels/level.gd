@@ -15,6 +15,16 @@ const _TILES := ^"Tiles"
 ## Vision fog layer (US-011a; added at runtime by `attach_fog`, not in the scene).
 const _FOG := ^"Fog"
 
+## Per-map tuning overrides (IS-106, KR-037): {tuning id: {field: value}} over the global `data/` defaults, e.g.
+## {&"store_tools": {"topple_radius": 400.0}}; ids and the single access point in `VenueTuning` (data/venue_tuning.gd). Only the fields
+## that differ from the default are written; empty = the defaults (store_a). Problems are reported on ready.
+@export var tuning_overrides: Dictionary = {}
+
+
+func _ready() -> void:
+	for problem: String in VenueTuning.errors(tuning_overrides):
+		push_error("Level %s tuning_overrides: %s" % [name, problem])
+
 
 ## Container of player nodes (Game creates them; node name = peer id).
 func players_root() -> Node2D:

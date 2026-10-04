@@ -41,13 +41,13 @@ var _contact: NpcContact = null
 
 
 func _ready() -> void:
-	if tuning == null:
-		tuning = load(TUNING_PATH) as ChaserTuning
-	if civilian_tuning == null:
-		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
+	# IS-106: global default (or the scene's) + the level's per-map overrides.
+	tuning = VenueTuning.of(self, VenueTuning.CHASER, tuning) as ChaserTuning
+	civilian_tuning = VenueTuning.of(self, VenueTuning.CIVILIAN, civilian_tuning) as CivilianTuning
 	net_position = position
 	_contact = NpcContact.attach(self, true, _perception, Callable(), _on_pushed)
-	StoreOwner.setup_misdirect_item(_misdirect, StoreToolsTuning.load_default())
+	StoreOwner.setup_misdirect_item(_misdirect,
+		VenueTuning.of(self, VenueTuning.STORE_TOOLS, StoreToolsTuning.load_default()) as StoreToolsTuning)
 	_misdirect.completed.connect(_on_misdirect)
 	_refresh_misdirect()
 	if _host_side():
