@@ -11,6 +11,15 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-038 — US-045 alışveriş v0 ayrıntıları ve GB-08 örtü kuralı (2026-10-04, koordinatör; Fable danışması `docs/tasarim/danisma/us-045-store-b.md`)
+- Ürünler v0: Sakız 3 (tezgâh, bugünkü SATIN AL), Ekmek 5 (raf; kılık, oyalanma sıfırlar), Kola 10 (soğutucu; Q "Bırak" → kırılır, 160 px gürültü), Damacana 40 (tezgâhta Q sipariş). Konserve v0 dışı. Elde en çok 1 ürün; elde ürün örtüyü bozmaz; ödenmemiş ürünle çıkış v0'da bedelsiz.
+- **Atma yerine bırakma (v0):** KR-037'deki "atılınca gürültü" v0'da ayağının dibine bırakma olarak uygulanır (çanta düşürme kalıbı); fırlatma (nişan + mermi) test-2 sonrası/dilim 2.4 adayı.
+- Damacana = GÖNDER'in yerine (istem "Damacana iste", HUD "Damacana istendi.", sahip "Hemen getiriyorum!" / "Buyrun, 40 lira." / "Nereye gitti bu?"); dönüşte taşıyarak ×0,6 hız; iş başına 1. **Dönüş +20 şüphesi koşullu** (KR-032 ekini değiştirir): sahip döndükten sonra 20 sn içinde ödenirse yok ve şüphe 0; ödenmezse 20. sn'de +20. Bot send/team değişmez.
+- Ekip başlangıç harçlığı 50 (Faz 2 deneme değeri; ekip kasası yetmezse sahip "Para yetmiyor" der, ürün verilmez).
+- Ürün noktaları: yeni S4 işaretleri `ShopItem<n>` (Markers altında, ürün kimliği prop/ayar verisinde); iki haritada aynı ad kalıbı.
+- **GB-08 → seçenek A:** örtü yalnız bir NPC görürken bozulur (mask, bag, holding_cash, staff_side, sprint, sızma; çanta-alma olay tetikleyicisi kalkar; `seen_with` aynen; polis gelişindeki tanık kontrolü koşulsuz). Dump `cover` + `seen_by`. Zamanla dönüş (B) test-2 verisiyle.
+- Arka kapıyı dışarıdan çalma: v0 dışı, test-2 sonrası aday.
+
 ### KR-033 — Dilim: context boyutlu iş birimi, her dilim sonu durma noktası (2026-10-04, kullanıcı; proje kuralı)
 - Faz = kilometre taşı (çıkış kriterleri, `faz-N` etiketi, main ff) aynen kalır; fazlar **dilimlere** (N.1, N.2 …) bölünür: tek hedef, 5-8 kalem, tek kısa çıkış kriteri — bir sohbet context'ine sığacak büyüklük.
 - **Her dilim sonu durma noktasıdır:** kalemler birleşik + CI yeşil → entegrasyon dalı dev'e birleşir + `dilim-N.M` etiketi → devir (durum.md, pano) → kullanıcıya dilim kapanış mesajı (surec.md §7) → kullanıcı yeni sohbet açıp "devam" demeden sonraki dilim başlamaz. Faz sonu = son dilimin sonu (+ Fable değerlendirmesi, main + `faz-N`).
