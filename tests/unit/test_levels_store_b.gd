@@ -207,7 +207,141 @@ func test_store_b_route_and_neighbour_navigation() -> void:
 	tree().root.remove_child(level)
 
 
+## IS-107 stage 2: store_b `tuning_overrides` (IS-106 VenueTuning). Reasons are stated as geometry relative to store_a:
+## - population.convert_radius: the owner's shout turns passersby within the radius into neighbours. From ClerkSpot, store_a's
+##   default 320 px covers 3 of the 6 StreetRoute points; store_b is larger (counter ~20 tiles from the west street), so its
+##   radius must cover at least as many (640 px: d, e, f).
+## - owner.shout_radius: the shout ring shows that reach, so it is not smaller than the conversion radius.
+## - owner.neighbour_delay_sec: shout -> first neighbour at the back door (alert 3) within NEIGHBOUR_DOOR_SEC with the real path
+##   length from NeighbourSpawn and the chaser speed (store_a: delay 8 + ~1-3 s; store_b's alley is longer).
+const NEIGHBOUR_DOOR_SEC := 10.0
+
+
+func test_store_b_tuning_overrides() -> void:
+	var a: Level = _load(STORE_A)
+	var b: Level = _load(STORE_B)
+	if a == null or b == null:
+		return
+	eq(VenueTuning.errors(b.tuning_overrides), PackedStringArray(), "store_b ezmeleri geçerli")
+	var pop_a: PopulationTuning = VenueTuning.of(a, VenueTuning.POPULATION) as PopulationTuning
+	var pop_b: PopulationTuning = VenueTuning.of(b, VenueTuning.POPULATION) as PopulationTuning
+	var owner_b: OwnerTuning = VenueTuning.of(b, VenueTuning.OWNER) as OwnerTuning
+	var base_owner: OwnerTuning = VenueTuning.base(VenueTuning.OWNER) as OwnerTuning
+	var covered_a: int = _route_within(a, pop_a.convert_radius)
+	var covered_b: int = _route_within(b, pop_b.convert_radius)
+	is_true(covered_a >= 1, "store_a: bağırış en az bir yoldan geçen noktasına ulaşır (%d)" % covered_a)
+	is_true(covered_b >= covered_a, "store_b: dönüştürme yarıçapı caddeye store_a kadar ulaşır (%d >= %d)" % [covered_b, covered_a])
+	is_true(owner_b.shout_radius >= pop_b.convert_radius, "bağırış halkası dönüştürme yarıçapını gösterir")
+	eq(base_owner.shout_radius, 320.0, "global varsayılan değişmedi (kopya ezildi)")
+
+
+func test_store_b_neighbour_reaches_back_door_in_time() -> void:
+	var level: Level = _load(STORE_B)
+	if level == null:
+		return
+	var owner_t: OwnerTuning = VenueTuning.of(level, VenueTuning.OWNER) as OwnerTuning
+	var chaser_t: ChaserTuning = VenueTuning.of(level, VenueTuning.CHASER) as ChaserTuning
+	var tiles: LevelLayout = level.layout()
+	var spawn: Vector2 = level.marker(&"NeighbourSpawn").position
+	var outside_back: Vector2 = _door_side(tiles, level.marker(&"BackDoor").position, false)
+	var map: RID = await _enter_with_map(level)
+	if not map.is_valid():
+		return
+	var path: PackedVector2Array = _path(map, spawn, outside_back)
+	if is_true(_arrives(path, outside_back), "NeighbourSpawn → arka kapı önü"):
+		var total: float = owner_t.neighbour_delay_sec + _length(path) / chaser_t.speed
+		is_true(total <= NEIGHBOUR_DOOR_SEC, "bağırış → komşu arka kapıda %.1f sn <= %.0f" % [total, NEIGHBOUR_DOOR_SEC])
+	NavigationServer2D.free_rid(map)
+	tree().root.remove_child(level)
+
+
+## Bot stand spots derived from zones/geometry (IS-106) land on the right side in store_b (counter faces south).
+func test_store_b_derived_bot_stands() -> void:
+	var level: Level = _load(STORE_B)
+	if level == null:
+		return
+	var tiles: LevelLayout = level.layout()
+	var props: Node2D = level.props_root()
+	var reg: Vector2 = (props.get_node(^"Register") as Node2D).position
+	var counter: Vector2 = (props.get_node(^"Counter") as Node2D).position
+	var shelves: Array[Vector2] = []
+	for i: int in 3:
+		shelves.append((props.get_node(NodePath("ShelfProp%d" % (i + 1))) as Node2D).position)
+	var s: Dictionary = BotBrain.derive_stands(MapGrid.new(tiles.rows), _zone_rects(level),
+		func(n: StringName) -> Vector2: return level.marker(n).position if level.marker(n) != null else Vector2.INF,
+		func(p: StringName) -> Array[Vector2]: return _seq_positions(level, p), reg, counter, shelves)
+	var reg_stand: Vector2 = s.get(BotRules.SPOT_REGISTER, Vector2.INF) as Vector2
+	has(_zones_at(level, reg_stand), &"StaffArea", "kasa noktası personel tarafında")
+	is_true(reg_stand.distance_to(reg) <= TILE + 0.1, "kasa noktası kasaya bitişik")
+	eq(reg_stand, level.marker(&"ClerkSpot").position, "store_b: kasa noktası = ClerkSpot (kuzey)")
+	var counter_stand: Vector2 = s.get(BotRules.SPOT_COUNTER, Vector2.INF) as Vector2
+	has(_zones_at(level, counter_stand), &"CustomerArea", "tezgâh noktası müşteri tarafında")
+	is_true(counter_stand.y > counter.y, "tezgâh noktası tezgâhın güneyinde")
+	eq(s.get(BotRules.SPOT_QUEUE), level.marker(&"QueueSpot1").position)
+	eq(s.get(BotBrain.STANDS_SLACK), 0.0, "ClerkSpot kasaya bitişik")
+	var outdoor: Array[LevelLayout.Kind] = [LevelLayout.Kind.SIDEWALK, LevelLayout.Kind.STREET]
+	for spot: StringName in [BotRules.SPOT_OUTSIDE, BotRules.SPOT_ALLEY]:
+		var at: Vector2 = s.get(spot, Vector2.INF) as Vector2
+		if is_true(at.is_finite(), "nokta türetildi: %s" % spot):
+			has(outdoor, tiles.kind_at(LevelLayout.cell_of(at)), "%s dışarıda" % spot)
+			is_true(_zones_at(level, at).is_empty(), "%s hiçbir bölgede değil" % spot)
+	is_true((s[BotRules.SPOT_OUTSIDE] as Vector2).x < level.marker(&"FrontDoor").position.x, "ön kapı dışı batıda (cadde)")
+	is_true((s[BotRules.SPOT_ALLEY] as Vector2).distance_to(level.marker(&"BackDoor").position) <= 2.0 * TILE,
+		"ara sokak noktası arka kapının yanında")
+	eq(s.get(BotRules.SPOT_PEEK), level.marker(&"WindowLook3").position, "gözetleme = arka kapıya en yakın cam (doğu)")
+	eq(s.get(BotRules.SPOT_HIDE), level.marker(&"BackroomCash").position)
+	for i: int in 3:
+		var stand: Vector2 = (s[BotBrain.STANDS_SHELVES] as Array)[i] as Vector2
+		has(_zones_at(level, stand), &"CustomerArea", "raf ucu %d koridorda" % (i + 1))
+		eq(tiles.kind_at(LevelLayout.cell_of(stand)), LevelLayout.Kind.FLOOR, "raf ucu %d zeminde" % (i + 1))
+
+
+## Derived serve facing (IS-106): the owner at ClerkSpot faces the register, i.e. south (0, 1) in store_b.
+func test_store_b_owner_faces_the_register() -> void:
+	var stage := NpcStage.new(self)
+	await stage.enter(STORE_B)
+	var owner: StoreOwner = stage.owner()
+	stage.run(2.0)
+	var clerk: Vector2 = stage.marker(&"ClerkSpot")
+	var reg: Vector2 = stage.marker(&"Register")
+	near((reg - clerk).normalized(), Vector2.DOWN, 0.001, "store_b kasası ClerkSpot'un güneyinde")
+	if is_true(owner.global_position.distance_to(clerk) < 8.0, "sahip tezgâhta"):
+		near(owner.facing, Vector2.DOWN, 0.05, "sahip kasaya (güneye) bakar")
+	stage.leave()
+
+
 # --- helpers ---
+
+func _route_within(level: Level, radius: float) -> int:
+	var clerk: Vector2 = level.marker(&"ClerkSpot").position
+	var count: int = 0
+	for node: Node2D in level.marker_sequence(&"StreetRoute"):
+		if node.position.distance_to(clerk) <= radius:
+			count += 1
+	return count
+
+
+func _seq_positions(level: Level, prefix: StringName) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	for node: Node2D in level.marker_sequence(prefix):
+		out.append(node.position)
+	return out
+
+
+## Zone rects in level coordinates (outside the tree): area transform * shape position.
+func _zone_rects(level: Level) -> Dictionary:
+	var out: Dictionary = {}
+	for zone_name: StringName in [BotBrain.ZONE_STAFF, BotBrain.ZONE_CUSTOMER, BotBrain.ZONE_BACKROOM]:
+		var rects: Array[Rect2] = []
+		var area: Area2D = level.zone(zone_name)
+		for node: Node in area.get_children():
+			var cs: CollisionShape2D = node as CollisionShape2D
+			var box: RectangleShape2D = cs.shape as RectangleShape2D if cs != null else null
+			if box != null:
+				var center: Vector2 = area.transform * cs.position
+				rects.append(Rect2(center - box.size * 0.5, box.size))
+		out[zone_name] = rects
+	return out
 
 func _load(path: String) -> Level:
 	var scene: PackedScene = load(path) as PackedScene

@@ -1,0 +1,32 @@
+{
+  "_doc": "IS-107 aşama 2: kapalı döngü beyin `bag` stratejisi store_b'de (levels/store_b.tscn, tam nüfus + store_b ayar ezmeleri), işaret/bölge tabanlı, kazanma yolu + kaçış geri sayımı: host (bots/brain_bag.json, tohum 1) güney kaldırımından arka sokağa, doğu camının önünde (WindowLook3, türetilmiş gözetleme noktası) sahibi izler; sahip tezgâhtan uzakta meşgulken ya da SOLO_BAG_WAIT_S dolunca arka kapı B'den girer, köşedeki çantayı (BackroomCash) alır, B'den arka sokağa döner, güney caddesindeki kaçış bölgesine; kasaya dokunmaz. c1 (bots/store_b_escape_c1.json) baştan kaçış bölgesinde ganimetsiz bekler (eli boş sayacı çalışmaz: host bölge dışında). Host çantayla bölgeye girince IS-103 kaçış geri sayımı (host karar sayacı settle_peak_s ~3 sn; c1 yerel HUD tahmini) -> `clean` (oturum tohumu 0: 0 ve 150 ms'de 450 ganimet, ~73 sn). Beklenti: faz günlüğü stage -> wait -> ... -> go_bag, beyin `done`, çanta alındı ve arka kapı kullanıldı, kasa boşaltılmadı, takılma küçük, duvar içi kare yok. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_b.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 100,
+  "bots": {"host": "res://tests/net/bots/brain_bag.json", "c1": "res://tests/net/bots/store_b_escape_c1.json"},
+  "expect": [
+    {"eq": ["host.brain.strategy", "bag"]},
+    {"eq": ["host.brain.role", "solo"]},
+    {"eq": ["host.brain.phase", "done"]},
+    {"eq": ["host.brain.phase_log.0.1", "stage"]},
+    {"eq": ["host.brain.phase_log.1.1", "wait"]},
+    {"eq": ["host.brain.phase_log.2.1", "stage"]},
+    {"eq": ["host.brain.phase_log.3.1", "go_bag"]},
+    {"between": ["host.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"between": ["host.heist.result.strategy.cash_bag_taken_at_s", 1, 90]},
+    {"eq": ["host.heist.result.strategy.back_door_used", true]},
+    {"eq": ["host.heist.result.strategy.register_emptied_at_s", -1.0]},
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["*.level", "res://levels/store_b.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"all_equal": "heist.result"},
+    {"eq": ["*.heist.result.outcome", "clean"]},
+    {"between": ["host.heist.settle_peak_s", 2.98, 3.05]},
+    {"between": ["c1.heist.settle_peak_s", 2.5, 3.6]},
+    {"eq": ["*.heist.abort_peak_s", 0]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

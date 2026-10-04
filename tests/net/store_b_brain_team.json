@@ -1,0 +1,26 @@
+{
+  "_doc": "IS-107 aşama 2: kapalı döngü beyin `team` stratejisi store_b'de (levels/store_b.tscn, tam nüfus + store_b ayar ezmeleri), işaret/bölge tabanlı (koordinata bağlı adım yok; bot durma noktaları IS-106 ile bölgeden türetilir: kasa noktası ClerkSpot (kuzey), tezgâh noktası güneyde müşteri tarafı, ara sokak arka kapı B'nin dışı (doğu), gözetleme doğu camı WindowLook3). Host + 2 istemci aynı bot dosyası (bots/brain_team.json); rol katılım sırasından: host oyalayıcı, c1 kasacı, c2 çantacı (KR-034 sırası: oyalayıcı önce, çanta onun penceresinde arka kapı B'den, kasa en son). Sonucu kazanmak zorunda değil (0 ms'de temiz 600 ganimet ~68 sn; 150 ms'de sahip kasacıyı görebilir -> caught_all); iş biter, sonuç üç süreçte aynı, her beyin `done`, roller doğru, çantacı arka kapıyı kullanır, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_b.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 120,
+  "start_delay": {"c2": 2.0},
+  "bots": {"host": "res://tests/net/bots/brain_team.json", "c1": "res://tests/net/bots/brain_team.json", "c2": "res://tests/net/bots/brain_team.json"},
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_b.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.brain.strategy", "team"]},
+    {"eq": ["host.brain.role", "lure"]},
+    {"eq": ["c1.brain.role", "thief"]},
+    {"eq": ["c2.brain.role", "bagger"]},
+    {"eq": ["*.brain.phase", "done"]},
+    {"between": ["*.brain.stuck_s", 0, 3]},
+    {"has": ["host.heist.result", "outcome"]},
+    {"eq": ["c2.brain.phase_log.2.1", "go_bag"]},
+    {"eq": ["host.heist.result.strategy.back_door_used", true]},
+    {"between": ["host.heist.result.strategy.cash_bag_taken_at_s", 1, 110]},
+    {"all_equal": "heist.result.outcome"},
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["host.brain.phase_log.2.1", "lure"]}
+  ]
+}
