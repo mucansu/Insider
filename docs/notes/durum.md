@@ -1,36 +1,29 @@
-# Durum (2026-10-04, dilim 2.1 sürüyor — yeni oturum)
+# Durum (2026-10-04 akşam, dilim 2.1 kapandı — DURMA NOKTASI, sıradaki dilim 2.2 Test-2)
 
-**Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
+**Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Dilim kuralı KR-033 (her dilim sonu durma noktası). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal) · **aktif dilim 2.1 Denge** (KR-033: her dilim sonu durma noktası; dilim listesi backlog §1a), entegrasyon dalı `faz2-int` = **aee739a** (worktree `.claude/worktrees/faz2-int`, GitHub'da güncel). PROTOCOL_VERSION 5. Birim 733 yeşil; tam ağ seti 70/70 iki kez yeşil (IS-095 ajanı, 2026-10-03; net adımı ~33 dk). Deneme paketi: `build/Insiders-faz2-7a6e233-windows.zip` (debug, 33,5 MB; duman PASS) — kullanıcı arkadaşlarına gönderecek (Tailscale gerekli). Yerel geliştirme: Windows 11, Git Bash, Godot 4.7.2.
+Faz 2 — Gizlilik (bakkal). **Dilim 2.1 Denge Bitti** (`dilim-2.1`, dev = faz2-int = 2606959; kod faz2-int a01ac86 ile aynı). Sıradaki: **dilim 2.2 Test-2** (backlog §1a: IS-102, IS-017, IS-028, IS-032, IS-092, IS-097, IS-018). PROTOCOL_VERSION 5. Unit ~870 yeşil; **tam ci_local 2026-10-04: import/unit/tools + ağ 86/86** (level_change 150 ms kararsızlığı düzeltildi).
+Deneme paketi (test-2 için): `build/Insiders-faz2-a01ac86-windows.zip` (debug, 33,6 MB; duman PASS: host + katılan INSIDERS_READY). Herkes aynı paketi kullanmalı (eski 7a6e233 paketi aynı protokol ama eski denge).
 
-Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5, IS-096, GDD v0.6, IS-015b, IS-098, IS-058b · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
+Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kasa kontrolü, sent 7/listen 6, GÖNDER +20), IS-101 (bot takım sırası, bag, +human), IS-081 (sahip olay günlüğü `owner.log[]`, geç yakalanma hatası), IS-103 (kaçış 3 sn geri sayımı "Minibüs kalkıyor"), IS-104 (arka kapı zili), IS-015 (ölçüm: `docs/surec/olcum/`), heist_stats `.gdignore`, bot `wait` adımı, level_change kararlılığı. Kararlar: KR-034 (denge ilkesi test-2 sonrası; geri sayım + zil), KR-035 (bilgi bölünmesi / zorunlu ekip iletişimi tasarım hedefi).
 
 ## Sürüyor / yarım kalan
-Önceki ajanlara erişim yok (yeni oturum) → aynı WIP dallarından yeni ajanlar başladı (2026-10-04).
-- **IS-100** Bitti (faz2-int fabd7e2, push edildi).
-- **IS-081** Bitti (faz2-int 2d5802e, push). Kararı: koşu ayrımı (b) `level_started` → IS-102 (dilim 2.2).
-- **IS-015 ölçümü** bitti (`docs/surec/olcum/`); Fable + kullanıcı → **KR-034**: denge ilkesi test-2 sonrası; kaçış 3 sn geri sayımı + arka kapı zili.
-- **IS-103** Bitti (faz2-int 6534bb8, push).
-- **IS-104** Bitti (faz2-int aee739a). IS-105 (kasa sesi DİNLE → kasaya bak) test-2 sonrası.
-- **Tam CI + yeniden ölçüm** koşuyor (faz2-int aee739a).
-- Sonra: IS-103 + IS-104 birleşince yeniden ölçüm (bilgi amaçlı) → IS-015 kapanış → yeni deneme paketi → dilim 2.1 sonu (durma noktası).
-- **IS-101** Bitti (faz2-int 80ea0e4 + f0ba1f1).
-- **IS-099** Bitti (faz2-int a8e80cd, push edildi).
-- Not: GDD (v0.6) ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
+Yok. Çalışan ajan yok; açık ajan worktree'si yok (yalnız `.claude/worktrees/faz2-int`).
 
 ## Yeni sohbette ilk adımlar
-1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
-2. Test-2 (IS-017): kullanıcı arkadaşlarla paketle oynar; istenirse `test-2` etiketi → CI Release. Öncesinde tam CI zaten yeşil.
-3. Sıradaki Faz 2 kalemleri: IS-015 oyun testi botları + strateji istatistiği (tek kişi kolay geçiyor mu), US-037 NPC teması (KR-027), IS-092 küçük GDD bedelleri, IS-081 (GB-04/05 sonrası kalan sahip tepkisi), nit havuzundan dosyası dokunulanlar.
+1. Dilim 2.2 başı mesajı (surec §5b): kalemler + çıkış kriteri ("test-2 oynandı; GB'ler kaleme/KR'ye bağlı; blocker yok"). İlk kalem **IS-102** (cekirdek, XS): `level_started {run}` oturum olayı + `--log-on-exit=<yol>` (otomasyon sayılmayan, tohum/FPS normal; GB-04a tekrarı için) — test-2 paketinden önce; sonra yeni paket.
+2. Kullanıcı test-2'yi oynarsa geri bildirimleri `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz; KR-034 ilke kararı (fark edildiği an = shouted; IS-105 kasa sesi → kasaya bak) ve denge hedeflerinin yeniden yazımı test-2 gözlemiyle (Fable).
+3. Test-2 gözlem formuna satır (Fable): oyuncular vuruş-kaç mı yapıyor, pencere mi bekliyor; geri sayım ve arka kapı zili okunuyor mu.
+4. Nit havuzundan dokunulan dosyalarınkiler (IS-095 near kalıbı uyarısı, IS-104 discovery_cash payı).
 
 ## Kullanıcıdan bekleyen
-- Tailscale kurulumu ve arkadaşları tailnet'e davet (internet testi için); deneme paketinin paylaşımı.
-- Test-1 sonuçları (varsa).
+- Test-2: paketi arkadaşlarla paylaşmak + Tailscale kurulumu/daveti; gözlemler.
+- KR-034 ilke kararı test-2 sonrası ("araç para verir, sabır/ekip temizlik verir").
 - Bekleyen KR: KR-013 ad (öneri Mapless), KR-014 Steamworks (sona), KR-024 AI ses hesabı, KR-025 Türkçe ses satırları.
-- Fable değerlendirmesine (test-2 sonrası): mahallelinin yalnız örtüsü bozuk oyuncuyu kovalaması (US-043), tezgâh görüşü/tanık sönümü (nit havuzu).
+- Fable değerlendirmesine (test-2 sonrası): mahallelinin yalnız örtüsü bozuk oyuncuyu kovalaması (US-043), tezgâh görüşü/tanık sönümü, KR-034 C hedef kalibrasyonu, B kilidi (6 sn).
 
 ## Son kapanış
+Dilim 2.1 — 2026-10-04: `dilim-2.1` (dev 2606959).
 Faz 1 — 2026-10-02: `faz-1` + `test-1` etiketi (main = cc9c9e1).
 Faz 0 — 2026-10-01: IS-001..IS-004 Bitti.
