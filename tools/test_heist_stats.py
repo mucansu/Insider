@@ -312,7 +312,8 @@ class RunLoopTest(unittest.TestCase):
             with mock.patch.object(hs, "run_one", fake_run_one), mock.patch.object(hs, "find_godot", lambda: "godot"), \
                     redirect_stdout(out):
                 code = hs.main(argv + ["--out", d, "--jobs", "3"])
-            produced = os.listdir(d)
+            self.assertTrue(os.path.isfile(os.path.join(d, ".gdignore")))
+            produced = [n for n in os.listdir(d) if n != ".gdignore"]
             self.assertEqual(len(produced), 1)
             with open(os.path.join(d, produced[0], "summary.md"), encoding="utf-8") as f:
                 md = f.read()

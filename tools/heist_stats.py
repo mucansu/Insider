@@ -664,6 +664,8 @@ def run(args: argparse.Namespace, specs: list[RunSpec]) -> int:
     out_dir = os.path.join(out_root, stamp)
     runs_dir = os.path.join(out_dir, "runs")
     os.makedirs(runs_dir, exist_ok=True)
+    # Keep Godot from importing the stats (runs.csv would become translation files inside the project).
+    open(os.path.join(out_root, ".gdignore"), "a").close()
     ctx = Context(
         godot=find_godot(), level=args.level, quit_after=args.quit_after, run_timeout=args.run_timeout,
         latency_ms=args.latency_ms, player_scene=args.player_scene, extra=list(args.godot_arg), runs_dir=runs_dir,
