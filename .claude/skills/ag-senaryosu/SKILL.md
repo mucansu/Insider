@@ -31,7 +31,7 @@ Anahtarlar (bilinmeyen anahtar = FAIL): `_doc`, `level` (zorunlu), `player_scene
 
 ## Bot dosyası `tests/net/bots/<ad>.json`
 `{"steps":[{"t":SN, …}]}` — saat yerel oyuncunun ilk fizik adımından:
-`{"t":1,"move":[x,y]}` · `{"t":2,"hold":"sprint|sneak|interact|intimidate","dur":3}` · `{"t":4,"press":"intimidate"}` · `{"t":5,"look":[x,y]}` · host kancası `{"t":6,"heist":"alert|police|caught|shout|restart","data":{}}` · `"loop":{"from":F,"period":P}`.
+`{"t":1,"move":[x,y]}` · `{"t":2,"hold":"sprint|sneak|interact|intimidate","dur":3}` · `{"t":4,"press":"intimidate"}` · `{"t":5,"look":[x,y]}` · olay bekleme `{"t":5,"wait":"owner_distracted","max":20}` (saat o oturum olayı görülene dek durur, sonraki adımlar kayar; katılma gecikmesine bağlı pencereler için sabit zaman yerine bunu kullan) · host kancası `{"t":6,"heist":"alert|police|caught|shout|restart","data":{}}` · `"loop":{"from":F,"period":P}`.
 Konumlar için `levels/layouts/<seviye>.txt` işaretlerine bak (karo 32 px).
 
 ## Fikstür seç (`tests/fixtures/`)
