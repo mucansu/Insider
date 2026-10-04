@@ -923,6 +923,8 @@ static func _sanitize_name(value: Variant) -> String:
 #   applied through the session_events above (and request_restart); stands in for owner events until US-008. Time counts from the first local player's first physics step, like the bot timeline.
 # - US-040 empty-handed abort: rule and clock in `HeistRules.AbortClock` (inside Tracker, host decides; duration data/heist_tuning.tres). `abort_left()` HUD countdown: on the host the Tracker's clock,
 #   on a client derived by the same class from the local copy (escape_status + replicated bag carrier / vault `emptied`) — no RPC; the result still arrives via heist_finished.
+# - IS-103 escape settle (KR-034): same pattern — rule and clock `Tracker.settle` (host decides; `escape_settle_s` in data/heist_tuning.tres), `escape_settle_left()` HUD countdown
+#   (host: the deciding clock; client: local estimate from escape_status + loot seen + this level's alert peak < 2). No RPC; dump `heist.settle_peak_s`.
 # - US-041 bail (KR-029): per caught player `bail_by_tier[venue_tier()]` (data/heist_tuning.tres); team cash = before + payout − bail, may go negative (debt). The result has `bail`, `cash_before`, `cash_after`.
 #   "Again" (request_restart) does not reset cash: debt/cash carries to the next job (KR-029, US-042 package).
 # - US-042 cover and witness query: rule in `HeistRules` (cover_breaker, associates, witness_released) and Tracker (cover_broken, released). The view gains cover fields: staff side (`StaffArea`/`Backroom` zone),
@@ -934,7 +936,7 @@ static func _sanitize_name(value: Variant) -> String:
 # - IS-099 left player: a peer dropped mid-job (`_host_drop_peer`, before the roster erase) goes to `Tracker.note_left`; the result's `players` lists it with
 #   `left: true` and zero share/bail (economy unchanged); roster players carry `left: false`.
 # - US-042 strategy label: result `strategy` (Tracker.strategy) and dump `heist.strategy`; interaction count from every level Interactable's `completed` (player) + RESCUE; back door = a player used the `BackDoor` prop.
-# Dump (S6 "heist", --dump only): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s", "cover" {peer: bool}, "strategy"}.
+# Dump (S6 "heist", --dump only): {"active", "max_alert", "elapsed", "result", "history", "abort_peak_s", "settle_peak_s", "cover" {peer: bool}, "strategy"}.
 # =====================================================================================================================
 
 signal heist_finished(result: Dictionary)
@@ -990,6 +992,8 @@ var _heist_cash_items: Array[Node] = []
 var _heist_abort_view: HeistRules.AbortClock = null
 ## Cash props in the level (vault; `emptied` is replicated): for the client's local loot estimate.
 var _heist_cash_props: Array[Node] = []
+## IS-103: client's local escape settle counter (HUD only; the decision is the host's Tracker.settle).
+var _heist_settle_view: HeistRules.AbortClock = null
 
 
 ## Result of a finished job (S3 addendum; late joiners get it too); empty if the job is running or absent.
@@ -1022,6 +1026,16 @@ func abort_left() -> float:
 	if _has_host_authority():
 		return _heist.abort.left()
 	return _heist_abort_view.left() if _heist_abort_view != null else -1.0
+
+
+## IS-103 (S3 addendum): time left on the escape settle countdown ("van leaving… n", s); −1 if no countdown or the job finished. On the host the deciding counter;
+## on a client an estimate derived from the local copy (display only). Never runs together with `abort_left()` (abort needs loot 0, settle loot > 0).
+func escape_settle_left() -> float:
+	if _heist == null or _heist.finished:
+		return -1.0
+	if _has_host_authority():
+		return _heist.settle.left()
+	return _heist_settle_view.left() if _heist_settle_view != null else -1.0
 
 
 ## US-042 (S3 addendum): the local player's cover — 1 intact ("you look like a customer"), 0 broken, −1 no job/finished or no local player.
@@ -1114,6 +1128,8 @@ func _heist_on_level_loaded(level: Node) -> void:
 	_heist.cover_mark_window_s = tuning.cover_mark_window_s
 	_heist.witness_heat = tuning.witness_heat
 	_heist_abort_view = HeistRules.AbortClock.new(tuning.abort_hold_s)
+	_heist.settle.hold_s = tuning.escape_settle_s
+	_heist_settle_view = HeistRules.AbortClock.new(tuning.escape_settle_s)
 	_heist_cash_props.clear()
 	if not level.tree_exiting.is_connected(_heist_on_level_exiting):
 		level.tree_exiting.connect(_heist_on_level_exiting, CONNECT_ONE_SHOT)
@@ -1156,6 +1172,7 @@ func _heist_on_level_exiting() -> void:
 	_heist = null
 	_heist_result = {}
 	_heist_abort_view = null
+	_heist_settle_view = null
 	_heist_cash_props.clear()
 
 
@@ -1166,8 +1183,20 @@ func _heist_client_abort(delta: float) -> void:
 		return
 	var status: Dictionary = escape_status()
 	var free: int = int(status.get("free", 0))
-	var holding: bool = free > 0 and int(status.get("in_zone", 0)) >= free and not _heist_loot_seen()
-	_heist_abort_view.step(holding, delta, free)  # free count changed (a catch): restart
+	var together: bool = free > 0 and int(status.get("in_zone", 0)) >= free
+	var loot_seen: bool = _heist_loot_seen()
+	_heist_abort_view.step(together and not loot_seen, delta, free)  # free count changed (a catch): restart
+	# IS-103: escape settle estimate — together with loot and nobody shouted this level (alert peak < ALERT_SHOUTED; police is alert 5).
+	if _heist_settle_view != null and _heist_settle_view.hold_s > HeistRules.ABORT_EPS:
+		_heist_settle_view.step(together and loot_seen and _heist_alert_peak() < HeistRules.ALERT_SHOUTED, delta, free)
+
+
+## Highest alert level seen on this level (the alert history resets on level load; the ladder can step 2 -> 1).
+func _heist_alert_peak() -> int:
+	var peak: int = _alert_level
+	for level: int in _alert_history:
+		peak = maxi(peak, level)
+	return peak
 
 
 ## Loot as the client sees it: a replicated bag carrier or an emptied cash prop.
@@ -1477,6 +1506,7 @@ func _heist_dump() -> Dictionary:
 		"result": _heist_result,
 		"history": _heist_history,
 		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
+		"settle_peak_s": snappedf(_heist_settle_peak(), 0.01),
 		"cover": _heist_cover_dump(),
 		"strategy": _heist_result.get("strategy", {}),
 		"events_main": _heist_events_main(),
@@ -1515,6 +1545,13 @@ func _heist_abort_peak() -> float:
 	if _has_host_authority():
 		return _heist.abort.peak_s if _heist != null else 0.0
 	return _heist_abort_view.peak_s if _heist_abort_view != null else 0.0
+
+
+## Longest escape settle counter seen on this peer (s; IS-103): the deciding counter on the host, the local estimate on a client.
+func _heist_settle_peak() -> float:
+	if _has_host_authority():
+		return _heist.settle.peak_s if _heist != null else 0.0
+	return _heist_settle_view.peak_s if _heist_settle_view != null else 0.0
 
 
 # --- test hook (automation + host only) ---

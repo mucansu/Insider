@@ -436,6 +436,135 @@ func test_abort_clock() -> void:
 	near(c.held_s, 0.1, 0.0001, "epoch değişti: baştan")
 
 
+# --- IS-103 escape settle (KR-034) ---
+
+## A Tracker with the real escape settle duration (data/heist_tuning.tres; Game sets it the same way).
+static func _settle_tracker() -> HeistRules.Tracker:
+	var t := HeistRules.Tracker.new()
+	t.settle.hold_s = HeistTuning.load_default().escape_settle_s
+	return t
+
+
+func test_escape_settle_countdown_then_clean() -> void:
+	eq(HeistTuning.load_default().escape_settle_s, 3.0, "data/heist_tuning.tres: 3 sn")
+	eq(HeistRules.Tracker.new().settle.hold_s, 0.0, "Tracker varsayılanı 0: geri sayım yok (ayarı Game verir)")
+	var t := _settle_tracker()
+	t.add_cash(A, 150)
+	var views: Dictionary = {A: _view(true), B: _view(true, 450)}
+	is_true(HeistRules.settle_ready(t.players_state(views), t.secured_loot(views)), "koşul: herkes bölgede, ganimet > 0")
+	eq(t.evaluate(views), &"", "gözlem yokken de kazanma bekletilir")
+	eq(_run(t, views, 2.9)[0], &"", "3 sn dolmadan iş sürer")
+	near(t.settle.left(), 0.1, 0.02, "kalan ~0,1 sn")
+	eq(t.abort.left(), -1.0, "eli boş sayacı çalışmaz")
+	eq(_run(t, views, 0.2)[0], &"win", "3 sn kesintisiz: kazanma")
+	near(t.settle.held_s, 3.0, 0.02)
+	var result: Dictionary = t.build_result(&"win", views, {A: _roster()[A], B: _roster()[B]})
+	eq(result["outcome"], &"clean")
+	eq(result["payout_ratio"], 0.9, "kimse bağırmadı: %90")
+	# Zero duration = old behaviour (instant win at the first step).
+	var t0 := HeistRules.Tracker.new()
+	t0.add_cash(A, 150)
+	var r: Array = _run(t0, views, 1.0)
+	eq(r[0], &"win")
+	near(float(r[1]), 1.0 / 60.0, 0.001, "süre 0: ilk adımda")
+
+
+func test_escape_settle_shout_during_countdown_is_shouted() -> void:
+	var t := _settle_tracker()
+	t.add_cash(A, 150)
+	var views: Dictionary = {A: _view(true)}
+	eq(_run(t, views, 1.5)[0], &"", "geri sayım sürüyor")
+	t.set_alert(2)
+	var r: Array = _run(t, views, 1.0)
+	eq(r[0], &"win", "bağırış: iş hemen biter")
+	near(float(r[1]), 1.0 / 60.0, 0.001, "bağırıştan sonraki ilk adımda")
+	eq(t.settle.left(), -1.0, "bağırıştan sonra geri sayım yok")
+	var result: Dictionary = t.build_result(&"win", views, {A: _roster()[A]})
+	eq(result["outcome"], &"shouted")
+	eq(result["payout_ratio"], 0.85, "ödeme kuralları değişmez")
+	eq(result["payout"], 128)
+	eq(result["heat"], 5)
+	# Alert 3 during the countdown: hot (same rule, highest tier).
+	t = _settle_tracker()
+	t.add_cash(A, 150)
+	eq(_run(t, views, 1.0)[0], &"")
+	t.set_alert(3)
+	eq(_run(t, views, 1.0 / 60.0)[0], &"win")
+	eq(t.build_result(&"win", views, {A: _roster()[A]})["outcome"], &"hot")
+
+
+func test_escape_settle_cancelled_when_someone_leaves_or_is_caught() -> void:
+	var t := _settle_tracker()
+	t.add_cash(A, 150)
+	var both: Dictionary = {A: _view(true), B: _view(true)}
+	eq(_run(t, both, 2.5)[0], &"")
+	_run(t, {A: _view(true), B: _view(false)}, 1.0 / 60.0)
+	eq(t.settle.left(), -1.0, "biri çıktı: geri sayım iptal")
+	eq(_run(t, both, 2.5)[0], &"", "baştan sayıyor: 2,5 sn'de bitmez")
+	var r: Array = _run(t, both, 1.0)
+	eq(r[0], &"win")
+	near(float(r[1]), 0.5, 0.02, "yeniden girişten 3 sn sonra")
+	# Caught during the countdown (the rest still in the zone with loot): the countdown restarts.
+	t = _settle_tracker()
+	t.add_cash(A, 150)
+	eq(_run(t, both, 2.0)[0], &"")
+	t.mark_caught(B, &"chaser")
+	r = _run(t, both, 3.1)
+	eq(r[0], &"win")
+	near(float(r[1]), 3.0, 0.02, "yakalanma geri sayımı sıfırladı")
+	# A newcomer outside the zone (late joiner) cancels it as well.
+	t = _settle_tracker()
+	t.add_cash(A, 150)
+	eq(_run(t, {A: _view(true)}, 2.0)[0], &"")
+	eq(_run(t, {A: _view(true), C: _view(false)}, 2.0)[0], &"", "yeni gelen dışarıda: iş sürer")
+	eq(t.settle.left(), -1.0)
+
+
+func test_escape_settle_instant_when_alert_already_shouted_or_police() -> void:
+	var t := _settle_tracker()
+	t.add_cash(A, 150)
+	t.set_alert(2)
+	var views: Dictionary = {A: _view(true)}
+	var r: Array = _run(t, views, 1.0)
+	eq(r[0], &"win", "varışta uyarı 2: anında")
+	near(float(r[1]), 1.0 / 60.0, 0.001, "ilk adımda")
+	eq(t.settle.peak_s, 0.0, "geri sayım hiç başlamadı")
+	# Alert went 2 -> 1 before arriving: max alert still counts (no countdown).
+	t = _settle_tracker()
+	t.add_cash(A, 150)
+	t.set_alert(2)
+	t.set_alert(1)
+	eq(_run(t, views, 1.0 / 60.0)[0], &"win", "en yüksek uyarı 2 kalır: anında")
+	# Police arrived: those in the zone with loot win at once (hot), no countdown.
+	t = _settle_tracker()
+	t.add_cash(A, 150)
+	var two: Dictionary = {A: _view(true), B: _view(false)}
+	t.arrive_police(two)
+	eq(_run(t, two, 1.0 / 60.0)[0], &"win", "polis: anında sıcak kazanma")
+	eq(t.settle.peak_s, 0.0)
+	eq(HeistRules.decide({A: {"caught": false, "in_zone": true, "loot": 150}}, false, false, -1, true), &"",
+		"win_hold: kazanma bekletilir")
+	eq(HeistRules.decide({A: {"caught": false, "in_zone": true, "loot": 0}}, false, true, -1, true), &"aborted",
+		"win_hold eli boş çekilmeyi etkilemez")
+
+
+func test_escape_settle_and_abort_never_overlap() -> void:
+	var t := _settle_tracker()
+	var views: Dictionary = {A: _view(true), B: _view(true)}
+	eq(_run(t, views, 2.0)[0], &"", "ganimet 0: eli boş sayacı")
+	is_true(t.abort.running(), "abort çalışıyor")
+	eq(t.settle.left(), -1.0, "settle çalışmıyor")
+	t.add_cash(A, 150)  # loot appears (e.g. register emptied from inside the zone edge)
+	_run(t, views, 1.0 / 60.0)
+	eq(t.abort.left(), -1.0, "ganimet > 0: abort sıfırlandı")
+	is_true(t.settle.running(), "settle başladı")
+	var r: Array = _run(t, views, 3.1)
+	eq(r[0], &"win", "settle yolu: kazanma (aborted değil)")
+	near(float(r[1]), 3.0 - 1.0 / 60.0, 0.02)
+	is_false(HeistRules.settle_ready({A: {"caught": false, "in_zone": true, "loot": 0}}), "ganimet 0: settle koşulu yok")
+	is_false(HeistRules.abort_ready({A: {"caught": false, "in_zone": true, "loot": 10}}), "ganimet > 0: abort koşulu yok")
+
+
 # --- US-041 bail ---
 
 func test_bail_table_and_cash() -> void:

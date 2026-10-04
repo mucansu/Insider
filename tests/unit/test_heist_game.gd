@@ -12,6 +12,8 @@ const IN_ZONE := Vector2(860, 576)
 const STAFF := Vector2(588, 368)
 const NEAR_BAG := Vector2(496, 256)
 const DT := 1.0 / 60.0
+## IS-103: physics frames that cover the 3 s escape settle (data/heist_tuning.tres) with margin.
+const SETTLE_FRAMES := 190
 
 var _results: Array[Dictionary] = []
 var _previous_scene: PackedScene = null
@@ -74,8 +76,14 @@ func test_clean_win_pays_ninety_percent_of_register() -> void:
 	eq(Game.team_cash(), 150, "kasa anında ekip nakdine (US-005)")
 	await _frames()
 	eq(_results.size(), 0, "kaçış bölgesine girmeden bitmez")
+	eq(Game.escape_settle_left(), -1.0, "bölge dışında: kaçış geri sayımı yok")
 	me.position = IN_ZONE
 	await _frames()
+	eq(_results.size(), 0, "IS-103: ganimetle bölgede, önce 3 sn geri sayım")
+	var left: float = Game.escape_settle_left()
+	is_true(left > 2.8 and left < 3.0, "geri sayım başladı: %s" % left)
+	eq(Game.abort_left(), -1.0, "ganimet var: eli boş sayacı çalışmaz")
+	await _frames(SETTLE_FRAMES)
 	if eq(_results.size(), 1, "heist_finished bir kez"):
 		var r: Dictionary = _results[0]
 		eq(r["outcome"], &"clean")
@@ -120,6 +128,40 @@ func test_bag_and_shout_is_shouted_win() -> void:
 		eq(r["heat"], 5)
 		has(r["notes"], {"kind": &"porter", "peer": 1}, "Hamal")
 	eq(Game.team_cash(), 383)
+	await _stop()
+
+
+## IS-103 (KR-034): escape settle — leaving the zone cancels the countdown, it restarts from 3 s; a shout (alert 2) during it ends the job
+## at once as `shouted` (payout rules unchanged).
+func test_escape_settle_cancel_and_shout() -> void:
+	var me: Player = _start()
+	if not is_true(me != null, "yerel oyuncu"):
+		await _stop()
+		return
+	me.position = STAFF
+	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
+	me.position = IN_ZONE
+	await _frames(90)
+	var left: float = Game.escape_settle_left()
+	is_true(left > 1.0 and left < 2.0, "1,5 sn sonra kalan ~1,5 sn: %s" % left)
+	me.position = STAFF
+	await _frames(3)
+	eq(Game.escape_settle_left(), -1.0, "bölgeden çıktı: geri sayım iptal")
+	eq(_results.size(), 0)
+	me.position = IN_ZONE
+	await _frames(60)
+	left = Game.escape_settle_left()
+	is_true(left > 1.8 and left < 2.1, "baştan sayıyor (~2 sn kaldı): %s" % left)
+	eq(_results.size(), 0)
+	Game.raise_session_event(&"alert_level", {"level": 2})
+	await _frames(3)
+	if eq(_results.size(), 1, "geri sayımda bağırış: iş hemen biter"):
+		var r: Dictionary = _results[0]
+		eq(r["outcome"], &"shouted")
+		eq(r["payout_ratio"], 0.85)
+		eq(r["payout"], 128)
+		eq(r["heat"], 5)
+	eq(Game.escape_settle_left(), -1.0, "iş bitti: geri sayım yok")
 	await _stop()
 
 
@@ -304,7 +346,7 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
 	eq(Game.team_cash(), 50, "kasa nakdi anında (-100 + 150)")
 	me.position = IN_ZONE
-	await _frames()
+	await _frames(SETTLE_FRAMES)
 	if eq(_results.size(), 2):
 		var r: Dictionary = _results[1]
 		eq(r["outcome"], &"clean")

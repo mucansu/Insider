@@ -1,12 +1,15 @@
 class_name HeistTuning
 extends Resource
-## Heist result tuning (US-040 empty-handed abort, US-041 bail / KR-029, US-042 cover and witness questioning; mimari.md S10 tuning-file pattern).
+## Heist result tuning (US-040 empty-handed abort, IS-103 escape settle, US-041 bail / KR-029, US-042 cover and witness questioning; mimari.md S10 tuning-file pattern).
 ## Single source is `data/heist_tuning.tres`; defaults here are neutral. Rules are node-free in `HeistRules` (core/heist_rules.gd); Game (host) reads this resource at job start and passes it to the rules.
 
 const PATH := "res://data/heist_tuning.tres"
 
 ## Empty-handed abort: seconds all uncaught players stay in the escape zone with no loot before the job ends as `aborted`.
 @export_range(0.0, 30.0, 0.1, "suffix:s") var abort_hold_s: float = 0.0
+## Escape settle (IS-103, KR-034): seconds all uncaught players stay in the escape zone with loot (nobody shouted yet) before the job is won;
+## a shout (alert >= 2) meanwhile ends it as `shouted`. 0 = instant win.
+@export_range(0.0, 30.0, 0.1, "suffix:s") var escape_settle_s: float = 0.0
 ## Bail: venue tier -> amount deducted from team cash for each player caught at job end.
 ## A tier not in the table uses the nearest lower tier's amount (HeistRules.bail_for_tier).
 @export var bail_by_tier: Dictionary[int, int] = {}
