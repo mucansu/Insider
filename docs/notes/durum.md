@@ -1,18 +1,21 @@
-# Durum (2026-10-04 akşam, dilim 2.1 kapandı — DURMA NOKTASI, sıradaki dilim 2.2 Hazırlık)
+# Durum (2026-10-04 20:50, dilim 2.2 Hazırlık sürüyor)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Dilim kuralı KR-033 (her dilim sonu durma noktası). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal). **Dilim 2.1 Denge Bitti** (`dilim-2.1`, dev = faz2-int = 2606959; kod faz2-int a01ac86 ile aynı). Sıradaki: **dilim 2.2 Hazırlık** (backlog §1a: IS-102, US-045, IS-106, IS-107 + yeni test-2 paketi), sonra 2.3 Test-2. PROTOCOL_VERSION 5. Unit ~870 yeşil; **tam ci_local 2026-10-04: import/unit/tools + ağ 86/86** (level_change 150 ms kararsızlığı düzeltildi).
+Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık sürüyor** (2026-10-04 20:50 başladı). Önceki: **Dilim 2.1 Denge Bitti** (`dilim-2.1`, dev = faz2-int = 2606959; kod faz2-int a01ac86 ile aynı). Dilim 2.2 kalemleri: IS-102, US-045, IS-106, IS-107 + yeni test-2 paketi (backlog §1a); sonra 2.3 Test-2. PROTOCOL_VERSION 5. Unit ~870 yeşil; **tam ci_local 2026-10-04: import/unit/tools + ağ 86/86** (level_change 150 ms kararsızlığı düzeltildi).
 Deneme paketi (test-2 için): `build/Insiders-faz2-a01ac86-windows.zip` (debug, 33,6 MB; duman PASS: host + katılan INSIDERS_READY). Herkes aynı paketi kullanmalı (eski 7a6e233 paketi aynı protokol ama eski denge).
 
 Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kasa kontrolü, sent 7/listen 6, GÖNDER +20), IS-101 (bot takım sırası, bag, +human), IS-081 (sahip olay günlüğü `owner.log[]`, geç yakalanma hatası), IS-103 (kaçış 3 sn geri sayımı "Minibüs kalkıyor"), IS-104 (arka kapı zili), IS-015 (ölçüm: `docs/surec/olcum/`), heist_stats `.gdignore`, bot `wait` adımı, level_change kararlılığı. Kararlar: KR-034 (denge ilkesi test-2 sonrası; geri sayım + zil), KR-035 (bilgi bölünmesi / zorunlu ekip iletişimi tasarım hedefi).
 
 ## Sürüyor / yarım kalan
-Yok. Çalışan ajan yok; açık ajan worktree'si yok (yalnız `.claude/worktrees/faz2-int`).
+- **US-045** — Fable (tasarim) danışması: alışveriş v0 ürün listesi, damacana siparişi, arka kapı çalma, GB-08 örtü A/B/C, store_b tasarım özeti, test-2 gözlem satırları. Rapor gelince → oynanis (IS-106 bittikten sonra) + arayuz metin.
+- **IS-102** — cekirdek, ajan worktree'si (`level_started {run}` + restart'ta olay geçmişi korunur + `--log-on-exit`).
+- **IS-106** — oynanis, ajan worktree'si (denetim tablosu, harita başına alan bazlı ayar ezme, bot işaret tabanlı, store_a ayna fikstürüyle kanıt).
+- Sırada: IS-107 store_b (seviye; Fable özeti + IS-106 sonrası), US-045 uygulama, sonra yeni test-2 paketi.
 
 ## Yeni sohbette ilk adımlar
-1. Dilim 2.2 Hazırlık başı mesajı (surec §5b): kalemler + çıkış kriteri (backlog §1a). Paralel başla: **US-045** önce Fable danışması (gerçek alışveriş v0 KR-037 + KR-036 damacana siparişi, istemde arka oda yazmaz; GB-08 örtü yalnız görülünce mi bozulsun) → oynanis + arayuz; ve **IS-106/IS-107** (KR-037 harita bağımsızlığı + ikinci deneme haritası store_b; store_a'ya dokunma) ve **IS-102** (cekirdek, XS): `level_started {run}` oturum olayı + `--log-on-exit=<yol>` (otomasyon sayılmayan, tohum/FPS normal; GB-04a tekrarı için) — test-2 paketinden önce; ikisi bitince yeni test-2 paketi (mevcut a01ac86 paketi eski GÖNDER'li).
+1. Sürüyor listesindeki ajan raporlarını al (kalem-kapat), sıradakileri başlat.
 2. Kullanıcı test-2'yi oynarsa geri bildirimleri `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz; KR-034 ilke kararı (fark edildiği an = shouted; IS-105 kasa sesi → kasaya bak) ve denge hedeflerinin yeniden yazımı test-2 gözlemiyle (Fable).
 3. Test-2 gözlem formuna satır (Fable): oyuncular vuruş-kaç mı yapıyor, pencere mi bekliyor; geri sayım ve arka kapı zili okunuyor mu.
 4. Nit havuzundan dokunulan dosyalarınkiler (IS-095 near kalıbı uyarısı, IS-104 discovery_cash payı).
