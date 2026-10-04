@@ -199,7 +199,8 @@ func test_send_to_backroom_once_per_heist_with_register_window() -> void:
 		if not o.brain().sent_windows.is_empty():
 			break
 	if is_true(o.brain().sent_windows.size() == 1, "tezgâha döndü"):
-		is_true(o.brain().sent_windows[0] >= 10.0, "kasa penceresi ≥ 10 sn (%.1f)" % o.brain().sent_windows[0])
+		var sent_sec: float = o.brain().owner_tuning.sent_sec  # IS-100 (KR-032): 7 s search + walking
+		is_true(o.brain().sent_windows[0] >= sent_sec, "kasa penceresi ≥ %.0f sn (%.1f)" % [sent_sec, o.brain().sent_windows[0]])
 	is_false((stage.level.props_root().get_node(^"BackroomDoor") as Door).is_open, "D arkasından kapandı")
 	var item: Interactable = counter.send_interactable()
 	item.host_start(2, 2)

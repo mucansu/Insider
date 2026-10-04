@@ -106,9 +106,14 @@ func test_serve_completes_without_theft() -> void:
 
 
 ## AC3: 45 s total with the register empty at a customerless counter -> discovery; not counted with a customer inside.
+## The IS-100 return check is switched off here (it would discover on the first return from an away task; covered in
+## test_discovery_return.gd), so the idle rule is measured alone.
 func test_idle_counter_discovery() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
+	var tuning: OwnerTuning = o.brain().owner_tuning.duplicate() as OwnerTuning
+	tuning.return_check_sec = 0.0
+	o.brain().owner_tuning = tuning
 	_register(stage).set(&"emptied", true)
 	var customers: Array[int] = [1]
 	o.senses().customers_query = func() -> int: return customers[0]

@@ -66,6 +66,12 @@ extends Resource
 ## Idle trigger (AC3): total time at the counter (ClerkSpot, home task) with an empty register and no customers inside (s;
 ## 0 = off).
 @export_range(0.0, 600.0, 1.0, "suffix:s") var idle_discover_sec: float = 0.0
+## Return check (IS-100, KR-032): after being away from the counter (any agenda task or interrupt), the owner looks at the register
+## this long after arriving back at ClerkSpot; an emptied register -> DISCOVER (before the service / idle triggers). 0 = off.
+@export_range(0.0, 10.0, 0.05, "suffix:s") var return_check_sec: float = 0.0
+## SEND return cost (IS-100 AC3, GDD §9.3): when the owner is back at the counter after SEND, the player who sent them (if still free)
+## gets this much suspicion. 0 = off.
+@export_range(0.0, 100.0, 1.0) var send_return_suspicion: float = 0.0
 
 @export_group("Tutma")
 ## Chase speed (px/s); hold window first / later (s); stagger after rescue (s) and suspicion on the rescuer.

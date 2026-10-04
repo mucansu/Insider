@@ -18,6 +18,11 @@ extends Node
 ## discovery per source; if the owner is already alarmed (or alert >= the shout tier) only balloon + neighbour +1. No discovery after the heist
 ## ends. After calming down (30 s search) the agenda's first task is forced to the backroom (natural discovery if cash was taken; no fixed
 ## "shout again after 60 s").
+## Return check (IS-100, KR-032; comes before the service and idle triggers): once the owner has been away from ClerkSpot (any agenda task
+## or interrupt: restock, backroom, phone, sent, listen, questioning ...) it looks at the register `return_check_sec` after standing back
+## at ClerkSpot; an emptied register -> discovery (same flow, same one-per-source rule, none after the heist ends). SEND return cost (GDD
+## §9.3 "suspicion +20 to the asking player on return"): back at the counter after SEND, the sender (if still free) gets
+## `send_return_suspicion` wherever they are (an unseen meter drains as usual; an alarm in between cancels it; `send_costs`, dump).
 ## Player tools (US-010; GDD §9.3, KR-026; oyun-yz round 2 #14-#15):
 ## - BUY `serve_player(peer)`: same as customer service (CUSTOMER interrupt, `register_opened` hook; service id -peer), suspicion 0 and loiter 0
 ##   for that player, `owner_serve`. SEND TO BACKROOM `send_to_backroom(peer)`: SENT interrupt, `owner_sent`; time from being sent until back at the
@@ -83,6 +88,14 @@ const OWN_NOISE_KINDS: Array[StringName] = [SHOUT_KIND, NoiseProfile.KIND_PHONE,
 ## Player service id is -peer (customer serial numbers are positive; US-010).
 const DISTRACTED_SESSION_EVENT := &"owner_distracted"
 const PHONE_FOUND_SESSION_EVENT := &"phone_found"
+## Return check (IS-100): beyond RETURN_AWAY_PX from ClerkSpot the owner counts as away; within RETURN_AT_PX as back at the counter.
+const RETURN_AWAY_PX := 32.0
+const RETURN_AT_PX := 12.0
+## Discovery trigger names (dump `discoveries[].trigger`; IS-100).
+const TRIGGER_RETURN := &"return"
+const TRIGGER_SERVE := &"serve"
+const TRIGGER_BACKROOM := &"backroom"
+const TRIGGER_IDLE := &"idle"
 
 var owner_tuning: OwnerTuning
 var civilian_tuning: CivilianTuning
@@ -118,6 +131,8 @@ var has_shouted: bool = false
 var soothed: Array[Dictionary] = []
 ## Window queries (US-044; dump/test): questioned peers in order.
 var window_questions: Array[int] = []
+## SEND return costs applied (IS-100 AC3; dump/test): [{"peer", "amount"}].
+var send_costs: Array[Dictionary] = []
 
 ## Components (setup connects; read).
 var body: CharacterBody2D = null
@@ -144,6 +159,11 @@ var _idle_empty: float = 0.0
 var _talking: int = 0
 var _loiter_said: Dictionary = {}
 var _sent_at: float = -1.0
+## Player who sent the owner to the backroom (SEND return cost; 0 = none / already settled).
+var _sent_by: int = 0
+## Return check (IS-100): away from ClerkSpot since the last check; time standing back at ClerkSpot (counted on the agenda).
+var _away_from_counter: bool = false
+var _back_at_counter: float = 0.0
 var _distraction_listen: bool = false
 var _listen_phone: Node2D = null
 ## STALL soothe: peer -> use count; whether this talk was evaluated (talker peer).
@@ -218,6 +238,7 @@ func step(delta: float) -> Vector2:
 	suspicion.tick(delta)
 	mover.close_enabled = not is_alarmed()  # IS-087 AC2: closes the inner door behind it only when calm
 	_record_peaks()
+	_track_counter_distance()
 	fsm.step(delta)
 	_tick_shouts(delta)
 	var level: int = _top_level()
@@ -277,6 +298,7 @@ func send_to_backroom(peer_id: int = 0) -> bool:
 		senses.marker_position(owner_tuning.backroom_marker), Vector2.INF, true)
 	if ok:
 		_sent_at = fsm.clock
+		_sent_by = peer_id
 		if peer_id != 0:
 			event(&"owner_sent", peer_id)
 			social_action.emit(peer_id, &"send")
@@ -384,13 +406,13 @@ func _on_interrupt_ended(kind: Agenda.Interrupt, completed: bool) -> void:
 
 ## Notice the robbery: once per source, while the heist runs. If calm DISCOVER -> shout; if already alarmed (or alert at the shout tier) only
 ## balloon + neighbour +1. True if accepted.
-func discover(source: int) -> bool:
+func discover(source: int, trigger: StringName = &"direct") -> bool:
 	if source < 0 or source >= SOURCE_NAMES.size() or _discovered.has(source) or not _heist_running():
 		return false
 	_discovered[source] = true
 	var full: bool = not is_alarmed() and fsm.state != State.DISCOVER \
 		and Game.alert_level() < maxi(civilian_tuning.alarm_level, 1)
-	discoveries.append({"source": SOURCE_NAMES[source], "t": snappedf(fsm.clock, 0.01), "full": full})
+	discoveries.append({"source": SOURCE_NAMES[source], "t": snappedf(fsm.clock, 0.01), "full": full, "trigger": trigger})
 	discovered.emit(source)
 	event(DISCOVER_EVENTS[source], 0)
 	if not full:
@@ -413,15 +435,17 @@ func _discover_step() -> Vector2:
 	return Vector2.ZERO
 
 
-## Discovery triggers on the agenda: the service's "register opens" moment, backroom arrival + 1 s, empty register at the counter without a customer.
-## True if the state changed (step ends).
+## Discovery triggers on the agenda: back at ClerkSpot after being away + `return_check_sec` (IS-100, first), the service's "register
+## opens" moment, backroom arrival + 1 s, empty register at the counter without a customer. True if the state changed (step ends).
 func _agenda_triggers(delta: float) -> bool:
+	if _return_check(delta):
+		return fsm.state != State.AGENDA
 	if _serving and not _serve_opened and agenda.current_interrupt() == Agenda.Interrupt.CUSTOMER \
 			and agenda.has_arrived() and agenda.interrupt_elapsed() >= owner_tuning.register_open_sec:
 		_serve_opened = true
 		register_opens += 1
 		register_opened.emit(_serve_id)
-		if senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER):
+		if senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER, TRIGGER_SERVE):
 			return fsm.state != State.AGENDA
 	var interrupt: Agenda.Interrupt = agenda.current_interrupt()
 	var task: AgendaTask = agenda.current_task()
@@ -431,15 +455,42 @@ func _agenda_triggers(delta: float) -> bool:
 		_backroom_checked = false
 	elif not _backroom_checked and agenda.has_arrived() and agenda.arrived_for() >= owner_tuning.backroom_check_sec:
 		_backroom_checked = true
-		if senses.prop_taken_near(owner_tuning.cash_marker) and discover(Source.CASH):
+		if senses.prop_taken_near(owner_tuning.cash_marker) and discover(Source.CASH, TRIGGER_BACKROOM):
 			return fsm.state != State.AGENDA
 	var at_counter: bool = interrupt == Agenda.Interrupt.NONE and task != null and task.home and agenda.has_arrived()
 	if owner_tuning.idle_discover_sec > 0.0 and at_counter and senses.customers_inside() == 0 \
 			and not _discovered.has(Source.REGISTER) and senses.prop_taken_near(owner_tuning.register_marker):
 		_idle_empty += maxf(delta, 0.0)
-		if _idle_empty >= owner_tuning.idle_discover_sec and discover(Source.REGISTER):
+		if _idle_empty >= owner_tuning.idle_discover_sec and discover(Source.REGISTER, TRIGGER_IDLE):
 			return fsm.state != State.AGENDA
 	return false
+
+
+## Return check (IS-100): standing back at ClerkSpot after being away; at `return_check_sec` the register is looked at once per return.
+## True if a discovery was accepted.
+func _return_check(delta: float) -> bool:
+	if owner_tuning.return_check_sec <= 0.0 or not _away_from_counter or not _near_counter(RETURN_AT_PX):
+		return false
+	_back_at_counter += maxf(delta, 0.0)
+	if _back_at_counter < owner_tuning.return_check_sec:
+		return false
+	_away_from_counter = false
+	_back_at_counter = 0.0
+	return senses.prop_taken_near(owner_tuning.register_marker) and discover(Source.REGISTER, TRIGGER_RETURN)
+
+
+## Every step (any state): leaving ClerkSpot arms the return check; stepping off the spot restarts the "back at the counter" time.
+func _track_counter_distance() -> void:
+	if not _near_counter(RETURN_AWAY_PX):
+		_away_from_counter = true
+	if not _near_counter(RETURN_AT_PX):
+		_back_at_counter = 0.0
+
+
+## Whether the owner stands within `px` of ClerkSpot (false if the marker is missing).
+func _near_counter(px: float) -> bool:
+	var clerk: Vector2 = senses.marker_position(owner_tuning.counter_marker)
+	return clerk.is_finite() and body.global_position.distance_to(clerk) <= px
 
 
 ## Whether the heist is running (if the result was not broadcast; US-039 AC7: no discovery after the heist ends).
@@ -603,6 +654,23 @@ func _sent_window_step() -> void:
 	if task != null and task.home and agenda.has_arrived():
 		sent_windows.append(snappedf(fsm.clock - _sent_at, 0.01))
 		_sent_at = -1.0
+		_send_return_cost()
+
+
+## SEND return cost (IS-100 AC3, GDD §9.3 "suspicion +20 to the asking player on return"): back at the counter, the sender gets
+## `send_return_suspicion` once if still free (not held / caught). Applied wherever the sender is: an unseen meter drains at the usual
+## rate (suspicion given unseen leaks no position), so leaving before the return mostly avoids it.
+func _send_return_cost() -> void:
+	var peer_id: int = _sent_by
+	_sent_by = 0
+	var amount: float = owner_tuning.send_return_suspicion
+	if peer_id == 0 or amount <= 0.0:
+		return
+	var player: Node2D = senses.player(peer_id)
+	if player == null or not bool(player.call(&"is_free")):
+		return
+	suspicion.apply_delta(peer_id, amount)
+	send_costs.append({"peer": peer_id, "amount": amount})
 
 
 ## Reached the phone's LISTEN point: finds the phone.
@@ -638,6 +706,7 @@ func on_pushed(peer_id: int, calm: bool) -> void:
 func shout(peer_id: int, late: bool) -> void:
 	if peer_id != 0:
 		target = peer_id
+	_sent_by = 0  # alarm: the SEND errand is over, no return cost later
 	suspicion.latch_level = Suspicion.Level.DETECT
 	has_shouted = true
 	mover.stop()
