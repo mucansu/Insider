@@ -9,11 +9,10 @@ Deneme paketi (test-2 için): `build/Insiders-faz2-a01ac86-windows.zip` (debug, 
 Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kasa kontrolü, sent 7/listen 6, GÖNDER +20), IS-101 (bot takım sırası, bag, +human), IS-081 (sahip olay günlüğü `owner.log[]`, geç yakalanma hatası), IS-103 (kaçış 3 sn geri sayımı "Minibüs kalkıyor"), IS-104 (arka kapı zili), IS-015 (ölçüm: `docs/surec/olcum/`), heist_stats `.gdignore`, bot `wait` adımı, level_change kararlılığı. Kararlar: KR-034 (denge ilkesi test-2 sonrası; geri sayım + zil), KR-035 (bilgi bölünmesi / zorunlu ekip iletişimi tasarım hedefi).
 
 ## Sürüyor / yarım kalan
-- Biten: **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
-- **US-045** — Fable danışması bitti → KR-038 (rapor `docs/tasarim/danisma/us-045-store-b.md`). Uygulama oynanis'e IS-106 birleşince (ürünler, damacana, örtü A, metinler; ShopItem1/2 işaretleri store_a'ya).
-- **IS-107** — aşama 1 birleşti (faz2-int 2fe744f; WindowLook 3 cam kalsın). Aşama 2 IS-106 sonrası: store_b ezmeleri (seviye raporu önerileri: serve_facing (0,1) ya da türetme, shout_radius ≈640 ya da türetme, neighbour_delay ≈3 sn, bot kapı/tezgâh ofsetleri türetme) + bot stratejileri/heist_stats store_b.
-- **IS-106** — oynanis, ajan worktree'si (denetim tablosu, harita başına alan bazlı ayar ezme, bot işaret tabanlı, store_a ayna fikstürüyle kanıt).
-- Sırada: US-045 uygulama, IS-107 aşama 2, sonra yeni test-2 paketi (tam ci_local + duman).
+- Biten: **IS-106** (faz2-int 47eaf9d; harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone; S10 eki). **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
+- **US-045 + IS-108** — oynanis, ajan worktree'si (2026-10-04 23:00): KR-038 alışveriş v0, damacana, örtü A, ShopItem işaretten üretim (store_a'ya işaret), KR-039 yaylı arka kapı (GB-11), witness 150 ms kararsızlığı.
+- **IS-107 aşama 2** — seviye, ajan worktree'si (2026-10-04 23:00): store_b tuning_overrides (shout_radius, neighbour_delay), heist_stats store_b vs store_a, brain tabanlı store_b net senaryoları. (Aşama 1 faz2-int 2fe744f.)
+- Sırada: ikisi birleşince tam ci_local + yeni test-2 paketi (duman + `--log-on-exit` exe yanı kontrolü) → dilim 2.2 kapanışı.
 
 ## Yeni sohbette ilk adımlar
 1. Sürüyor listesindeki ajan raporlarını al (kalem-kapat), sıradakileri başlat.

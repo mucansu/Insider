@@ -52,3 +52,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-102 (cekirdek) | entities/** | Döküm sağlayıcıları `Args.dump_path` boşluğuna bakıyor; `Args.dump_enabled()` gibi tek fonksiyona geçiş (oynanis) |
 | 2026-10-04 | IS-107 (seviye) | tools/screenshot.py | `--camera-zoom`/`--vision-mode` geçirmiyor; büyük harita tek karede alınamıyor (altyapi) |
 | 2026-10-04 | IS-107 (seviye) | levels/layouts/store_b.txt | Ek alanın batı şeridi (28-29, 14-18) K'dan görünüyor; daha sıkı kör nokta için soğutucu x=28 — test-2 gözlemine |
+| 2026-10-04 | IS-106 (oynanis) | tests/fixtures/build_mirror.gd | Her çalıştırmada sahnedeki unique_id'leri yeniler (gürültülü diff) |
+| 2026-10-04 | IS-106 (oynanis) | core/tuning_overrides.gd | Ezme iç içe görev alanlarını (tasks/restock/min_sec) desteklemiyor |
+| 2026-10-04 | IS-106 (oynanis) | core/bot_rules.gd | BACKROOM_PX/BAG_SAFE_PX Backroom bölgesine dayalı hale getirilebilir (store_b ölçümünden sonra) |
