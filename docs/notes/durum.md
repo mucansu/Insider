@@ -11,7 +11,7 @@ Dilim 2.1'de biten: IS-099 (ayrılan oyuncu "Ayrıldı"), IS-100 (dönüşte kas
 ## Sürüyor / yarım kalan
 - Biten: **IS-102** (faz2-int d92ac19): host'a yerel `level_started {run}` + `--log-on-exit=YOL` (S6 eki; oyunu-ac skill'inde test-2 komutu).
 - **US-045** — Fable danışması bitti → KR-038 (rapor `docs/tasarim/danisma/us-045-store-b.md`). Uygulama oynanis'e IS-106 birleşince (ürünler, damacana, örtü A, metinler; ShopItem1/2 işaretleri store_a'ya).
-- **IS-107** — seviye, ajan worktree'si, aşama 1 (store_b.txt/.tscn + props + kısa net senaryosu + ekran görüntüsü). Aşama 2 (store_b ayar ezmeleri + bot/heist_stats) IS-106 sonrası.
+- **IS-107** — aşama 1 birleşti (faz2-int 2fe744f; WindowLook 3 cam kalsın). Aşama 2 IS-106 sonrası: store_b ezmeleri (seviye raporu önerileri: serve_facing (0,1) ya da türetme, shout_radius ≈640 ya da türetme, neighbour_delay ≈3 sn, bot kapı/tezgâh ofsetleri türetme) + bot stratejileri/heist_stats store_b.
 - **IS-106** — oynanis, ajan worktree'si (denetim tablosu, harita başına alan bazlı ayar ezme, bot işaret tabanlı, store_a ayna fikstürüyle kanıt).
 - Sırada: US-045 uygulama, IS-107 aşama 2, sonra yeni test-2 paketi (tam ci_local + duman).
 

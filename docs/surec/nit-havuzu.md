@@ -50,3 +50,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-04 | IS-102 (cekirdek) | autoload/game.gd | --log-on-exit: aynı süreçte ikinci oturum ilk oturumun `session_end` günlüğünün üstüne yazar (test-2'de genelde tek oturum; gerekirse dosya adına oturum sırası) |
 | 2026-10-04 | IS-102 (cekirdek) | autoload/args.gd | Dışa aktarımda göreli yolun exe yanına çözülmesi pakette denenmedi — test-2 paket dumanında kontrol |
 | 2026-10-04 | IS-102 (cekirdek) | entities/** | Döküm sağlayıcıları `Args.dump_path` boşluğuna bakıyor; `Args.dump_enabled()` gibi tek fonksiyona geçiş (oynanis) |
+| 2026-10-04 | IS-107 (seviye) | tools/screenshot.py | `--camera-zoom`/`--vision-mode` geçirmiyor; büyük harita tek karede alınamıyor (altyapi) |
+| 2026-10-04 | IS-107 (seviye) | levels/layouts/store_b.txt | Ek alanın batı şeridi (28-29, 14-18) K'dan görünüyor; daha sıkı kör nokta için soğutucu x=28 — test-2 gözlemine |
