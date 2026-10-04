@@ -19,15 +19,15 @@
     {"eq": ["host.heist.result.loot_total", 0]},
     {"eq": ["host.heist.result.heat", 0]},
     {"eq": ["host.heist.result.bail", 0]},
-    {"eq": ["host.heist.result.cash_before", 0]},
-    {"eq": ["host.heist.result.cash_after", 0]},
+    {"eq": ["host.heist.result.cash_before", 50]},
+    {"eq": ["host.heist.result.cash_after", 50]},
     {"eq": ["host.heist.result.players.$host.escaped", true]},
     {"eq": ["host.heist.result.players.$c1.escaped", true]},
     {"eq": ["host.heist.result.players.$c1.caught", false]},
     {"between": ["host.heist.result.duration_s", 8.5, 12]},
     {"between": ["host.heist.abort_peak_s", 2.98, 3.05]},
     {"between": ["c1.heist.abort_peak_s", 1.5, 3.6]},
-    {"eq": ["*.team_cash", 0]},
+    {"eq": ["*.team_cash", 50]},
     {"eq": ["*.player_states.$host.wall_frames", 0]},
     {"eq": ["*.player_states.$c1.wall_frames", 0]}
   ]

@@ -144,7 +144,8 @@ static func ratio_pct(outcome: StringName, shouted: bool) -> int:
 
 ## Cover-breaking reason (&"" if none): `view` = {"masked", "bag_value", "holding_cash", "staff_side", "sprinting"
 ## (running while moving), "move_mode" (MOVE_SNEAK = sneaking)} (a missing field breaks nothing). Order: mask, bag, cash,
-## staff side, sprinting, sneaking.
+## staff side, sprinting, sneaking. GB-08 option A (US-045, KR-038): during the job such a state breaks cover only while an NPC sees the
+## player (`seen_by`, Tracker.observe); the police witness check (`arrive_police`) still uses it unconditionally.
 static func cover_breaker(view: Dictionary) -> StringName:
 	if bool(view.get("masked", false)):
 		return COVER_MASK
@@ -454,7 +455,9 @@ class Tracker:
 	var settle: HeistRules.AbortClock = HeistRules.AbortClock.new(0.0)
 	## Cover (US-042): peer -> breaking reason (absent = intact). Once broken it never returns.
 	var cover_broken: Dictionary = {}
-	## Newly broken covers (Game drains this each step and emits events): [{"peer", "reason"}].
+	## US-045 (GB-08 A): peer -> name of the NPC that saw the breaking state (&"" if not an observer case).
+	var cover_seen_by: Dictionary = {}
+	## Newly broken covers (Game drains this each step and emits events): [{"peer", "reason", "by"}].
 	var cover_events: Array[Dictionary] = []
 	## peer -> time marked (`elapsed`; owner shouted/held, mask): association window.
 	var marked_at: Dictionary = {}
@@ -510,8 +513,7 @@ class Tracker:
 
 	func note_bag(peer: int) -> void:
 		if peer > 0:
-			bags[peer] = int(bags.get(peer, 0)) + 1
-			break_cover(peer, HeistRules.COVER_BAG)
+			bags[peer] = int(bags.get(peer, 0)) + 1  # US-045 (GB-08 A): taking the bag no longer breaks cover by itself
 			if cash_bag_taken_at_s < 0.0:
 				cash_bag_taken_at_s = snappedf(elapsed, 0.01)
 
@@ -539,12 +541,13 @@ class Tracker:
 	func cover_intact(peer: int) -> bool:
 		return not cover_broken.has(peer)
 
-	## Breaks cover; true and appended to `cover_events` if newly broken.
-	func break_cover(peer: int, reason: StringName) -> bool:
+	## Breaks cover; true and appended to `cover_events` if newly broken. `by` = the observer that saw it (dump).
+	func break_cover(peer: int, reason: StringName, by: StringName = &"") -> bool:
 		if peer <= 0 or cover_broken.has(peer):
 			return false
 		cover_broken[peer] = reason
-		cover_events.append({"peer": peer, "reason": reason})
+		cover_seen_by[peer] = by
+		cover_events.append({"peer": peer, "reason": reason, "by": by})
 		return true
 
 	## Owner shouted/held (or mask): the association window counts from now.
@@ -558,10 +561,10 @@ class Tracker:
 
 	## Association attempt: `actor` interacted with marked `other` at `distance` px; `observed` = an observer saw it.
 	## If the rule matches, cover breaks and returns true (Game gives observers +60).
-	func associate(actor: int, other: int, distance: float, observed: bool, radius: float) -> bool:
+	func associate(actor: int, other: int, distance: float, observed: bool, radius: float, by: StringName = &"") -> bool:
 		if not HeistRules.associates(marked_age(other), distance, observed, cover_mark_window_s, radius):
 			return false
-		break_cover(actor, HeistRules.COVER_SEEN_WITH)
+		break_cover(actor, HeistRules.COVER_SEEN_WITH, by)
 		return true
 
 	func is_released(peer: int) -> bool:
@@ -590,7 +593,8 @@ class Tracker:
 				mark_caught(id, HeistRules.CAUGHT_BY_POLICE)
 
 	## One time step: elapsed time and sprint times; catches reported by the player API are recorded permanently
-	## (held is not recorded: a held player is not caught).
+	## (held is not recorded: a held player is not caught). Cover (GB-08 A): a breaking state counts only with the view's `seen_by`
+	## (name of an NPC seeing the player now; Game fills it only when a state would break an intact cover).
 	func observe(views: Dictionary, delta: float) -> void:
 		elapsed += maxf(delta, 0.0)
 		for peer: Variant in views:
@@ -601,8 +605,9 @@ class Tracker:
 				sprint_s[int(peer)] = float(sprint_s.get(int(peer), 0.0)) + maxf(delta, 0.0)
 			if not is_caught(int(peer)) and cover_intact(int(peer)):
 				var reason: StringName = HeistRules.cover_breaker(v)
-				if not reason.is_empty():
-					break_cover(int(peer), reason)
+				var seen_by: StringName = StringName(str(v.get("seen_by", "")))
+				if not reason.is_empty() and not seen_by.is_empty():
+					break_cover(int(peer), reason, seen_by)
 		var state: Dictionary = players_state(views)
 		var secured: int = secured_loot(views)
 		abort.step(not police and HeistRules.abort_ready(state, secured), delta, caught.size())

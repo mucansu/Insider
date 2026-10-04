@@ -15,6 +15,9 @@ extends Node2D
 ## change), "interact": Interactable.stats()}. Noise (US-009, S8): host emits `NoiseProfile.KIND_DOOR` at the door on every open/close.
 ## NPC close (IS-087 AC2): NPCs close doors only via `host_close_by_npc(actor_pos)` (interior door behind them); same Interactable NPC
 ## path (range + S2 margin, repeat cooldown, leaf blocker `is_closing_blocked`).
+## Spring door (IS-108, KR-039): with `autoclose_sec` > 0 (set by the owner's senses for the back-bell door from
+## `OwnerTuning.back_door_autoclose_sec`) the host closes an open door by itself once nobody has been in the leaf for that long - the NPC
+## close path (peer 0: no bell, the usual door sound). Dump `autocloses`.
 
 const DEF_PATH := "res://data/props/door.tres"
 ## Physics layer of bodies that block closing: players (architecture §4, layer 2).
@@ -28,12 +31,16 @@ const NPC_LAYERS := PhysicsLayers.NPCS
 @export var is_open: bool = false:
 	set = _set_open
 var changed_at: float = 0.0
+## Host: spring close delay (s; 0 = stays open). IS-108.
+var autoclose_sec: float = 0.0
 
 var _flips: int = 0
 ## True while host_close_by_npc runs: NPC completion (peer 0) may close.
 var _npc_closing: bool = false
 var _start_open: bool = false
 var _seen_at: float = -1.0
+var _open_idle: float = 0.0
+var _autocloses: int = 0
 
 @onready var _interactable: Interactable = $Interactable
 @onready var _shape: CollisionShape2D = $Body/CollisionShape2D
@@ -53,6 +60,22 @@ func _ready() -> void:
 	_apply(false)
 	add_to_group(PropDump.GROUP)
 	PropDump.register()
+
+
+func _physics_process(delta: float) -> void:
+	step_autoclose(delta)
+
+
+## Host only (IS-108): counts the time the open door has had nobody in its leaf; at `autoclose_sec` it closes like an NPC would.
+func step_autoclose(delta: float) -> void:
+	if autoclose_sec <= 0.0 or not is_open or not _is_host() or is_closing_blocked():
+		_open_idle = 0.0
+		return
+	_open_idle += maxf(delta, 0.0)
+	if _open_idle >= autoclose_sec:
+		_open_idle = 0.0
+		if host_close_by_npc(global_position):
+			_autocloses += 1
 
 
 ## Whether the leaf currently blocks passage (physics state; open/close takes effect next physics step).
@@ -117,6 +140,7 @@ func dump_state() -> Dictionary:
 		"visible_delay_ms": (_seen_at - changed_at) * 1000.0 if _seen_at >= 0.0 else -1.0,
 		"interact": _interactable.stats(),
 		"sfx": SfxEmitter.of(self).stats(),
+		"autocloses": _autocloses,
 	}
 
 
@@ -151,6 +175,10 @@ func _set_open(value: bool) -> void:
 	_seen_at = PropDump.wall_time()
 	_apply(true)
 	SfxEmitter.play_on_change(self, &"door_open" if is_open else &"door_close")  # IS-024: local sound
+
+
+static func _is_host() -> bool:
+	return Net.is_host() or Net.local_peer_id() == 0
 
 
 ## `deferred`: during a physics callback or network sync the shape changes at the next idle.

@@ -1,7 +1,7 @@
 extends TestCase
 ## IS-104 (KR-034) back door bell: a player opening/closing the back door B (Props/BackDoor Interactable `completed` on the host) rings
-## the bell, so does crossing its threshold (in/out; open + step through within 1.5 s = one ring); store_a geometry, fixed step, single
-## process = host, population off (NpcStage):
+## the bell; IS-108 (KR-039): crossing an open B does not, B springs shut ~3 s after its threshold empties (no bell) and reopening rings;
+## store_a geometry, fixed step, single process = host, population off (NpcStage):
 ## - AC a: owner calm at ClerkSpot (home task, no interrupt) -> LISTEN toward BackroomSpot, leaves within 1 s, stands there within 4 s;
 ##   bag missing -> `backroom_check_sec` after arrival discover(CASH, "bell") -> DISCOVER; bag in place -> back to the counter.
 ## - AC b: owner busy (customer service, other agenda task, LOOK) -> no reaction, event log "zil duyulmadı (...)".
@@ -140,33 +140,47 @@ func test_not_heard_away_or_reacting() -> void:
 	stage.leave()
 
 
-## Crossing the threshold (alley -> back room and back) rings too; opening + stepping through within 1.5 s is one ring.
-func test_crossing_rings() -> void:
+## IS-108 (KR-039) spring door: crossing an open B does not ring (owner stays at the counter); with nobody in the leaf B closes by
+## itself after `back_door_autoclose_sec` (~3 s; no bell, NPC close path); opening it again rings.
+func test_spring_door_crossing_silent_autoclose_reopen_rings() -> void:
 	var stage: NpcStage = await _stage()
 	var o: StoreOwner = stage.owner()
-	stage.run(1.0, Callable(), DT)
+	var door: Door = stage.level.props_root().get_node(^"BackDoor") as Door
+	var item: Interactable = door.get_node(^"Interactable") as Interactable
+	var step_door: Callable = func() -> void: door.step_autoclose(DT)
+	stage.run(1.0, step_door, DT)
+	eq(door.autoclose_sec, o.brain().owner_tuning.back_door_autoclose_sec, "yay süresi ayardan (sahibin duyusu bağlar)")
+	near(door.autoclose_sec, 3.0, 0.01)
 	var p: Player = stage.player(PEER, Vector2(656, 80))
-	stage.run(0.1, Callable(), DT)
-	eq(o.agenda().task_name(), &"counter", "sokakta: zil yok")
+	stage.run(0.1, step_door, DT)
 	var bells: int = int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0))
-	_ring(stage)
-	p.position = Vector2(656, 144)
-	stage.run(0.1, Callable(), DT)
-	eq(o.agenda().task_name(), &"listen", "açılış + giriş -> DİNLE")
-	eq(int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0)), bells + 1, "açıp geçmek tek zil")
-	p.position = Vector2(900, 560)  # leaves far from the door (no ring), out of the owner's sight
-	stage.run(14.0, Callable(), DT)
-	eq(o.agenda().task_name(), &"counter", "kontrol bitti, tezgâhta")
-	is_true(o.agenda().has_arrived(), "tezgâha vardı")
-	p.position = Vector2(528, 176)  # back room, away from the door: no ring
-	stage.run(0.1, Callable(), DT)
+	item.completed.emit(0)  # opened without a ring (NPC path) so only the crossing is measured
+	is_true(door.is_open, "B açık")
+	for at: Vector2 in [Vector2(656, 112), Vector2(656, 144), Vector2(656, 112), Vector2(656, 80)]:
+		p.position = at  # in through the gap and back out
+		stage.run(0.2, step_door, DT)
+	eq(o.agenda().task_name(), &"counter", "açık B'den geçiş: zil yok, sahip tezgâhta")
+	eq(int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0)), bells, "geçiş zil çalmaz")
+	p.position = Vector2(656, 112)  # stands in the gap: the spring cannot close
+	stage.run(4.0, step_door, DT)
+	is_true(door.is_open, "eşikte biri varken kapanmaz")
+	p.position = Vector2(656, 48)
+	var closed_at: Array[float] = [-1.0]
+	var t: Array[float] = [0.0]
+	stage.run(4.0, func() -> void:
+		door.step_autoclose(DT)
+		t[0] += DT
+		if closed_at[0] < 0.0 and not door.is_open:
+			closed_at[0] = t[0], DT)
+	near(closed_at[0], 3.0, 0.2, "eşik boşalınca ~3 sn sonra kendiliğinden kapandı")
+	eq(int(door.dump_state()["autocloses"]), 1)
+	eq(int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0)), bells, "kendiliğinden kapanma zil çalmaz")
 	eq(o.agenda().task_name(), &"counter")
-	p.position = Vector2(656, 144)
-	stage.run(0.1, Callable(), DT)
 	p.position = Vector2(656, 80)
-	stage.run(0.1, Callable(), DT)
-	eq(o.agenda().task_name(), &"listen", "çıkış geçişi de zil")
-	eq(int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0)), bells + 2)
+	item.host_start(PEER, 7)
+	is_true(door.is_open, "oyuncu yeniden açtı")
+	eq(int(o.brain().agenda_noises.get(NoiseProfile.KIND_BELL, 0)), bells + 1, "yeniden açılış zil çalar")
+	eq(o.agenda().task_name(), &"listen", "zil -> DİNLE")
 	stage.leave()
 
 

@@ -60,16 +60,16 @@ func test_purchase_is_social_strategy_and_cost_leaves_heist_cash() -> void:
 	buy.host_start(1, 1)
 	for i: int in roundi(2.1 / DT):
 		buy.step(DT)
-	eq(Game.team_cash(), 90, "bedel 10 anında düştü")
+	eq(Game.team_cash(), 97, "bedel 3 (sakız, KR-038) anında düştü")
 	me.position = IN_ZONE
 	await _frames(200)
 	if eq(_results.size(), 1, "eli boş çekilme (ganimet yok, 3 sn bölgede)"):
 		var r: Dictionary = _results[0]
 		eq(r["outcome"], &"aborted")
 		eq((r["strategy"] as Dictionary)["class"], HeistRules.STRATEGY_SOCIAL, "SATIN AL → strateji sosyal")
-		eq(r["purchases"], 10)
+		eq(r["purchases"], 3)
 		eq(r["cash_before"], 100, "gerçek iş öncesi kasa")
-		eq(r["cash_after"], 90, "100 + 0 − 0 − 10")
-	eq(Game.team_cash(), 90)
+		eq(r["cash_after"], 97, "100 + 0 − 0 − 3")
+	eq(Game.team_cash(), 97)
 	Game.add_team_cash(-Game.team_cash())
 	await _stop()

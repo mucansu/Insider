@@ -24,6 +24,9 @@ extends CharacterBody2D
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
 ## Interactable completes: free, `rescued`, owner STAGGER - the existing rescue path).
 ## IS-096: a `TaskGlyph` under `Visual` (created in `_ready` when active) draws the task badge from `net_state`/`net_task`.
+## US-045 (KR-036/KR-038): SEND is the damacana order - host API `order_phase()` (ShopRules.Order; the counter follows it),
+## `order_paid(peer)`, `refuse_sale(peer)`; events `owner_order_ready` ("Buyrun, {price} lira." - `balloon_args`), `owner_order_unpaid`
+## ("Nereye gitti bu?"), `owner_no_money` ("Para yetmiyor"); `owner_sent` now says "Hemen getiriyorum!".
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
@@ -41,6 +44,10 @@ signal owner_listen(peer_id: int)
 signal owner_again(peer_id: int)
 signal owner_phone_found(peer_id: int)
 signal owner_loiter(peer_id: int)
+## US-045 order / sale balloons.
+signal owner_order_ready(peer_id: int)
+signal owner_order_unpaid(peer_id: int)
+signal owner_no_money(peer_id: int)
 ## On every peer: task changed (replicated; task icon US-011).
 signal task_changed(task_name: StringName)
 ## Host only (US-010): a player tool was applied successfully (OwnerBrain.social_action relay; kind buy|talk|send|distract).
@@ -60,7 +67,7 @@ const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
 	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
-	&"owner_misdirect", &"owner_question_window"]
+	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money"]
 ## Prompt key of the REDIRECT component, required tag (player's cover intact; Player.interaction_tags) and session
 ## event (HUD text EVENT_MISDIRECT).
 const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
@@ -154,6 +161,7 @@ func _ready() -> void:
 		_senses.bell_marker = owner_tuning.front_door_marker
 		_senses.bell_radius = owner_tuning.bell_radius
 		_senses.back_bell_door = owner_tuning.back_bell_door
+		_senses.back_autoclose_sec = owner_tuning.back_door_autoclose_sec
 		_senses.setup(_level(), civilian_tuning, _perception.tuning)
 		_perception.set_arm_reach(owner_tuning.arm_reach_px)  # IS-098: 360 deg near band within arm reach
 		_brain.owner_tuning = owner_tuning
@@ -259,6 +267,31 @@ func discover(source: int) -> bool:
 ## Host API (US-010 SEND): "is X in the back?" (`peer_id` the asking player; 0 = test).
 func send_to_backroom(peer_id: int = 0) -> bool:
 	return _brain.send_to_backroom(peer_id) if _is_host() and active else false
+
+
+## Host API (US-045): damacana order phase (ShopRules.Order; NONE when inactive or on a client).
+func order_phase() -> int:
+	return _brain.order_phase() if _is_host() and active else ShopRules.Order.NONE
+
+
+## Host API (US-045): the asker paid the ordered product (no return cost).
+func order_paid(peer_id: int) -> void:
+	if _is_host() and active:
+		_brain.order_paid(peer_id)
+
+
+## Host API (US-045): sale refused, the team cash is short ("Para yetmiyor" balloon).
+func refuse_sale(peer_id: int) -> void:
+	if _is_host() and active:
+		_brain.refuse_sale(peer_id)
+
+
+## Balloon text arguments (NpcVisual; every peer): the order's price for "Buyrun, {price} lira.".
+func balloon_args(kind: StringName) -> Dictionary:
+	if kind == &"owner_order_ready":
+		var product: ShopProduct = ShopProduct.of(_tools().order_product)
+		return {"price": product.price if product != null else 0}
+	return {}
 
 
 ## Host API (US-010): whether SEND is accepted now (the counter's host blocker).

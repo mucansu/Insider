@@ -25,6 +25,9 @@ extends Area2D
 ## prompt per action, PlayerInteraction); `innocent` is a social action (buy, talk, send) not counted as tampering in the civilian
 ## multiplier table; `start_blocker` may take a peer (`func(peer_id: int) -> bool`; 0-arg legacy form valid; peer 0 for NPC use);
 ## `host_abort()` cancels the ongoing interaction on the host (e.g. owner interrupts a conversation).
+## US-045 additions: `peer_gate` (`func(peer_id) -> bool`, every peer: false hides the prompt for that peer and the host rejects with
+## `peer`) for per-player offers on one shared component (the counter's E: pay / take the order / buy); `self_only` marks a component
+## of the actor itself (the hand's Q "Bırak"): only that actor sees and may use it (host: `self` reject otherwise), other players never.
 
 ## Host only.
 signal completed(peer_id: int)
@@ -51,6 +54,8 @@ const SYNC_INTERVAL := 0.1
 @export var input_action: StringName = &"interact"
 ## Social action (US-010): while running it is not counted as tampering (TAMPER) in the civilian multiplier table.
 @export var innocent: bool = false
+## US-045: component of the actor itself (an ancestor actor node): only that actor may use it (PlayerInteraction picks it for itself).
+@export var self_only: bool = false
 
 ## Replicated state (host writes).
 var busy_by: int = 0
@@ -60,6 +65,9 @@ var progress: float = 0.0
 var start_blocker: Callable = Callable()
 ## Optional host actor filter: `func(peer_id: int, actor: Node) -> bool` (false = reject "actor").
 var actor_filter: Callable = Callable()
+## Optional per-peer offer (US-045): `func(peer_id: int) -> bool`; false = not offered to that peer (prompt hidden, host rejects `peer`).
+## Called on every peer from replicated state.
+var peer_gate: Callable = Callable()
 
 var _seq: int = 0
 var _cooldown_left: float = 0.0
@@ -124,7 +132,14 @@ func step(delta: float) -> void:
 
 ## Client-side eligibility (no tolerance; for prompt and target selection). Host validates again.
 func can_start(peer_id: int, actor_pos: Vector2, actor_tags: Dictionary = {}) -> bool:
+	if not offered_to(peer_id):
+		return false
 	return InteractionRules.check(_spec(), peer_id, actor_pos, actor_tags) == InteractionRules.Result.OK
+
+
+## Whether the component is offered to `peer_id` (`peer_gate`; true without a gate).
+func offered_to(peer_id: int) -> bool:
+	return not peer_gate.is_valid() or bool(peer_gate.call(peer_id))
 
 
 ## Whether the actor is still in reach for the ongoing interaction (with S2 tolerance).
@@ -307,6 +322,10 @@ func _actor_refusal(peer_id: int, actor: Node) -> String:
 		return ""
 	if not _actor_free(actor):
 		return "not_free"
+	if self_only and not actor.is_ancestor_of(self):
+		return "self"
+	if not offered_to(peer_id):
+		return "peer"
 	if actor_filter.is_valid() and not bool(actor_filter.call(peer_id, actor)):
 		return "actor"
 	return ""
@@ -341,11 +360,13 @@ func _spec() -> InteractionRules.Target:
 		_target.side_min = requirement.side_min
 		_target.tag = requirement.required_tag
 		_target.tier = requirement.min_tier
+		_target.forbid = requirement.forbidden_tag
 	else:
 		_target.side = Vector2.ZERO
 		_target.side_min = 0.0
 		_target.tag = &""
 		_target.tier = 0
+		_target.forbid = &""
 	return _target
 
 

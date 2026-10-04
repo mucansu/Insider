@@ -4,7 +4,7 @@ extends TestCase
 ## (1 per job, register window >= 10 s), prompts hidden after a shout, LOITER (look lock, "what does this guy want", innocent),
 ## DISTRACT (knocking over a shelf: LISTEN <= 1 s from ClerkSpot, not from BackroomSpot/PhoneSpot; the phone rings after 3 s, is
 ## found, 1 per job; a second distraction +30), two prompt lines (E/Q channels), start_blocker with peers, loiter resets on
-## leaving the shop, text presence.
+## leaving the shop, text presence. US-045 (KR-038): BUY is gum (3) and needs the team cash ("Para yetmiyor" otherwise; test_shop.gd).
 
 const DT := 1.0 / 60.0
 ## Customer side of the counter: QueueSpot2 (counter front: BUY + SEND) and QueueSpot1 (register front, 64 px from the owner: LOITER + SEND).
@@ -135,7 +135,7 @@ func test_buy_serves_player_resets_suspicion_and_pays() -> void:
 	eq(o.brain().state(), OwnerBrain.State.LOOK)
 	stage.run(0.2)
 	eq(counter.purchases, 1, "SATIN AL tamamlandı (2 sn tut)")
-	eq(Game.team_cash(), 90, "bedel 10 ekip nakdinden")
+	eq(Game.team_cash(), 97, "bedel 3 (sakız) ekip nakdinden")
 	has(events, [&"owner_shrug", 2], "BAK'tan omuz silkip servise")
 	has(events, [&"owner_serve", 2])
 	has(events, [&"social", 2, &"buy"], "sosyal kanca: SATIN AL")
@@ -150,8 +150,9 @@ func test_buy_serves_player_resets_suspicion_and_pays() -> void:
 	eq(o.agenda().task_name(), &"counter", "servis bitti")
 	Game.add_team_cash(-Game.team_cash())
 	_hold(stage, counter.buy_interactable(), 2, 2.1)
-	eq(counter.purchases, 2)
-	eq(Game.team_cash(), 0, "nakit yoksa bedava")
+	eq(counter.purchases, 1, "nakit yoksa satış yok (US-045: Para yetmiyor)")
+	has(events, [&"owner_no_money", 2])
+	eq(Game.team_cash(), 0)
 	Game.add_team_cash(cash_before - Game.team_cash())
 	stage.leave()
 
@@ -160,6 +161,8 @@ func test_buy_while_owner_away_brings_him_to_the_counter() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()
 	var o: StoreOwner = stage.owner()
+	var cash_before: int = Game.team_cash()
+	Game.add_team_cash(50 - cash_before)
 	stage.player(2, COUNTER_FRONT)
 	o.agenda().begin_task(&"restock")
 	stage.run(4.0)
@@ -173,6 +176,7 @@ func test_buy_while_owner_away_brings_him_to_the_counter() -> void:
 		if arrived[0] < 0.0 and o.brain().serve_state(-2) == OwnerBrain.Serve.ACTIVE:
 			arrived[0] = t[0])
 	is_true(arrived[0] > 0.0 and arrived[0] <= 20.0, "≤ 20 sn içinde gelip servis etti (%.1f sn)" % arrived[0])
+	Game.add_team_cash(cash_before - Game.team_cash())
 	stage.leave()
 
 
@@ -276,6 +280,8 @@ func test_talk_needs_calm_agenda_and_yields_to_service() -> void:
 	var stage := NpcStage.new(self)
 	await stage.enter()
 	var o: StoreOwner = stage.owner()
+	var cash_before: int = Game.team_cash()
+	Game.add_team_cash(50 - cash_before)
 	stage.player(2, REGISTER_FRONT)
 	stage.player(3, COUNTER_FRONT)
 	stage.run(1.0)
@@ -287,6 +293,7 @@ func test_talk_needs_calm_agenda_and_yields_to_service() -> void:
 	eq(o.agenda().task_name(), &"customer", "satın alma (MÜŞTERİ) konuşmayı keser")
 	eq(talk.busy_by, 0, "konuşma bırakıldı")
 	is_false(talk.enabled, "servis sırasında OYALA kapalı")
+	Game.add_team_cash(cash_before - Game.team_cash())
 	stage.leave()
 
 

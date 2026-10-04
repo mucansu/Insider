@@ -7,11 +7,24 @@ const PATH := "res://data/props/store_tools.tres"
 ## Distraction sound kinds (S8; StringNames sent over NoiseBus). The owner answers them with LISTEN and counts them.
 const KIND_TOPPLE := &"topple"
 const KIND_CELLPHONE := &"cellphone"
-const DISTRACTION_KINDS: Array[StringName] = [KIND_TOPPLE, KIND_CELLPHONE]
+## US-045 (KR-038): a dropped glass bottle breaks (ShopProduct.drop_kind of the cola); the dropper is the one in charge
+## (NoiseBus.dispatching_peer, "again?" rule).
+const KIND_BOTTLE := &"bottle"
+const DISTRACTION_KINDS: Array[StringName] = [KIND_TOPPLE, KIND_CELLPHONE, KIND_BOTTLE]
 
 @export_group("Tezgâh")
-## BUY cost (from team cash; free if cash is short, GDD §9.3).
+## BUY cost (gum, KR-038: the counter's E with empty hands; from team cash, refused with "Para yetmiyor" if cash is short).
 @export_range(0, 1000) var buy_price: int = 0
+
+@export_group("Alışveriş (US-045)")
+## Shelf item points (KR-037/KR-038): the level's `ShopItem<n>` marker sells product `shop_items[n - 1]` (ShopProduct id,
+## `data/props/products/<id>.tres`); markers without an entry are skipped. Per-map overridable (VenueTuning).
+@export var shop_items: Array[StringName] = []
+## Product the owner fetches from the back room on the counter's Q order (GÖNDER -> "Damacana iste", KR-036).
+@export var order_product: StringName = &""
+## After the owner puts the ordered product on the counter: paid by the asker within this many seconds -> no return cost and
+## suspicion 0; not paid -> `OwnerTuning.send_return_suspicion` at this second (s; KR-038).
+@export_range(0.0, 120.0, 0.5, "suffix:s") var order_pay_sec: float = 0.0
 
 @export_group("Oyala")
 ## Talking: longest duration (hold; the owner ends the talk when full) and range (from the owner, px).

@@ -11,7 +11,7 @@
   "expect": [
     {"eq": ["*.level", "res://tests/fixtures/store_a_quiet.tscn"]},
     {"len": ["*.player_nodes", 3]},
-    {"eq": ["*.team_cash", 150]},
+    {"eq": ["*.team_cash", 200]},
     {"all_equal": "team_cash"},
     {"eq": ["*.props.Register.emptied", true]},
     {"eq": ["host.props.Register.interact.accepted", 1]},

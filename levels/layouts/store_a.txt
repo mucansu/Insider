@@ -9,6 +9,7 @@
 ; Zones: customer area (sales floor + west of the counter), staff side (counter line and east of it, opens to the inner door), back room. Door tiles have no zone (threshold); zones do not overlap, every interior floor tile is in exactly one zone.
 ; Sight-blocking obstacles (US-033, mekan-estetigi K3): I drinks cooler (13,5)-(13,7) against the sales-floor east wall (aisle 11-12 stays); G crate (20,6) back-room nook (21,6)-(21,7): hidden from BackroomSpot, seen by someone entering via the inner door (19,7);
 ; G crate (21,2) alley: hides from StreetRoute5 someone opening the back door (20,2), visible from StreetRoute6. The existing cash pocket (15,5)-(15,7) is kept. Density: colliding decor 5 tiles, door threshold and both sides, marker tiles are free of obstacles.
+; Shop items (US-045, KR-038): ShopItem1 bread (9,11; south end of the shelf nearest the front door), ShopItem2 cola (12,5; in front of the cooler I, its north end: out of reach of ShelfProp1).
 ; Marker line: @ <letter> <Marker name> <floor char>; Spawn* names go to SpawnPoints, others to Markers.
 ; Zone line: = <letter> <Zone name> <floor char>; the letter's cells (with markers inside) form a filled rectangle.
 ; Unpainted zone: = <Zone name> <col> <row> <width> <height> (tiles; a repeated name makes a multi-part zone).
@@ -46,6 +47,8 @@
 @ x ShelfProp1 .
 @ y ShelfProp2 .
 @ z ShelfProp3 .
+@ A ShopItem1 .
+@ Q ShopItem2 .
 @ 1 Spawn1 ,
 @ 2 Spawn2 ,
 @ 3 Spawn3 ,
@@ -60,13 +63,13 @@
 %,,,,,,,,,,,,,,,,,,,,G,e,____%
 %###################B##,,____%
 %#..SSSSSSSS..#V::::::#,,____%
-%#..o..j.....I#:::O:::#,,____%
+%#..o..j....QI#:::O:::#,,____%
 %#S.SSSSSSx..I#:SS::G:#,,____%
 %#S.p.....k..I#MSS::::#,,____%
 %#S.SSSSSSy...#####D###,N____%
 %#S.r..l.........T....#,,____%
 %#S.SSSSSSz.....uC....wd,____%
-%#Sn......m.....qRK...wi,____%
+%#Sn.....Am.....qRK...wi,____%
 %#...................P#,,____%
 %#....................#,,____%
 %##wwwwwww#F#wwww######,,____%

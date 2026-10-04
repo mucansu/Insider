@@ -67,6 +67,8 @@ const LINES := {
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
+		# S8 addition (US-045): source of the sound being spread (inside hear_noise on the host).
+		"func dispatching_peer() -> int",
 	],
 	# S4 Level API (not an autoload; levels/level.gd, class name and base are checked separately in test_smoke).
 	"Level": [

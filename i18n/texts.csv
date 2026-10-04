@@ -160,25 +160,34 @@ OWNER_DISCOVER_REGISTER,Kasa boş?!,The till is empty?!
 OWNER_DISCOVER_CASH,Para nerede?!,Where is the money?!
 CIVILIAN_TELL,Şu adam bir iş çeviriyor!,That one is up to something!
 CIVILIAN_FLEE,Ben karışmam!,Not my business!
-INTERACT_COUNTER_BUY,Satın al,Buy something
-INTERACT_COUNTER_SEND,Arka odaya gönder,Send to the back room
+INTERACT_COUNTER_BUY,Sakız al,Buy gum
+INTERACT_COUNTER_SEND,Damacana iste,Ask for a water jug
 INTERACT_OWNER_TALK,Oyala (sohbet et),Stall (chat)
 INTERACT_SHELF_TOPPLE,Rafı devir,Knock over the shelf
 INTERACT_PHONE_DROP,Telefonunu bırak,Leave your phone
 OWNER_SERVE,Buyrun?,Yes please?
 OWNER_TALK,Buyrun abi?,What can I do for you?
-OWNER_SENT,Hemen geliyorum!,Be right back!
+OWNER_SENT,Hemen getiriyorum!,I'll fetch it right away!
 OWNER_LISTEN,Bu ses ne?,What was that?
 OWNER_AGAIN,Yine mi?!,Again?!
 OWNER_PHONE_FOUND,Bu kimin telefonu?,Whose phone is this?
 OWNER_LOITER,Bu adam ne istiyor?,What does this guy want?
 EVENT_PURCHASE,{name} alışveriş yaptı.,{name} bought something.
-EVENT_OWNER_SENT,Bakkal arka odaya gitti.,The grocer went to the back room.
+EVENT_OWNER_SENT,Damacana istendi.,A water jug was ordered.
 EVENT_OWNER_DISTRACTED,Bakkal sese yöneldi.,The grocer is checking a noise.
 EVENT_PHONE_FOUND,Bakkal telefonu buldu.,The grocer found the phone.
 INTERACT_MISDIRECT,O tarafa kaçtı! (yönlendir),He went that way! (misdirect)
 OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
 OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
 OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
+INTERACT_COUNTER_PAY,Öde {price},Pay {price}
+INTERACT_TAKE_BREAD,Ekmek al,Take bread
+INTERACT_TAKE_COLA,Kola al,Take a cola
+INTERACT_TAKE_WATER,Damacanayı al,Take the water jug
+INTERACT_ITEM_DROP,Bırak,Drop it
+INTERACT_ITEM_DROP_WATER,Damacanayı bırak,Put the jug down
+OWNER_ORDER_READY,"Buyrun, {price} lira.","Here you are, {price} lira."
+OWNER_ORDER_UNPAID,Nereye gitti bu?,Where did that one go?
+OWNER_NO_MONEY,Para yetmiyor,That's not enough money
 EVENT_MISDIRECT,{name} mahalleliyi yanlış yöne yolladı.,{name} sent the neighbours the wrong way.
 EVENT_NPC_PUSHED,{name} birine omuz attı.,{name} shoved someone.

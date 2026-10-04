@@ -29,11 +29,14 @@ extends Resource
 @export_range(0.0, 128.0, 1.0, "suffix:px") var arm_reach_px: float = 0.0
 ## Radius for counting a front-door pass as a bell (px; from the door marker).
 @export_range(0.0, 256.0, 1.0, "suffix:px") var bell_radius: float = 0.0
-## Back door bell (IS-104, KR-034): a player opening/closing this door (Props node name) or crossing its threshold (in/out, within
-## `bell_radius`) rings it. Heard only while the owner stands
+## Back door bell (IS-104, KR-034; IS-108 KR-039): a player opening/closing this door (Props node name) rings it (crossing an open
+## door does not). Heard only while the owner stands
 ## calm at ClerkSpot (AGENDA, home task arrived, no interrupt) -> LISTEN at `backroom_marker` for `listen_sec` + the bag check
 ## (`backroom_check_sec` after arrival). Busy (service, listen, sent, talk, other task, reaction, alarm) = not heard. Empty = off.
 @export var back_bell_door: StringName = &""
+## Spring-loaded back door (IS-108, KR-039): the back-bell door left open with nobody in its threshold closes by itself after this many
+## seconds (no bell, the usual door sound; like an NPC closing it). 0 = off.
+@export_range(0.0, 30.0, 0.1, "suffix:s") var back_door_autoclose_sec: float = 0.0
 ## Markers for customer service and the back-room interruption.
 @export var counter_marker: StringName = &""
 @export var backroom_marker: StringName = &""
@@ -74,9 +77,11 @@ extends Resource
 ## Return check (IS-100, KR-032): after being away from the counter (any agenda task or interrupt), the owner looks at the register
 ## this long after arriving back at ClerkSpot; an emptied register -> DISCOVER (before the service / idle triggers). 0 = off.
 @export_range(0.0, 10.0, 0.05, "suffix:s") var return_check_sec: float = 0.0
-## SEND return cost (IS-100 AC3, GDD §9.3): when the owner is back at the counter after SEND, the player who sent them (if still free)
-## gets this much suspicion. 0 = off.
+## Order return cost (IS-100 AC3; US-045 KR-038 conditional): when the ordered product has been on the counter for
+## `StoreToolsTuning.order_pay_sec` without the asker paying, the asker (if still free) gets this much suspicion. 0 = off.
 @export_range(0.0, 100.0, 1.0) var send_return_suspicion: float = 0.0
+## Walking speed factor while carrying the ordered product back from the back room (US-045: damacana, x0.6).
+@export_range(0.1, 1.0, 0.05) var carry_speed_factor: float = 1.0
 
 @export_group("Tutma")
 ## Chase speed (px/s); hold window first / later (s); stagger after rescue (s) and suspicion on the rescuer.

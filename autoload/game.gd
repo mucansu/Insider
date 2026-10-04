@@ -37,7 +37,9 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## Handshake protocol version; mismatched peers are rejected. Bump when the wire layout (RPC/synchronizer/handshake) changes (mimari.md S2).
 ## 2: US-011b 8-bit look angle in the movement synchronizer + vision mode/exposure RPCs. 4: US-010 counter/shelf-end prop synchronizers, owner's STALL component and `net_shouted`.
 ## 5: US-043 owner/local-resident REDIRECT components and `net_misdirected`.
-const PROTOCOL_VERSION := 5
+## 6: US-045 player hand synchronizer (`Status/Hand` item/paid + Drop component), counter order/shop counters, shelf item points and
+##    the counter's Pickup component.
+const PROTOCOL_VERSION := 6
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 ## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by
@@ -320,7 +322,7 @@ func _begin_session() -> void:
 	_run = 0
 	if Net.is_host():
 		_events.clear()
-		_set_team_cash(0)
+		_set_team_cash(HeistTuning.load_default().start_cash)  # US-045 (KR-038): team allowance at session start
 		_players.clear()
 		_add_player(1, _local_name)
 		players_changed.emit()
@@ -420,6 +422,7 @@ func _host_admit_peer(peer_id: int) -> void:
 	_rpc_alert.rpc_id(peer_id, _alert_level, _alert_timer)
 	if _level != null:
 		_spawn_player(peer_id)
+		_heist_replay_cover(peer_id)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
@@ -946,6 +949,11 @@ static func _sanitize_name(value: Variant) -> String:
 #   `suspicion()`/`perception()`; cone + line of sight) breaks cover, and each observer that sees gives that player +60 suspicion (owner: customer-witness path `report_suspicion`).
 #   Broken cover goes to all as `session_event` &"cover_broken" {peer, reason} (HUD silent; local indicator `cover_state()`); wire layout unchanged. When police arrive a player with intact cover, no loot,
 #   not held and outside the zone is released (`witness_released`: no bail, recognised +1, team heat +2).
+#   US-045 (GB-08 option A, KR-038): a view state breaks cover only while an NPC sees the player (view `seen_by` = first observer of
+#   `_heist_observers_seeing`, which also takes nodes offering `sees_point(pos)` - the neighbour); taking the bag is no longer an event
+#   breaker; the police witness check stays unconditional. Event data gains "by"; dump `cover_reason` / `seen_by`. A peer admitted mid-job
+#   gets the already broken covers replayed (`_heist_replay_cover`; the witness.json late-join flake). Team cash starts at
+#   HeistTuning.start_cash (KR-038 allowance).
 # - IS-099 left player: a peer dropped mid-job (`_host_drop_peer`, before the roster erase) goes to `Tracker.note_left`; the result's `players` lists it with
 #   `left: true` and zero share/bail (economy unchanged); roster players carry `left: false`.
 # - US-042 strategy label: result `strategy` (Tracker.strategy) and dump `heist.strategy`; interaction count from every level Interactable's `completed` (player) + RESCUE; back door = a player used the `BackDoor` prop.
@@ -997,6 +1005,8 @@ var _heist_hook_started: bool = false
 var _heist_bound: Dictionary = {}
 ## US-042: players whose cover broke (peer -> reason), on every peer from the `cover_broken` event; reset with the level.
 var _heist_cover_lost: Dictionary = {}
+## US-045: peer -> name of the NPC that saw the cover break (from the event; "" if none).
+var _heist_cover_by: Dictionary = {}
 ## Host: bag node (instance id) -> carrier in the last step (to find the previous carrier on a handover).
 var _heist_bag_carrier: Dictionary = {}
 ## Host: cash interaction components (vault; `busy_by` = holding player).
@@ -1132,6 +1142,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 	_heist = null
 	_heist_bind_optional()
 	_heist_cover_lost.clear()
+	_heist_cover_by.clear()
 	_heist_bag_carrier.clear()
 	_heist_cash_items.clear()
 	var lvl: Level = level as Level
@@ -1283,7 +1294,18 @@ func _heist_flush_cover() -> void:
 	var pending: Array[Dictionary] = _heist.cover_events.duplicate()
 	_heist.cover_events.clear()
 	for e: Dictionary in pending:
-		raise_session_event(HEIST_EVENT_COVER, {"peer": int(e["peer"]), "reason": String(e["reason"])})
+		raise_session_event(HEIST_EVENT_COVER, {"peer": int(e["peer"]), "reason": String(e["reason"]),
+			"by": String(e.get("by", ""))})
+
+
+## Host (US-045 fix of the witness flake): a peer admitted mid-job gets the covers already broken (same `cover_broken` events, to that
+## peer only); without it a late joiner believes them intact (local indicator, dump, its neighbour's cover query).
+func _heist_replay_cover(peer_id: int) -> void:
+	if _heist == null or not multiplayer.get_peers().has(peer_id):
+		return
+	for peer: Variant in _heist.cover_broken:
+		_rpc_session_event.rpc_id(peer_id, HEIST_EVENT_COVER, {"peer": int(peer), "reason": String(_heist.cover_broken[peer]),
+			"by": String(_heist.cover_seen_by.get(peer, &""))})
 
 
 ## `actor` interacted with `other`, who may be marked (RESCUE, bag handover): tried using player positions.
@@ -1301,8 +1323,9 @@ func _heist_associate_at(actor: int, other: int, actor_pos: Vector2, other_pos: 
 		return 0
 	var tuning: HeistTuning = HeistTuning.load_default()
 	var seeing: Array[Node] = _heist_observers_seeing(actor_pos)
+	var by: StringName = StringName(seeing[0].name) if not seeing.is_empty() else &""
 	if not _heist.associate(actor, other, actor_pos.distance_to(other_pos), not seeing.is_empty(),
-			tuning.association_radius_px):
+			tuning.association_radius_px, by):
 		return 0
 	for observer: Node in seeing:
 		if observer.has_method(&"report_suspicion"):
@@ -1321,6 +1344,10 @@ func _heist_observers_seeing(pos: Vector2) -> Array[Node]:
 	if npcs == null:
 		return out
 	for node: Node in npcs.find_children("*", "", true, false):
+		if node.has_method(&"sees_point"):  # US-045: an observer with its own sight rule (neighbour: range + line of sight)
+			if bool(node.call(&"sees_point", pos)):
+				out.append(node)
+			continue
 		if not (node.has_method(&"report_suspicion") or node.has_method(&"suspicion")):
 			continue
 		if "active" in node and not bool(node.get(&"active")):
@@ -1378,6 +1405,7 @@ func _heist_mark_caught(peer_id: int, cause: StringName) -> void:
 func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
 	if _heist != null and kind == HEIST_EVENT_COVER and typeof(data.get("peer")) == TYPE_INT:
 		_heist_cover_lost[int(data["peer"])] = StringName(str(data.get("reason", "")))
+		_heist_cover_by[int(data["peer"])] = str(data.get("by", ""))
 	if _heist == null or _heist.finished or not _has_host_authority():
 		return
 	match kind:
@@ -1441,6 +1469,11 @@ func _heist_views() -> Dictionary:
 			"move_mode": int(node.get(&"net_mode")) if typeof(node.get(&"net_mode")) == TYPE_INT else HeistRules.MOVE_WALK,
 			"masked": false,
 		}
+		# US-045 (GB-08 A): who sees it - only asked when the state would break an intact cover (Tracker.observe).
+		var view: Dictionary = out[peer_id]
+		if _heist != null and _heist.cover_intact(peer_id) and not HeistRules.cover_breaker(view).is_empty():
+			var seeing: Array[Node] = _heist_observers_seeing(pos)
+			view["seen_by"] = String(seeing[0].name) if not seeing.is_empty() else ""
 	return out
 
 
@@ -1523,6 +1556,8 @@ func _heist_dump() -> Dictionary:
 		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
 		"settle_peak_s": snappedf(_heist_settle_peak(), 0.01),
 		"cover": _heist_cover_dump(),
+		"cover_reason": _heist_cover_detail(_heist_cover_lost),  # US-045: why / who saw it (GB-08 A)
+		"seen_by": _heist_cover_detail(_heist_cover_by),
 		"strategy": _heist_result.get("strategy", {}),
 		"events_main": _heist_events_main(),
 		"events_shared": _events_shared(),  # IS-102
@@ -1547,6 +1582,14 @@ func _heist_events_main() -> Array[Dictionary]:
 		var kind: StringName = StringName(str(e.get("kind", "")))
 		if kind != HEIST_EVENT_COVER and kind != RUN_EVENT:
 			out.append(e)
+	return out
+
+
+## Broken covers this peer knows: peer -> reason / observer name (US-045 dump).
+func _heist_cover_detail(source: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for peer: Variant in source:
+		out[str(int(peer))] = str(source[peer])
 	return out
 
 

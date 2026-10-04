@@ -1,5 +1,5 @@
 {
-  "_doc": "IS-086 AC2/AC3 (US-039 AC9 zinciri, GDD §9.3) + IS-104 (KR-034 arka kapı zili): store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_door.tscn: tezgâh ~31 sn, iç kapı D sahnedeki gibi kapalı). host alıcı: ön kapıdan girer (ön kapı zili: 1 sn bakış), 8,6. sn'de SATIN AL, sahip ~10,6-16,6 sn tezgâhta servis eder. c1 bu serviste ara sokaktan arka kapıyı açıp (zil: sahip serviste, duyulmaz — `zil duyulmadı (customer)`) arka odaya girer, iç kapının batı yanında bekler ve servis bittikten sonra (19. sn) iç kapıyı (D) arka oda tarafından açar. Kapı sesi (KIND_DOOR, 160 px) tezgâhtaki sahibe ~101 px'ten duvarsız ulaşır: Hearing → DİNLE (`listen`; sese doğru yürür, 64 px kala durur ve bakar; zil değil, arka odaya gitmez). c1 kapı boşluğunun görüş hattında değildir: şüphe artmaz, uyarı kımıldamaz, keşif yok. Kapı durumu (açık, 1 değişim) her peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "IS-086 AC2/AC3 (US-039 AC9 zinciri, GDD §9.3) + IS-104 (KR-034 arka kapı zili): store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_door.tscn: tezgâh ~31 sn, iç kapı D sahnedeki gibi kapalı). host alıcı: ön kapıdan girer (ön kapı zili: 1 sn bakış), 8,6. sn'de SATIN AL, sahip ~10,6-16,6 sn tezgâhta servis eder. c1 bu serviste ara sokaktan arka kapıyı açıp (zil: sahip serviste, duyulmaz — `zil duyulmadı (customer)`) arka odaya girer (IS-108, KR-039: arka kapı yaylı — eşik boşalınca ~3 sn sonra zil çalmadan kendiliğinden kapanır; dökümde kapalı, 1 kendiliğinden kapanma), iç kapının batı yanında bekler ve servis bittikten sonra (19. sn) iç kapıyı (D) arka oda tarafından açar. Kapı sesi (KIND_DOOR, 160 px) tezgâhtaki sahibe ~101 px'ten duvarsız ulaşır: Hearing → DİNLE (`listen`; sese doğru yürür, 64 px kala durur ve bakar; zil değil, arka odaya gitmez). c1 kapı boşluğunun görüş hattında değildir: şüphe artmaz, uyarı kımıldamaz, keşif yok. Kapı durumu (açık, 1 değişim) her peer'da aynı. Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/store_a_backroom_door.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 1,
@@ -8,7 +8,8 @@
   "expect": [
     {"eq": ["*.level", "res://tests/fixtures/store_a_backroom_door.tscn"]},
     {"len": ["*.player_nodes", 2]},
-    {"eq": ["*.props.BackDoor.open", true]},
+    {"eq": ["*.props.BackDoor.open", false]},
+    {"eq": ["host.props.BackDoor.autocloses", 1]},
     {"eq": ["*.props.BackroomDoor.open", true]},
     {"eq": ["*.props.BackroomDoor.flips", 1]},
     {"eq": ["*.props.BackroomDoor.consistent", true]},

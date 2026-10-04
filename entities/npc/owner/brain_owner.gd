@@ -23,7 +23,13 @@ extends Node
 ## at ClerkSpot; an emptied register -> discovery (same flow, same one-per-source rule, none after the heist ends). SEND return cost (GDD
 ## §9.3 "suspicion +20 to the asking player on return"): back at the counter after SEND, the sender (if still free) gets
 ## `send_return_suspicion` wherever they are (an unseen meter drains as usual; an alarm in between cancels it; `send_costs`, dump).
-## Back door bell (IS-104, KR-034): a player opening/closing or crossing the back door B rings its bell; the owner standing calm at ClerkSpot (home
+## Damacana order (US-045, KR-036/KR-038; replaces "send to the back room"): `send_to_backroom(peer)` is the counter's Q "Damacana iste";
+## the owner fetches the product (SENT interrupt, `sent_sec` in the back room, bag check as before), walks back home carrying it at
+## `walk_speed x carry_speed_factor` (order phase CARRY), puts it on the counter (READY, `owner_order_ready` "Buyrun, 40 lira.") and
+## starts the payment clock (`StoreToolsTuning.order_pay_sec`): the asker paying in time (`order_paid`) costs nothing (the service sets
+## suspicion 0); otherwise at expiry the asker (if still free) gets `send_return_suspicion` (`send_costs`) and `owner_order_unpaid`
+## ("Nereye gitti bu?"). A shout cancels both the errand and the clock. `refuse_sale(peer)`: "Para yetmiyor" balloon (`owner_no_money`).
+## Back door bell (IS-104, KR-034): a player opening/closing the back door B rings its bell (IS-108: not crossing it; B springs shut); the owner standing calm at ClerkSpot (home
 ## task, no interrupt) LISTENs at BackroomSpot and checks the bag on arrival (trigger "bell"); busy = not heard. The inner door D stays
 ## a plain door sound (hearing -> LISTEN toward D).
 ## Player tools (US-010; GDD §9.3, KR-026; oyun-yz round 2 #14-#15):
@@ -147,6 +153,9 @@ var soothed: Array[Dictionary] = []
 var window_questions: Array[int] = []
 ## SEND return costs applied (IS-100 AC3; dump/test): [{"peer", "amount"}].
 var send_costs: Array[Dictionary] = []
+## US-045 order: phase (ShopRules.Order: NONE, FETCH, CARRY, READY) and the payment clock after READY.
+var order_clock := ShopRules.OrderClock.new()
+var _order_phase: int = ShopRules.Order.NONE
 ## Event log (IS-081; dump `log`, host only): state/task changes and important events with a short reason.
 var event_log := OwnerLog.new()
 
@@ -256,6 +265,8 @@ func held_peer() -> int:
 ## One step (host): senses -> suspicion -> layer selection -> desired velocity (global px/s); then the event log entry (IS-081).
 func step(delta: float) -> Vector2:
 	var velocity: Vector2 = _step_layers(delta)
+	if order_clock.step(delta):
+		_order_unpaid()
 	_log_tick()
 	return velocity
 
@@ -339,11 +350,29 @@ func send_to_backroom(peer_id: int = 0) -> bool:
 	if ok:
 		_sent_at = fsm.clock
 		_sent_by = peer_id
+		_order_phase = ShopRules.Order.FETCH
 		event_log.note("GÖNDER: arka odaya gidiyor (isteyen p%d)" % peer_id)
 		if peer_id != 0:
 			event(&"owner_sent", peer_id)
 			social_action.emit(peer_id, &"send")
 	return ok
+
+
+## Order phase (ShopRules.Order; the counter follows FETCH -> CARRY -> READY, NONE = dropped by an alarm).
+func order_phase() -> int:
+	return _order_phase
+
+
+## The asker paid the ordered product on the counter (counter, host): no return cost (the service already set suspicion 0).
+func order_paid(peer_id: int) -> void:
+	if order_clock.running() and order_clock.peer == peer_id:
+		order_clock.cancel()
+		event_log.note("sipariş ödendi p%d: dönüş bedeli yok" % peer_id)
+
+
+## Sale refused for lack of team cash (KR-038 "Para yetmiyor").
+func refuse_sale(peer_id: int) -> void:
+	event(&"owner_no_money", peer_id)
 
 
 ## Whether SEND is accepted now (calm state, not already sent).
@@ -437,9 +466,11 @@ func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 		return false
 	var distraction: bool = StoreToolsTuning.DISTRACTION_KINDS.has(kind)
 	var source: Node2D = senses.distraction_source(pos) if distraction else null
+	# US-045: a sound without a prop (a dropped bottle) is charged to the peer that made it (NoiseBus source, host, synchronous).
+	var maker: int = NoiseBus.dispatching_peer() if distraction and source == null else 0
 	var fresh: bool = distraction and distractions.note(_distraction_key(source, pos, kind))
 	if fresh and distractions.is_again():
-		var culprit: int = int(source.call(&"distraction_peer", kind)) if source != null else 0
+		var culprit: int = int(source.call(&"distraction_peer", kind)) if source != null else maker
 		if culprit != 0 and CALM_STATES.has(fsm.state):
 			suspicion.apply_delta(culprit, tools.again_suspicion)  # "again?" (US-010 AC5)
 			event(&"owner_again", culprit)
@@ -461,7 +492,7 @@ func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 		event(&"owner_listen", 0)
 	if fresh:
 		Game.raise_session_event(DISTRACTED_SESSION_EVENT, {"kind": String(kind)})
-		var by: int = int(source.call(&"distraction_peer", kind)) if source != null else 0
+		var by: int = int(source.call(&"distraction_peer", kind)) if source != null else maker
 		if by != 0:
 			social_action.emit(by, &"distract")
 	return true
@@ -484,6 +515,13 @@ func _on_door_crossed(_peer_id: int, door_pos: Vector2) -> void:
 
 
 func _on_interrupt_ended(kind: Agenda.Interrupt, completed: bool) -> void:
+	if kind == Agenda.Interrupt.SENT and _order_phase == ShopRules.Order.FETCH:
+		if completed:
+			_order_phase = ShopRules.Order.CARRY  # US-045: carries the damacana home (to the counter), slower
+			event_log.note("sipariş: depodan alındı, tezgâha taşıyor")
+			agenda.restart_home()  # to the counter (home), whatever task the order interrupted
+		else:
+			_order_phase = ShopRules.Order.NONE
 	if kind != Agenda.Interrupt.CUSTOMER or not _serving:
 		return
 	_serving = false
@@ -624,8 +662,11 @@ func _agenda_step(delta: float, level: int) -> Vector2:
 	if listening and _listen_phone != null and agenda.has_arrived():
 		_find_phone()
 	var goal: Vector2 = agenda.goal_position()
+	var speed: float = owner_tuning.walk_speed
+	if _order_phase == ShopRules.Order.CARRY:
+		speed *= owner_tuning.carry_speed_factor  # US-045: carrying the damacana
 	if goal.is_finite():
-		mover.move_to(goal, owner_tuning.walk_speed, STAND_PX)
+		mover.move_to(goal, speed, STAND_PX)
 	else:
 		mover.stop()
 	agenda.step(delta, mover.arrived() or mover.failed())
@@ -760,15 +801,32 @@ func _sent_window_step() -> void:
 		sent_windows.append(snappedf(fsm.clock - _sent_at, 0.01))
 		event_log.note("GÖNDER dönüşü: tezgâhta", "sent_windows[%d]" % (sent_windows.size() - 1))
 		_sent_at = -1.0
-		_send_return_cost()
+		_order_ready()
 
 
-## SEND return cost (IS-100 AC3, GDD §9.3 "suspicion +20 to the asking player on return"): back at the counter, the sender gets
-## `send_return_suspicion` once if still free (not held / caught). Applied wherever the sender is: an unseen meter drains at the usual
-## rate (suspicion given unseen leaks no position), so leaving before the return mostly avoids it.
-func _send_return_cost() -> void:
+## US-045: back at the counter with the ordered product - puts it on the counter, "Buyrun, 40 lira.", payment clock starts.
+func _order_ready() -> void:
 	var peer_id: int = _sent_by
 	_sent_by = 0
+	if _order_phase != ShopRules.Order.CARRY:
+		return
+	_order_phase = ShopRules.Order.READY
+	event(&"owner_order_ready", peer_id)
+	if peer_id != 0:
+		order_clock.start(peer_id, tools.order_pay_sec)
+
+
+## Payment clock ran out (US-045, KR-038): "Nereye gitti bu?" and the return cost.
+func _order_unpaid() -> void:
+	var peer_id: int = order_clock.peer
+	event(&"owner_order_unpaid", peer_id)
+	_send_return_cost(peer_id)
+
+
+## SEND return cost (IS-100 AC3, GDD §9.3 "suspicion +20 to the asking player"; US-045: only when the order is not paid in time): the
+## asker gets `send_return_suspicion` once if still free (not held / caught). Applied wherever the asker is: an unseen meter drains at the
+## usual rate (suspicion given unseen leaks no position), so leaving mostly avoids it.
+func _send_return_cost(peer_id: int) -> void:
 	var amount: float = owner_tuning.send_return_suspicion
 	if peer_id == 0 or amount <= 0.0:
 		return
@@ -814,6 +872,9 @@ func shout(peer_id: int, late: bool) -> void:
 	if peer_id != 0:
 		target = peer_id
 	_sent_by = 0  # alarm: the SEND errand is over, no return cost later
+	order_clock.cancel()  # US-045: no payment clock either
+	if _order_phase == ShopRules.Order.FETCH or _order_phase == ShopRules.Order.CARRY:
+		_order_phase = ShopRules.Order.NONE
 	suspicion.latch_level = Suspicion.Level.DETECT
 	has_shouted = true
 	mover.stop()

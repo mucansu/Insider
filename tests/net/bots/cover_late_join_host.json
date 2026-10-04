@@ -1,0 +1,14 @@
+{
+  "_doc": "cover_late_join.json host botu (US-045): witness_c1 rotasıyla ön kapıdan girer, satış alanında sahibin konisine (tezgâhın batısı, ~100 px) yürür ve orada ~0,6 sn sağa-sola koşar: sahip görür, örtü 'koşma' ile bozulur (GB-08 A); sonra durur.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 4.95, "move": [1, 0]},
+    {"t": 5.8, "move": [0, 0]},
+    {"t": 6.0, "hold": "sprint", "dur": 0.6},
+    {"t": 6.0, "move": [-1, 0]},
+    {"t": 6.3, "move": [1, 0]},
+    {"t": 6.6, "move": [0, 0]}
+  ]
+}

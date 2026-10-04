@@ -37,6 +37,9 @@ extends CharacterBody2D
 ## (ContactRules.Predictor): circle overlap with an NPC in calm -> speed x0.5; a predicted shove (sprinting, NPC in the +-60 deg front cone,
 ## not on cooldown, not a chaser's back) -> x0.7 for 0.2 s. Host `npc_pushed` session events put that NPC on cooldown locally. Dump
 ## `player_states.<peer>.contact` = {predicted, slow_frames}.
+## Hand (US-045, KR-038): `Status/Hand` (PlayerHand, host-authoritative) holds at most one shop product; the player only reads it
+## (`hand()`, `interaction_tags` adds `holding`/`heavy`; `free_hands` also needs no heavy product). A heavy product (damacana) locks the
+## local copy to walking: sprint/sneak input is ignored while it is held.
 
 signal identity_changed()
 ## Nearby interactable target changed (empty string = none); local player only (S7).
@@ -151,7 +154,8 @@ func _physics_process(delta: float) -> void:
 		var free: bool = _status.is_free()
 		var direction: Vector2 = _input.move_vector() if free else Vector2.ZERO
 		if free:
-			move_mode = PlayerMotion.mode_for(_input.is_held(&"sneak"), _input.is_held(&"sprint"))
+			var light: bool = not _is_heavy()  # US-045: a damacana in the hands = walk only
+			move_mode = PlayerMotion.mode_for(light and _input.is_held(&"sneak"), light and _input.is_held(&"sprint"))
 			velocity = PlayerMotion.step_velocity(velocity, direction, move_mode, tuning, delta, _contact_scale(delta))
 		else:
 			move_mode = PlayerMotion.Mode.WALK
@@ -285,7 +289,10 @@ func interaction_position() -> Vector2:
 ## Interaction tags (S7 `InteractionRequirement.required_tag`; the host reads the same method). US-012: `free_hands` if empty-handed
 ## (a bag can only be taken/received empty-handed).
 func interaction_tags() -> Dictionary:
-	var tags: Dictionary = {} if is_carrying() else {HeistRules.FREE_HANDS_TAG: 1}
+	var tags: Dictionary = {} if is_carrying() or _is_heavy() else {HeistRules.FREE_HANDS_TAG: 1}
+	var h: PlayerHand = hand()
+	if h != null:
+		tags.merge(h.tags())  # US-045: `holding` / `heavy`
 	if not _cover_broken:
 		tags[COVER_TAG] = 1  # US-043: cover intact ("like a customer"; REDIRECT requires this; the host also checks)
 	return tags
@@ -336,6 +343,16 @@ func _contact_npc(npc_name: String) -> NpcContact:
 		if npc != null and npc.get_parent() != null and String(npc.get_parent().name) == npc_name:
 			return npc
 	return null
+
+
+## Shop product hand (US-045; `Status/Hand`); null on a player scene without one (test dummy).
+func hand() -> PlayerHand:
+	return get_node_or_null(^"Status/Hand") as PlayerHand
+
+
+func _is_heavy() -> bool:
+	var h: PlayerHand = hand()
+	return h != null and h.is_heavy()
 
 
 ## Whether carrying a bag (US-012; state is in the bag, host-authoritative and replicated).
