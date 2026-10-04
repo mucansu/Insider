@@ -141,6 +141,12 @@ class FakeGame extends FakeGameBase:
 	func abort_left() -> float:
 		return abort
 
+	## IS-103 escape settle countdown (s); -1 if none.
+	var settle: float = -1.0
+
+	func escape_settle_left() -> float:
+		return settle
+
 	## US-042 local cover: 1 intact, 0 broken, -1 no job.
 	var cover: int = -1
 

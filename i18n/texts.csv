@@ -84,6 +84,7 @@ HUD_ESCAPE_RULE,Ekip birlikte oradayken kaçarsınız.,You get away once the who
 HUD_ESCAPE_POLICE,Polis gelmesine: %s,Police arrive in %s
 HUD_ESCAPE_COUNT,Kaçış noktasında: %d/%d,At the escape point: %d/%d
 HUD_ESCAPE_ABORT,Eli boş çekiliyorsunuz… %d,Leaving empty-handed… %d
+HUD_ESCAPE_SETTLE,Minibüs kalkıyor… %d,Van leaving… %d
 HUD_COVER_INTACT,Müşteri gibisin,You look like a customer
 HUD_COVER_BROKEN,Örtün bozuldu,Your cover is blown
 END_DURATION_LABEL,SÜRE,TIME

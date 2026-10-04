@@ -13,6 +13,7 @@
     {"len": ["*.player_nodes", 2]},
     {"eq": ["*.props.Register.emptied", true]},
     {"eq": ["*.heist.result.outcome", "clean"]},
+    {"between": ["host.heist.settle_peak_s", 2.98, 3.05]},
     {"eq": ["*.heist.result.loot_total", 150]},
     {"eq": ["*.heist.result.payout", 135]},
     {"eq": ["*.heist.result.bail", 100]},

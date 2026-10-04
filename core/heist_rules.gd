@@ -9,7 +9,11 @@ extends RefCounted
 ## - held != caught: a held player is not caught (rescuable; US-008 makes them caught when the timer expires).
 ## - Payout = loot x broker ratio (integer percent, round half up); a caught player's share is 0.
 ## - Empty-handed abort (US-040): all uncaught players stay in the escape zone with loot 0 for `abort_hold_s` (data/heist_tuning.tres, 3 s) -> `aborted`:
-##   share 0, players in the zone count as escaped, heat +5 if alert >= 2. Resets if someone leaves or is caught; loot > 0 triggers the win rule at once; police arrival the police rule.
+##   share 0, players in the zone count as escaped, heat +5 if alert >= 2. Resets if someone leaves or is caught; loot > 0 triggers the win rule (escape settle below); police arrival the police rule.
+## - Escape settle (IS-103, KR-034): when the win condition first holds while max alert < ALERT_SHOUTED and police have not arrived, the job does not end at once:
+##   a `escape_settle_s` countdown (data/heist_tuning.tres, 3 s) runs; when it fills the job is won (clean). If alert reaches >= ALERT_SHOUTED meanwhile, the win
+##   happens at once with that tier (`shouted`/`hot`, payout rules unchanged). Leaving the zone / a catch / a new outside player cancels it; it restarts from 0 when the condition
+##   holds again. Alert already >= ALERT_SHOUTED on arrival (or police): instant win as before. Never overlaps the abort counter (abort needs loot 0, settle loot > 0).
 ## - Bail (US-041, KR-029): each player caught at job end costs the venue tier's amount (data/heist_tuning.tres) from team cash;
 ##   cash may go negative (debt), repaid by the next payout. Team cash = before + payout - bail.
 ## - Cover (US-042; GDD §9.3): per-player "looks like a customer" state on the host. Intact: unmasked, no bag/tool in hand, in the customer zone or outside,
@@ -53,6 +57,9 @@ const HEAT_ABORTED_SHOUTED := 5
 const ABORT_HOLD_S := 3.0
 ## Float accumulation tolerance (a sum of 60 Hz steps must not miss 3.0 by 1e-9).
 const ABORT_EPS := 1e-6
+## Escape settle (IS-103): the real value is data/heist_tuning.tres `escape_settle_s` (Game supplies it). The Tracker's own default is 0 (= no countdown,
+## instant win as before IS-103) so rule tests that drive `evaluate` without the tuning keep the old timing.
+const ESCAPE_SETTLE_S := 3.0
 
 ## Cover (US-042). Fallback values: the real ones are data/heist_tuning.tres (Game supplies them).
 const COVER_MARK_WINDOW_S := 10.0
@@ -257,7 +264,9 @@ static func abort_ready(players: Dictionary, secured: int = -1) -> bool:
 ## `"released": true` (freed by witness questioning, US-042) is skipped in the zone condition like a caught player.
 ## `secured` >= 0 (IS-094): loot the team secured (register cash that reached team cash, even if the emptier was caught later, plus bags carried by uncaught players);
 ## it replaces the released players' loot sum, so a caught register-emptier's friends in the zone still win (not an empty-handed abort).
-static func decide(players: Dictionary, police: bool, abort_due: bool = false, secured: int = -1) -> StringName:
+## `win_hold` (IS-103): the escape settle countdown is still running — the win condition returns DECISION_NONE instead of DECISION_WIN (Tracker decides when to hold).
+static func decide(players: Dictionary, police: bool, abort_due: bool = false, secured: int = -1,
+		win_hold: bool = false) -> StringName:
 	if players.is_empty():
 		return DECISION_NONE
 	var free: int = 0
@@ -275,12 +284,18 @@ static func decide(players: Dictionary, police: bool, abort_due: bool = false, s
 	if secured >= 0:
 		loot = secured
 	if all_in_zone and loot > 0:
-		return DECISION_WIN
+		return DECISION_NONE if win_hold else DECISION_WIN
 	if police:
 		return OUTCOME_POLICE
 	if abort_due and all_in_zone and loot == 0:
 		return OUTCOME_ABORTED
 	return DECISION_NONE
+
+
+## Escape settle condition (IS-103, instant): the win condition holds (at least one uncaught player, all in the escape zone, loot > 0), police aside.
+## Same `players`/`secured` shape as `decide`.
+static func settle_ready(players: Dictionary, secured: int = -1) -> bool:
+	return decide(players, false, false, secured) == DECISION_WIN
 
 
 ## Bag: number of dice to roll when run time goes from `prev_s` to `new_s` (whole seconds crossed).
@@ -380,7 +395,7 @@ static func _before(a: int, b: int, slots: Dictionary) -> bool:
 	return sa < sb if sa != sb else a < b
 
 
-## Empty-handed abort counter (US-040): the condition (`abort_ready`) is fed every step; it fills after `hold_s` uninterrupted,
+## Hold counter for the empty-handed abort (US-040) and the escape settle (IS-103): the condition (`abort_ready` / `settle_ready`) is fed every step; it fills after `hold_s` uninterrupted,
 ## and resets when the condition breaks or `epoch` changes (caught count). Decides inside Tracker on the host; clients only derive the HUD countdown from a local copy.
 class AbortClock:
 	extends RefCounted
@@ -435,6 +450,8 @@ class Tracker:
 	var sprint_s: Dictionary = {}
 	## Empty-handed abort counter (US-040); Game sets `abort.hold_s` from data/heist_tuning.tres.
 	var abort: HeistRules.AbortClock = HeistRules.AbortClock.new()
+	## Escape settle counter (IS-103); Game sets `settle.hold_s` from data/heist_tuning.tres `escape_settle_s`. 0 = no countdown (instant win).
+	var settle: HeistRules.AbortClock = HeistRules.AbortClock.new(0.0)
 	## Cover (US-042): peer -> breaking reason (absent = intact). Once broken it never returns.
 	var cover_broken: Dictionary = {}
 	## Newly broken covers (Game drains this each step and emits events): [{"peer", "reason"}].
@@ -586,8 +603,19 @@ class Tracker:
 				var reason: StringName = HeistRules.cover_breaker(v)
 				if not reason.is_empty():
 					break_cover(int(peer), reason)
-		abort.step(not police and HeistRules.abort_ready(players_state(views), secured_loot(views)), delta,
-			caught.size())
+		var state: Dictionary = players_state(views)
+		var secured: int = secured_loot(views)
+		abort.step(not police and HeistRules.abort_ready(state, secured), delta, caught.size())
+		settle.step(settle_applies() and HeistRules.settle_ready(state, secured), delta, caught.size())
+
+	## Escape settle can run (IS-103): a countdown is configured, police have not arrived and nobody has shouted yet (max alert < ALERT_SHOUTED);
+	## otherwise the win is instant.
+	func settle_applies() -> bool:
+		return settle.hold_s > HeistRules.ABORT_EPS and not police and max_alert < HeistRules.ALERT_SHOUTED
+
+	## The win is being held back by the escape settle countdown (condition may or may not hold; `decide` only applies it to the win rule).
+	func settle_pending() -> bool:
+		return settle_applies() and not settle.done()
 
 	## Rule input: peer -> {"caught", "in_zone", "loot"}.
 	func players_state(views: Dictionary) -> Dictionary:
@@ -607,7 +635,7 @@ class Tracker:
 	func evaluate(views: Dictionary) -> StringName:
 		if finished:
 			return HeistRules.DECISION_NONE
-		return HeistRules.decide(players_state(views), police, abort.done(), secured_loot(views))
+		return HeistRules.decide(players_state(views), police, abort.done(), secured_loot(views), settle_pending())
 
 	## Loot the team secured (IS-094): register cash that entered team cash during the job (stays even if the emptier is caught later)
 	## plus bags carried by uncaught (and not witness-released) players (a caught player's bag is lost).

@@ -58,6 +58,8 @@ const LINES := {
 		"func escape_status() -> Dictionary",
 		# S3 addition (US-040, empty-handed retreat): HUD countdown; read-only, no RPC.
 		"func abort_left() -> float",
+		# S3 addition candidate (IS-103, escape settle; coordinator carries it to mimari.md): HUD countdown; read-only, no RPC.
+		"func escape_settle_left() -> float",
 		# S3 addition (US-042, cover): local player's cover (1 intact, 0 broken, -1 no job); read-only.
 		"func cover_state() -> int",
 		# S3 addition (IS-058b): session seed of the current job (host decides; a client reads 0).
