@@ -6,6 +6,7 @@ extends TestCase
 const LEVELS: Array[String] = [
 	"res://levels/store_a.tscn", "res://levels/test_arena.tscn",
 	"res://tests/fixtures/empty_level.tscn", "res://tests/fixtures/empty_level_b.tscn",
+	"res://levels/store_b.tscn",  # IS-107
 ]
 const BUILDER := "res://levels/tools/build_levels.gd"
 const LAYOUT := "res://levels/layouts/test_arena.txt"

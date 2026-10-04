@@ -1,0 +1,11 @@
+{
+  "_doc": "store_b_smoke.json host botu (IS-107): Spawn1'den (10,20) batı kaldırımına, kuzeye ön kapı hizasına (satır 10), doğuya ön kapıdan (8,10) içeri, kuzeye raf ucu koridoruna (satır 6), doğuya ShelfProp1 yanına; dur.",
+  "steps": [
+    {"t": 0.3, "move": [-1, 0]},
+    {"t": 1.2, "move": [0, -1]},
+    {"t": 3.5, "move": [1, 0]},
+    {"t": 4.4, "move": [0, -1]},
+    {"t": 5.3, "move": [1, 0]},
+    {"t": 7.5, "move": [0, 0]}
+  ]
+}
