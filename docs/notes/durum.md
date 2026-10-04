@@ -1,4 +1,4 @@
-# Durum (2026-10-04 00:30)
+# Durum (2026-10-04 04:20, DURAKLATILDI — kullanıcı PC'yi kapattı, aynı oturumdan devam)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Reçeteler `.claude/skills/` (devir dahil), ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
@@ -8,9 +8,13 @@ Faz 2 — Gizlilik (bakkal), entegrasyon dalı `faz2-int` = **5c5da85** (worktre
 Bugün biten (faz2-int): US-011b, US-016, US-039, US-038, IS-085, IS-086, US-040, US-041, US-042, IS-087, US-010, IS-091, IS-094, US-043, US-044, IS-090, IS-095, IS-093 · 2026-10-04: US-037, IS-015a, GDD v0.5, IS-096, GDD v0.6, IS-015b, IS-098, IS-058b · dev: IS-088 (skill'ler, AGENTS.md), IS-089 (Utility AI araştırması), KR-028/029/030.
 
 ## Sürüyor / yarım kalan
-- IS-015 ölçümü bitti (290 koşu, build/stats/20261004-011946) → Fable teşhisi → **KR-032**. Sürüyor: **IS-100** sahip dönüş kontrolü + ayar (oynanis), **IS-101** bot takım sırası + tek kişi bag (oynanis). İkisi birleşince heist_stats yeniden (hedefler KR-032'de).
-- Sırada: IS-081 (owner.log; IS-058b brain_owner'a dokunduğu için sonra), 150 ms 20 dk beyin döngüsüyle dayanıklılık.
-- Not: GDD ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
+**Duraklatıldı.** Çalışan ajan yok; faz2-int = 5c5da85 (push edildi), birleşik ağaç unit 801 + 12 ağ senaryosu 0 ms yeşil.
+- **IS-100** (KR-032 sahip dönüş kontrolü + sent 7 / listen 6 + GÖNDER +20): YARIM, worktree `.claude/worktrees/agent-a952b2d6f47f33cfd`, dal `worktree-agent-a952b2d6f47f33cfd`, WIP commit a79e3e1 (owner_tuning, brain_owner, store_owner, store_tools_host.json değişmişti; ajan store_interactions beklentilerini güncelliyordu).
+- **IS-101** (bot takım sırası + tek kişi bag): YARIM, worktree `.claude/worktrees/agent-a5b59a8e68ce00a0a`, dal `worktree-agent-a5b59a8e68ce00a0a`, WIP commit efb6cce (bot_rules, bot_brain, test_bot_rules, brain_bag.json; ajan layout testine dış ızgara iddiası ekliyordu).
+- Devam: aynı oturumda ajanlara SendMessage ile "devam et (WIP commit'in üstünden; `git reset --soft HEAD~1` ile WIP'i geri al, sonra işe devam)" — bağlam korunur. Oturum kaybolursa: yeni ajan aynı göreve WIP dalından başlar (paket KR-032 + backlog IS-100/IS-101 satırları).
+- Sonra: ikisi birleşince `python tools/heist_stats.py --seeds 1-50 --cell team:2,3:1-20 --cell team+bag:2:1-20 --jobs 8` + `--strategies bag,send+bag,distract+bag,window+bag --players 1`; hedefler KR-032.
+- Birleşmiş ama kilitli ajan worktree'leri (agent-a8bc…, agent-af71…, agent-aa73…) harness kapanınca kilit kalkar → `git worktree remove` + dal sil (hepsi faz2-int'te).
+- Not: GDD (v0.6) ve mimari.md'nin güncel kopyası faz2-int'te (dev geride; faz kapanışında gelir).
 
 ## Yeni sohbette ilk adımlar
 1. Kullanıcının deneme geri bildirimi gelirse `GB-nn` olarak `docs/surec/geri-bildirim.md`'ye yaz, kalemlere bağla (blocker önce).
