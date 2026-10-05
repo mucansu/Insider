@@ -55,6 +55,9 @@ func _ready() -> void:
 		_brain.tuning = tuning
 		_brain.civilian_tuning = civilian_tuning
 		_brain.cover_query = _cover_intact
+		# US-045/IS-108 (KR-039): the back door now springs shut behind a fleeing thief; a neighbour coming from the alley opens it
+		# (NPC open, no bell) instead of walking around the block - same shortcut rule as the owner (NpcMover.door_shortcut).
+		_mover.door_shortcut = true
 		_brain.setup(self, _perception, _mover, _senses, goal if goal.is_finite() else global_position)
 
 
