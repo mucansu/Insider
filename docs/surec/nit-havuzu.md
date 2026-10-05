@@ -59,3 +59,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-05 | US-045 (oynanis) | entities/props | Dökülen ürün dünyada kalmıyor; damacana taşıyan sahip görseli yok; elle bırakılan damacana sessiz; ürün fiyatları harita başına ezilemiyor |
 | 2026-10-05 | US-045 (denetci) | tests/net | Elde ürünle geç katılma için kalıcı senaryo yok (denetci geçici senaryoyla 0/150 ms PASS) |
 | 2026-10-05 | US-045 (denetci) | entities/props/shop_counter.gd | `_buy.action_key` alanına çevrilmiş metin yazılıyor (anahtar değil); dil değişiminde 1 kare gecikme |
+| 2026-10-05 | IS-107 (seviye) | tests/net/store_b_smoke.json | `all_equal population.names` döküm anında doğan yoldan geçen yüzünden 0 ms'de nadir FAIL (4/4 tekrar PASS); beklenti gevşetilebilir |
