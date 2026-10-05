@@ -70,6 +70,8 @@ var _inside: Dictionary = {}
 
 
 func _ready() -> void:
+	if tuning != null:
+		tuning = VenueTuning.of(self, VenueTuning.PERCEPTION, tuning) as PerceptionTuning  # IS-106: + per-map overrides
 	refresh()
 
 

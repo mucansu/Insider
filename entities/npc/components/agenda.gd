@@ -28,6 +28,10 @@ const INTERRUPT_NAMES: Array[StringName] = [&"", &"bell", &"listen", &"talk", &"
 ## Maximum task names kept in the `sequence` history.
 const MAX_SEQUENCE := 512
 
+## IS-106 (KR-037): task facing resolver `func(spot: Vector2, hint: Vector2) -> Vector2` (the owner: MapGrid.face_block - face the
+## adjacent shelf/counter/wall, the task's `facing` is the preference). Unset: the task's facing as written.
+var facing_resolver: Callable = Callable()
+
 ## Task names passed (interrupts included; at most MAX_SEQUENCE).
 var sequence: Array[StringName] = []
 
@@ -40,6 +44,8 @@ var _spot: Vector2 = Vector2.INF
 var _time_left: float = 0.0
 var _arrived: bool = false
 var _last_away: AgendaTask = null
+## Facing of the current task at its chosen spot (IS-106; `facing_resolver`).
+var _facing: Vector2 = Vector2.ZERO
 
 var _interrupt: Interrupt = Interrupt.NONE
 var _int_left: float = 0.0
@@ -187,7 +193,7 @@ func goal_facing(from: Vector2) -> Vector2:
 		if _int_look.is_finite() and not from.is_equal_approx(_int_look):
 			return (_int_look - from).normalized()
 		return Vector2.ZERO
-	return _task.facing.normalized() if _task != null else Vector2.ZERO
+	return _facing if _task != null else Vector2.ZERO
 
 
 ## Cone half angle (degrees); 0 = NPC default.
@@ -297,6 +303,9 @@ func _begin(task: AgendaTask) -> void:
 	if not spots.is_empty():
 		_spot = spots[_rng.randi_range(0, spots.size() - 1)] if spots.size() > 1 else spots[0]
 	_time_left = _rng.randf_range(minf(task.min_sec, task.max_sec), maxf(task.min_sec, task.max_sec))
+	_facing = task.facing.normalized()
+	if facing_resolver.is_valid() and _spot.is_finite():
+		_facing = facing_resolver.call(_spot, task.facing) as Vector2
 	if not task.home:
 		_last_away = task
 	_note(before, true)

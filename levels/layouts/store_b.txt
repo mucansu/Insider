@@ -1,0 +1,88 @@
+; store_b — second trial corner shop (IS-107, KR-037; design: docs/tasarim/danisma/us-045-store-b.md §E), 40x24 tiles. Legend: levels/level_layout.gd. Generate: $GODOT --headless --path . -s res://levels/tools/build_levels.gd -- store_b
+; Same S4 marker/zone names as store_a, different orientation and scale. West: main street + pavement (front door F in the west wall); south: side street + pavement; east: back alley (back door B in the east wall).
+; Counter (C) and register (R) in the north, facing SOUTH (store_a faces west); clerk (K) behind it. Staff side (StaffArea) is closed to the west by a partition, entered at the counter's west end (22-23,5).
+; Sales floor: vertical shelves x=11,13,15,17,19 rows 7-14 with 1-tile aisles. South-east annex (x 28-35, rows 10-18): cooler I (29,11)-(29,13); wall x=28 + row 9 hide it from ClerkSpot; south glass to the side street, east glass to the alley.
+; Back room: safe V, BackroomSpot O, inner door D (28,3, east of the staff side), back door B (36,6); cash M (35,8) deep in the corner behind crate G (34,7): hidden from O and from D, visible only from the back door. Two routes: F->sales->counter end->R; B->back room->D->R.
+; Door objects (Props, hand-placed; generator keeps them): FrontDoor (starts open), BackDoor and BackroomDoor (unlocked, start closed); all three are in vertical walls (rotation 90). D is ~72 px north-east of ClerkSpot.
+; Street route (passer-by + neighbour path): a (west pavement, north) -> b front door -> c south-west corner -> d south pavement -> e south-east corner -> f back alley at the back door. The alley is closed to the north: front <-> back only via the south pavement.
+; Neighbour N in the alley (37,16), between back door and side street: to the front door it walks the long way round (~45 tiles, ~7-8 s at chase speed). Alley crate G (37,7) hides someone at the back door from the south.
+; Escape zone (X, incl. E) in the middle of the south street: ~24 tiles from the front door, ~32 from the back door.
+; Venue population: window-gazing g h i (one per glass piece: west, south, east); customer shelf points j-m (aisles) and n (annex), queue q u (south of the counter, q right in front of R);
+; owner: shelf tidying o p r (south shelf ends, sight to the register cut by shelves), phone P (22,2; faces the partition wall), back room O; shelf-end prop spots x y z (north shelf ends; ~233/295/421 px from ClerkSpot: z deliberately beyond 320).
+; Shop items (KR-038): ShopItem1 bread (11,6; north end of the shelf nearest the front door), ShopItem2 cola (30,12; in front of the cooler, annex blind spot).
+; Information split moments (KR-035): (1) a player in the annex near (32,14) sees the alley/bagger through the east glass and the counter front (q,u) but not the owner behind the counter; the owner at K sees neither the annex nor the alley; the bagger in the back room sees neither.
+; (2) someone entering at F (9,10) cannot see the counter (24-27,5): shelves cut the line. (3) the cash corner M (35,8) is deep: the bagger cannot tell whether the bag is there before opening B.
+; Zones: customer area (sales floor + counter front + annex), staff side (behind the counter), back room. Door tiles have no zone; zones do not overlap, every interior floor tile is in exactly one zone.
+; Marker line: @ <letter> <Marker name> <floor char>; Spawn* names go to SpawnPoints, others to Markers.
+; Zone line: = <letter> <Zone name> <floor char>; the letter's cells (with markers inside) form a filled rectangle.
+; Unpainted zone: = <Zone name> <col> <row> <width> <height> (tiles; a repeated name makes a multi-part zone).
+@ F FrontDoor +
+@ B BackDoor +
+@ D BackroomDoor +
+@ R Register T
+@ C Counter T
+@ K ClerkSpot .
+@ V BackroomSafe :
+@ M BackroomCash :
+@ E Exit _
+@ a StreetRoute1 ,
+@ b StreetRoute2 ,
+@ c StreetRoute3 ,
+@ d StreetRoute4 ,
+@ e StreetRoute5 ,
+@ f StreetRoute6 ,
+@ N NeighbourSpawn ,
+@ g WindowLook1 ,
+@ h WindowLook2 ,
+@ i WindowLook3 ,
+@ j ShopSpot1 .
+@ k ShopSpot2 .
+@ l ShopSpot3 .
+@ m ShopSpot4 .
+@ n ShopSpot5 .
+@ q QueueSpot1 .
+@ u QueueSpot2 .
+@ o RestockSpot1 .
+@ p RestockSpot2 .
+@ r RestockSpot3 .
+@ P PhoneSpot .
+@ O BackroomSpot :
+@ x ShelfProp1 .
+@ y ShelfProp2 .
+@ z ShelfProp3 .
+@ A ShopItem1 .
+@ Q ShopItem2 .
+@ 1 Spawn1 ,
+@ 2 Spawn2 ,
+@ 3 Spawn3 ,
+@ 4 Spawn4 ,
+= X EscapeZone _
+= CustomerArea 9 2 12 17
+= CustomerArea 21 6 7 13
+= CustomerArea 28 10 8 9
+= StaffArea 22 2 6 4
+= Backroom 29 2 7 7
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%____,,,#############################,,%
+%____,,,#............#P.....#:V:::::#,,%
+%____,a,w............#......D:::::::#,,%
+%____,,,w............#....K.#:::::::#,,%
+%____,,gw............#..TCRT#:::O:::#,,%
+%____,,,w..A.z...y.x.....uq.#:::::::B,f%
+%____,,,#..S.S.S.S.S........#:SS::G:#G,%
+%____,,,#..S.S.S.S.S........#:SS:::M#,,%
+%____,,,#..SjS.S.S.S........#########,,%
+%____,b,F..S.S.SlS.S................#,,%
+%____,,,#..S.S.S.S.S.........I......#,,%
+%____,,,#..S.SkS.S.S.........IQ.....#,,%
+%____,,,#..S.S.S.SmS.........I......w,,%
+%____,,,#..S.S.S.S.S................wi,%
+%____,,,#..o...p.r.............n....w,,%
+%____,,,#...........................#N,%
+%____,,,#...........................#,,%
+%____,,,#...........................#,,%
+%____,,,######################wwwww##,,%
+%____,c,,,1234,,,,,d,,,,,,,,,,,,h,,,,,e%
+%_________________XXXXXX_______________%
+%_________________XXEXXX_______________%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

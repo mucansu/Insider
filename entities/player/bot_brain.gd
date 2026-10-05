@@ -20,9 +20,15 @@ extends RefCounted
 ## "owner_seen_s"}] (finished runs; outcome "unfinished" if the level changed before the job ended). Top-level phase, phase_log and
 ## counters describe the current run; "time_s" is the whole brain clock.
 ## IS-101: spot `alley` (bag route staging, from the BackDoor marker) for the `bag` strategy and the team bagger.
-## IS-104 (back bell, KR-034): spots `peek` (side street by the side window, WindowLook3 marker; solo bag) and `hide` (back room by the
-## cash bag spot, BackroomCash marker); team-wide HUD session events `purchase` / `owner_distracted` -> View `buy_age` /
+## IS-104 (back bell, KR-034): spots `peek` (side street by the side window; solo bag) and `hide` (back room by the cash bag spot,
+## BackroomCash marker); team-wide HUD session events `purchase` / `owner_distracted` -> View `buy_age` /
 ## `distract_age` (the lure's "now!"); `mate_at_alley` (a teammate at the alley spot). Paths to `peek` use the outdoor grid too.
+## IS-106 (KR-037 map independence): every stand spot is derived from the level once per level (`derive_stands`: layout tiles
+## (MapGrid), zones and markers) - no map offsets or compass assumptions: register = open neighbour tile in StaffArea nearest ClerkSpot,
+## counter = open neighbour in CustomerArea nearest QueueSpot1, shelf = aisle side of the shelf end (away from the shelf tile),
+## outside = 2 tiles out of the front door (the side not in a venue zone), alley = beside the back door's outside tile (open side, away
+## from the street route), peek = the WindowLook* point nearest the back door. View `counter_slack` = how far ClerkSpot lies from the
+## register beyond one tile (store_a 0).
 
 const DUMP_KEY := "brain"
 ## Bot file keys selecting a brain.
@@ -50,26 +56,32 @@ const NO_START_TRIES := 15
 const DOOR_PRESS_PX := 38.0
 ## Press tag of door presses (results are not passed to the Mind).
 const PRESS_DOOR := -2
-## Marker names (S4) and stand offsets (store_a geometry: register staff side east, counter customer side west).
+## Marker names (S4).
 const MARKER_FRONT_DOOR := &"FrontDoor"
 const MARKER_QUEUE := &"QueueSpot1"
+const MARKER_CLERK := &"ClerkSpot"
+const SEQ_WINDOW_LOOK := &"WindowLook"
+const SEQ_STREET := &"StreetRoute"
+## Zone names (S4) of the staff and customer sides and the back room (with them: the venue interior).
+const ZONE_STAFF := &"StaffArea"
+const ZONE_CUSTOMER := &"CustomerArea"
+const ZONE_BACKROOM := &"Backroom"
+## Tiles from the front door out to the `outside` spot (front pavement, away from the windows).
+const OUTSIDE_TILES := 2
+## `derive_stands` result keys besides BotRules spots.
+const STANDS_SHELVES := &"shelves"
+const STANDS_SLACK := &"counter_slack"
 ## Join slot of the team bagger (BotRules.role_for).
 const BAGGER_SLOT := 2
-## IS-101: back alley staging spot of the bag route = one tile north-west of the back door (outside, off the street route's door
-## tile); without a BackDoor marker the front pavement spot stands in.
+## IS-101: back alley staging spot of the bag route = beside the back door's outside tile (off the door's approach line; IS-106:
+## derived); without a BackDoor marker the front pavement spot stands in.
 const MARKER_BACK_DOOR := &"BackDoor"
-const ALLEY_FROM_BACK_DOOR := Vector2(-BotRules.TILE, -BotRules.TILE)
-## IS-104: side-window watch spot (falls back to the alley spot) and the back-room hiding spot (cash marker; falls back to the bag).
-const MARKER_PEEK := &"WindowLook3"
+## IS-104: side-window watch spot (the window look nearest the back door; falls back to the alley spot) and the back-room hiding spot
+## (cash marker; falls back to the bag).
 const MARKER_CASH := &"BackroomCash"
 ## Session events the whole team sees (HUD): BUY accepted, owner distracted.
 const EVENT_PURCHASE := &"purchase"
 const EVENT_DISTRACTED := &"owner_distracted"
-const REGISTER_STAND := Vector2(BotRules.TILE, 0.0)
-const COUNTER_STAND := Vector2(-BotRules.TILE, 0.0)
-const QUEUE_FALLBACK := Vector2(-BotRules.TILE, BotRules.TILE)
-const OUTSIDE_FROM_DOOR := Vector2(0.0, 2.0 * BotRules.TILE)
-const SHELF_STAND := Vector2(BotRules.TILE, 0.0)
 
 var _strategy: String = ""
 var _seed: int = 0
@@ -87,6 +99,10 @@ var _register: Register = null
 var _counter: ShopCounter = null
 var _bag: Bag = null
 var _owner: StoreOwner = null
+## IS-106: stand spots of this level (`derive_stands`; spot -> position, STANDS_SHELVES -> {shelf prop instance id: stand}) and the
+## counter slack.
+var _stands: Dictionary = {}
+var _counter_slack: float = 0.0
 var _time: float = 0.0
 var _last_frame: int = -1
 var _move: Vector2 = Vector2.ZERO
@@ -308,6 +324,8 @@ func _ensure_world() -> bool:
 	_counter = null
 	_bag = null
 	_owner = null
+	_stands = {}
+	_counter_slack = 0.0
 	_clear_path()
 	var layout: Node = level.call(&"layout") as Node if level.has_method(&"layout") else null
 	var rows: Variant = layout.get(&"rows") if layout != null else null
@@ -333,7 +351,93 @@ func _ensure_world() -> bool:
 			if child is StoreOwner and (child as StoreOwner).is_active():
 				_owner = child
 				break
+	_derive_level_stands(level, rows as PackedStringArray)
 	return true
+
+
+## IS-106: this level's stand spots (`derive_stands`), shelf stands keyed by shelf prop.
+func _derive_level_stands(level: Node, rows: PackedStringArray) -> void:
+	var shelves: Array[Vector2] = []
+	var shelf_ids: Array[int] = []
+	for node: Node in _player.get_tree().get_nodes_in_group(ShelfProp.GROUP):
+		var shelf: ShelfProp = node as ShelfProp
+		if shelf != null and level.is_ancestor_of(shelf):
+			shelves.append(shelf.global_position)
+			shelf_ids.append(shelf.get_instance_id())
+	var register_at: Vector2 = _register.global_position if _register != null else Vector2.INF
+	var counter_at: Vector2 = _counter.global_position if _counter != null else Vector2.INF
+	_stands = derive_stands(MapGrid.new(rows), zone_rects(level), _marker_pos, _marker_seq, register_at, counter_at, shelves)
+	var by_id: Dictionary = {}
+	var shelf_stands: Array = _stands.get(STANDS_SHELVES, [])
+	for i: int in shelf_ids.size():
+		by_id[shelf_ids[i]] = shelf_stands[i]
+	_stands[STANDS_SHELVES] = by_id
+	_counter_slack = float(_stands.get(STANDS_SLACK, 0.0))
+
+
+## Stand spots of a level (IS-106, KR-037), derived from its tiles, zones and markers - testable without a scene.
+## `zones`: zone name -> Array[Rect2] (global; `zone_rects`); `marker`: func(name) -> Vector2 (INF if missing); `sequence`:
+## func(prefix) -> Array[Vector2]; `register`/`counter`: prop positions (INF if missing); `shelves`: shelf prop positions.
+## Result: BotRules spot -> position for the spots it can derive (register, counter, queue, outside, alley, peek, hide), STANDS_SHELVES ->
+## Array of stands parallel to `shelves` (INF if none), STANDS_SLACK -> counter slack (px; only with a register and ClerkSpot).
+static func derive_stands(grid: MapGrid, zones: Dictionary, marker: Callable, sequence: Callable, register: Vector2,
+		counter: Vector2, shelves: Array[Vector2]) -> Dictionary:
+	var out: Dictionary = {}
+	var staff: Array[Rect2] = _rects(zones, ZONE_STAFF)
+	var customer: Array[Rect2] = _rects(zones, ZONE_CUSTOMER)
+	var inside: Array[Rect2] = []
+	inside.append_array(staff)
+	inside.append_array(customer)
+	inside.append_array(_rects(zones, ZONE_BACKROOM))
+	var clerk: Vector2 = marker.call(MARKER_CLERK) as Vector2
+	var queue: Vector2 = marker.call(MARKER_QUEUE) as Vector2
+	if register.is_finite():
+		_put(out, BotRules.SPOT_REGISTER, grid.side_stand(register, staff, clerk))
+		if clerk.is_finite():
+			out[STANDS_SLACK] = maxf(clerk.distance_to(register) - BotRules.TILE, 0.0)
+	if counter.is_finite():
+		_put(out, BotRules.SPOT_COUNTER, grid.side_stand(counter, customer, queue))
+	_put(out, BotRules.SPOT_QUEUE, queue if queue.is_finite() else out.get(BotRules.SPOT_COUNTER, Vector2.INF) as Vector2)
+	var front: Vector2 = marker.call(MARKER_FRONT_DOOR) as Vector2
+	if front.is_finite():
+		_put(out, BotRules.SPOT_OUTSIDE, grid.outside_of(front, inside, OUTSIDE_TILES))
+	var back: Vector2 = marker.call(MARKER_BACK_DOOR) as Vector2
+	if back.is_finite():
+		var route: Array[Vector2] = []
+		route.assign(sequence.call(SEQ_STREET) as Array)
+		_put(out, BotRules.SPOT_ALLEY, grid.beside_door(back, inside, MapGrid.nearest(route, back)))
+		var looks: Array[Vector2] = []
+		looks.assign(sequence.call(SEQ_WINDOW_LOOK) as Array)
+		_put(out, BotRules.SPOT_PEEK, MapGrid.nearest(looks, back))
+	if not out.has(BotRules.SPOT_ALLEY) and out.has(BotRules.SPOT_OUTSIDE):
+		out[BotRules.SPOT_ALLEY] = out[BotRules.SPOT_OUTSIDE]
+	if not out.has(BotRules.SPOT_PEEK) and out.has(BotRules.SPOT_ALLEY):
+		out[BotRules.SPOT_PEEK] = out[BotRules.SPOT_ALLEY]
+	_put(out, BotRules.SPOT_HIDE, marker.call(MARKER_CASH) as Vector2)
+	var stands: Array = []
+	for at: Vector2 in shelves:
+		stands.append(grid.away_from_block(at))
+	out[STANDS_SHELVES] = stands
+	return out
+
+
+static func _put(out: Dictionary, spot: StringName, at: Vector2) -> void:
+	if at.is_finite():
+		out[spot] = at
+
+
+static func _rects(zones: Dictionary, zone_name: StringName) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	out.assign(zones.get(zone_name, []) as Array)
+	return out
+
+
+## Zone name -> Array[Rect2]: global rect shapes of the level's staff, customer and back-room zones (`derive_stands` input).
+static func zone_rects(level: Node) -> Dictionary:
+	var out: Dictionary = {}
+	for zone_name: StringName in [ZONE_STAFF, ZONE_CUSTOMER, ZONE_BACKROOM]:
+		out[zone_name] = Interactable.zone_rects_of(level, zone_name)
+	return out
 
 
 func _view() -> BotRules.View:
@@ -360,10 +464,11 @@ func _view() -> BotRules.View:
 	if _register != null and is_instance_valid(_register):
 		v.register_pos = _register.global_position
 		v.register_emptied = _register.emptied
-		v.spots[BotRules.SPOT_REGISTER] = _register.global_position + REGISTER_STAND
+		v.counter_slack = _counter_slack
+		_spot_from_stands(v, BotRules.SPOT_REGISTER)
 	if _counter != null and is_instance_valid(_counter):
 		v.send_used = _counter.sent_used
-		v.spots[BotRules.SPOT_COUNTER] = _counter.global_position + COUNTER_STAND
+		_spot_from_stands(v, BotRules.SPOT_COUNTER)
 	var me: int = _player.peer_id()
 	if _bag != null and is_instance_valid(_bag):
 		v.bag_present = true
@@ -374,29 +479,10 @@ func _view() -> BotRules.View:
 			v.spots[BotRules.SPOT_BAG] = _bag.global_position
 	var shelf: Vector2 = _nearest_shelf(v)
 	if shelf != Vector2.INF:
-		v.spots[BotRules.SPOT_SHELF] = shelf + SHELF_STAND
-	var queue: Vector2 = _marker_pos(MARKER_QUEUE)
-	if queue == Vector2.INF and v.spots.has(BotRules.SPOT_COUNTER):
-		queue = (v.spots[BotRules.SPOT_COUNTER] as Vector2) - COUNTER_STAND + QUEUE_FALLBACK
-	if queue != Vector2.INF:
-		v.spots[BotRules.SPOT_QUEUE] = queue
-	var front: Vector2 = _marker_pos(MARKER_FRONT_DOOR)
-	if front != Vector2.INF:
-		v.spots[BotRules.SPOT_OUTSIDE] = front + OUTSIDE_FROM_DOOR
-	var back: Vector2 = _marker_pos(MARKER_BACK_DOOR)
-	if back != Vector2.INF:
-		v.spots[BotRules.SPOT_ALLEY] = back + ALLEY_FROM_BACK_DOOR
-	elif v.spots.has(BotRules.SPOT_OUTSIDE):
-		v.spots[BotRules.SPOT_ALLEY] = v.spots[BotRules.SPOT_OUTSIDE]
-	var peek: Vector2 = _marker_pos(MARKER_PEEK)
-	if peek != Vector2.INF:
-		v.spots[BotRules.SPOT_PEEK] = peek
-	elif v.spots.has(BotRules.SPOT_ALLEY):
-		v.spots[BotRules.SPOT_PEEK] = v.spots[BotRules.SPOT_ALLEY]
-	var hide: Vector2 = _marker_pos(MARKER_CASH)
-	if hide != Vector2.INF:
-		v.spots[BotRules.SPOT_HIDE] = hide
-	elif v.bag_pos != Vector2.INF:
+		v.spots[BotRules.SPOT_SHELF] = shelf
+	for spot: StringName in [BotRules.SPOT_QUEUE, BotRules.SPOT_OUTSIDE, BotRules.SPOT_ALLEY, BotRules.SPOT_PEEK, BotRules.SPOT_HIDE]:
+		_spot_from_stands(v, spot)
+	if not v.spots.has(BotRules.SPOT_HIDE) and v.bag_pos != Vector2.INF:
 		v.spots[BotRules.SPOT_HIDE] = v.bag_pos
 	v.buy_age = _time - _buy_t
 	v.distract_age = _time - _distract_t
@@ -441,16 +527,28 @@ func _read_team(v: BotRules.View, me: int) -> void:
 				v.mate_held_pos = mate.global_position
 
 
+func _spot_from_stands(v: BotRules.View, spot: StringName) -> void:
+	if _stands.has(spot):
+		v.spots[spot] = _stands[spot]
+
+
+## Stand of the distraction shelf (IS-106: its derived aisle-side stand): the untoppled shelf end nearest the owner's counter spot
+## (ClerkSpot; the topple must be heard at the counter, DISTRACT range is store-tools tuning), the bot's own position without one.
 func _nearest_shelf(v: BotRules.View) -> Vector2:
 	var best: Vector2 = Vector2.INF
+	var best_stand: Vector2 = Vector2.INF
+	var stands: Dictionary = _stands.get(STANDS_SHELVES, {})
+	var clerk: Vector2 = _marker_pos(MARKER_CLERK)
+	var ref: Vector2 = clerk if clerk.is_finite() else v.pos
 	for node: Node in _player.get_tree().get_nodes_in_group(ShelfProp.GROUP):
 		var shelf: ShelfProp = node as ShelfProp
 		if shelf == null or shelf.toppled:
 			continue
 		v.shelf_left += 1
-		if best == Vector2.INF or shelf.global_position.distance_to(v.pos) < best.distance_to(v.pos):
+		if best == Vector2.INF or shelf.global_position.distance_to(ref) < best.distance_to(ref):
 			best = shelf.global_position
-	return best
+			best_stand = stands.get(shelf.get_instance_id(), Vector2.INF)
+	return best_stand
 
 
 ## Whether the local player really sees `node` now: the local fog's `can_see` (visible tile and line of sight; NpcVisual's query).
@@ -520,6 +618,16 @@ func _start_mind(seed_value: int) -> void:
 func _marker_pos(marker_name: StringName) -> Vector2:
 	var marker: Node2D = _level.call(&"marker", marker_name) as Node2D if _level.has_method(&"marker") else null
 	return marker.global_position if marker != null else Vector2.INF
+
+
+## Positions of a marker sequence (`<prefix>1..N`; Level `marker_sequence`).
+func _marker_seq(prefix: StringName) -> Array[Vector2]:
+	var out: Array[Vector2] = []
+	if _level.has_method(&"marker_sequence"):
+		for node: Variant in _level.call(&"marker_sequence", prefix):
+			if node is Node2D:
+				out.append((node as Node2D).global_position)
+	return out
 
 
 func _act(v: BotRules.View, intent: BotRules.Intent, delta: float) -> void:

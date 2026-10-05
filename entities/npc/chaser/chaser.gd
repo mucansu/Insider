@@ -41,13 +41,13 @@ var _contact: NpcContact = null
 
 
 func _ready() -> void:
-	if tuning == null:
-		tuning = load(TUNING_PATH) as ChaserTuning
-	if civilian_tuning == null:
-		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
+	# IS-106: global default (or the scene's) + the level's per-map overrides.
+	tuning = VenueTuning.of(self, VenueTuning.CHASER, tuning) as ChaserTuning
+	civilian_tuning = VenueTuning.of(self, VenueTuning.CIVILIAN, civilian_tuning) as CivilianTuning
 	net_position = position
 	_contact = NpcContact.attach(self, true, _perception, Callable(), _on_pushed)
-	StoreOwner.setup_misdirect_item(_misdirect, StoreToolsTuning.load_default())
+	StoreOwner.setup_misdirect_item(_misdirect,
+		VenueTuning.of(self, VenueTuning.STORE_TOOLS, StoreToolsTuning.load_default()) as StoreToolsTuning)
 	_misdirect.completed.connect(_on_misdirect)
 	_refresh_misdirect()
 	if _host_side():
@@ -55,6 +55,9 @@ func _ready() -> void:
 		_brain.tuning = tuning
 		_brain.civilian_tuning = civilian_tuning
 		_brain.cover_query = _cover_intact
+		# US-045/IS-108 (KR-039): the back door now springs shut behind a fleeing thief; a neighbour coming from the alley opens it
+		# (NPC open, no bell) instead of walking around the block - same shortcut rule as the owner (NpcMover.door_shortcut).
+		_mover.door_shortcut = true
 		_brain.setup(self, _perception, _mover, _senses, goal if goal.is_finite() else global_position)
 
 
@@ -122,6 +125,11 @@ func shop_owner() -> Node:
 		if node.has_method(&"misdirect"):
 			return node
 	return null
+
+
+## Host (US-045, GB-08 A cover witness; Game duck types it): whether the neighbour sees `pos` now (sight range + line of sight).
+func sees_point(pos: Vector2) -> bool:
+	return global_position.distance_to(pos) <= tuning.sight_range and _perception.has_line_of_sight(global_position, pos)
 
 
 ## Whether the player's cover is intact (from the owner's senses; false if no owner: everyone is chased).

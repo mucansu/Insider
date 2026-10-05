@@ -28,7 +28,7 @@
     {"eq": ["*.props.BackDoor.open", false]},
     {"eq": ["*.props.BackDoor.flips", 0]},
     {"eq": ["*.props.Register.emptied", false]},
-    {"eq": ["*.team_cash", 0]},
+    {"eq": ["*.team_cash", 50]},
     {"near": ["*.players.$host.pos", [369.01, 170.08], 2]},
     {"near": ["*.players.$c1.pos", [369.01, 480.08], 2]},
     {"near": ["*.players.$c2.pos", [369.01, 497.99], 2]},

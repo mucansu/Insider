@@ -1,5 +1,5 @@
 {
-  "_doc": "US-042 örtü + tanık sorgusu: sahipsiz bakkal (tests/fixtures/store_a_quiet.tscn), host + c1 (c1 3 sn sonra katılır: kapıda çarpışmasınlar). c1 ön kapıdan girip müşteri tarafında bekler (müşteri gibi: örtü sağlam). Host tezgâh ucundan personel tarafına geçer (örtü bozulur; `cover_broken` olayı her peer'a gider, HUD sessiz) ve orada bekler. t=14'te polis gelir: kaçış bölgesinde kimse yok; host (örtüsü bozuk) yakalanır, kefalet 100; c1 tanık sorgusuyla serbest (yakalanmadı, kaçmadı, kefalet yok, tanındı 1); ısı 15 + 2; ekip kasası 0 → -100. Strateji etiketi `örtü` (biri müşteri gibi, öteki iş başında). Sonuç ve örtü durumu iki peer'da aynı. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-042 tanık sorgusu + US-045 örtü seçenek A (GB-08, KR-038): sahipsiz bakkal (tests/fixtures/store_a_quiet.tscn), host + c1 (c1 3 sn sonra katılır: kapıda çarpışmasınlar). c1 ön kapıdan girip müşteri tarafında bekler (müşteri gibi: örtü sağlam). Host tezgâh ucundan personel tarafına geçer ve orada bekler; kimse görmediği için örtüsü iş boyunca SAĞLAM kalır (cover_broken olayı yok; eskiden gözlemciden bağımsız bozuluyordu). t=14'te polis gelir: kaçış bölgesinde kimse yok; polis gelişindeki tanık kontrolü koşulsuz (anlık durum): personel tarafındaki host yakalanır, kefalet 100; c1 tanık sorgusuyla serbest (yakalanmadı, kaçmadı, kefalet yok, tanındı 1); ısı 15 + 2; ekip kasası 50 (harçlık, KR-038) → -50. Strateji etiketi `zaman` (iki örtü de sağlam). Sonuç ve örtü durumu iki peer'da aynı. Eski kararsızlığın kökü (geç katılan, katılmadan önceki cover_broken olayını almıyordu) cover_late_join.json'da sınanır. Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/store_a_quiet.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 1,
@@ -96,13 +96,13 @@
     {
       "eq": [
         "host.heist.result.cash_after",
-        -100
+        -50
       ]
     },
     {
       "eq": [
         "host.heist.result.strategy.class",
-        "örtü"
+        "zaman"
       ]
     },
     {
@@ -114,7 +114,7 @@
     {
       "eq": [
         "host.heist.result.strategy.cover_intact.$host",
-        false
+        true
       ]
     },
     {
@@ -123,7 +123,7 @@
     {
       "eq": [
         "*.heist.cover.$host",
-        false
+        true
       ]
     },
     {
@@ -135,7 +135,7 @@
     {
       "eq": [
         "*.team_cash",
-        -100
+        -50
       ]
     },
     {

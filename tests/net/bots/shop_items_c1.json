@@ -1,0 +1,16 @@
+{
+  "_doc": "shop_items.json c1 botu (US-045): sola sınır duvarına hizalan, kaldırımda doğuya ön kapıya (x≈380), içeri kuzeye (y≈372), batıya ekmek noktasına (ShopItem1, 304,368) — E 0,8 sn: ekmek elde; doğuya kasaya dayanana dek, kuzeye tezgâh önüne (~532,336) — E 2,4 sn: 'Öde 5' (sahip servis eder); sonra Q: ekmeği bırakır (sessiz).",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 5.114, "move": [-1, 0]},
+    {"t": 5.657, "move": [0, 0]},
+    {"t": 5.8, "hold": "interact", "dur": 0.8},
+    {"t": 6.8, "move": [1, 0]},
+    {"t": 8.8, "move": [0, -1]},
+    {"t": 9.057, "move": [0, 0]},
+    {"t": 9.2, "hold": "interact", "dur": 2.4},
+    {"t": 12.0, "press": "intimidate"}
+  ]
+}

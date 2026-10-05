@@ -4,8 +4,10 @@ extends TestCase
 ## The walkability grid comes from the `Walls` collision shapes; it does not trust the `Tiles` layout and is compared against it separately.
 
 const STORE := "res://levels/store_a.tscn"
+const STORE_B := "res://levels/store_b.tscn"  # IS-107 second trial shop (KR-037)
 const ARENA := "res://levels/test_arena.tscn"
-const LEVELS: Array[String] = [STORE, ARENA]
+const LEVELS: Array[String] = [STORE, STORE_B, ARENA]
+const STORES: Array[String] = [STORE, STORE_B]
 const BUILDER := "res://levels/tools/build_levels.gd"
 const LAYOUT_DIR := "res://levels/layouts"
 const TMP_DIR := "user://test_levels_roundtrip"  # the round-trip test does not touch scenes in the repo
@@ -138,7 +140,12 @@ func test_routes_to_register() -> void:
 
 
 func test_store_routes_are_separate() -> void:
-	var level: Node2D = _load(STORE)
+	for path: String in STORES:
+		_check_store_routes(path)
+
+
+func _check_store_routes(path: String) -> void:
+	var level: Node2D = _load(path)
 	if level == null:
 		return
 	var grid: Grid = _grid(level)
@@ -158,7 +165,12 @@ func test_store_routes_are_separate() -> void:
 
 
 func test_store_door_gaps_fit_one_door() -> void:
-	var level: Node2D = _load(STORE)
+	for path: String in STORES:
+		_check_store_door_gaps(path)
+
+
+func _check_store_door_gaps(path: String) -> void:
+	var level: Node2D = _load(path)
 	if level == null:
 		return
 	var grid: Grid = _grid(level)

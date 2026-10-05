@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ShopProduct" format=3]
+
+[ext_resource type="Script" path="res://data/props/shop_product.gd" id="1_prod"]
+
+[resource]
+script = ExtResource("1_prod")
+take_key = "INTERACT_TAKE_BREAD"
+drop_key = "INTERACT_ITEM_DROP"
+price = 5
+take_sec = 0.5
+resets_loiter = true

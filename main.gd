@@ -255,11 +255,12 @@ func screenshot_records() -> Array[Dictionary]:
 
 
 func _write_dump() -> void:
-	if Args.dump_path.is_empty():
+	var path: String = Args.dump_file()  # IS-102: not the --log-on-exit mirror (Game writes that one on session end / exit)
+	if path.is_empty():
 		return
-	var file: FileAccess = FileAccess.open(Args.dump_path, FileAccess.WRITE)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
-		push_error("main: döküm yazılamadı: %s (%s)" % [Args.dump_path, error_string(FileAccess.get_open_error())])
+		push_error("main: döküm yazılamadı: %s (%s)" % [path, error_string(FileAccess.get_open_error())])
 		return
 	file.store_string(JSON.stringify(Game.collect_dump(), "  ", true))
 	file.close()

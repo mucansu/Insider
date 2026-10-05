@@ -10,7 +10,7 @@
   "expect": [
     {"eq": ["*.level", "res://tests/fixtures/store_a_late_customer.tscn"]},
     {"len": ["*.player_nodes", 2]},
-    {"eq": ["*.team_cash", 150]},
+    {"eq": ["*.team_cash", 200]},
     {"eq": ["*.props.Register.emptied", true]},
     {"eq": ["*.owner.events.0", "owner_discover_register"]},
     {"eq": ["*.owner.events.1", "owner_shout"]},

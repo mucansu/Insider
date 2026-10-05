@@ -3,7 +3,8 @@ extends Node
 ## User args follow `--`: --host · --join=ADDR · --port=N · --name=NAME · --level=res://... · --bot=PATH.json · --dump=PATH.json
 ## · --quit-after=SEC · --player-scene=res://... (test only) · --screenshot-at=SEC[,SEC…] · --screenshot-dir=PATH · --window-size=WxH (IS-022)
 ## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump)
-## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file) · --brain-loop=SEC (IS-058b).
+## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file) · --brain-loop=SEC (IS-058b)
+## · --log-on-exit=PATH.json (IS-102: playtest diagnostics; NOT automation, block at the end of the file).
 ## Parsed from `OS.get_cmdline_user_args()` at startup (tests may call `parse()` with their own list). Unknown args go to `unknown`
 ## without a warning (e.g. the test runner's --filter); a recognised key with a bad value warns and keeps the default.
 
@@ -128,6 +129,7 @@ func parse(args: PackedStringArray) -> void:
 	_parse_vision_args()  # US-011d
 	_parse_perf_args()  # IS-067
 	_parse_brain_args()  # IS-015a
+	_parse_log_args()  # IS-102
 
 
 ## Whether the args start a session directly (host or join).
@@ -135,9 +137,10 @@ func wants_session() -> bool:
 	return want_host or not join_address.is_empty()
 
 
-## Whether this is an automation/test run (dump or timed quit requested).
+## Whether this is an automation/test run (`--dump` or timed quit requested). `--log-on-exit` alone is not automation (IS-102), even though
+## it fills `dump_path` so that the dump providers register.
 func is_automated() -> bool:
-	return not dump_path.is_empty() or quit_after > 0.0
+	return (not dump_path.is_empty() and not _dump_is_exit_log) or quit_after > 0.0
 
 
 ## Whether screenshots were requested (times and directory both given).
@@ -401,3 +404,60 @@ func _parse_brain_args() -> void:
 	if not brain.is_empty() and not bot_path.is_empty():
 		push_error("Args: --brain ve --bot birlikte verilemez (beyin zaman çizelgesinin yerini alır); --bot yok sayılıyor")
 		bot_path = ""
+
+
+# =====================================================================================================================
+# IS-102 — `--log-on-exit=PATH` (S6; playtest diagnostics, GB-04a repeat). Not automation: `is_automated()` stays false, so FPS cap,
+# session seed policy (a new random seed per job), bot hooks and main.gd's automation exit are exactly as in a normal game. When the
+# session ends (leave / host lost) and when the process exits (window close, menu quit, engine quit) Game writes its S6 dump
+# (`Game.collect_dump()`, every provider incl. `owner.log[]`) to PATH as JSON — on every peer (host and client each write their own).
+# Without `--dump`, `dump_path` is set to the same resolved path so the dump providers (entities check `dump_path`) register; with
+# `--dump` both files are written (the dump by the automation exit, the log by Game at exit).
+# A relative PATH is resolved next to the executable in an exported build (testers find it beside Insiders.exe in the unzipped
+# folder; user:// is hidden under AppData), otherwise (editor / `godot --path .` dev run) against the project directory. res://,
+# user:// and absolute paths are used as given. If PATH cannot be written Game warns and falls back to user://<file name>.
+# =====================================================================================================================
+
+## Resolved `--log-on-exit` path (absolute, user:// or res://); empty = off.
+var log_on_exit: String = ""
+## True when `dump_path` only mirrors `log_on_exit` (no `--dump`): does not count as automation.
+var _dump_is_exit_log: bool = false
+
+
+func _parse_log_args() -> void:
+	log_on_exit = ""
+	_dump_is_exit_log = false
+	var rest: PackedStringArray = []
+	for raw: String in unknown:
+		var arg: String = raw.strip_edges()
+		var eq: int = arg.find("=")
+		var key: String = arg.substr(0, eq) if eq >= 0 else arg
+		var value: String = arg.substr(eq + 1).strip_edges() if eq >= 0 else ""
+		if key != "--log-on-exit":
+			rest.append(raw)
+			continue
+		if _need_value(key, value, eq >= 0):
+			log_on_exit = resolve_log_path(value, log_base_dir())
+	unknown = rest
+	if not log_on_exit.is_empty() and dump_path.is_empty():
+		dump_path = log_on_exit
+		_dump_is_exit_log = true
+
+
+## Path of the `--dump` file the automation exits write; empty when `dump_path` only mirrors `--log-on-exit` (Game writes that one).
+func dump_file() -> String:
+	return "" if _dump_is_exit_log else dump_path
+
+
+## Directory a relative `--log-on-exit` path is resolved against: beside the executable in an exported build, else the project directory.
+static func log_base_dir() -> String:
+	if OS.has_feature("template"):
+		return OS.get_executable_path().get_base_dir()
+	return ProjectSettings.globalize_path("res://")
+
+
+## `path` as given if absolute (also res://, user://), else joined to `base_dir`.
+static func resolve_log_path(path: String, base_dir: String) -> String:
+	if path.is_empty() or path.is_absolute_path():
+		return path
+	return base_dir.path_join(path).simplify_path()

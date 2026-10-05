@@ -1,12 +1,1 @@
-{
-  "_doc": "owner_slipper.json c1 botu (US-008 taşıma): sola sınır duvarına hizalan, kaldırımda (doğma sırası) doğuya, yan sokak ağzına yürü ve dur: komşunun koşu yolunun yanında, görüş menzilinde. US-043: mahalleli yalnız örtüsü bozuk oyuncuyu kovalar — c1 durmadan önce kısa bir koşu yapar (geri-ileri, ~yerinde), örtüsü 'koşma' ile bozulur.",
-  "steps": [
-    {"t": 0.2, "move": [-1, 0]},
-    {"t": 1.6, "move": [1, 0]},
-    {"t": 6.0, "move": [0, 0]},
-    {"t": 6.2, "move": [-1, 0]},
-    {"t": 6.2, "hold": "sprint", "dur": 0.3},
-    {"t": 6.5, "move": [1, 0]},
-    {"t": 6.85, "move": [0, 0]}
-  ]
-}
+{"_doc": "owner_slipper.json c1 botu (US-008 taşıma): sola sınır duvarına hizalan, kaldırımda (doğma sırası) doğuya, yan sokak ağzına yürü ve dur: komşunun koşu yolunun yanında, görüş menzilinde. US-043: mahalleli yalnız örtüsü bozuk oyuncuyu kovalar. US-045 (GB-08 seçenek A): örtü yalnız bir NPC görürken bozulur — c1 sahibin c2'yi yakalamasını bekler (komşu ~1 sn sonra çıkar), sonra ~4 sn yerinde geri-ileri koşar: komşu onu koşarken görür, örtüsü 'koşma' ile bozulur.", "steps": [{"t": 0.2, "move": [-1, 0]}, {"t": 1.6, "move": [1, 0]}, {"t": 6.0, "move": [0, 0]}, {"t": 6.5, "wait": "player_caught", "max": 25}, {"t": 6.6, "hold": "sprint", "dur": 4.0}, {"t": 6.6, "move": [-1, 0]}, {"t": 6.9, "move": [1, 0]}, {"t": 7.2, "move": [-1, 0]}, {"t": 7.5, "move": [1, 0]}, {"t": 7.8, "move": [-1, 0]}, {"t": 8.1, "move": [1, 0]}, {"t": 8.4, "move": [-1, 0]}, {"t": 8.7, "move": [1, 0]}, {"t": 9.0, "move": [-1, 0]}, {"t": 9.3, "move": [1, 0]}, {"t": 9.6, "move": [-1, 0]}, {"t": 9.9, "move": [1, 0]}, {"t": 10.2, "move": [-1, 0]}, {"t": 10.5, "move": [1, 0]}, {"t": 10.6, "move": [0, 0]}]}

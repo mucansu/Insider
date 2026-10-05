@@ -25,6 +25,9 @@ extends Area2D
 ## prompt per action, PlayerInteraction); `innocent` is a social action (buy, talk, send) not counted as tampering in the civilian
 ## multiplier table; `start_blocker` may take a peer (`func(peer_id: int) -> bool`; 0-arg legacy form valid; peer 0 for NPC use);
 ## `host_abort()` cancels the ongoing interaction on the host (e.g. owner interrupts a conversation).
+## US-045 additions: `peer_gate` (`func(peer_id) -> bool`, every peer: false hides the prompt for that peer and the host rejects with
+## `peer`) for per-player offers on one shared component (the counter's E: pay / take the order / buy); `self_only` marks a component
+## of the actor itself (the hand's Q "Bırak"): only that actor sees and may use it (host: `self` reject otherwise), other players never.
 
 ## Host only.
 signal completed(peer_id: int)
@@ -51,6 +54,8 @@ const SYNC_INTERVAL := 0.1
 @export var input_action: StringName = &"interact"
 ## Social action (US-010): while running it is not counted as tampering (TAMPER) in the civilian multiplier table.
 @export var innocent: bool = false
+## US-045: component of the actor itself (an ancestor actor node): only that actor may use it (PlayerInteraction picks it for itself).
+@export var self_only: bool = false
 
 ## Replicated state (host writes).
 var busy_by: int = 0
@@ -60,10 +65,16 @@ var progress: float = 0.0
 var start_blocker: Callable = Callable()
 ## Optional host actor filter: `func(peer_id: int, actor: Node) -> bool` (false = reject "actor").
 var actor_filter: Callable = Callable()
+## Optional per-peer offer (US-045): `func(peer_id: int) -> bool`; false = not offered to that peer (prompt hidden, host rejects `peer`).
+## Called on every peer from replicated state.
+var peer_gate: Callable = Callable()
 
 var _seq: int = 0
 var _cooldown_left: float = 0.0
 var _target := InteractionRules.Target.new()
+## IS-106: side derived from the level's zones (`requirement.side_zone`; resolved once in the tree) and whether it was resolved.
+var _zone_side: Vector2 = Vector2.ZERO
+var _zone_side_done: bool = false
 ## Range circle built by the component itself (null if the scene supplies its own shape); updated when range changes.
 var _range_shape: CircleShape2D = null
 ## Host statistics (dump): requests, accepted (busy_by set), completed, cancelled and reject counts by reason.
@@ -121,7 +132,14 @@ func step(delta: float) -> void:
 
 ## Client-side eligibility (no tolerance; for prompt and target selection). Host validates again.
 func can_start(peer_id: int, actor_pos: Vector2, actor_tags: Dictionary = {}) -> bool:
+	if not offered_to(peer_id):
+		return false
 	return InteractionRules.check(_spec(), peer_id, actor_pos, actor_tags) == InteractionRules.Result.OK
+
+
+## Whether the component is offered to `peer_id` (`peer_gate`; true without a gate).
+func offered_to(peer_id: int) -> bool:
+	return not peer_gate.is_valid() or bool(peer_gate.call(peer_id))
 
 
 ## Whether the actor is still in reach for the ongoing interaction (with S2 tolerance).
@@ -304,6 +322,10 @@ func _actor_refusal(peer_id: int, actor: Node) -> String:
 		return ""
 	if not _actor_free(actor):
 		return "not_free"
+	if self_only and not actor.is_ancestor_of(self):
+		return "self"
+	if not offered_to(peer_id):
+		return "peer"
 	if actor_filter.is_valid() and not bool(actor_filter.call(peer_id, actor)):
 		return "actor"
 	return ""
@@ -334,16 +356,54 @@ func _spec() -> InteractionRules.Target:
 	_target.busy_by = busy_by
 	_target.blocked = false
 	if requirement != null:
-		_target.side = requirement.side.rotated(global_rotation)
+		_target.side = _required_side()
 		_target.side_min = requirement.side_min
 		_target.tag = requirement.required_tag
 		_target.tier = requirement.min_tier
+		_target.forbid = requirement.forbidden_tag
 	else:
 		_target.side = Vector2.ZERO
 		_target.side_min = 0.0
 		_target.tag = &""
 		_target.tier = 0
+		_target.forbid = &""
 	return _target
+
+
+## Side constraint in global axes: `requirement.side` rotated with the prop, or (IS-106) derived from the level's zones
+## (`side_zone`; MapGrid.zone_side) once the prop is in a level - the same level data on every peer gives the same side.
+func _required_side() -> Vector2:
+	var hint: Vector2 = requirement.side.rotated(global_rotation)
+	if requirement.side_zone.is_empty() or hint.is_zero_approx():
+		return hint
+	if not _zone_side_done and is_inside_tree():
+		_zone_side_done = true
+		var rects: Array[Rect2] = zone_rects_of(_level_of(self), requirement.side_zone)
+		_zone_side = MapGrid.zone_side(global_position, rects, hint, requirement.side_zone_away) if not rects.is_empty() else hint
+	return _zone_side if _zone_side_done else hint
+
+
+## Global rect shapes of the level zone `zone_name` (Level `zone()`; duck typed). Empty if the level or zone is missing.
+static func zone_rects_of(level: Node, zone_name: StringName) -> Array[Rect2]:
+	var out: Array[Rect2] = []
+	var area: Area2D = level.call(&"zone", zone_name) as Area2D if level != null and level.has_method(&"zone") else null
+	if area == null:
+		return out
+	for node: Node in area.find_children("*", "CollisionShape2D", false, false):
+		var cs: CollisionShape2D = node as CollisionShape2D
+		var box: RectangleShape2D = cs.shape as RectangleShape2D
+		if box != null:
+			var size: Vector2 = box.size * cs.global_scale.abs()
+			out.append(Rect2(cs.global_position - size * 0.5, size))
+	return out
+
+
+## Nearest ancestor with the Level API (`zone`); null if none.
+static func _level_of(node: Node) -> Node:
+	var at: Node = node.get_parent()
+	while at != null and not at.has_method(&"zone"):
+		at = at.get_parent()
+	return at
 
 
 func _make_sync() -> MultiplayerSynchronizer:

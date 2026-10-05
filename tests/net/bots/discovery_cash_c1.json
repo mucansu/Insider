@@ -1,5 +1,5 @@
 {
-  "_doc": "discovery_cash.json c1 botu (US-039 AC10 ii, IS-104): sola sınır duvarına hizalan, kaldırımdan doğuya yan sokağa (x≈768) yürü, ara sokağa (y≈48) çık, batıya arka kapının önüne (x≈656) gel, güneye in ve dur; oturum olayı `owner_distracted` görülene kadar bekle (`wait` adımı: saat durur, sonraki adımlar kayar; sabit zaman yerine olay tabanlı, katılma gecikmesinden bağımsız), sonra kapıyı aç; arka odaya gir (y≈176), batıya nakit köşesine (x≈496) yürü, güneye bir adım, çantayı al (2 sn tut), aynı yoldan ara sokağa çık ve batıya (x≈448) yürüyüp bekle (arka odadan görünmez).",
+  "_doc": "discovery_cash.json c1 botu (US-039 AC10 ii, IS-104): sola sınır duvarına hizalan, kaldırımdan doğuya yan sokağa (x≈768) yürü, ara sokağa (y≈48) çık, batıya arka kapının önüne (x≈656) gel, güneye in ve dur; oturum olayı `owner_distracted` görülene kadar bekle (`wait` adımı: saat durur, sonraki adımlar kayar; sabit zaman yerine olay tabanlı, katılma gecikmesinden bağımsız), sonra kapıyı aç; arka odaya gir (y≈176), batıya nakit köşesine (x≈496) yürü, güneye bir adım, çantayı al (2 sn tut), aynı yoldan arka kapıya dön (IS-108 yaylı kapı: girişten ~3 sn sonra kendiliğinden kapandı; içeriden E ile yeniden açar — zil, sahip hâlâ dinlerken/tezgâha yürürken duyulmaz), ara sokağa çık ve batıya (x≈448) yürüyüp bekle (arka odadan görünmez).",
   "steps": [
     {"t": 0.2, "move": [-1, 0]},
     {"t": 1.6, "move": [1, 0]},
@@ -17,7 +17,10 @@
     {"t": 16.5, "move": [0, -1]},
     {"t": 16.729, "move": [1, 0]},
     {"t": 17.872, "move": [0, -1]},
-    {"t": 18.786, "move": [-1, 0]},
-    {"t": 20.272, "move": [0, 0]}
+    {"t": 18.1, "move": [0, 0]},
+    {"t": 18.15, "press": "interact"},
+    {"t": 18.4, "move": [0, -1]},
+    {"t": 19.086, "move": [-1, 0]},
+    {"t": 20.572, "move": [0, 0]}
   ]
 }

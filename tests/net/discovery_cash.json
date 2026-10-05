@@ -1,5 +1,5 @@
 {
-  "_doc": "US-039 AC10 (ii) + AC2/AC4 + IS-104 (KR-034 arka kapı zili, takım sırası): store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_first.tscn: tezgâh ~31 sn (kesmeler saymaz), sonra ilk pencere görevi ARKA ODA; iç kapı D sahnedeki gibi kapalı — IS-087: arka kapı açıkken de sahip caddeden dolaşmaz, kapalı D'yi açıp geçer ve arkasından kapatır, kendi kapı sesine DİNLE yok). host oyalayıcı: 16,2. sn'de ShelfProp1'i devirir → sahip DİNLE (6 sn) + tezgâha yürüyüş (oturum olayı `owner_distracted`). c1 arka kapının önünde bu olayı bekler (bot `wait` adımı; IS-104 birleşik ağaç düzeltmesi: sabit zamanlı sürüm c1'in katılma gecikmesine (~1,5-3 sn, makine yüküne bağlı) göre kapıyı devirmeden önce açıp zili çaldırabiliyordu), sonra bu pencerede ara sokaktan arka kapıyı açıp arka odaya girer, çantayı alır ve ara sokağın batısında bekler (zil: açılış ve iki geçiş, sahip dinlerken / tezgâha yürürken duyulmaz). Sahip arka oda görevinde BackroomSpot'a varınca 1 sn sonra çantanın yerinde olmadığını fark eder (trigger `backroom`): DISCOVER (`owner_discover_cash`, `owner_discover` {source: cash} her peer'da) → bağırış (uyarı 2). Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-039 AC10 (ii) + AC2/AC4 + IS-104 (KR-034 arka kapı zili, takım sırası): store_a, nüfus kapalı, sahibin ajanda tohumu 7 (tests/fixtures/store_a_backroom_first.tscn: tezgâh ~31 sn (kesmeler saymaz), sonra ilk pencere görevi ARKA ODA; iç kapı D sahnedeki gibi kapalı — IS-087: arka kapı açıkken de sahip caddeden dolaşmaz, kapalı D'yi açıp geçer ve arkasından kapatır, kendi kapı sesine DİNLE yok). host oyalayıcı: 16,2. sn'de ShelfProp1'i devirir → sahip DİNLE (6 sn) + tezgâha yürüyüş (oturum olayı `owner_distracted`). c1 arka kapının önünde bu olayı bekler (bot `wait` adımı; IS-104 birleşik ağaç düzeltmesi: sabit zamanlı sürüm c1'in katılma gecikmesine (~1,5-3 sn, makine yüküne bağlı) göre kapıyı devirmeden önce açıp zili çaldırabiliyordu), sonra bu pencerede ara sokaktan arka kapıyı açıp arka odaya girer, çantayı alır ve ara sokağın batısında bekler (IS-108, KR-039: geçiş zil çalmaz; arka kapı yaylı — c1 içerideyken kendiliğinden kapanır, c1 çıkarken içeriden yeniden açar; iki açılışın zili sahip dinlerken / tezgâha yürürken duyulmaz; çıkıştan ~3 sn sonra kapı yine kapanır: dökümde kapalı, 2 kendiliğinden kapanma). Sahip arka oda görevinde BackroomSpot'a varınca 1 sn sonra çantanın yerinde olmadığını fark eder (trigger `backroom`): DISCOVER (`owner_discover_cash`, `owner_discover` {source: cash} her peer'da) → bağırış (uyarı 2). Döküm komşu çıkmadan alınır. Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/store_a_backroom_first.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 1,
@@ -8,7 +8,8 @@
   "expect": [
     {"eq": ["*.level", "res://tests/fixtures/store_a_backroom_first.tscn"]},
     {"len": ["*.player_nodes", 2]},
-    {"eq": ["*.props.BackDoor.open", true]},
+    {"eq": ["*.props.BackDoor.open", false]},
+    {"eq": ["host.props.BackDoor.autocloses", 2]},
     {"same": ["host.props.Bag.carrier", "c1.peer_id"]},
     {"eq": ["*.owner.events.0", "owner_listen"]},
     {"eq": ["*.owner.events.1", "owner_discover_cash"]},

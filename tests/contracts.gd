@@ -67,6 +67,8 @@ const LINES := {
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
+		# S8 addition (US-045): source of the sound being spread (inside hear_noise on the host).
+		"func dispatching_peer() -> int",
 	],
 	# S4 Level API (not an autoload; levels/level.gd, class name and base are checked separately in test_smoke).
 	"Level": [
@@ -87,6 +89,8 @@ const LINES := {
 		# S3 vision additions (fog; US-011a).
 		"func attach_fog(observer: Node2D) -> FogLayer",
 		"func fog_layer() -> FogLayer",
+		# S4/S10 addition (IS-106, KR-037): per-map tuning overrides {id: {field: value}} (VenueTuning access point).
+		"var tuning_overrides: Dictionary",
 	],
 	# S6 addition (IS-015a): closed-loop bot brain arguments (autoload Args; checked by test_smoke like the other autoloads).
 	"Args": [
@@ -96,6 +100,9 @@ const LINES := {
 		"var quit_on_heist_end: float",
 		# IS-058b: brain loop.
 		"var brain_loop: float",
+		# IS-102: playtest log on exit (not automation); the automation dump path without the log mirror.
+		"var log_on_exit: String",
+		"func dump_file() -> String",
 	],
 	# S6 addition (IS-015a): bot brain surface the statistics runner (IS-015b) relies on (entities/player/bot_brain.gd; checked in
 	# tests/unit/test_bot_brain.gd). Dump section "brain": strategy, seed, role, phase, phase_log, stuck_s (+ counters).

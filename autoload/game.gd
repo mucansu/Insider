@@ -37,10 +37,14 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## Handshake protocol version; mismatched peers are rejected. Bump when the wire layout (RPC/synchronizer/handshake) changes (mimari.md S2).
 ## 2: US-011b 8-bit look angle in the movement synchronizer + vision mode/exposure RPCs. 4: US-010 counter/shelf-end prop synchronizers, owner's STALL component and `net_shouted`.
 ## 5: US-043 owner/local-resident REDIRECT components and `net_misdirected`.
-const PROTOCOL_VERSION := 5
+## 6: US-045 player hand synchronizer (`Status/Hand` item/paid + Drop component), counter order/shop counters, shelf item points and
+##    the counter's Pickup component.
+const PROTOCOL_VERSION := 6
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
-const MAX_EVENTS := 256
+## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by
+## `level_started`), so 1024 instead of 256: a playtest session of ~15-20 runs at ~20-50 events each still fits.
+const MAX_EVENTS := 1024
 const LEVEL_NODE_NAME := "Level"
 const SPAWNER_NODE_NAME := "PlayerSpawner"
 const HUD_LAYER := 10
@@ -113,6 +117,7 @@ func _ready() -> void:
 	Net.peer_disconnected.connect(_on_peer_disconnected)
 	Net.connection_failed.connect(_on_connection_failed)
 	Net.host_disconnected.connect(_on_host_disconnected)
+	_exit_log_setup()  # IS-102
 
 
 func _process(delta: float) -> void:
@@ -314,15 +319,17 @@ func _sync_session() -> void:
 
 func _begin_session() -> void:
 	_host_lost = false
+	_run = 0
 	if Net.is_host():
 		_events.clear()
-		_set_team_cash(0)
+		_set_team_cash(HeistTuning.load_default().start_cash)  # US-045 (KR-038): team allowance at session start
 		_players.clear()
 		_add_player(1, _local_name)
 		players_changed.emit()
 
 
 func _end_session() -> void:
+	_exit_log_on_session_end()  # IS-102: before the history is cleared
 	_session_peer = null
 	_pending_level = ""
 	_freeze_acks.clear()
@@ -332,6 +339,7 @@ func _end_session() -> void:
 	_peer_ids.clear()
 	_auth_names.clear()
 	_events.clear()
+	_run = 0
 	_set_team_cash(0)
 	_apply_alert(0, -1.0, true)
 	players_changed.emit()
@@ -371,8 +379,10 @@ func _try_start_pending_level() -> void:
 	_despawn_all_players()
 	_unload_level()
 	_session_seed_new_job()  # IS-058b: before the level's NPCs read it
+	var marker_at: int = _events.size()
 	if not _load_level_local(level_path):
 		return
+	_run_started(marker_at, level_path)  # IS-102: placed before any event raised while the level loaded
 	if Net.is_online():
 		_rpc_load_level.rpc(level_path)
 	var ids: Array = _players.keys()
@@ -412,6 +422,7 @@ func _host_admit_peer(peer_id: int) -> void:
 	_rpc_alert.rpc_id(peer_id, _alert_level, _alert_timer)
 	if _level != null:
 		_spawn_player(peer_id)
+		_heist_replay_cover(peer_id)
 
 
 func _on_peer_disconnected(peer_id: int) -> void:
@@ -534,10 +545,15 @@ func _apply_alert(level: int, timer: float, reset_history: bool) -> void:
 @rpc("authority", "call_local", "reliable")
 func _rpc_session_event(kind: StringName, data: Dictionary) -> void:
 	# with call_local `data` is the caller's dictionary; copy so later changes don't alter the record
-	_events.append({"kind": kind, "data": data.duplicate(true)})
-	if _events.size() > MAX_EVENTS:
-		_events.pop_front()
+	_record_event(_events.size(), kind, data)
 	session_event.emit(kind, data)
+
+
+## Inserts an event record at `index` into the history (copy of `data`), keeping at most MAX_EVENTS (oldest dropped).
+func _record_event(index: int, kind: StringName, data: Dictionary) -> void:
+	_events.insert(clampi(index, 0, _events.size()), {"kind": kind, "data": data.duplicate(true)})
+	while _events.size() > MAX_EVENTS:
+		_events.pop_front()
 
 
 ## Positions known to the host (peer_id -> Vector2): once reliably on accept, then an unreliable stream.
@@ -933,6 +949,11 @@ static func _sanitize_name(value: Variant) -> String:
 #   `suspicion()`/`perception()`; cone + line of sight) breaks cover, and each observer that sees gives that player +60 suspicion (owner: customer-witness path `report_suspicion`).
 #   Broken cover goes to all as `session_event` &"cover_broken" {peer, reason} (HUD silent; local indicator `cover_state()`); wire layout unchanged. When police arrive a player with intact cover, no loot,
 #   not held and outside the zone is released (`witness_released`: no bail, recognised +1, team heat +2).
+#   US-045 (GB-08 option A, KR-038): a view state breaks cover only while an NPC sees the player (view `seen_by` = first observer of
+#   `_heist_observers_seeing`, which also takes nodes offering `sees_point(pos)` - the neighbour); taking the bag is no longer an event
+#   breaker; the police witness check stays unconditional. Event data gains "by"; dump `cover_reason` / `seen_by`. A peer admitted mid-job
+#   gets the already broken covers replayed (`_heist_replay_cover`; the witness.json late-join flake). Team cash starts at
+#   HeistTuning.start_cash (KR-038 allowance).
 # - IS-099 left player: a peer dropped mid-job (`_host_drop_peer`, before the roster erase) goes to `Tracker.note_left`; the result's `players` lists it with
 #   `left: true` and zero share/bail (economy unchanged); roster players carry `left: false`.
 # - US-042 strategy label: result `strategy` (Tracker.strategy) and dump `heist.strategy`; interaction count from every level Interactable's `completed` (player) + RESCUE; back door = a player used the `BackDoor` prop.
@@ -984,6 +1005,8 @@ var _heist_hook_started: bool = false
 var _heist_bound: Dictionary = {}
 ## US-042: players whose cover broke (peer -> reason), on every peer from the `cover_broken` event; reset with the level.
 var _heist_cover_lost: Dictionary = {}
+## US-045: peer -> name of the NPC that saw the cover break (from the event; "" if none).
+var _heist_cover_by: Dictionary = {}
 ## Host: bag node (instance id) -> carrier in the last step (to find the previous carrier on a handover).
 var _heist_bag_carrier: Dictionary = {}
 ## Host: cash interaction components (vault; `busy_by` = holding player).
@@ -1055,6 +1078,8 @@ func _notification(what: int) -> void:
 		NOTIFICATION_PHYSICS_PROCESS:
 			_heist_physics(get_physics_process_delta_time())
 			_vision_physics(get_physics_process_delta_time())  # US-011b
+		NOTIFICATION_WM_CLOSE_REQUEST:
+			_exit_log_final(EXIT_LOG_WINDOW_CLOSE)  # IS-102
 
 
 func _heist_setup() -> void:
@@ -1117,6 +1142,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 	_heist = null
 	_heist_bind_optional()
 	_heist_cover_lost.clear()
+	_heist_cover_by.clear()
 	_heist_bag_carrier.clear()
 	_heist_cash_items.clear()
 	var lvl: Level = level as Level
@@ -1268,7 +1294,18 @@ func _heist_flush_cover() -> void:
 	var pending: Array[Dictionary] = _heist.cover_events.duplicate()
 	_heist.cover_events.clear()
 	for e: Dictionary in pending:
-		raise_session_event(HEIST_EVENT_COVER, {"peer": int(e["peer"]), "reason": String(e["reason"])})
+		raise_session_event(HEIST_EVENT_COVER, {"peer": int(e["peer"]), "reason": String(e["reason"]),
+			"by": String(e.get("by", ""))})
+
+
+## Host (US-045 fix of the witness flake): a peer admitted mid-job gets the covers already broken (same `cover_broken` events, to that
+## peer only); without it a late joiner believes them intact (local indicator, dump, its neighbour's cover query).
+func _heist_replay_cover(peer_id: int) -> void:
+	if _heist == null or not multiplayer.get_peers().has(peer_id):
+		return
+	for peer: Variant in _heist.cover_broken:
+		_rpc_session_event.rpc_id(peer_id, HEIST_EVENT_COVER, {"peer": int(peer), "reason": String(_heist.cover_broken[peer]),
+			"by": String(_heist.cover_seen_by.get(peer, &""))})
 
 
 ## `actor` interacted with `other`, who may be marked (RESCUE, bag handover): tried using player positions.
@@ -1286,8 +1323,9 @@ func _heist_associate_at(actor: int, other: int, actor_pos: Vector2, other_pos: 
 		return 0
 	var tuning: HeistTuning = HeistTuning.load_default()
 	var seeing: Array[Node] = _heist_observers_seeing(actor_pos)
+	var by: StringName = StringName(seeing[0].name) if not seeing.is_empty() else &""
 	if not _heist.associate(actor, other, actor_pos.distance_to(other_pos), not seeing.is_empty(),
-			tuning.association_radius_px):
+			tuning.association_radius_px, by):
 		return 0
 	for observer: Node in seeing:
 		if observer.has_method(&"report_suspicion"):
@@ -1306,6 +1344,10 @@ func _heist_observers_seeing(pos: Vector2) -> Array[Node]:
 	if npcs == null:
 		return out
 	for node: Node in npcs.find_children("*", "", true, false):
+		if node.has_method(&"sees_point"):  # US-045: an observer with its own sight rule (neighbour: range + line of sight)
+			if bool(node.call(&"sees_point", pos)):
+				out.append(node)
+			continue
 		if not (node.has_method(&"report_suspicion") or node.has_method(&"suspicion")):
 			continue
 		if "active" in node and not bool(node.get(&"active")):
@@ -1363,6 +1405,7 @@ func _heist_mark_caught(peer_id: int, cause: StringName) -> void:
 func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
 	if _heist != null and kind == HEIST_EVENT_COVER and typeof(data.get("peer")) == TYPE_INT:
 		_heist_cover_lost[int(data["peer"])] = StringName(str(data.get("reason", "")))
+		_heist_cover_by[int(data["peer"])] = str(data.get("by", ""))
 	if _heist == null or _heist.finished or not _has_host_authority():
 		return
 	match kind:
@@ -1426,6 +1469,11 @@ func _heist_views() -> Dictionary:
 			"move_mode": int(node.get(&"net_mode")) if typeof(node.get(&"net_mode")) == TYPE_INT else HeistRules.MOVE_WALK,
 			"masked": false,
 		}
+		# US-045 (GB-08 A): who sees it - only asked when the state would break an intact cover (Tracker.observe).
+		var view: Dictionary = out[peer_id]
+		if _heist != null and _heist.cover_intact(peer_id) and not HeistRules.cover_breaker(view).is_empty():
+			var seeing: Array[Node] = _heist_observers_seeing(pos)
+			view["seen_by"] = String(seeing[0].name) if not seeing.is_empty() else ""
 	return out
 
 
@@ -1508,8 +1556,11 @@ func _heist_dump() -> Dictionary:
 		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
 		"settle_peak_s": snappedf(_heist_settle_peak(), 0.01),
 		"cover": _heist_cover_dump(),
+		"cover_reason": _heist_cover_detail(_heist_cover_lost),  # US-045: why / who saw it (GB-08 A)
+		"seen_by": _heist_cover_detail(_heist_cover_by),
 		"strategy": _heist_result.get("strategy", {}),
 		"events_main": _heist_events_main(),
+		"events_shared": _events_shared(),  # IS-102
 		"recognized": _heist_recognized_dump(),
 	}
 
@@ -1523,12 +1574,22 @@ func _heist_recognized_dump() -> Dictionary:
 	return out
 
 
-## Dump (IS-094): session events excluding US-042 cover events (`cover_broken`), so scenarios check owner/caught event order independently of cover events.
+## Dump (IS-094): session events excluding US-042 cover events (`cover_broken`) and the host-local run markers (IS-102 `level_started`),
+## so scenarios check owner/caught event order independently of cover events and of the host's run markers.
 func _heist_events_main() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for e: Dictionary in _events:
-		if StringName(str(e.get("kind", ""))) != HEIST_EVENT_COVER:
+		var kind: StringName = StringName(str(e.get("kind", "")))
+		if kind != HEIST_EVENT_COVER and kind != RUN_EVENT:
 			out.append(e)
+	return out
+
+
+## Broken covers this peer knows: peer -> reason / observer name (US-045 dump).
+func _heist_cover_detail(source: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for peer: Variant in source:
+		out[str(int(peer))] = str(source[peer])
 	return out
 
 
@@ -1915,10 +1976,10 @@ func _heist_end_quit_arm(_result: Dictionary) -> void:
 
 func _heist_end_quit() -> void:
 	register_dump_provider("exit_reason", func() -> String: return HEIST_END_EXIT_REASON)
-	if not Args.dump_path.is_empty():
-		var file: FileAccess = FileAccess.open(Args.dump_path, FileAccess.WRITE)
+	if not Args.dump_file().is_empty():  # IS-102: not the --log-on-exit mirror (Game writes that itself on exit)
+		var file: FileAccess = FileAccess.open(Args.dump_file(), FileAccess.WRITE)
 		if file == null:
-			push_error("Game: döküm yazılamadı: %s (%s)" % [Args.dump_path, error_string(FileAccess.get_open_error())])
+			push_error("Game: döküm yazılamadı: %s (%s)" % [Args.dump_file(), error_string(FileAccess.get_open_error())])
 		else:
 			file.store_string(JSON.stringify(collect_dump(), "  ", true))
 			file.close()
@@ -1958,3 +2019,110 @@ func _session_seed_new_job() -> void:
 		_session_rng.randomize()
 	_session_seed = SessionSeed.pick(_session_jobs, Args.run_seed_given, Args.run_seed, _session_seed_automated(), _session_rng)
 	_session_jobs += 1
+
+
+# =====================================================================================================================
+# IS-102 — playtest diagnostics (S3/S6 addendum).
+# - Run marker: every level start on the host (first load, "Again" / request_restart, level change) records the host-local event
+#   `level_started` {"run": N (1, 2, … per session; reset when the session ends), "level": path, "seed": session seed} into the dump's
+#   "events" history, placed before any event raised while that level loaded. Not broadcast and no `session_event` signal (wire layout
+#   and listeners unchanged; PROTOCOL_VERSION unchanged): clients and late joiners do not have it. "Again" never cleared the history;
+#   the marker splits it into runs. Scenarios comparing histories across peers use the heist dump's "events_shared" (history without
+#   host-local markers); "events_main" leaves the markers out too.
+# - `--log-on-exit=PATH` (Args, not automation): Game writes `collect_dump()` + "log_reason" to PATH when the session ends (before the
+#   history is cleared; "session_end") and when the process exits ("window_close" on the close request, "quit" when the tree finalises
+#   after any `quit()` — via an `ExitLog` node added last under the root, which leaves the tree before Game and its level). The exit
+#   write is skipped when the session already ended and was written (an emptier dump must not overwrite it). Every peer writes its own.
+#   Unwritable PATH: push_warning + fallback user://<file name>; never an error.
+# =====================================================================================================================
+
+const RUN_EVENT := &"level_started"
+const EXIT_LOG_NODE_NAME := "ExitLog"
+const EXIT_LOG_WINDOW_CLOSE := "window_close"
+const EXIT_LOG_QUIT := "quit"
+const EXIT_LOG_SESSION_END := "session_end"
+
+## Host: runs started in this session (level_started.run of the last one); 0 = none yet.
+var _run: int = 0
+## "log_reason" of the last successful exit-log write; empty = nothing written yet.
+var _exit_log_written: String = ""
+
+
+## Host: records the run marker at `index` of the history (where the history ended before the level loaded).
+func _run_started(index: int, level_path: String) -> void:
+	if not _has_host_authority():
+		return
+	_run += 1
+	_record_event(index, RUN_EVENT, {"run": _run, "level": level_path, "seed": _session_seed})
+
+
+## History without the host-local run markers: what every peer connected throughout received (dump heist.events_shared).
+func _events_shared() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for e: Dictionary in _events:
+		if StringName(str(e.get("kind", ""))) != RUN_EVENT:
+			out.append(e)
+	return out
+
+
+func _exit_log_setup() -> void:
+	if Args.log_on_exit.is_empty():
+		return
+	print("Game: --log-on-exit -> %s" % ProjectSettings.globalize_path(Args.log_on_exit))
+	var hook := Node.new()
+	hook.name = EXIT_LOG_NODE_NAME
+	hook.tree_exiting.connect(_exit_log_final.bind(EXIT_LOG_QUIT))
+	# Deferred: lands after the main scene, i.e. last under the root, so on quit it leaves the tree before Game/World/level.
+	get_tree().root.add_child.call_deferred(hook)
+
+
+## Session end (leave, host lost, failed join): writes the session's log before cleanup.
+func _exit_log_on_session_end() -> void:
+	if Args.log_on_exit.is_empty() or _session_peer == null:
+		return
+	_write_exit_log(Args.log_on_exit, EXIT_LOG_SESSION_END)
+
+
+## Process exit: writes unless the session already ended and was written, or (tree finalising) the close request already wrote.
+func _exit_log_final(reason: String) -> void:
+	if Args.log_on_exit.is_empty():
+		return
+	if _session_peer == null and not _exit_log_written.is_empty():
+		return
+	if reason == EXIT_LOG_QUIT and _exit_log_written == EXIT_LOG_WINDOW_CLOSE:
+		return
+	_write_exit_log(Args.log_on_exit, reason)
+
+
+## Writes `collect_dump()` + "log_reason" as JSON to `path` (fallback user://<file name>). Returns the written path, "" if neither worked.
+func _write_exit_log(path: String, reason: String) -> String:
+	var dump: Dictionary = collect_dump()
+	dump["log_reason"] = reason
+	var text: String = JSON.stringify(dump, "  ", true)
+	var written: String = _exit_log_store(path, text)
+	if written.is_empty():
+		var fallback: String = "user://" + path.get_file()
+		push_warning("Game: --log-on-exit yazılamadı: %s (%s); yedek %s" % [path, error_string(FileAccess.get_open_error()), fallback])
+		if path.get_file().is_empty() or fallback == path:
+			return ""
+		written = _exit_log_store(fallback, text)
+		if written.is_empty():
+			push_warning("Game: --log-on-exit yedek yola da yazılamadı: %s" % fallback)
+			return ""
+	_exit_log_written = reason
+	print("Game: günlük yazıldı (%s): %s" % [reason, ProjectSettings.globalize_path(written)])
+	return written
+
+
+static func _exit_log_store(path: String, text: String) -> String:
+	if path.is_empty():
+		return ""
+	var dir: String = path.get_base_dir()
+	if not dir.is_empty() and not DirAccess.dir_exists_absolute(dir):
+		DirAccess.make_dir_recursive_absolute(dir)
+	var file: FileAccess = FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return ""
+	file.store_string(text)
+	file.close()
+	return path

@@ -1,0 +1,16 @@
+{
+  "_doc": "shop_items.json c2 botu (US-045): sola sınır duvarına hizalan, kaldırımda doğuya ön kapıya (x≈380), içeri koridordan kuzeye soğutucu önüne (ShopItem2, 400,176) — E 0,8 sn: kola elde; güneye-doğuya tezgâhın batısına (500,336) yürür; c1'in ödemesini (`purchase` olayı) bekler, servis bitsin diye 8 sn daha bekler, sonra Q: kolayı bırakır — şişe kırılır (160 px), tezgâhtaki sahip DİNLE.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.0, "move": [0, -1]},
+    {"t": 6.8, "move": [1, 0]},
+    {"t": 6.943, "move": [0, 0]},
+    {"t": 7.0, "hold": "interact", "dur": 0.8},
+    {"t": 7.8, "move": [0, 1]},
+    {"t": 8.943, "move": [1, 0]},
+    {"t": 9.657, "move": [0, 0]},
+    {"t": 9.8, "wait": "purchase", "max": 30},
+    {"t": 17.8, "press": "intimidate"}
+  ]
+}

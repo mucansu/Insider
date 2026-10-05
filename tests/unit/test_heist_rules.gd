@@ -643,17 +643,36 @@ func test_cover_breaks_permanently() -> void:
 	t.observe({A: _view(false), B: _view(false)}, 0.1)
 	is_true(t.cover_intact(A) and t.cover_intact(B), "başta sağlam")
 	eq(t.cover_events, [] as Array[Dictionary])
-	t.observe({A: _with(_view(false), {"staff_side": true}), B: _view(false)}, 0.1)
-	is_false(t.cover_intact(A), "personel tarafına geçti: bozuldu")
-	eq(t.cover_events, [{"peer": A, "reason": &"staff"}] as Array[Dictionary], "yeni bozulma olayı")
+	t.observe({A: _with(_view(false), {"staff_side": true, "seen_by": "Owner"}), B: _view(false)}, 0.1)
+	is_false(t.cover_intact(A), "personel tarafında görüldü: bozuldu")
+	eq(t.cover_events, [{"peer": A, "reason": &"staff", "by": &"Owner"}] as Array[Dictionary], "yeni bozulma olayı + gören")
+	eq(t.cover_seen_by[A], &"Owner")
 	t.cover_events.clear()
 	t.observe({A: _view(false), B: _view(false)}, 0.1)
 	is_false(t.cover_intact(A), "müşteri tarafına dönse de geri gelmez")
 	eq(t.cover_events, [] as Array[Dictionary], "ikinci kez olay yok")
 	eq(t.cover_broken[A], &"staff", "ilk neden kalır")
-	t.note_bag(B)
-	is_false(t.cover_intact(B), "çanta alma/devralma bozar")
-	eq(t.cover_broken[B], &"bag")
+
+
+## US-045 (GB-08 option A, KR-038): a breaking state counts only while an NPC sees the player; taking the bag is no event breaker;
+## the police witness check stays unconditional.
+func test_cover_breaks_only_when_seen() -> void:
+	var t := HeistRules.Tracker.new()
+	for state: Dictionary in [{"sprinting": true}, {"staff_side": true}, {"holding_cash": true}, {"move_mode": HeistRules.MOVE_SNEAK},
+			{"masked": true}, {"seen_by": ""}]:
+		t.observe({A: _with(_view(false), state)}, 0.1)
+	t.observe({A: _view(false, 450)}, 0.1)
+	is_true(t.cover_intact(A), "kimse görmedi: koşu/personel/kasa/sızma/maske/çanta örtüyü bozmaz")
+	t.note_bag(A)
+	is_true(t.cover_intact(A), "çanta alma olayı bozmaz (çanta görülürse bozar)")
+	t.observe({A: _with(_view(false, 450), {"seen_by": "Civilian2"})}, 0.1)
+	is_false(t.cover_intact(A), "çantayla görüldü")
+	eq([t.cover_broken[A], t.cover_seen_by[A]], [&"bag", &"Civilian2"])
+	t.observe({B: _with(_view(false), {"seen_by": "Owner"})}, 0.1)
+	is_true(t.cover_intact(B), "görülse de bozan durum yok: sağlam")
+	var views: Dictionary = {B: _with(_view(false), {"staff_side": true})}
+	t.arrive_police(views)
+	is_true(t.is_caught(B), "polis: personel tarafındaki görülmemiş de yakalanır (koşulsuz)")
 
 
 func test_association_window_and_radius() -> void:
@@ -740,7 +759,7 @@ func test_strategy_dump_fields() -> void:
 	t.observe({A: _view(false), B: _view(false)}, 2.0)
 	t.add_cash(A, 150)
 	t.note_interaction(A)
-	t.observe({A: _with(_view(false), {"staff_side": true}), B: _view(false)}, 3.0)
+	t.observe({A: _with(_view(false), {"staff_side": true, "seen_by": "Owner"}), B: _view(false)}, 3.0)
 	t.note_bag(A)
 	t.note_interaction(A)
 	t.note_interaction(0)  # NPC: not counted

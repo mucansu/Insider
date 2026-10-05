@@ -5,7 +5,7 @@ extends RefCounted
 ## - host: request validation and hold timing with S2 latency tolerance (range +24 px, side threshold -24 px, time +0.25 s) and only the host-known blocker (`Target.blocked`, e.g. a player in the door gap).
 ## Target state travels in the `Target` value object (filled by Interactable).
 
-enum Result { OK, DISABLED, BUSY, COOLDOWN, OUT_OF_RANGE, WRONG_SIDE, MISSING_TAG, NO_ACTOR, BLOCKED }
+enum Result { OK, DISABLED, BUSY, COOLDOWN, OUT_OF_RANGE, WRONG_SIDE, MISSING_TAG, NO_ACTOR, BLOCKED, FORBIDDEN_TAG }
 
 ## S2: slack the host gives range when validating a client request (px).
 const RANGE_TOLERANCE := 24.0
@@ -30,6 +30,7 @@ const _RESULT_NAMES: Dictionary = {
 	Result.MISSING_TAG: "missing_tag",
 	Result.NO_ACTOR: "no_actor",
 	Result.BLOCKED: "blocked",
+	Result.FORBIDDEN_TAG: "forbidden_tag",
 }
 
 
@@ -47,6 +48,8 @@ class Target:
 	## Required tag (empty = none) and its minimum tier.
 	var tag: StringName = &""
 	var tier: int = 0
+	## US-045: tag the actor must NOT have (empty = none; e.g. &"heavy": hands busy with a damacana).
+	var forbid: StringName = &""
 	## Host validation only: the outcome cannot be applied right now (e.g. the door closing with a player body in the gap).
 	## The client filter (`check`) ignores it: the prompt keeps showing and the host rejects with `BLOCKED`.
 	var blocked: bool = false
@@ -72,7 +75,12 @@ static func has_tag(tag: StringName, min_tier: int, actor_tags: Dictionary) -> b
 	return tier != null and int(tier) >= min_tier
 
 
-## Whether `peer_id` may start interacting with this target. Order: disabled -> busy -> range -> side -> tag.
+## Whether the actor carries a tag that forbids the target (US-045; false if none is forbidden).
+static func has_forbidden(forbid: StringName, actor_tags: Dictionary) -> bool:
+	return forbid != &"" and (actor_tags.has(forbid) or actor_tags.has(String(forbid)))
+
+
+## Whether `peer_id` may start interacting with this target. Order: disabled -> busy -> range -> side -> tag -> forbidden tag.
 ## The client calls with no tolerance (0), the host with RANGE_TOLERANCE and SIDE_TOLERANCE. Not busy if this peer already holds the target.
 static func check(target: Target, peer_id: int, actor_pos: Vector2, actor_tags: Dictionary,
 		tolerance: float = 0.0, side_tolerance: float = 0.0) -> Result:
@@ -86,6 +94,8 @@ static func check(target: Target, peer_id: int, actor_pos: Vector2, actor_tags: 
 		return Result.WRONG_SIDE
 	if not has_tag(target.tag, target.tier, actor_tags):
 		return Result.MISSING_TAG
+	if has_forbidden(target.forbid, actor_tags):
+		return Result.FORBIDDEN_TAG
 	return Result.OK
 
 

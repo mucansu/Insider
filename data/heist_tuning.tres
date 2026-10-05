@@ -6,6 +6,7 @@
 script = ExtResource("1_htune")
 abort_hold_s = 3.0
 escape_settle_s = 3.0
+start_cash = 50
 bail_by_tier = Dictionary[int, int]({
 1: 100
 })

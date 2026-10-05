@@ -10,6 +10,21 @@
 properties/0/path = NodePath(".:sent_used")
 properties/0/spawn = false
 properties/0/replication_mode = 2
+properties/1/path = NodePath(".:order_peer")
+properties/1/spawn = false
+properties/1/replication_mode = 2
+properties/2/path = NodePath(".:order")
+properties/2/spawn = false
+properties/2/replication_mode = 2
+properties/3/path = NodePath(".:shop_taken")
+properties/3/spawn = false
+properties/3/replication_mode = 2
+properties/4/path = NodePath(".:shop_paid")
+properties/4/spawn = false
+properties/4/replication_mode = 2
+properties/5/path = NodePath(".:shop_dropped")
+properties/5/spawn = false
+properties/5/replication_mode = 2
 
 [node name="Counter" type="Node2D"]
 script = ExtResource("1_counter")

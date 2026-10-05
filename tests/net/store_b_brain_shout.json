@@ -1,0 +1,39 @@
+{
+  "_doc": "IS-107 aşama 2: store_b (levels/store_b.tscn, tam nüfus, store_b ayar ezmeleri: owner.shout_radius 640, owner.neighbour_delay_sec 7, population.convert_radius 640) bağırış zinciri + eli boş kaçış geri sayımı, işaret tabanlı (beyin: koordinata bağlı değil). Host kapalı döngü beyin `rush` (bots/brain_rush.json, tohum 1): ön kapıdan tezgâh ucundan personel tarafına, kasaya; sahip görür -> SORGULA -> BAĞIR (uyarı 0->1->2), komşu çıkar (ara sokaktaki NeighbourSpawn ya da yoldan geçen dönüşümü) ve bağırıştan ~9 sn sonra arka kapıda (uyarı 3, merdiven zamanı ladder.2 ~9,5 sn -> ladder.3 ~18,6 sn; hedef <= 10 sn) -> polis sayacı (60 sn) iki süreçte işler; kasa boşaltılamaz, host kaçış bölgesine koşar. c1 (bots/store_b_escape_c1.json) baştan kaçış bölgesinde ganimetsiz bekler: herkes bölgede, ganimet 0 -> US-040 eli boş geri sayımı (host karar sayacı abort_peak_s ~3 sn) -> `aborted`. Sahip olayları ve uyarı merdiveni iki süreçte aynı; beyin `done`, takılma küçük. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_b.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 45,
+  "bots": {
+    "host": "res://tests/net/bots/brain_rush.json",
+    "c1": "res://tests/net/bots/store_b_escape_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_b.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["host.brain.strategy", "rush"]},
+    {"eq": ["host.brain.phase", "done"]},
+    {"eq": ["host.brain.phase_log.0.1", "go_register"]},
+    {"between": ["host.brain.stuck_s", 0, 3]},
+    {"has": ["*.owner.events", "owner_shout"]},
+    {"all_equal": "owner.events"},
+    {"has": ["*.alert.history", 2]},
+    {"all_equal": "alert.history"},
+    {"between": ["host.chasers.spawned", 1, 6]},
+    {"same": ["c1.chasers.spawned", "host.chasers.spawned"]},
+    {"eq": ["host.chasers.ladder.2.0", 2]},
+    {"eq": ["host.chasers.ladder.3.0", 3]},
+    {"between": ["host.chasers.ladder.2.1", 7, 12]},
+    {"between": ["host.chasers.ladder.3.1", 14, 22]},
+    {"eq": ["*.alert.level", 3]},
+    {"between": ["*.alert.timer_left", 1, 59]},
+    {"eq": ["*.heist.result.outcome", "aborted"]},
+    {"all_equal": "heist.result"},
+    {"between": ["host.heist.abort_peak_s", 2.98, 3.05]},
+    {"eq": ["*.heist.result.players.$c1.escaped", true]},
+    {"eq": ["*.heist.result.players.$host.escaped", true]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.heist.active", false]}
+  ]
+}

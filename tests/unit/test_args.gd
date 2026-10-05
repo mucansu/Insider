@@ -121,3 +121,45 @@ func test_autoload_reads_process_arguments() -> void:
 	is_false(Args.wants_session())
 	for raw: String in OS.get_cmdline_user_args():
 		has(Args.unknown, raw)
+
+
+## IS-102 AC2: `--log-on-exit` is parsed and resolved, is NOT automation, yet fills `dump_path` so dump providers register; the automation
+## dump file (`dump_file()`) stays empty unless `--dump` is given too.
+func test_log_on_exit_is_not_automation() -> void:
+	var a: ArgsScript = _make()
+	a.parse(PackedStringArray(["--host", "--log-on-exit=/kayit/x.json"]))
+	eq(a.log_on_exit, "/kayit/x.json")
+	is_false(a.is_automated(), "--log-on-exit otomasyon sayılmaz (tohum/FPS normal oyundaki gibi)")
+	eq(a.dump_path, "/kayit/x.json", "döküm sağlayıcıları kaydolsun diye dump_path aynı yolu gösterir")
+	eq(a.dump_file(), "", "otomasyon dökümü yazılmaz; günlüğü Game yazar")
+	eq(a.unknown.size(), 0)
+	# Re-parsing resets.
+	a.parse(PackedStringArray(["--host"]))
+	eq(a.log_on_exit, "")
+	eq(a.dump_path, "")
+	is_false(a.is_automated())
+
+
+func test_log_on_exit_with_dump_both_work() -> void:
+	var a: ArgsScript = _make()
+	a.parse(PackedStringArray(["--log-on-exit=user://kayit.json", "--dump=/tmp/d.json"]))
+	eq(a.log_on_exit, "user://kayit.json")
+	eq(a.dump_path, "/tmp/d.json")
+	eq(a.dump_file(), "/tmp/d.json")
+	is_true(a.is_automated(), "--dump otomasyondur; --log-on-exit bunu değiştirmez")
+	a.parse(PackedStringArray(["--dump=/tmp/d.json", "--log-on-exit=user://kayit.json"]))
+	eq([a.dump_file(), a.log_on_exit], ["/tmp/d.json", "user://kayit.json"], "sıra fark etmez")
+
+
+func test_log_on_exit_relative_and_invalid() -> void:
+	eq(ArgsScript.resolve_log_path("kayit/x.json", "C:/oyun"), "C:/oyun/kayit/x.json")
+	eq(ArgsScript.resolve_log_path("./x.json", "/opt/oyun"), "/opt/oyun/x.json")
+	eq(ArgsScript.resolve_log_path("res://x.json", "C:/oyun"), "res://x.json")
+	eq(ArgsScript.resolve_log_path("D:/a/x.json", "C:/oyun"), "D:/a/x.json")
+	var a: ArgsScript = _make()
+	a.parse(PackedStringArray(["--log-on-exit=x.json"]))
+	eq(a.log_on_exit, ArgsScript.log_base_dir().path_join("x.json"), "göreli yol: dışa aktarımda exe yanı, geliştirmede proje dizini")
+	is_false(a.is_automated())
+	a.parse(PackedStringArray(["--log-on-exit"]))
+	eq(a.log_on_exit, "", "değersiz bayrak yok sayılır (uyarı)")
+	eq(a.dump_path, "")

@@ -24,6 +24,9 @@ extends CharacterBody2D
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
 ## Interactable completes: free, `rescued`, owner STAGGER - the existing rescue path).
 ## IS-096: a `TaskGlyph` under `Visual` (created in `_ready` when active) draws the task badge from `net_state`/`net_task`.
+## US-045 (KR-036/KR-038): SEND is the damacana order - host API `order_phase()` (ShopRules.Order; the counter follows it),
+## `order_paid(peer)`, `refuse_sale(peer)`; events `owner_order_ready` ("Buyrun, {price} lira." - `balloon_args`), `owner_order_unpaid`
+## ("Nereye gitti bu?"), `owner_no_money` ("Para yetmiyor"); `owner_sent` now says "Hemen getiriyorum!".
 
 signal owner_question(peer_id: int)
 signal owner_shrug(peer_id: int)
@@ -41,6 +44,10 @@ signal owner_listen(peer_id: int)
 signal owner_again(peer_id: int)
 signal owner_phone_found(peer_id: int)
 signal owner_loiter(peer_id: int)
+## US-045 order / sale balloons.
+signal owner_order_ready(peer_id: int)
+signal owner_order_unpaid(peer_id: int)
+signal owner_no_money(peer_id: int)
 ## On every peer: task changed (replicated; task icon US-011).
 signal task_changed(task_name: StringName)
 ## Host only (US-010): a player tool was applied successfully (OwnerBrain.social_action relay; kind buy|talk|send|distract).
@@ -60,7 +67,7 @@ const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
 	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
-	&"owner_misdirect", &"owner_question_window"]
+	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money"]
 ## Prompt key of the REDIRECT component, required tag (player's cover intact; Player.interaction_tags) and session
 ## event (HUD text EVENT_MISDIRECT).
 const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
@@ -139,10 +146,9 @@ func _ready() -> void:
 		collision_layer = 0
 		set_physics_process(false)
 		return
-	if owner_tuning == null:
-		owner_tuning = load(OWNER_TUNING_PATH) as OwnerTuning
-	if civilian_tuning == null:
-		civilian_tuning = load(CIVILIAN_TUNING_PATH) as CivilianTuning
+	# IS-106: per-map overrides of the level (VenueTuning) over the scene's / global tuning.
+	owner_tuning = VenueTuning.of(self, VenueTuning.OWNER, owner_tuning) as OwnerTuning
+	civilian_tuning = VenueTuning.of(self, VenueTuning.CIVILIAN, civilian_tuning) as CivilianTuning
 	_rules = civilian_tuning.rules_params(_perception.tuning)
 	_contact = NpcContact.attach(self, false, _perception, report_suspicion, _on_pushed)
 	var visual: Node2D = get_node_or_null(^"Visual") as Node2D
@@ -155,6 +161,7 @@ func _ready() -> void:
 		_senses.bell_marker = owner_tuning.front_door_marker
 		_senses.bell_radius = owner_tuning.bell_radius
 		_senses.back_bell_door = owner_tuning.back_bell_door
+		_senses.back_autoclose_sec = owner_tuning.back_door_autoclose_sec
 		_senses.setup(_level(), civilian_tuning, _perception.tuning)
 		_perception.set_arm_reach(owner_tuning.arm_reach_px)  # IS-098: 360 deg near band within arm reach
 		_brain.owner_tuning = owner_tuning
@@ -262,6 +269,31 @@ func send_to_backroom(peer_id: int = 0) -> bool:
 	return _brain.send_to_backroom(peer_id) if _is_host() and active else false
 
 
+## Host API (US-045): damacana order phase (ShopRules.Order; NONE when inactive or on a client).
+func order_phase() -> int:
+	return _brain.order_phase() if _is_host() and active else ShopRules.Order.NONE
+
+
+## Host API (US-045): the asker paid the ordered product (no return cost).
+func order_paid(peer_id: int) -> void:
+	if _is_host() and active:
+		_brain.order_paid(peer_id)
+
+
+## Host API (US-045): sale refused, the team cash is short ("Para yetmiyor" balloon).
+func refuse_sale(peer_id: int) -> void:
+	if _is_host() and active:
+		_brain.refuse_sale(peer_id)
+
+
+## Balloon text arguments (NpcVisual; every peer): the order's price for "Buyrun, {price} lira.".
+func balloon_args(kind: StringName) -> Dictionary:
+	if kind == &"owner_order_ready":
+		var product: ShopProduct = ShopProduct.of(_tools().order_product)
+		return {"price": product.price if product != null else 0}
+	return {}
+
+
 ## Host API (US-010): whether SEND is accepted now (the counter's host blocker).
 func can_send(peer_id: int = 0) -> bool:
 	return _brain.can_send(peer_id) if _is_host() and active else false
@@ -308,7 +340,7 @@ func misdirect_interactable() -> Interactable:
 ## the Interactable requirement (tag `cover`).
 func misdirect_open() -> bool:
 	return active and not net_misdirected \
-		and Game.alert_level() >= StoreToolsTuning.load_default().misdirect_min_alert
+		and Game.alert_level() >= _tools().misdirect_min_alert
 
 
 ## Host API (US-043 REDIRECT "they ran that way!"): a player with intact cover `peer_id` points -> neighbours within `misdirect_radius` of the
@@ -320,7 +352,7 @@ func misdirect(peer_id: int) -> bool:
 	var player: Node2D = _senses.player(peer_id)
 	if player == null:
 		return false
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	var at: Vector2 = CivilianSenses.position_of(player)
 	var level: Node = _level()
 	var point: Vector2 = CivilianRules.misdirect_point(at, _escape_point(level), tools.misdirect_run_px)
@@ -529,9 +561,14 @@ func _set_task(value: StringName) -> void:
 	task_changed.emit(value)
 
 
+## Store tools tuning of this level (IS-106: global default with the level's per-map overrides; VenueTuning caches the copy).
+func _tools() -> StoreToolsTuning:
+	return VenueTuning.of(self, VenueTuning.STORE_TOOLS, StoreToolsTuning.load_default()) as StoreToolsTuning
+
+
 ## STALL component (US-010): values from StoreToolsTuning; never enabled if the owner is not active.
 func _setup_talk() -> void:
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	_talk.action_key = TALK_ACTION_KEY
 	_talk.hold_time = tools.talk_max_sec
 	_talk.interact_range = tools.talk_range
@@ -548,7 +585,7 @@ func _refresh_talk() -> void:
 
 ## REDIRECT component (US-043): E, hold, range; innocent action; only a player with intact cover (tag `cover`).
 func _setup_misdirect() -> void:
-	var tools: StoreToolsTuning = StoreToolsTuning.load_default()
+	var tools: StoreToolsTuning = _tools()
 	setup_misdirect_item(_misdirect, tools)
 	_misdirect.completed.connect(func(peer_id: int) -> void: misdirect(peer_id))
 	_refresh_misdirect()

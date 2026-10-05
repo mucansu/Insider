@@ -123,11 +123,13 @@ func test_host_session_flow() -> void:
 	(players[1] as Dictionary)["name"] = "değişti"
 	eq(Game.players()[1]["name"], "Birim")
 
-	Game.add_team_cash(100)
+	var start: int = HeistTuning.load_default().start_cash  # US-045 (KR-038): session allowance
+	eq(Game.team_cash(), start, "oturum başında harçlık")
+	Game.add_team_cash(100 - start)
 	Game.add_team_cash(50)
 	Game.add_team_cash(0)
 	eq(Game.team_cash(), 150)
-	eq(_cash_values, [100, 150])
+	eq(_cash_values.slice(-2), [100, 150])
 
 	Game.raise_session_event(&"police_called", {"at": Vector2(3, 4)})
 	Game.raise_session_event(&"alarm")
@@ -170,7 +172,9 @@ func test_host_session_flow() -> void:
 	eq(dump["events"], [
 		{"kind": "police_called", "data": {"at": [3.0, 4.0]}},
 		{"kind": "alarm", "data": {}},
-	])
+		{"kind": "level_started", "data": {"run": 1, "level": LEVEL, "seed": Game.session_seed()}},
+	], "IS-102: seviye başında host'a yerel koşu işareti")
+	eq(_events, [&"police_called", &"alarm"], "koşu işareti session_event sinyali yaymaz")
 
 	# Restarting the same level removes the old one and respawns the player.
 	Game.start_level(LEVEL)

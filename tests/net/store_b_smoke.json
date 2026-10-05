@@ -1,0 +1,26 @@
+{
+  "_doc": "IS-107 (KR-037) aşama 1: ikinci deneme haritası levels/store_b.tscn (40×24; cadde batı, tezgâh kuzeyde güneye bakar, arka sokak doğu) tam nüfusla (sahip + müşteri + yoldan geçen). Host + 1 katılan doğar; host ön kapıdan girip raf ucu koridorunda durur, c1 güney kaldırımından arka sokağa yürür. Sahip, müşteriler ve yoldan geçenler store_b işaretleriyle hatasız yürür (ERROR satırı = FAIL); iki süreçte aynı oyuncu/NPC kümesi, hiçbir kopya duvar içinde değil. Aşama 2: store_b ayar ezmeleri (levels/store_b.tscn kökü tuning_overrides) burada da etkin; beyin senaryoları store_b_brain_{team,bag,shout}.json. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_b.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 40,
+  "bots": {
+    "host": "res://tests/net/bots/store_b_host.json",
+    "c1": "res://tests/net/bots/store_b_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_b.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"all_equal": "player_nodes"},
+    {"near": ["c1.players.$host.pos", "host.players.$host.pos", 8]},
+    {"near": ["host.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"between": ["host.population.customers_spawned", 1, 2]},
+    {"between": ["host.population.passersby_spawned", 1, 4]},
+    {"has": ["host.population.events", "customer_enter"]},
+    {"same": ["c1.population.events", "host.population.events"]},
+    {"all_equal": "population.names"},
+    {"eq": ["*.chasers.spawned", 0]}
+  ]
+}
