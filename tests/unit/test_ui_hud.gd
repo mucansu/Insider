@@ -163,12 +163,13 @@ func test_session_event_data_fills_placeholders() -> void:
 func test_player_events_show_named_text() -> void:
 	# IS-080: US-008 player events (player_status.gd) do not fall to generic text, they carry the player's name.
 	await _open()
-	game.roster = {1: {"name": "Ayla", "slot": 0}, 7: {"name": "", "slot": 1}}
-	game.session_event.emit(&"player_held", {"peer": 1, "window": 3.0})
-	game.session_event.emit(&"player_caught", {"peer": 1, "by": &"owner"})
+	# IS-110: Ayla is a teammate (local peer is 1); the held text carries the window and the PULL key.
+	game.roster = {1: {"name": "Ben", "slot": 2}, 2: {"name": "Ayla", "slot": 0}, 7: {"name": "", "slot": 1}}
+	game.session_event.emit(&"player_held", {"peer": 2, "window": 3.0})
+	game.session_event.emit(&"player_caught", {"peer": 2, "by": &"owner"})
 	game.session_event.emit(&"player_rescued", {"peer": 7, "by": 1})
 	var unnamed: String = tr("HUD_PLAYER_UNNAMED") % 7
-	eq(_toast_texts(), [tr("EVENT_PLAYER_HELD").format({"name": "Ayla"}),
+	eq(_toast_texts(), [tr("EVENT_PLAYER_HELD").format({"name": "Ayla", "seconds": 3, "key": UiInput.action_hint(&"interact")}),
 		tr("EVENT_PLAYER_CAUGHT").format({"name": "Ayla"}),
 		tr("EVENT_PLAYER_RESCUED").format({"name": unnamed})] as Array[String])
 	eq(warnings, [] as Array[String], "üç olayın da metni var")

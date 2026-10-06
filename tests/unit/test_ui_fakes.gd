@@ -185,6 +185,13 @@ class FakePlayer extends Node:
 	signal interaction_alt_target_changed(action_key: String)
 	signal interaction_started(action_key: String, duration: float)
 	signal interaction_finished(success: bool)
+	## US-008 player status (PlayerStatus.State) + local hold window counter (IS-110 HUD countdown).
+	signal status_changed(state: int)
+
+	var hold: float = 0.0
+
+	func hold_left() -> float:
+		return hold
 
 
 ## Settings file for screen tests (US-026): the player's real user://connect.cfg is neither read nor written.
