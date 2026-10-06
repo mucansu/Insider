@@ -11,6 +11,10 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-041 — Bağırıştan sonra örtüsü sağlam müşteri tutulmaz, sorgulanır (2026-10-06, kullanıcı; GB-12, Fable `docs/tasarim/danisma/gb-12-ortu-arama.md`)
+- Sahip alarmdayken (bağırış sonrası) ALARM çarpanı yalnız örtüsü bozuk oyuncuya; örtüsü sağlama normal satırlar + şüphe tavanı 90 + SORGU-2 ("Sen de buradaydın! Kim aldı?", tanınma +1, iş başına 1). Örtü bozan davranışta bugünkü tutma zinciri aynen. Gerekçe: örtü (US-042/043, KR-038) ana sosyal kaynak; bağırış onu sıfırlarsa müşteri rolü, ÇEK ve YÖNLENDİR boşa düşer; mahalleli ve polis örtüyü sayarken sahibin saymaması tutarsız.
+- Test-2 paketine girer (kullanıcı). Koordinatör: 90 tavanı + tanınma +1 kabul, SORGU-2 bu kalemde (US-048, oynanis); okunurluk XS'leri IS-110 (arayuz); kukla/kenar oku dilim 2.4.
+
 ### KR-040 — Ortam sesi v0 test-2'den önce, yalnız CC0 (2026-10-06, kullanıcı)
 - Ayak sesi, iç oda tonu + müşteri mırıltısı, sokak arka planı, hafif müzik döngüsü test-2 paketine girer (kullanıcı seçimi; öneri buydu). Kaynak yalnız CC0 hazır sesler (Kenney / OpenGameArt CC0 / Freesound CC0; indirme izni verildi); AI üretimi (KR-024) ve Türkçe kayıt (KR-025) sonra, aynı olay adlarıyla değiştirilir.
 - Tasarım notu: ses-ve-sfx §6(3) "yürüme adımı yok" önerisi değişir — yürüme kısık, kısa menzilli ve yalnız kozmetik (NoiseBus'a yaymaz, NPC duymaz); sızmada adım yok; koşu belirgin yüksek kalır. Müzik uyarı ≥ 2 / tespitte ≤ 0,3 sn kesilir (ses-ve-sfx §5 asgarisi).

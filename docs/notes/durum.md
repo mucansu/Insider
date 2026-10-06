@@ -11,6 +11,9 @@ Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (ha
 ## Sürüyor / yarım kalan
 - IS-017 + IS-032: test-2 kullanıcıda. Protokol `docs/tasarim/danisma/test-2-protokol.md` (T1 Çevresel → T2 Yönlü → T3 Çevresel → T4 store_b → T5 isteğe bağlı sessiz); oyuncu yönergesi kullanıcıya verildi (2026-10-06). Kayıt (OBS/Discord) izni kullanıcıda.
 - US-047 ortam sesi v0 (KR-040, kullanıcı isteği, test-2 öncesi): arayuz, ajan worktree'si (faz2-int dcf6652 tabanlı). Bitince faz2-int'e + yeni test-2 paketi (eski 58aaaa4 yerine).
+- US-048 (oynanis, ajan worktree'si): bağırış sonrası örtüsü sağlam tutulmaz/sorgulanır (KR-041, GB-12); ağ değişirse denetci.
+- IS-110 (arayuz, ajan worktree'si): tutuldu/yakalandı rozet + geri sayım + metinler.
+- Hepsi (US-047, US-048, IS-110) faz2-int'e birleşince yeni test-2 paketi.
 - Bitti (2026-10-06): IS-082 + IS-028 → faz2-int dcf6652 (birleştirme c309676; import/unit/tools + vision_split ×2 + look_sync 0/150 ms yeşil). dev'e dilim sonunda.
 - Sonraki adım: test-2 kayıt dosyaları + notlar gelince GB-nn, form eşlemesi (protokol §4), IS-018 Fable ara değerlendirmesi, IS-092/IS-097 önceliği (protokol §5).
 - Çalışan ajan yok; worktree'ler: faz2-int.
