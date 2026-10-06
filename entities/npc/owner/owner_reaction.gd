@@ -6,6 +6,8 @@ extends RefCounted
 ## contact, player position advanced with ON-03 -> HOLD) -> HOLD (window 6 s, second time 3 s; on expiry caught -> CHASE) -> when rescued
 ## STAGGER (2 s, suspicion 100 to the rescuer) -> CHASE / SEARCH (last seen position; if nobody is seen for 30 s the agenda, first task
 ## backroom check; US-039). Uses only the brain's public API (§6 encapsulation).
+## SORGU-2 (US-048): inside SEARCH an intact-cover player at >= 60 is walked to (110 px/s, stops at 64 px), asked once and waited on (3 s),
+## then the search goes on (sub-behaviour of SEARCH; the state stays SEARCH, a chase target ends it at once).
 
 ## Shout duration (s): stands, shouts, then chases.
 const SHOUT_SEC := 0.5
@@ -22,6 +24,10 @@ var _since_seen: float = 0.0
 ## Whether the inquiry threshold (60) was passed during LOOK (the +60 given unseen counts too: US-016 witness, US-010).
 var _investigate: bool = false
 var _rescue_cb: Callable = Callable()
+## US-048 SORGU-2: questioned peer (0 = none), whether asked, time in the current phase (walk / wait).
+var _probe: int = 0
+var _probe_asked: bool = false
+var _probe_t: float = 0.0
 
 
 func _init(brain: OwnerBrain) -> void:
@@ -34,6 +40,7 @@ func reset() -> void:
 	_asked = false
 	_investigate = false
 	_since_seen = 0.0
+	_probe = 0
 
 
 ## One step: the state's desired velocity (global px/s). `level` is the level of the most suspicious free player.
@@ -174,9 +181,19 @@ func _search(delta: float) -> Vector2:
 	var t: OwnerTuning = _b.owner_tuning
 	_since_seen += delta
 	if pick_chase_target() != 0:
+		_probe = 0
 		_b.fsm.go(OwnerBrain.State.CHASE)
 		return Vector2.ZERO
+	if _probe == 0:
+		_probe = _b.search_question_peer()
+		if _probe != 0:
+			_probe_asked = false
+			_probe_t = 0.0
+			_b.begin_search_question(_probe)
+	if _probe != 0:
+		return _probe_step(delta)
 	if _since_seen >= t.calm_after_sec:
+		_b.settle_intact_covers()  # US-048: capped intact covers drop to 59 (calm questioning chain)
 		_b.back_to_agenda(true)  # US-039 AC6: first task is the backroom (discovery on arrival if cash was taken)
 		return Vector2.ZERO
 	var spot: Vector2 = _b.seen_at(_b.target)
@@ -187,6 +204,36 @@ func _search(delta: float) -> Vector2:
 		_b.turn(_b.perception.facing.rotated(PI * 0.5), delta)  # looks around
 		return Vector2.ZERO
 	return _b.walk(delta, spot)
+
+
+## SORGU-2 step: walk to the player's last seen spot, ask at the stop distance, wait, back to searching. Ends early if the player is gone,
+## no longer free or their cover broke (then the ALARM row fills the meter and the chase takes over), or the walk takes too long.
+func _probe_step(delta: float) -> Vector2:
+	var t: OwnerTuning = _b.owner_tuning
+	_probe_t += delta
+	var player: Node2D = _b.senses.player(_probe)
+	var spot: Vector2 = _b.seen_at(_probe)
+	if player == null or not bool(player.call(&"is_free")) or not _b.senses.cover_intact(_probe) or not spot.is_finite():
+		_probe = 0
+		return Vector2.ZERO
+	if not _probe_asked:
+		if _b.body.global_position.distance_to(spot) <= t.search_question_stop:
+			_probe_asked = true
+			_probe_t = 0.0
+			_b.mover.stop()
+			_b.ask_search(_probe)
+			return _b.face(spot)
+		if _probe_t >= t.search_question_max_sec:
+			_probe = 0
+			_b.mover.stop()
+			return Vector2.ZERO
+		_b.mover.move_to(spot, t.search_question_speed, t.search_question_stop)
+		return _b.walk(delta, spot)
+	if _probe_t >= t.search_question_wait_sec:
+		_probe = 0
+		return Vector2.ZERO
+	_b.mover.stop()
+	return _b.face(spot)
 
 
 ## Free player to chase: at detection level (100) and currently seen, the nearest; an ongoing target takes priority.

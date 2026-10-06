@@ -39,7 +39,8 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## 5: US-043 owner/local-resident REDIRECT components and `net_misdirected`.
 ## 6: US-045 player hand synchronizer (`Status/Hand` item/paid + Drop component), counter order/shop counters, shelf item points and
 ##    the counter's Pickup component.
-const PROTOCOL_VERSION := 6
+## 7: US-048 owner event kind `owner_question_search` (search questioning balloon; old builds would drop it silently).
+const PROTOCOL_VERSION := 7
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 ## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by

@@ -91,6 +91,24 @@ extends Resource
 @export_range(0.0, 10.0, 0.05, "suffix:s") var stagger_sec: float = 0.0
 @export_range(0.0, 100.0, 1.0) var rescuer_suspicion: float = 0.0
 
+@export_group("Arama sorgusu")
+## US-048 (GB-12, KR-041): while the owner is alarmed (shout, chase, hold, stagger, search) an intact-cover player's suspicion stops at this
+## cap (sight fill and the misdirect gain; 100 = no cap). Breaking cover lifts it (ALARM row, the usual hold chain).
+@export_range(0.0, 100.0, 1.0) var search_cover_cap: float = 100.0
+## SORGU-2: in SEARCH, an intact-cover free player at >= this suspicion is questioned (0 = off): the owner walks over at `search_question_speed`,
+## stops at `search_question_stop`, "Sen de buradaydın! Kim aldı?" and waits `search_question_wait_sec`, then searches on. Gives up if not
+## there within `search_question_max_sec`. The same player is not questioned again within `search_question_cooldown_sec` (from the start);
+## the first questioning per job counts `recognized` +1. Questioning does not break cover.
+@export_range(0.0, 100.0, 1.0) var search_question_at: float = 0.0
+@export_range(0.0, 1000.0, 1.0, "suffix:px/s") var search_question_speed: float = 0.0
+@export_range(0.0, 512.0, 1.0, "suffix:px") var search_question_stop: float = 0.0
+@export_range(0.0, 30.0, 0.1, "suffix:s") var search_question_wait_sec: float = 0.0
+@export_range(0.0, 60.0, 0.1, "suffix:s") var search_question_max_sec: float = 0.0
+@export_range(0.0, 120.0, 0.5, "suffix:s") var search_question_cooldown_sec: float = 0.0
+## When the search ends and the owner calms down, intact-cover meters above this drop to it (59: just under the questioning
+## threshold, so the calm LOOK -> QUESTION chain runs before any shout; 100 = unchanged).
+@export_range(0.0, 100.0, 1.0) var search_calm_value: float = 100.0
+
 @export_group("Uyarı ve mahalleli")
 ## Seconds the owner must stay calm for alert 1 -> 0.
 @export_range(0.0, 120.0, 0.5, "suffix:s") var alert_calm_sec: float = 0.0

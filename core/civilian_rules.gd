@@ -35,7 +35,8 @@ class Params:
 	var bag_or_lock_factor: float = 0.0
 	var cash_factor: float = 0.0
 	var alarm_factor: float = 0.0
-	## From this alert level on everyone uses `alarm_factor` (grocery: 2 = owner shouted).
+	## From this alert level on every player with broken cover uses `alarm_factor` (grocery: 2 = owner shouted; US-048: an intact
+	## cover keeps the normal rows).
 	var alarm_level: int = 0
 	## Decay while seen but innocent (units/s).
 	var innocent_decay: float = 0.0
@@ -65,6 +66,8 @@ class Context:
 	var customers_inside: int = 0
 	## Uninterrupted seconds staring in through the window from outside (US-044; owner's context only).
 	var window_stare: float = 0.0
+	## US-048 (GB-12, KR-041): the player's cover is intact (heist running, not broken); the ALARM row applies only to a broken cover.
+	var cover_intact: bool = false
 
 
 static func is_inside(zone: Zone) -> bool:
@@ -108,7 +111,7 @@ static func candidates(p: Params, ctx: Context) -> Array[Behaviour]:
 		out.append(Behaviour.BAG_OR_LOCK)
 	if ctx.interaction == Interaction.CASH:
 		out.append(Behaviour.CASH)
-	if p.alarm_level > 0 and ctx.alert_level >= p.alarm_level:
+	if p.alarm_level > 0 and ctx.alert_level >= p.alarm_level and not ctx.cover_intact:
 		out.append(Behaviour.ALARM)
 	if not inside and p.window_stare_factor > 0.0 and ctx.window_stare > p.window_stare_grace:
 		out.append(Behaviour.WINDOW_STARE)
@@ -181,6 +184,29 @@ static func bubble(p: Params, meter: float, alarmed: bool, previous: Bubble) -> 
 	if previous != Bubble.NONE and meter >= p.notice_at - p.bubble_hysteresis:
 		return Bubble.NOTICE
 	return Bubble.NONE
+
+
+## --- Search after the shout (US-048; GB-12, KR-041) ---
+
+## Sight fill stops here: while the owner is alarmed an intact-cover player's meter reached `cap` (perception's factor becomes 0,
+## `outside_stare_cap` pattern). A meter already at detection is not held back (a player detected by the normal rows keeps the chain).
+static func cover_cap_reached(value: float, cap: float, detect_at: float) -> bool:
+	return value >= cap and value < detect_at - SuspicionMeter.EPSILON
+
+
+## A direct suspicion gain limited by the cap (misdirect +30 on an intact cover while alarmed); 0 at or above the cap.
+static func capped_gain(value: float, gain: float, cap: float) -> float:
+	if gain <= 0.0:
+		return gain
+	return clampf(cap - value, 0.0, gain)
+
+
+## SORGU-2 due: intact cover, free, meter >= `at` (0 = off) and not asked within `cooldown` s (`last_at` < 0 = never asked).
+static func search_question_due(value: float, at: float, cover_intact: bool, free: bool, last_at: float, now: float,
+		cooldown: float) -> bool:
+	if at <= 0.0 or not cover_intact or not free or value < at - SuspicionMeter.EPSILON:
+		return false
+	return last_at < 0.0 or now - last_at >= cooldown
 
 
 ## --- Grocery interactions (US-010; GDD §9.3 "player tools", KR-026) ---

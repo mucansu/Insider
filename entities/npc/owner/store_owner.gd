@@ -50,7 +50,7 @@ signal owner_order_unpaid(peer_id: int)
 signal owner_no_money(peer_id: int)
 ## On every peer: task changed (replicated; task icon US-011).
 signal task_changed(task_name: StringName)
-## Host only (US-010): a player tool was applied successfully (OwnerBrain.social_action relay; kind buy|talk|send|distract).
+## Host only (US-010): a player tool was applied successfully (OwnerBrain.peer_social_action relay; kind buy|talk|send|distract).
 ## US-042 `Tracker.note_social` connects to this (coordinator merge).
 signal social_action(peer_id: int, kind: StringName)
 ## US-010 trace / US-043 / US-044 event channel (every peer): STALL soothe exhausted ("does not work again"),
@@ -58,6 +58,8 @@ signal social_action(peer_id: int, kind: StringName)
 signal owner_soothe_refused(peer_id: int)
 signal owner_misdirect(peer_id: int)
 signal owner_question_window(peer_id: int)
+## US-048 SORGU-2 (every peer): an intact-cover player questioned during the search ("Sen de buradaydın! Kim aldı?").
+signal owner_question_search(peer_id: int)
 ## Host only (US-044): the owner recognised the player (window questioning); Game counts `recognized` +1 at heist result.
 signal recognized(peer_id: int)
 
@@ -67,7 +69,8 @@ const DUMP_KEY := "owner"
 const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"owner_shout", &"owner_held",
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
 	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
-	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money"]
+	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money",
+	&"owner_question_search"]
 ## Prompt key of the REDIRECT component, required tag (player's cover intact; Player.interaction_tags) and session
 ## event (HUD text EVENT_MISDIRECT).
 const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
@@ -168,8 +171,8 @@ func _ready() -> void:
 		_brain.civilian_tuning = civilian_tuning
 		_brain.agenda_seed = agenda_seed()
 		_brain.talk_item = _talk
-		_brain.social_action.connect(social_action.emit)
-		_brain.recognized.connect(recognized.emit)
+		_brain.peer_social_action.connect(social_action.emit)  # US-048: renamed like `recognized` (was counted twice by Game)
+		_brain.peer_recognized.connect(recognized.emit)  # US-048: not `recognized` (Game connects every NPC node with that signal: counted twice)
 		_brain.setup(self, _perception, _suspicion, _agenda, _mover, _senses)
 		_bind_hearing()
 	if not Args.dump_path.is_empty():
@@ -234,11 +237,12 @@ func apply_suspicion(peer_id: int, delta: float) -> void:
 
 
 ## Host API (US-016 AC5): a witness civilian told - suspicion `delta` to that player; `where` (the spot the witness saw, if finite)
-## becomes the owner's last seen position (the questioning walks there).
+## becomes the owner's last seen position (the questioning walks there). US-048: while the owner is alarmed an intact cover stops at the
+## search cap (a witness telling about a loiterer does not lift it; a broken cover - e.g. the seen RESCUE - fills on by the ALARM row).
 func report_suspicion(peer_id: int, delta: float, where: Vector2 = Vector2.INF) -> void:
 	if not _is_host() or not active or peer_id == 0:
 		return
-	_suspicion.apply_delta(peer_id, delta)
+	_suspicion.apply_delta(peer_id, _brain.capped_gain(peer_id, delta))
 	if where.is_finite():
 		_suspicion.hint_position(peer_id, where)
 
@@ -366,7 +370,7 @@ func misdirect(peer_id: int) -> bool:
 			if bool(npc.call(&"mislead", point, tools.misdirect_run_sec)):
 				misled += 1
 	net_misdirected = true
-	_suspicion.apply_delta(peer_id, tools.misdirect_suspicion)
+	_suspicion.apply_delta(peer_id, _brain.capped_gain(peer_id, tools.misdirect_suspicion))  # US-048: 90 cap while alarmed
 	misdirects.append({"peer": peer_id, "chasers": misled, "point": [roundf(point.x), roundf(point.y)]})
 	host_event(&"owner_misdirect", peer_id)
 	Game.raise_session_event(MISDIRECT_SESSION_EVENT, {"peer": peer_id})
@@ -525,6 +529,7 @@ func dump_state() -> Dictionary:
 		out["soothed"] = _brain.soothed.duplicate(true)
 		out["misdirects"] = misdirects.duplicate(true)
 		out["window_questions"] = _brain.window_questions.duplicate()
+		out["search_questions"] = _brain.search_questions.duplicate(true)  # US-048 SORGU-2 {peer, t, value}
 		out["log"] = _brain.event_log.rows()  # IS-081: event log (OwnerLog; refers to the records above by index)
 		out["log_dropped"] = _brain.event_log.dropped
 	return out

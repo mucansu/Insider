@@ -45,6 +45,11 @@ extends Node
 ##   counted once per source (prop + kind), the second and later add `again_suspicion` to the culprit ("again?", `owner_again`); distraction
 ##   listening is not split into LOOK unless suspicion reaches the QUESTION threshold (60). On reaching the phone's LISTEN point it finds the
 ##   phone (`owner_phone_found`, session event `phone_found`).
+## Search after the shout (US-048; GB-12, KR-041): the ALARM row applies only to a broken cover (CivilianRules context). While alarmed an
+## intact-cover player's suspicion stops at `search_cover_cap` (90; sight fill and the misdirect gain - not the rescue/association cost,
+## which is evidence). SORGU-2 (in SEARCH, OwnerReaction): an intact-cover free player at >= `search_question_at` (60) is walked to and asked
+## "Sen de buradaydın! Kim aldı?" (`owner_question_search`), then the search goes on; first time per job `recognized` +1, the same player not
+## again within the cooldown (20 s). Questioning does not break cover; breaking it (run, staff side, bag, seen RESCUE ...) -> ALARM -> chase.
 
 ## Host only: shout (first, after discovery, or discovery while alarmed = neighbour +1); `late` = from discovery (alert manager spawns the
 ## neighbour).
@@ -54,10 +59,12 @@ signal register_opened(customer_id: int)
 ## Host only: discovery (US-039; Source).
 signal discovered(source: int)
 ## Host only (US-010; US-042 strategy tag "social" hook): a player tool was applied successfully. `kind`: &"buy",
-## &"talk", &"send", &"distract" (the culprit of a new distraction the owner heard and entered LISTEN for).
-signal social_action(peer_id: int, kind: StringName)
-## Host only (US-044): a player gazing through the window was questioned from the door (recognised).
-signal recognized(peer_id: int)
+## &"talk", &"send", &"distract" (the culprit of a new distraction the owner heard and entered LISTEN for). StoreOwner relays it as
+## `social_action` (Game connects every NPC node with that signal name; the same name here counted twice, US-048).
+signal peer_social_action(peer_id: int, kind: StringName)
+## Host only (US-044): a player gazing through the window was questioned from the door (recognised); US-048: the first search questioning.
+## StoreOwner relays it as `recognized` (Game connects every NPC node with a `recognized` signal; the same name here counted twice).
+signal peer_recognized(peer_id: int)
 
 enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH, DISCOVER }
 ## Discovery source (US-039).
@@ -199,6 +206,10 @@ var _soothes: Dictionary = {}
 var _soothed_talk: int = 0
 ## Whether the ongoing questioning is a window questioning (US-044; questioned peer, else 0).
 var _door_question: int = 0
+## US-048 SORGU-2: dump records {peer, t, value} (ask moment), peer -> time of the last questioning (cooldown), peers recognised.
+var search_questions: Array[Dictionary] = []
+var _search_started_at: Dictionary = {}
+var _search_recognized: Dictionary = {}
 
 
 ## Connects components (StoreOwner `_ready`, on the host).
@@ -354,7 +365,7 @@ func send_to_backroom(peer_id: int = 0) -> bool:
 		event_log.note("GÖNDER: arka odaya gidiyor (isteyen p%d)" % peer_id)
 		if peer_id != 0:
 			event(&"owner_sent", peer_id)
-			social_action.emit(peer_id, &"send")
+			peer_social_action.emit(peer_id, &"send")
 	return ok
 
 
@@ -392,7 +403,7 @@ func serve_player(peer_id: int) -> bool:
 	senses.reset_loiter(peer_id)
 	player_serves += 1
 	event(&"owner_serve", peer_id)
-	social_action.emit(peer_id, &"buy")
+	peer_social_action.emit(peer_id, &"buy")
 	return true
 
 
@@ -494,7 +505,7 @@ func hear(pos: Vector2, _radius: float, kind: StringName) -> bool:
 		Game.raise_session_event(DISTRACTED_SESSION_EVENT, {"kind": String(kind)})
 		var by: int = int(source.call(&"distraction_peer", kind)) if source != null else maker
 		if by != 0:
-			social_action.emit(by, &"distract")
+			peer_social_action.emit(by, &"distract")
 	return true
 
 
@@ -706,7 +717,7 @@ func _talk_step() -> void:
 		_talking = talker
 		mover.stop()
 		event(&"owner_talk", talker)
-		social_action.emit(talker, &"talk")
+		peer_social_action.emit(talker, &"talk")
 	else:
 		_end_talk()  # a high-priority interrupt (customer, sent) is running: no talk
 		return
@@ -726,13 +737,79 @@ func _end_talk() -> void:
 
 
 ## Perception's multiplier query: civilian table; the window-gazing row (US-044) stops suspicion at `outside_stare_cap`
-## (does not shout, only asks).
+## (does not shout, only asks); while alarmed an intact cover stops at `search_cover_cap` (US-048).
 func _factor_for(target: Node) -> float:
 	var f: float = senses.factor_for(target)
-	if f <= 0.0 or senses.behaviour_for(target) != CivilianRules.Behaviour.WINDOW_STARE:
+	if f <= 0.0:
 		return f
-	var cap: float = civilian_tuning.outside_stare_cap
-	return 0.0 if suspicion.value_of(target.get_multiplayer_authority()) >= cap else f
+	var peer_id: int = target.get_multiplayer_authority()
+	var value: float = suspicion.value_of(peer_id)
+	if senses.behaviour_for(target) == CivilianRules.Behaviour.WINDOW_STARE:
+		return 0.0 if value >= civilian_tuning.outside_stare_cap else f
+	if cover_capped(peer_id) and CivilianRules.cover_cap_reached(value, owner_tuning.search_cover_cap,
+			perception.tuning.detect_threshold):
+		return 0.0
+	return f
+
+
+## US-048: whether the player's suspicion is capped now (owner alarmed, cover intact).
+func cover_capped(peer_id: int) -> bool:
+	return is_alarmed() and senses.cover_intact(peer_id)
+
+
+## US-048: a direct suspicion gain (misdirect) limited by the cap while capped; unchanged otherwise.
+func capped_gain(peer_id: int, gain: float) -> float:
+	if not cover_capped(peer_id):
+		return gain
+	return CivilianRules.capped_gain(suspicion.value_of(peer_id), gain, owner_tuning.search_cover_cap)
+
+
+## US-048 SORGU-2 candidate (SEARCH): the most suspicious player seen now who is due (CivilianRules.search_question_due); 0 if none.
+func search_question_peer() -> int:
+	var best: int = 0
+	var best_value: float = -1.0
+	var seen: Dictionary = suspicion.last_observations()
+	for peer_id: int in seen:
+		var obs: Perception.Observation = seen[peer_id]
+		if obs.band == PerceptionRules.Band.NONE or not obs.line_clear:
+			continue
+		var player: Node2D = senses.player(peer_id)
+		var free: bool = player != null and bool(player.call(&"is_free"))
+		var value: float = suspicion.value_of(peer_id)
+		if value <= best_value or not CivilianRules.search_question_due(value, owner_tuning.search_question_at,
+				senses.cover_intact(peer_id), free, float(_search_started_at.get(peer_id, -1.0)), fsm.clock,
+				owner_tuning.search_question_cooldown_sec):
+			continue
+		best_value = value
+		best = peer_id
+	return best
+
+
+## US-048 (KR-041 addendum): the search ended - intact-cover meters above `search_calm_value` (59) drop to it, so a capped (90) player
+## who keeps loitering meets the calm LOOK -> QUESTION chain instead of a shout a second later. Called before `back_to_agenda`.
+func settle_intact_covers() -> void:
+	for peer_id: int in suspicion.peers():
+		var value: float = suspicion.value_of(peer_id)
+		if senses.cover_intact(peer_id) and value > owner_tuning.search_calm_value:
+			suspicion.apply_delta(peer_id, owner_tuning.search_calm_value - value)
+			event_log.note("arama bitti: p%d şüphe %.0f -> %.0f" % [peer_id, value, owner_tuning.search_calm_value])
+
+
+## US-048: a questioning of `peer_id` starts (the cooldown counts from here if the owner gives up on the way, else from the question).
+func begin_search_question(peer_id: int) -> void:
+	_search_started_at[peer_id] = fsm.clock
+	event_log.note("arama sorgusuna yürüyor p%d" % peer_id)
+
+
+## US-048: the questioning moment - balloon "Sen de buradaydın! Kim aldı?"; first time per job the player is recognised.
+func ask_search(peer_id: int) -> void:
+	search_questions.append({"peer": peer_id, "t": snappedf(fsm.clock, 0.01),
+		"value": snappedf(suspicion.value_of(peer_id), 0.1)})
+	_search_started_at[peer_id] = fsm.clock  # the cooldown counts from the question itself
+	event(&"owner_question_search", peer_id)
+	if not _search_recognized.has(peer_id):
+		_search_recognized[peer_id] = true
+		peer_recognized.emit(peer_id)
 
 
 ## Questioning point: for a player gazing through the window (outside) the owner walks to the front door (US-044); for others the last seen position.
@@ -759,7 +836,7 @@ func ask(peer_id: int) -> void:
 	if _door_question == peer_id:
 		window_questions.append(peer_id)
 		event(&"owner_question_window", peer_id)
-		recognized.emit(peer_id)
+		peer_recognized.emit(peer_id)
 	else:
 		event(&"owner_question", peer_id)
 
