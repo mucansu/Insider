@@ -35,6 +35,11 @@ const EVENT_NAME_FIELD := "name"
 const INTERACT_ACTION := &"interact"
 ## Input action of the second prompt row (US-010 Q / gamepad X; IS-091).
 const ALT_ACTION := &"intimidate"
+## IS-110 (GB-12): own-screen variants of player events (the held/caught player reads "you", not their own name).
+const SELF_EVENT_KEYS := {&"player_held": "EVENT_PLAYER_HELD_SELF", &"player_caught": "EVENT_PLAYER_CAUGHT_SELF"}
+## Event whose text carries the rescue window ({seconds}) and the PULL key ({key}, UiInput.action_hint).
+const HELD_EVENT := &"player_held"
+const HELD_WINDOW_FIELD := "window"
 
 var net: Object = Net
 var game: Object = Game
@@ -56,6 +61,10 @@ var _interaction_linger: float = 0.0
 var _toast_ttl: Dictionary = {}
 var _cash: int = 0
 var _leaving: bool = false
+## IS-110: crew status (held countdown / caught / escaped) per peer; badges in the crew list, big countdown for the local player.
+var team_status := TeamStatus.new()
+## peer -> badge Label in the crew list (rebuilt with the rows).
+var _badges: Dictionary = {}
 
 @onready var _root: Control = %Root
 @onready var _cash_value: Label = %CashValue
@@ -76,6 +85,8 @@ var _leaving: bool = false
 @onready var _team_markers: TeamMarkers = %TeamMarkers
 @onready var _escape_panel: EscapePanel = %EscapePanel
 @onready var _escape_arrow: EscapeArrow = %EscapeArrow
+@onready var _held_countdown: Control = %HeldCountdown
+@onready var _held_countdown_label: Label = %HeldCountdownLabel
 
 
 func _ready() -> void:
@@ -84,6 +95,8 @@ func _ready() -> void:
 	game.connect(&"players_changed", refresh_players)
 	game.connect(&"session_event", _on_session_event)
 	game.connect(&"local_player_changed", _bind_player)
+	if game.has_signal(&"heist_finished"):
+		game.connect(&"heist_finished", _on_heist_finished)
 	net.connect(&"host_disconnected", _on_host_disconnected)
 	net.connect(&"connection_failed", _on_connection_failed)
 	_pause_menu.leave_requested.connect(_on_leave_requested)
@@ -92,6 +105,10 @@ func _ready() -> void:
 	_ping_timer.start()
 	_interaction.hide()
 	_prompt.hide()
+	_held_countdown_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_held_countdown.hide()
+	if game.has_method(&"heist_result"):
+		team_status.apply_result(game.call(&"heist_result"))
 	_set_cash(int(game.call(&"team_cash")), false)
 	refresh_players()
 	refresh_ping()
@@ -104,7 +121,8 @@ func _ready() -> void:
 	_heist_end.bind(game, net)
 	_exposure_badge.bind(game, net)
 	var blocks: Array[Control] = [$Root/Frame/Layout/Top/CashPanel as Control,
-		$Root/Frame/Layout/Top/Right as Control, _alert_ladder, _escape_panel, _exposure_badge, _prompt, _interaction]
+		$Root/Frame/Layout/Top/Right as Control, _alert_ladder, _escape_panel, _exposure_badge, _prompt, _interaction,
+		_held_countdown]
 	_team_markers.avoid = blocks
 	_team_markers.bind(game, net)
 	# US-038: the escape panel shows the police timer large; the ladder's small timer only when there is no panel.
@@ -142,6 +160,8 @@ func advance(delta: float) -> void:
 	_team_markers.advance(delta)
 	_escape_panel.advance(delta)
 	_escape_arrow.advance(delta)
+	if team_status.advance(delta):
+		refresh_status()
 
 
 func toggle_pause() -> void:
@@ -214,6 +234,7 @@ func refresh_ping() -> void:
 # --- players ---
 
 func refresh_players() -> void:
+	_badges.clear()
 	for row: Node in _player_list.get_children():
 		_player_list.remove_child(row)
 		row.queue_free()
@@ -239,12 +260,18 @@ func refresh_players() -> void:
 		label.text = tr(&"HUD_PLAYER_YOU") % player_name if peer_id == local_id else player_name
 		row.add_child(swatch)
 		row.add_child(label)
+		var badge := Label.new()
+		badge.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+		badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(badge)
+		_badges[peer_id] = badge
 		_player_list.add_child(row)
 		# The team list stays narrow (covers little map, US-013): long names are ellipsised.
 		var width: float = label.get_theme_font(&"font").get_string_size(label.text, HORIZONTAL_ALIGNMENT_LEFT, -1,
 			label.get_theme_font_size(&"font_size")).x
 		label.custom_minimum_size.x = minf(ceilf(width), PLAYER_NAME_MAX_WIDTH)
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	refresh_status()
 
 
 # --- session events ---
@@ -263,6 +290,11 @@ func event_text(kind: StringName, data: Dictionary) -> String:
 		var players: Dictionary = game.call(&"players")
 		var info: Dictionary = players.get(peer_id, {}) if typeof(players.get(peer_id)) == TYPE_DICTIONARY else {}
 		fields[EVENT_NAME_FIELD] = _player_name(peer_id, info)
+	if kind == HELD_EVENT:
+		# IS-110: "X tutuldu! 6 sn — yanına git, ÇEK (E)": window in whole seconds, PULL key for the current device.
+		var window: float = float(data.get(HELD_WINDOW_FIELD, 0.0))
+		fields["seconds"] = ceili(maxf(window, 0.0))
+		fields["key"] = UiInput.action_hint(INTERACT_ACTION)
 	return text.format(fields) if not fields.is_empty() else text
 
 
@@ -310,9 +342,66 @@ static func wants_toast(kind: StringName, data: Dictionary) -> bool:
 
 
 func _on_session_event(kind: StringName, data: Dictionary) -> void:
+	if team_status.apply_event(kind, data):
+		refresh_status()
 	if not wants_toast(kind, data):
 		return
-	show_toast(event_text(kind, data))
+	if _is_local_peer(data) and SELF_EVENT_KEYS.has(kind):
+		show_toast(tr(str(SELF_EVENT_KEYS[kind])))
+	else:
+		show_toast(event_text(kind, data))
+
+
+func _is_local_peer(data: Dictionary) -> bool:
+	return typeof(data.get(EVENT_PEER_FIELD)) == TYPE_INT and int(data[EVENT_PEER_FIELD]) == int(net.call(&"local_peer_id"))
+
+
+# --- crew status (IS-110, GB-12) ---
+
+## Crew list badges ("Tutuldu 6", "Yakalandı", "Kaçtı") and the local player's big countdown from `team_status`.
+func refresh_status() -> void:
+	for peer_id: int in _badges:
+		var badge: Label = _badges[peer_id]
+		if not is_instance_valid(badge):
+			continue
+		var name_label: Label = badge.get_parent().get_child(1) as Label
+		var state: int = team_status.badge(peer_id)
+		badge.visible = state != TeamStatus.Badge.NONE
+		name_label.theme_type_variation = &""
+		match state:
+			TeamStatus.Badge.HELD:
+				badge.theme_type_variation = &"AlertLabel"
+				badge.text = _held_text(&"HUD_STATUS_HELD", &"HUD_STATUS_HELD_NO_TIME", team_status.seconds_left(peer_id))
+			TeamStatus.Badge.CAUGHT:
+				badge.theme_type_variation = &"MutedLabel"
+				badge.text = tr(&"HUD_STATUS_CAUGHT")
+				name_label.theme_type_variation = &"MutedLabel"
+			TeamStatus.Badge.ESCAPED:
+				badge.theme_type_variation = &"EscapeBadgeLabel"
+				badge.text = tr(&"HUD_STATUS_ESCAPED")
+	var local_id: int = int(net.call(&"local_peer_id"))
+	var held: bool = team_status.badge(local_id) == TeamStatus.Badge.HELD and not _heist_end.is_open()
+	if held:
+		_held_countdown_label.text = _held_text(&"HUD_HELD_COUNTDOWN", &"HUD_HELD_COUNTDOWN_NO_TIME",
+			team_status.seconds_left(local_id))
+	_held_countdown.visible = held
+
+
+## "%d"-style text with the whole seconds left; the no-time key while the window is not known yet.
+func _held_text(key: StringName, no_time_key: StringName, seconds: int) -> String:
+	return tr(no_time_key) if seconds < 0 else tr(key) % seconds
+
+
+func _on_heist_finished(result: Dictionary) -> void:
+	team_status.apply_result(result)
+	refresh_status()
+
+
+## Local player's status (S7 addendum, US-008: `status_changed` + `hold_left()`); the event may arrive before or after it.
+func _on_local_status_changed(state: int) -> void:
+	var left: float = float(_player.call(&"hold_left")) if is_instance_valid(_player) and _player.has_method(&"hold_left") else -1.0
+	if team_status.apply_status(int(net.call(&"local_peer_id")), state, left):
+		refresh_status()
 
 
 func _tick_toasts(delta: float) -> void:
@@ -340,6 +429,7 @@ func _player_signals() -> Dictionary:
 		&"interaction_alt_target_changed": _on_interaction_alt_target_changed,
 		&"interaction_started": _on_interaction_started,
 		&"interaction_finished": _on_interaction_finished,
+		&"status_changed": _on_local_status_changed,
 	}
 
 

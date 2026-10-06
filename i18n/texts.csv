@@ -48,14 +48,22 @@ HUD_PING_HOST,Host,Host
 HUD_PING_UNKNOWN,— ms,— ms
 HUD_PLAYER_YOU,%s (sen),%s (you)
 HUD_PLAYER_UNNAMED,Oyuncu %d,Player %d
+HUD_STATUS_HELD,Tutuldu %d,Held %d
+HUD_STATUS_HELD_NO_TIME,Tutuldu,Held
+HUD_STATUS_CAUGHT,Yakalandı,Caught
+HUD_STATUS_ESCAPED,Kaçtı,Escaped
+HUD_HELD_COUNTDOWN,TUTULDUN — %d,HELD — %d
+HUD_HELD_COUNTDOWN_NO_TIME,TUTULDUN,HELD
 HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
 EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.
 EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
 EVENT_POLICE_ARRIVED,Polis geldi.,The police are here.
 EVENT_SHOUT,Biri bağırdı.,Someone shouted.
-EVENT_PLAYER_HELD,{name} tutuldu! Kurtarın.,{name} is being held! Get them out.
-EVENT_PLAYER_CAUGHT,{name} yakalandı.,{name} got caught.
+EVENT_PLAYER_HELD,"{name} tutuldu! {seconds} sn — yanına git, ÇEK ({key})","{name} is held! {seconds} s — get next to them, PULL ({key})"
+EVENT_PLAYER_HELD_SELF,TUTULDUN — arkadaşın çekebilir,YOU'RE HELD — a teammate can pull you free
+EVENT_PLAYER_CAUGHT,{name} yakalandı — kurtarılamaz.,{name} got caught — no rescue.
+EVENT_PLAYER_CAUGHT_SELF,YAKALANDIN — kurtarılamaz.,YOU GOT CAUGHT — no rescue.
 EVENT_PLAYER_RESCUED,{name} kurtarıldı.,{name} was pulled free.
 EVENT_OWNER_DISCOVERED,Bakkal soyulduğunu fark etti.,The grocer noticed the robbery.
 PAUSE_TITLE,Menü,Menu

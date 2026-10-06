@@ -98,6 +98,8 @@ func test_hud_fits() -> void:
 		net.my_peer_id = 3
 		game.players_changed.emit()
 		(game as Fakes.FakeVisionGame).player_exposure_changed.emit(3, 2)  # longest badge text
+		for i: int in 4:  # IS-110: every crew row has a held badge, the local player's big countdown is up
+			game.session_event.emit(&"player_held", {"peer": i + 1, "window": 6.0})
 		game.team_cash_changed.emit(1999999999)
 		net.ping_ms = 9999
 		hud.refresh_ping()
@@ -119,7 +121,9 @@ func test_hud_fits() -> void:
 		_check_fonts(hud.get_node("%Root"), label + " HUD")
 		var top: String = "Root/Frame/Layout/Top/"
 		_check_disjoint([hud.get_node(top + "CashPanel"), hud.get_node("%Toasts"), hud.get_node(top + "Right"),
-			hud.get_node("%Interaction"), hud.get_node("%AlertLadder"), hud.get_node("%ExposureBadge")], label + " HUD blokları")
+			hud.get_node("%Interaction"), hud.get_node("%AlertLadder"), hud.get_node("%ExposureBadge"),
+			hud.get_node("%HeldCountdown")], label + " HUD blokları")
+		is_true((hud.get_node("%HeldCountdown") as Control).visible, label + ": tutuldun geri sayımı görünür")
 		is_true((hud.get_node("%ExposureBadge") as Control).visible, label + ": maruziyet rozeti görünür")
 		# US-013: corner elements and the ladder cover little of the map (even with the longest content).
 		var covered: float = 0.0
