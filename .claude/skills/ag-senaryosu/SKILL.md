@@ -6,10 +6,10 @@ description: Recipe for writing and running Insiders multi-process network tests
 # Network scenario (net_smoke)
 
 Rule (surec.md §9): network behaviour is never merged untested - at least one `tests/net` scenario green at **0 and 150 ms**.
-Single source of the schema: the `tools/net_smoke.py` docstring (lines 1-82). This is a summary; check there when unsure.
+Single source of the schema: the `tools/net_smoke.py` docstring (lines 1-86). This is a summary; check there when unsure.
 
 ## Scenario file `tests/net/<name>.json`
-Keys (unknown key = FAIL): `_doc`, `level` (required), `player_scene`, `clients` (default 2: c1..cN), `duration` (default 8 s; common dump moment), `start_delay` ({"c2":14}), `quit_after`, `bots`, `names`, `exit_codes`, `allow_log` (regex), `deny_warnings`, `mem_sample_sec`, `timeout`, `expect` (required, non-empty).
+Keys (unknown key = FAIL): `_doc`, `level` (required), `player_scene`, `clients` (default 2: c1..cN), `duration` (default 8 s; common dump moment), `start_delay` ({"c2":14}), `quit_after`, `bots`, `names`, `exit_codes`, `allow_log` (regex), `deny_warnings`, `mem_sample_sec`, `timeout`, `args` ({"host": ["--vision-mode=directional"]}: extra user args per process; harness-managed flags rejected; IS-082), `expect` (required, non-empty).
 
 ```json
 {
