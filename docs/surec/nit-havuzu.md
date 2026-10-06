@@ -70,3 +70,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-06 | US-047 (arayuz) | assets/ambience, assets/music | Döngüler kulakla denetlenmedi (dikiş, müziğin noir'a uyumu) → test-2 gözlemi; Freesound HQ önizleme (128 kbps) kullanıldı, özgün dosya sonra |
 | 2026-10-06 | US-047 (arayuz) | entities/fx/soundscape.gd | Müşteri mırıltısı sabit düzey (NPC sayısına bağlı değil) |
 | 2026-10-06 | US-047 (arayuz) | core/music_rules.gd | Uyarı ≥ 2'de müzik 4 sn sonra döner (ses-ve-sfx §5); kovalamada tuhafsa 'kademe < 2'ye inene kadar sus' tek satır. Stinger'lar UI bus'ında (müzik kaydırıcısından bağımsız) — US-025'te onay |
+| 2026-10-06 | US-048 (denetci) | tests/net/owner_search_cover.json | 150 ms'de 8 koşudan 1 FAIL (çıktı kesik); seyrek kararsız olabilir, CI'da izle (oynanis) |
+| 2026-10-06 | US-048 (denetci) | docs/notes/mimari.md | ALARM satırı değişikliği civilian_tuning ortak olduğu için sivilleri de kapsıyor; 'US-048 ekleri' paragrafı yalnız 'sahip' diyor — bir cümle netleştir |
+| 2026-10-06 | US-048 (oynanis) | entities/npc/owner/brain_owner.gd | ARA'da sahip son görülen noktada bakındığı için uzaktaki oyalanan müşteriyi ~1/3 zamanda görüyor; SORGU-2 çoğunlukla yakında tetikleniyor. Sorgu 64 px sınırında, YÖNLENDİR istemi sınırda (56 px pay) |

@@ -3,17 +3,17 @@
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Dilim kuralı KR-033 (her dilim sonu durma noktası). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69c453b = faz2-int 58aaaa4 + pano). **Dilim 2.3 Test-2 sürüyor** (2026-10-06; backlog §1a: IS-017, IS-082 (2.6'dan çekildi, IS-028 önkoşulu), IS-028, IS-032, IS-092, IS-097, IS-018 ara değerlendirme). **PROTOCOL_VERSION 6** (eski paketler bağlanamaz). Unit 926 yeşil; tam CI 2026-10-05: import/unit/tools yeşil, ağ 49 senaryo × 0/150 ms (düzeltme sonrası store_b_brain_shout PASS; store_b_smoke 0 ms'de nadir döküm yarışı, nit).
-**Test-2 paketi:** `build/Insiders-faz2-58aaaa4-windows.zip` (debug, 33,7 MB; duman PASS: host + katılan INSIDERS_READY; `--log-on-exit=kayit.json` exe yanına yazıyor). Eski a01ac86 paketi artık kullanılmaz.
+Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69c453b = faz2-int 58aaaa4 + pano). **Dilim 2.3 Test-2 sürüyor** (2026-10-06; backlog §1a: IS-017, IS-082 (2.6'dan çekildi, IS-028 önkoşulu), IS-028, IS-032, IS-092, IS-097, IS-018 ara değerlendirme). **PROTOCOL_VERSION 7** (US-048; eski paketler bağlanamaz). Unit 926 yeşil; tam CI 2026-10-05: import/unit/tools yeşil, ağ 49 senaryo × 0/150 ms (düzeltme sonrası store_b_brain_shout PASS; store_b_smoke 0 ms'de nadir döküm yarışı, nit).
+**Test-2 paketi (yeni, 2026-10-06):** `build/Insiders-faz2-eb5989e-windows.zip` (debug, 35,2 MB, protokol 7; duman PASS host + katılan INSIDERS_READY). İçinde: ortam sesi v0 (US-047), KR-041 örtü/sorgu (US-048), tutuldu/yakalandı göstergesi (IS-110). 58aaaa4 ve öncesi artık bağlanamaz.
 
 Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone), IS-107 (ikinci deneme haritası store_b + ezmeler + brain senaryoları; ölçüm `docs/surec/olcum/20261004-2330-is107-store-a-vs-b.md`), US-045 (gerçek alışveriş v0: sakız/ekmek/kola/damacana, harçlık 50, damacana GÖNDER'in yerine, +20 koşullu, örtü yalnız görülünce + seen_by, witness kökü: geç katılana örtü yeniden gönderimi; denetci PASS), IS-108 (yaylı arka kapı, GB-11; komşu kapalı kapıyı açar). Kararlar: KR-038 (alışveriş v0 + örtü A), KR-039 (yaylı arka kapı, kullanıcı onayı). Fable danışması: `docs/tasarim/danisma/us-045-store-b.md`.
 
 ## Sürüyor / yarım kalan
 - IS-017 + IS-032: test-2 kullanıcıda. Protokol `docs/tasarim/danisma/test-2-protokol.md` (T1 Çevresel → T2 Yönlü → T3 Çevresel → T4 store_b → T5 isteğe bağlı sessiz); oyuncu yönergesi kullanıcıya verildi (2026-10-06). Kayıt (OBS/Discord) izni kullanıcıda.
 - Bitti: US-047 ortam sesi v0 → faz2-int db66d37.
-- US-048 (oynanis, ajan worktree'si): bağırış sonrası örtüsü sağlam tutulmaz/sorgulanır (KR-041, GB-12); ağ değişirse denetci.
+- Bitti: US-048 → faz2-int eb5989e (denetci PASS).
 - Bitti: IS-110 → faz2-int af8e03e (import/unit/tools + rescue 0 ms yeşil).
-- Hepsi (US-047, US-048, IS-110) faz2-int'e birleşince yeni test-2 paketi.
+- Yeni test-2 paketi eb5989e çıktı; tam ci_local (test-N öncesi, KR-028) arka planda koşuyor.
 - Bitti (2026-10-06): IS-082 + IS-028 → faz2-int dcf6652 (birleştirme c309676; import/unit/tools + vision_split ×2 + look_sync 0/150 ms yeşil). dev'e dilim sonunda.
 - Sonraki adım: test-2 kayıt dosyaları + notlar gelince GB-nn, form eşlemesi (protokol §4), IS-018 Fable ara değerlendirmesi, IS-092/IS-097 önceliği (protokol §5).
 - Çalışan ajan yok; worktree'ler: faz2-int.
