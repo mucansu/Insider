@@ -67,3 +67,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-06 | IS-110 (arayuz) | ui/hud.tscn | Büyük "TUTULDUN — n" ~610 px, geniş harf aralığı; küçültülebilir (HeadingLabel) |
 | 2026-10-06 | IS-110 (arayuz) | ui/team_status.gd | "Kaçtı" rozeti yalnız tur sonunda (oyun içinde oyuncu başına kaçış olayı yok); STATUS_* değerleri PlayerStatus.State kopyası (test_deps; testle bağlı — koordinatör: böyle kalsın) |
 | 2026-10-06 | IS-110 (arayuz) | autoload/game.gd slot | Oyuncu renk örneği aynı peer için çalıştırmalar arasında değişiyor (slot ataması) |
+| 2026-10-06 | US-047 (arayuz) | assets/ambience, assets/music | Döngüler kulakla denetlenmedi (dikiş, müziğin noir'a uyumu) → test-2 gözlemi; Freesound HQ önizleme (128 kbps) kullanıldı, özgün dosya sonra |
+| 2026-10-06 | US-047 (arayuz) | entities/fx/soundscape.gd | Müşteri mırıltısı sabit düzey (NPC sayısına bağlı değil) |
+| 2026-10-06 | US-047 (arayuz) | core/music_rules.gd | Uyarı ≥ 2'de müzik 4 sn sonra döner (ses-ve-sfx §5); kovalamada tuhafsa 'kademe < 2'ye inene kadar sus' tek satır. Stinger'lar UI bus'ında (müzik kaydırıcısından bağımsız) — US-025'te onay |
