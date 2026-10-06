@@ -64,3 +64,6 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-06 | IS-028 (cekirdek) | docs/tasarim/arastirma/gorus-sis-hafiza.md | AC8 "sahip hayaleti 6 sn" ↔ AC3 1,5 sn çelişkisi (kod 1,5 sn) |
 | 2026-10-06 | IS-028 (cekirdek) | tests/net/vision_split_*.json | AC7 zamanlı maddeler (döndükten ≤150 ms dolu, karede ≥2 değişmez) ve çevresel siluet/telefon halkası/c1 arka odada ölçülmedi; zaman damgalı görünürlük geçmişi döküm alanı gerekir (oynanis) |
 | 2026-10-06 | IS-028 (cekirdek) | ui/hud | Yönlü kipte "[E] Kapıyı aç" istemi ekran alt ortasında, host etiketinin yanında (kapının yanında değil) |
+| 2026-10-06 | IS-110 (arayuz) | ui/hud.tscn | Büyük "TUTULDUN — n" ~610 px, geniş harf aralığı; küçültülebilir (HeadingLabel) |
+| 2026-10-06 | IS-110 (arayuz) | ui/team_status.gd | "Kaçtı" rozeti yalnız tur sonunda (oyun içinde oyuncu başına kaçış olayı yok); STATUS_* değerleri PlayerStatus.State kopyası (test_deps; testle bağlı — koordinatör: böyle kalsın) |
+| 2026-10-06 | IS-110 (arayuz) | autoload/game.gd slot | Oyuncu renk örneği aynı peer için çalıştırmalar arasında değişiyor (slot ataması) |
