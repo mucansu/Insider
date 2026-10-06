@@ -9,10 +9,10 @@ Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69
 Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone), IS-107 (ikinci deneme haritası store_b + ezmeler + brain senaryoları; ölçüm `docs/surec/olcum/20261004-2330-is107-store-a-vs-b.md`), US-045 (gerçek alışveriş v0: sakız/ekmek/kola/damacana, harçlık 50, damacana GÖNDER'in yerine, +20 koşullu, örtü yalnız görülünce + seen_by, witness kökü: geç katılana örtü yeniden gönderimi; denetci PASS), IS-108 (yaylı arka kapı, GB-11; komşu kapalı kapıyı açar). Kararlar: KR-038 (alışveriş v0 + örtü A), KR-039 (yaylı arka kapı, kullanıcı onayı). Fable danışması: `docs/tasarim/danisma/us-045-store-b.md`.
 
 ## Sürüyor / yarım kalan
-- IS-032 (+ IS-017 hazırlığı): tasarim (Fable) test-2 protokolü + gözlem formu yazıyor → `docs/tasarim/danisma/test-2-protokol.md` (ping yok; sessiz tur kararı Fable'da).
-- IS-082 + IS-028: cekirdek, ajan worktree'si (faz2-int tabanlı); net_smoke senaryo `args` + game.gd vision kancası kaldırma, vision_split 2 kip × 0/150 ms + AC8 kareleri.
-- IS-017: kullanıcı test-2'yi oynayacak (protokol gelince yönerge iletilecek).
-- Eski ajan worktree'leri silindi (2026-10-06); yalnız `.claude/worktrees/faz2-int`.
+- IS-017 + IS-032: test-2 kullanıcıda. Protokol `docs/tasarim/danisma/test-2-protokol.md` (T1 Çevresel → T2 Yönlü → T3 Çevresel → T4 store_b → T5 isteğe bağlı sessiz); oyuncu yönergesi kullanıcıya verildi (2026-10-06). Kayıt (OBS/Discord) izni kullanıcıda.
+- Bitti (2026-10-06): IS-082 + IS-028 → faz2-int dcf6652 (birleştirme c309676; import/unit/tools + vision_split ×2 + look_sync 0/150 ms yeşil). dev'e dilim sonunda.
+- Sonraki adım: test-2 kayıt dosyaları + notlar gelince GB-nn, form eşlemesi (protokol §4), IS-018 Fable ara değerlendirmesi, IS-092/IS-097 önceliği (protokol §5).
+- Çalışan ajan yok; worktree'ler: faz2-int.
 
 ## Yeni sohbette ilk adımlar
 1. Dilim 2.3 Test-2 başı mesajı (surec §5b): kalemler + çıkış kriteri. Kullanıcıya test-2 nasıl oynanır: paketi paylaş, Tailscale, oyunu `Insiders.exe -- --log-on-exit=kayit-<ad>.json` ile açıp kayıt dosyasını geri göndermek (oyunu-ac skill'i).

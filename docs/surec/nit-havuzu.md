@@ -60,3 +60,7 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-05 | US-045 (denetci) | tests/net | Elde ürünle geç katılma için kalıcı senaryo yok (denetci geçici senaryoyla 0/150 ms PASS) |
 | 2026-10-05 | US-045 (denetci) | entities/props/shop_counter.gd | `_buy.action_key` alanına çevrilmiş metin yazılıyor (anahtar değil); dil değişiminde 1 kare gecikme |
 | 2026-10-05 | IS-107 (seviye) | tests/net/store_b_smoke.json | `all_equal population.names` döküm anında doğan yoldan geçen yüzünden 0 ms'de nadir FAIL (4/4 tekrar PASS); beklenti gevşetilebilir |
+| 2026-10-06 | IS-028 (cekirdek) | entities/fx/fog_layer, ui/theme/tokens.gd | Yönlü kipte çevresel ton (4. ton) zor ayırt ediliyor; sahip konisi bu bandın üstüne biniyor (AC8 kanıtı build/screens/vision_split_directional; test-2 A/B adalet puanıyla birlikte bakılır) |
+| 2026-10-06 | IS-028 (cekirdek) | docs/tasarim/arastirma/gorus-sis-hafiza.md | AC8 "sahip hayaleti 6 sn" ↔ AC3 1,5 sn çelişkisi (kod 1,5 sn) |
+| 2026-10-06 | IS-028 (cekirdek) | tests/net/vision_split_*.json | AC7 zamanlı maddeler (döndükten ≤150 ms dolu, karede ≥2 değişmez) ve çevresel siluet/telefon halkası/c1 arka odada ölçülmedi; zaman damgalı görünürlük geçmişi döküm alanı gerekir (oynanis) |
+| 2026-10-06 | IS-028 (cekirdek) | ui/hud | Yönlü kipte "[E] Kapıyı aç" istemi ekran alt ortasında, host etiketinin yanında (kapının yanında değil) |
