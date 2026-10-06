@@ -29,6 +29,9 @@ Ortak alanlar (aşağıdaki her satır için aynı): yazar **Kenney (kenney.nl)*
 | vo_clerk_interrogate | assets/sfx/clerk_interrogate.ogg | `clerk_interrogate` · bakkal sahibi "Hey!" (EN "Hold!"; bağlama US-008) | https://kenney.nl/assets/voiceover-pack · `Male/hold.ogg` (seslendirme: Jeffrey M. Smith) | assets/licenses/kenney_voiceover-pack.txt, kenney_voiceover-pack_credits.txt | yer tutucu — TR kayıt/üretimle değiştirilecek |
 | vo_clerk_shout | assets/sfx/clerk_shout.ogg | `clerk_shout` · "Hırsız var!" (EN "Look out!"; bağlama US-008) | https://kenney.nl/assets/voiceover-pack · `Male/war_look_out.ogg` (seslendirme: Jeffrey M. Smith) | assets/licenses/kenney_voiceover-pack.txt, kenney_voiceover-pack_credits.txt | yer tutucu — TR kayıt/üretimle değiştirilecek |
 | sfx_run_step | assets/sfx/run_step.ogg | `run_step` · koşu adımı (bağlama US-009) | https://kenney.nl/assets/impact-sounds · `footstep_concrete_000.ogg` | assets/licenses/kenney_impact-sounds.txt | yer tutucu — üretimle değiştirilecek |
+| sfx_walk_step_1 | assets/sfx/walk_step_1.ogg | `walk_step` · yürüme adımı varyant 1 (US-047; footstep_emitter.gd) | https://kenney.nl/assets/impact-sounds · `footstep_carpet_000.ogg` (**değişiklik:** stereo → mono, indirme 2026-10-06) | assets/licenses/kenney_impact-sounds.txt | yer tutucu — üretimle değiştirilecek |
+| sfx_walk_step_2 | assets/sfx/walk_step_2.ogg | `walk_step` · yürüme adımı varyant 2 (US-047; footstep_emitter.gd) | https://kenney.nl/assets/impact-sounds · `footstep_carpet_001.ogg` (**değişiklik:** stereo → mono, indirme 2026-10-06) | assets/licenses/kenney_impact-sounds.txt | yer tutucu — üretimle değiştirilecek |
+| sfx_walk_step_3 | assets/sfx/walk_step_3.ogg | `walk_step` · yürüme adımı varyant 3 (US-047; footstep_emitter.gd) | https://kenney.nl/assets/impact-sounds · `footstep_carpet_002.ogg` (**değişiklik:** stereo → mono, indirme 2026-10-06) | assets/licenses/kenney_impact-sounds.txt | yer tutucu — üretimle değiştirilecek |
 
 Paket lisansları (indirme anında okundu, 2026-10-02): altı Kenney paketinin `License.txt`'i "Creative Commons Zero, CC0" yazıyor; kenney.nl sayfaları da "Creative Commons CC0". İndirilip kullanılmayan paket: Kenney UI Audio (https://kenney.nl/assets/ui-audio, CC0) — depoya dosya girmedi. Arşivler depo dışında indirildi; depoya yalnız seçilen `.ogg` dosyaları ve lisans metinleri girdi.
 
@@ -36,7 +39,18 @@ Paket lisansları (indirme anında okundu, 2026-10-02): altı Kenney paketinin `
 
 Henüz yok (yer tutucular yukarıda SFX tablosunda; kullanıcı kaydı/üretim gelince buraya `assets/vo/<ton>/` satırları).
 
-## Müzik · Yazı tipi · İkon
+## Ortam ve müzik (US-047, 2026-10-06)
+
+Ortak alanlar: lisans **CC0 1.0** (kaynak sayfada okundu, 2026-10-06; tam metin `assets/licenses/cc0-1.0_legalcode.txt`, kaynak dökümü `assets/licenses/cc0_sources_us047.txt`) · atıf gerekli mi **hayır** · AI üretimi mi **hayır** · Steam bildirimi **hayır** · **değişiklik:** kesit alındı, 44,1 kHz'e örneklendi, RMS −20 dBFS'e normalize, baş-son eşit güç çapraz geçişle dikişsiz döngü yapıldı, OGG Vorbis (içe aktarmada `loop=true`). Düzeyler yalnız `data/sfx_catalog.tres` `loops` altında. Freesound özgün dosyaları giriş ister; aynı CC0 sesin herkese açık HQ önizlemesi (128 kbps MP3) kaynak alındı.
+
+| id | dosya | olay / kullanım | kaynak (URL) · yazar · kesit | lisans kopyası | durum |
+|---|---|---|---|---|---|
+| amb_street | assets/ambience/amb_street.ogg | `amb_street` · dışarıda sokak döngüsü (uzak trafik + kuş), Ambience bus (soundscape.gd) | https://freesound.org/people/Alex_hears_things/sounds/339904/ · Alex_hears_things · 2:00'dan 48 sn, mono | assets/licenses/cc0_sources_us047.txt, cc0-1.0_legalcode.txt | yer tutucu — üretimle değiştirilecek |
+| amb_room | assets/ambience/amb_room.ogg | `amb_room` · dükkân içi oda tonu (içecek dolabı uğultusu), Ambience bus | https://opengameart.org/content/the-shop · LEGIT Audio · `TheShopCollection_convenience_store_drinks_fridge_drone.wav` 0:00.3'ten 10 sn, mono | assets/licenses/cc0_sources_us047.txt, cc0-1.0_legalcode.txt | yer tutucu — üretimle değiştirilecek |
+| amb_murmur | assets/ambience/amb_murmur.ogg | `amb_murmur` · müşteri mırıltısı (küçük grup, anlaşılmaz dil), Ambience bus | https://freesound.org/people/IENBA/sounds/653920/ · IENBA · 0:01.5'ten 18 sn, mono | assets/licenses/cc0_sources_us047.txt, cc0-1.0_legalcode.txt | yer tutucu — üretimle değiştirilecek |
+| music_calm | assets/music/music_calm.ogg | `music_calm` · sakin caz/blues döngüsü, Music bus (MusicRules) | https://freesound.org/people/Drumartist/sounds/512674/ · Drumartist · ilk 66 sn, stereo | assets/licenses/cc0_sources_us047.txt, cc0-1.0_legalcode.txt | yer tutucu — üretimle değiştirilecek |
+
+## Yazı tipi · İkon
 
 Henüz yok (Faz 4; CC-BY ikon seti seçilirse "atıf metni" sütunu eklenir ve Faz 5 kredilerine kopyalanır).
 

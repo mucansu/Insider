@@ -79,7 +79,8 @@ func play_event(event: StringName) -> bool:
 	var entry: SfxEntry = catalog.take(event, _last_played, _now())
 	if entry == null:
 		return false
-	stream = entry.stream
+	stream = entry.pick_stream(_rng)
+	bus = entry.bus  # US-047: per-entry bus (SFX, UI, VO, ...)
 	volume_db = entry.volume_db
 	pitch_scale = entry.pick_pitch(_rng)
 	if SfxCatalog.playback_enabled():

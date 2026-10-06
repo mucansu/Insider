@@ -1,0 +1,22 @@
+CC0 1.0 sources used in US-047 (ambience v0), checked on the source pages on 2026-10-06.
+License: Creative Commons Zero 1.0 Universal (public domain dedication). Full legal code: cc0-1.0_legalcode.txt
+(https://creativecommons.org/publicdomain/zero/1.0/legalcode). Attribution is not required; credits below are courtesy.
+
+1) Freesound #339904 "Early Morning Brisbane_17_03_2016.mp3" by Alex_hears_things
+   https://freesound.org/people/Alex_hears_things/sounds/339904/  - page license: Creative Commons 0
+   Used: assets/ambience/amb_street.ogg (48 s excerpt from 2:00 of the public HQ preview, mono, normalised, crossfaded loop)
+
+2) Freesound #653920 "Small Crowd Walla" by IENBA
+   https://freesound.org/people/IENBA/sounds/653920/  - page license: Creative Commons 0
+   Used: assets/ambience/amb_murmur.ogg (18 s excerpt from 0:01.5 of the public HQ preview, mono, normalised, crossfaded loop)
+
+3) Freesound #512674 "Smooth 68.6 CM.mp3" by Drumartist ("Bluesy Jazz loops designed as atmospheric background loops")
+   https://freesound.org/people/Drumartist/sounds/512674/  - page license: Creative Commons 0
+   Used: assets/music/music_calm.ogg (first 66 s of the public HQ preview, stereo, normalised, crossfaded loop)
+
+4) OpenGameArt "The Shop" by LEGIT Audio (legit-audio), file
+   TheShopCollection_convenience_store_drinks_fridge_drone.wav from legit_audio_-_the_shop_free_sfx_wav.zip
+   https://opengameart.org/content/the-shop  - page license: CC0
+   Used: assets/ambience/amb_room.ogg (10 s excerpt from 0:00.3, 96 kHz -> 44.1 kHz mono, normalised, crossfaded loop)
+
+Freesound originals need a login to download; the public HQ previews (128 kbps MP3) of the same CC0 sounds were used. CC0 covers every copy.

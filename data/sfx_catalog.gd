@@ -9,6 +9,9 @@ const DEFAULT_PATH := "res://data/sfx_catalog.tres"
 const INTERVAL_EPSILON := 0.0001
 
 @export var entries: Array[SfxEntry] = []
+## Looping beds (US-047): ambience and music, played by `Soundscape` (entities/fx), not through `take()`. Same entry class: `event` = loop id,
+## `stream` = looping OGG under assets/ambience|music, `volume_db` = full level, `bus` = Ambience/Music. All mix levels live in this file.
+@export var loops: Array[SfxEntry] = []
 
 ## Missing-event warning once per process (event -> true).
 static var _warned: Dictionary = {}
@@ -33,6 +36,14 @@ func find(event: StringName) -> SfxEntry:
 	return null
 
 
+## Loop entry by id (US-047); null if absent.
+func find_loop(id: StringName) -> SfxEntry:
+	for entry: SfxEntry in loops:
+		if entry != null and entry.event == id:
+			return entry
+	return null
+
+
 func events() -> Array[StringName]:
 	var out: Array[StringName] = []
 	for entry: SfxEntry in entries:
@@ -44,7 +55,7 @@ func events() -> Array[StringName]:
 ## Events that are still placeholders (report: how many sounds production will replace).
 func placeholder_events() -> Array[StringName]:
 	var out: Array[StringName] = []
-	for entry: SfxEntry in entries:
+	for entry: SfxEntry in entries + loops:
 		if entry != null and entry.placeholder:
 			out.append(entry.event)
 	return out

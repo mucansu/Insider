@@ -10,8 +10,15 @@ const SFX_DIR := "res://assets/sfx/"
 const REQUIRED_EVENTS: Array[StringName] = [
 	&"door_open", &"door_close", &"register_tick", &"register_done", &"ui_click", &"ui_focus",
 	&"alert_step", &"alert_high", &"stinger_success", &"stinger_caught",
-	&"clerk_question", &"clerk_interrogate", &"clerk_shout", &"run_step",
+	&"clerk_question", &"clerk_interrogate", &"clerk_shout", &"run_step", &"walk_step",
 ]
+## US-047: looping beds (ambience/music) in the catalog's `loops`.
+const REQUIRED_LOOPS: Array[StringName] = [&"amb_street", &"amb_room", &"amb_murmur", &"music_calm"]
+const LOOP_DIRS: Array[String] = ["res://assets/ambience/", "res://assets/music/"]
+## US-047 AC1: bus layout (default_bus_layout.tres).
+const BUSES: Array[StringName] = [&"Master", &"Music", &"Ambience", &"SFX", &"UI", &"VO"]
+## US-047 AC8: game-information sounds that must stay the loudest one-shots (owner shout, high alert).
+const INFO_EVENTS: Array[StringName] = [&"clerk_shout", &"alert_high"]
 
 
 ## Collects all engine/script logs including warnings (the runner ignores warnings; this test counts them).
@@ -71,13 +78,18 @@ func test_every_catalog_event_has_loadable_file() -> void:
 		seen[ev] = true
 		if not is_true(entry.stream != null, "%s: stream yok" % ev):
 			continue
-		var path: String = entry.stream.resource_path
-		is_true(path.begins_with(SFX_DIR) and path.ends_with(".ogg"), "%s: dosya assets/sfx/*.ogg olmalı (%s)" % [ev, path])
-		is_true(FileAccess.file_exists(path), "%s: dosya yok: %s" % [ev, path])
-		var loaded: AudioStreamOggVorbis = load(path) as AudioStreamOggVorbis
-		if is_true(loaded != null, "%s: Ogg Vorbis olarak yüklenmeli" % ev):
-			is_false(loaded.loop, "%s: içe aktarmada döngü kapalı olmalı" % ev)
-			is_true(loaded.get_length() > 0.0 and loaded.get_length() < 3.0, "%s: süre 0-3 sn (%s)" % [ev, loaded.get_length()])
+		var streams: Array[AudioStream] = [entry.stream]
+		streams.append_array(entry.variants)
+		for one: AudioStream in streams:
+			if not is_true(one != null, "%s: boş varyant" % ev):
+				continue
+			var path: String = one.resource_path
+			is_true(path.begins_with(SFX_DIR) and path.ends_with(".ogg"), "%s: dosya assets/sfx/*.ogg olmalı (%s)" % [ev, path])
+			is_true(FileAccess.file_exists(path), "%s: dosya yok: %s" % [ev, path])
+			var loaded: AudioStreamOggVorbis = load(path) as AudioStreamOggVorbis
+			if is_true(loaded != null, "%s: Ogg Vorbis olarak yüklenmeli" % ev):
+				is_false(loaded.loop, "%s: içe aktarmada döngü kapalı olmalı" % ev)
+				is_true(loaded.get_length() > 0.0 and loaded.get_length() < 3.0, "%s: süre 0-3 sn (%s)" % [ev, loaded.get_length()])
 		is_true(entry.pitch_min > 0.0 and entry.pitch_min <= entry.pitch_max, "%s: perde aralığı" % ev)
 		is_true(entry.volume_db <= 6.0, "%s: ses düzeyi" % ev)
 	for ev: StringName in REQUIRED_EVENTS:
@@ -88,8 +100,9 @@ func test_placeholder_count_is_reported() -> void:
 	var catalog: SfxCatalog = _catalog()
 	var placeholders: Array[StringName] = catalog.placeholder_events()
 	# Today all sounds are placeholders (assetler.md "Yer tutucu sesler"); set to false when production sounds arrive.
-	eq(placeholders.size(), catalog.entries.size(), "bütün girdiler placeholder = true")
-	print("       [bilgi] yer tutucu ses: %d/%d" % [placeholders.size(), catalog.entries.size()])
+	var total: int = catalog.entries.size() + catalog.loops.size()
+	eq(placeholders.size(), total, "bütün girdiler (döngüler dahil) placeholder = true")
+	print("       [bilgi] yer tutucu ses: %d/%d" % [placeholders.size(), total])
 	var fresh := SfxEntry.new()
 	is_true(fresh.placeholder, "yeni girdi varsayılan olarak yer tutucu")
 
@@ -103,6 +116,81 @@ func test_positional_events_heard_within_twice_noise_radius() -> void:
 		var entry: SfxEntry = catalog.find(ev)
 		if is_true(entry != null, "katalogda yok: %s" % ev):
 			eq(entry.max_distance, expected[ev], "%s duyulma mesafesi" % ev)
+
+
+func test_every_entry_routes_to_an_existing_bus() -> void:
+	# US-047 AC1: the bus layout is loaded (headless too) and every catalog entry/loop names one of its buses.
+	for bus_name: StringName in BUSES:
+		is_true(AudioServer.get_bus_index(bus_name) >= 0, "bus düzeninde yok: %s" % bus_name)
+	var catalog: SfxCatalog = _catalog()
+	for entry: SfxEntry in catalog.entries + catalog.loops:
+		is_true(AudioServer.get_bus_index(entry.bus) > 0, "%s: bus Master dışı ve mevcut olmalı (%s)" % [entry.event, entry.bus])
+	eq(catalog.find(&"door_open").bus, &"SFX")
+	eq(catalog.find(&"ui_click").bus, &"UI")
+	eq(catalog.find(&"clerk_shout").bus, &"VO")
+	eq(catalog.find_loop(&"music_calm").bus, &"Music")
+	eq(catalog.find_loop(&"amb_street").bus, &"Ambience")
+	eq(SfxEntry.new().bus, &"SFX", "varsayılan bus SFX")
+
+
+func test_emitters_apply_entry_bus() -> void:
+	var emitter: SfxEmitter = _emitter()
+	var ui: UiSfx = UiSfx.of(emitter.get_parent())
+	is_true(emitter.play_event(&"door_open"))
+	eq(emitter.bus, &"SFX")
+	is_true(ui.play_event(&"ui_click"))
+	eq(ui.bus, &"UI")
+	is_true(emitter.play_event(&"clerk_shout"))
+	eq(emitter.bus, &"VO")
+
+
+func test_loops_are_seamless_ogg_on_their_buses() -> void:
+	# US-047 AC3-AC5: ambience/music loops are looping Ogg Vorbis under assets/ambience|music.
+	var catalog: SfxCatalog = _catalog()
+	for id: StringName in REQUIRED_LOOPS:
+		var entry: SfxEntry = catalog.find_loop(id)
+		if not is_true(entry != null and entry.stream != null, "döngü yok: %s" % id):
+			continue
+		var path: String = entry.stream.resource_path
+		is_true(path.begins_with(LOOP_DIRS[0]) or path.begins_with(LOOP_DIRS[1]), "%s: assets/ambience|music altında (%s)" % [id, path])
+		var ogg: AudioStreamOggVorbis = entry.stream as AudioStreamOggVorbis
+		if is_true(ogg != null, "%s: Ogg Vorbis" % id):
+			is_true(ogg.loop, "%s: içe aktarmada döngü açık olmalı" % id)
+			is_true(ogg.get_length() >= 8.0, "%s: döngü en az 8 sn (%s)" % [id, ogg.get_length()])
+		is_true(entry.bus == &"Ambience" or entry.bus == &"Music", "%s: bus Ambience/Music" % id)
+	is_true(catalog.find(&"amb_street") == null, "döngüler take() kataloğunda değil")
+
+
+func test_mix_levels_keep_beds_under_events_and_info_on_top() -> void:
+	# US-047 AC7/AC8: beds (music, ambience) sit under every one-shot except the quiet walk step; game-information sounds are the loudest.
+	var catalog: SfxCatalog = _catalog()
+	var quietest_event: float = 100.0
+	var loudest_other: float = -100.0
+	for entry: SfxEntry in catalog.entries:
+		if entry.event != &"walk_step":
+			quietest_event = minf(quietest_event, entry.volume_db)
+		if not INFO_EVENTS.has(entry.event):
+			loudest_other = maxf(loudest_other, entry.volume_db)
+	for entry: SfxEntry in catalog.loops:
+		is_true(entry.volume_db < quietest_event, "%s (%s dB) olaylardan kısık olmalı (%s)" % [entry.event, entry.volume_db, quietest_event])
+	for ev: StringName in INFO_EVENTS:
+		is_true(catalog.find(ev).volume_db >= loudest_other, "%s oyun bilgisi; en yüksek kalmalı" % ev)
+	var walk: SfxEntry = catalog.find(&"walk_step")
+	var run: SfxEntry = catalog.find(&"run_step")
+	is_true(walk.volume_db <= run.volume_db - 8.0, "yürüme adımı koşudan belirgin kısık")
+	is_true(walk.max_distance > 0.0 and walk.max_distance < run.max_distance, "yürüme adımı kısa menzilli")
+	is_true(walk.variants.size() >= 2, "yürüme adımı 3 varyant")
+
+
+func test_entry_pick_stream_uses_variants() -> void:
+	var entry: SfxEntry = _catalog().find(&"walk_step")
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 47
+	var seen: Dictionary = {}
+	for i: int in 60:
+		seen[entry.pick_stream(rng)] = true
+	eq(seen.size(), 1 + entry.variants.size(), "her varyant seçilebilir")
+	is_true(SfxEntry.new().pick_stream(rng) == null, "dosyasız girdi null")
 
 
 # --- SfxEmitter ---
