@@ -16,161 +16,232 @@
 [ext_resource type="AudioStream" path="res://assets/sfx/clerk_interrogate.ogg" id="14_clerk_interrogate"]
 [ext_resource type="AudioStream" path="res://assets/sfx/clerk_shout.ogg" id="15_clerk_shout"]
 [ext_resource type="AudioStream" path="res://assets/sfx/run_step.ogg" id="16_run_step"]
+[ext_resource type="AudioStream" path="res://assets/sfx/walk_step_1.ogg" id="17_walk_step_1"]
+[ext_resource type="AudioStream" path="res://assets/sfx/walk_step_2.ogg" id="18_walk_step_2"]
+[ext_resource type="AudioStream" path="res://assets/sfx/walk_step_3.ogg" id="19_walk_step_3"]
+[ext_resource type="AudioStream" path="res://assets/ambience/amb_street.ogg" id="20_amb_street"]
+[ext_resource type="AudioStream" path="res://assets/ambience/amb_room.ogg" id="21_amb_room"]
+[ext_resource type="AudioStream" path="res://assets/ambience/amb_murmur.ogg" id="22_amb_murmur"]
+[ext_resource type="AudioStream" path="res://assets/music/music_calm.ogg" id="23_music_calm"]
 
 [sub_resource type="Resource" id="Entry_door_open"]
 script = ExtResource("2_entry")
 event = &"door_open"
 stream = ExtResource("3_door_open")
-volume_db = -4.0
+volume_db = -10.0
 pitch_min = 0.95
 pitch_max = 1.05
 min_interval = 0.1
 max_distance = 320.0
+bus = &"SFX"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_door_close"]
 script = ExtResource("2_entry")
 event = &"door_close"
 stream = ExtResource("4_door_close")
-volume_db = -2.0
+volume_db = -8.0
 pitch_min = 0.95
 pitch_max = 1.05
 min_interval = 0.1
 max_distance = 320.0
+bus = &"SFX"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_register_tick"]
 script = ExtResource("2_entry")
 event = &"register_tick"
 stream = ExtResource("5_register_tick")
-volume_db = -8.0
+volume_db = -14.0
 pitch_min = 0.9
 pitch_max = 1.1
 min_interval = 0.35
 max_distance = 180.0
+bus = &"SFX"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_register_done"]
 script = ExtResource("2_entry")
 event = &"register_done"
 stream = ExtResource("6_register_done")
-volume_db = -6.0
+volume_db = -12.0
 pitch_min = 1.25
 pitch_max = 1.35
 min_interval = 0.5
 max_distance = 180.0
+bus = &"SFX"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_ui_click"]
 script = ExtResource("2_entry")
 event = &"ui_click"
 stream = ExtResource("7_ui_click")
-volume_db = -6.0
+volume_db = -12.0
 pitch_min = 0.98
 pitch_max = 1.02
 min_interval = 0.05
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_ui_focus"]
 script = ExtResource("2_entry")
 event = &"ui_focus"
 stream = ExtResource("8_ui_focus")
-volume_db = -12.0
+volume_db = -18.0
 pitch_min = 1.0
 pitch_max = 1.0
 min_interval = 0.05
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_alert_step"]
 script = ExtResource("2_entry")
 event = &"alert_step"
 stream = ExtResource("9_alert_step")
-volume_db = -6.0
+volume_db = -12.0
 pitch_min = 1.0
 pitch_max = 1.0
 min_interval = 0.15
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_alert_high"]
 script = ExtResource("2_entry")
 event = &"alert_high"
 stream = ExtResource("10_alert_high")
-volume_db = -3.0
+volume_db = -6.0
 pitch_min = 1.0
 pitch_max = 1.0
 min_interval = 0.3
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_stinger_success"]
 script = ExtResource("2_entry")
 event = &"stinger_success"
 stream = ExtResource("11_stinger_success")
-volume_db = -4.0
+volume_db = -10.0
 pitch_min = 1.0
 pitch_max = 1.0
 min_interval = 1.0
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_stinger_caught"]
 script = ExtResource("2_entry")
 event = &"stinger_caught"
 stream = ExtResource("12_stinger_caught")
-volume_db = -2.0
+volume_db = -8.0
 pitch_min = 0.8
 pitch_max = 0.8
 min_interval = 1.0
 max_distance = 0.0
+bus = &"UI"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_clerk_question"]
 script = ExtResource("2_entry")
 event = &"clerk_question"
 stream = ExtResource("13_clerk_question")
-volume_db = -4.0
+volume_db = -10.0
 pitch_min = 1.0
 pitch_max = 1.05
 min_interval = 0.5
 max_distance = 320.0
+bus = &"VO"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_clerk_interrogate"]
 script = ExtResource("2_entry")
 event = &"clerk_interrogate"
 stream = ExtResource("14_clerk_interrogate")
-volume_db = -2.0
+volume_db = -8.0
 pitch_min = 1.0
 pitch_max = 1.0
 min_interval = 0.5
 max_distance = 320.0
+bus = &"VO"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_clerk_shout"]
 script = ExtResource("2_entry")
 event = &"clerk_shout"
 stream = ExtResource("15_clerk_shout")
-volume_db = 0.0
+volume_db = -3.0
 pitch_min = 0.97
 pitch_max = 1.03
 min_interval = 1.0
 max_distance = 640.0
+bus = &"VO"
 placeholder = true
 
 [sub_resource type="Resource" id="Entry_run_step"]
 script = ExtResource("2_entry")
 event = &"run_step"
 stream = ExtResource("16_run_step")
-volume_db = -10.0
+volume_db = -16.0
 pitch_min = 0.95
 pitch_max = 1.05
 min_interval = 0.2
 max_distance = 240.0
+bus = &"SFX"
+placeholder = true
+
+[sub_resource type="Resource" id="Entry_walk_step"]
+script = ExtResource("2_entry")
+event = &"walk_step"
+stream = ExtResource("17_walk_step_1")
+volume_db = -27.0
+pitch_min = 0.92
+pitch_max = 1.06
+min_interval = 0.2
+max_distance = 120.0
+bus = &"SFX"
+variants = Array[AudioStream]([ExtResource("18_walk_step_2"), ExtResource("19_walk_step_3")])
+placeholder = true
+
+[sub_resource type="Resource" id="Loop_amb_street"]
+script = ExtResource("2_entry")
+event = &"amb_street"
+stream = ExtResource("20_amb_street")
+volume_db = -24.0
+min_interval = 0.0
+bus = &"Ambience"
+placeholder = true
+
+[sub_resource type="Resource" id="Loop_amb_room"]
+script = ExtResource("2_entry")
+event = &"amb_room"
+stream = ExtResource("21_amb_room")
+volume_db = -28.0
+min_interval = 0.0
+bus = &"Ambience"
+placeholder = true
+
+[sub_resource type="Resource" id="Loop_amb_murmur"]
+script = ExtResource("2_entry")
+event = &"amb_murmur"
+stream = ExtResource("22_amb_murmur")
+volume_db = -27.0
+min_interval = 0.0
+bus = &"Ambience"
+placeholder = true
+
+[sub_resource type="Resource" id="Loop_music_calm"]
+script = ExtResource("2_entry")
+event = &"music_calm"
+stream = ExtResource("23_music_calm")
+volume_db = -21.0
+min_interval = 0.0
+bus = &"Music"
 placeholder = true
 
 [resource]
 script = ExtResource("1_cat")
-entries = Array[ExtResource("2_entry")]([SubResource("Entry_door_open"), SubResource("Entry_door_close"), SubResource("Entry_register_tick"), SubResource("Entry_register_done"), SubResource("Entry_ui_click"), SubResource("Entry_ui_focus"), SubResource("Entry_alert_step"), SubResource("Entry_alert_high"), SubResource("Entry_stinger_success"), SubResource("Entry_stinger_caught"), SubResource("Entry_clerk_question"), SubResource("Entry_clerk_interrogate"), SubResource("Entry_clerk_shout"), SubResource("Entry_run_step")])
+entries = Array[ExtResource("2_entry")]([SubResource("Entry_door_open"), SubResource("Entry_door_close"), SubResource("Entry_register_tick"), SubResource("Entry_register_done"), SubResource("Entry_ui_click"), SubResource("Entry_ui_focus"), SubResource("Entry_alert_step"), SubResource("Entry_alert_high"), SubResource("Entry_stinger_success"), SubResource("Entry_stinger_caught"), SubResource("Entry_clerk_question"), SubResource("Entry_clerk_interrogate"), SubResource("Entry_clerk_shout"), SubResource("Entry_run_step"), SubResource("Entry_walk_step")])
+loops = Array[ExtResource("2_entry")]([SubResource("Loop_amb_street"), SubResource("Loop_amb_room"), SubResource("Loop_amb_murmur"), SubResource("Loop_music_calm")])
