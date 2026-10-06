@@ -1,15 +1,18 @@
-# Durum (2026-10-05 04:10, dilim 2.2 kapandı — DURMA NOKTASI, sıradaki dilim 2.3 Test-2)
+# Durum (2026-10-06, dilim 2.3 Test-2 sürüyor)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Dilim kuralı KR-033 (her dilim sonu durma noktası). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69c453b = faz2-int 58aaaa4 + pano). Sıradaki: **dilim 2.3 Test-2** (backlog §1a: IS-017, IS-028, IS-032, IS-092, IS-097, IS-018 ara değerlendirme). **PROTOCOL_VERSION 6** (eski paketler bağlanamaz). Unit 926 yeşil; tam CI 2026-10-05: import/unit/tools yeşil, ağ 49 senaryo × 0/150 ms (düzeltme sonrası store_b_brain_shout PASS; store_b_smoke 0 ms'de nadir döküm yarışı, nit).
+Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69c453b = faz2-int 58aaaa4 + pano). **Dilim 2.3 Test-2 sürüyor** (2026-10-06; backlog §1a: IS-017, IS-082 (2.6'dan çekildi, IS-028 önkoşulu), IS-028, IS-032, IS-092, IS-097, IS-018 ara değerlendirme). **PROTOCOL_VERSION 6** (eski paketler bağlanamaz). Unit 926 yeşil; tam CI 2026-10-05: import/unit/tools yeşil, ağ 49 senaryo × 0/150 ms (düzeltme sonrası store_b_brain_shout PASS; store_b_smoke 0 ms'de nadir döküm yarışı, nit).
 **Test-2 paketi:** `build/Insiders-faz2-58aaaa4-windows.zip` (debug, 33,7 MB; duman PASS: host + katılan INSIDERS_READY; `--log-on-exit=kayit.json` exe yanına yazıyor). Eski a01ac86 paketi artık kullanılmaz.
 
 Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone), IS-107 (ikinci deneme haritası store_b + ezmeler + brain senaryoları; ölçüm `docs/surec/olcum/20261004-2330-is107-store-a-vs-b.md`), US-045 (gerçek alışveriş v0: sakız/ekmek/kola/damacana, harçlık 50, damacana GÖNDER'in yerine, +20 koşullu, örtü yalnız görülünce + seen_by, witness kökü: geç katılana örtü yeniden gönderimi; denetci PASS), IS-108 (yaylı arka kapı, GB-11; komşu kapalı kapıyı açar). Kararlar: KR-038 (alışveriş v0 + örtü A), KR-039 (yaylı arka kapı, kullanıcı onayı). Fable danışması: `docs/tasarim/danisma/us-045-store-b.md`.
 
 ## Sürüyor / yarım kalan
-Yok. Çalışan ajan yok. Birleşmiş ajan worktree'leri silinebilir (agent-a3a31ef3878065f62, agent-a35daf60e77c7b16c, agent-a8262bafb2bf4fc59, agent-a4a49e8684e6de98a, agent-abf0f2ddef17ead21); `.claude/worktrees/faz2-int` kalır.
+- IS-032 (+ IS-017 hazırlığı): tasarim (Fable) test-2 protokolü + gözlem formu yazıyor → `docs/tasarim/danisma/test-2-protokol.md` (ping yok; sessiz tur kararı Fable'da).
+- IS-082 + IS-028: cekirdek, ajan worktree'si (faz2-int tabanlı); net_smoke senaryo `args` + game.gd vision kancası kaldırma, vision_split 2 kip × 0/150 ms + AC8 kareleri.
+- IS-017: kullanıcı test-2'yi oynayacak (protokol gelince yönerge iletilecek).
+- Eski ajan worktree'leri silindi (2026-10-06); yalnız `.claude/worktrees/faz2-int`.
 
 ## Yeni sohbette ilk adımlar
 1. Dilim 2.3 Test-2 başı mesajı (surec §5b): kalemler + çıkış kriteri. Kullanıcıya test-2 nasıl oynanır: paketi paylaş, Tailscale, oyunu `Insiders.exe -- --log-on-exit=kayit-<ad>.json` ile açıp kayıt dosyasını geri göndermek (oyunu-ac skill'i).
