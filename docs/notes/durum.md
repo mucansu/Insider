@@ -13,7 +13,7 @@ Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (ha
 - Bitti: US-047 ortam sesi v0 → faz2-int db66d37.
 - Bitti: US-048 → faz2-int eb5989e (denetci PASS).
 - Bitti: IS-110 → faz2-int af8e03e (import/unit/tools + rescue 0 ms yeşil).
-- Yeni test-2 paketi eb5989e çıktı; tam ci_local (test-N öncesi, KR-028) arka planda koşuyor.
+- Yeni test-2 paketi eb5989e çıktı. Tam ci_local (test-N öncesi, 2026-10-06, faz2-int eb5989e): import/unit 948/tools yeşil; ağ 56 senaryo × 0/150 ms — yük altında koşuda faz1_full/noise_ring/rescue/owner_slipper/session_events/register_empty 150 ms FAIL (koşu süreleri +2 sn), sakin makinede yeniden koşuda hepsi PASS (faz1_full 150 ms 3/3). Kararsızlık nit havuzunda.
 - Bitti (2026-10-06): IS-082 + IS-028 → faz2-int dcf6652 (birleştirme c309676; import/unit/tools + vision_split ×2 + look_sync 0/150 ms yeşil). dev'e dilim sonunda.
 - Sonraki adım: test-2 kayıt dosyaları + notlar gelince GB-nn, form eşlemesi (protokol §4), IS-018 Fable ara değerlendirmesi, IS-092/IS-097 önceliği (protokol §5).
 - Çalışan ajan yok; worktree'ler: faz2-int.
