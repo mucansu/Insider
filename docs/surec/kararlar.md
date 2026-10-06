@@ -11,6 +11,11 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-040 — Ortam sesi v0 test-2'den önce, yalnız CC0 (2026-10-06, kullanıcı)
+- Ayak sesi, iç oda tonu + müşteri mırıltısı, sokak arka planı, hafif müzik döngüsü test-2 paketine girer (kullanıcı seçimi; öneri buydu). Kaynak yalnız CC0 hazır sesler (Kenney / OpenGameArt CC0 / Freesound CC0; indirme izni verildi); AI üretimi (KR-024) ve Türkçe kayıt (KR-025) sonra, aynı olay adlarıyla değiştirilir.
+- Tasarım notu: ses-ve-sfx §6(3) "yürüme adımı yok" önerisi değişir — yürüme kısık, kısa menzilli ve yalnız kozmetik (NoiseBus'a yaymaz, NPC duymaz); sızmada adım yok; koşu belirgin yüksek kalır. Müzik uyarı ≥ 2 / tespitte ≤ 0,3 sn kesilir (ses-ve-sfx §5 asgarisi).
+- Kalem US-047 (arayuz; IS-060'ın bus kısmı dahil); ardından yeni test-2 paketi.
+
 ### KR-039 — Yaylı arka kapı: zil yalnız açılma/kapanmada (2026-10-04, koordinatör + kullanıcı onayı; GB-11)
 - Açık arka kapıdan geçmek zil çalmaz/gürültü yapmaz (gerçekçi değil, GB-11). IS-104'ün amacı (kapıyı açık bırakıp serbestçe girip çıkma açığını kapamak) **yaylı kapı** ile korunur: arka kapı B, eşikte kimse yokken açık kaldıktan `back_door_autoclose_sec` (≈ 3 sn, ayar) sonra kendiliğinden kapanır (mevcut kapanma sesi/gürültüsü kuralı; kendiliğinden kapanma zili çalmaz, NPC kapatması gibi). Her yeniden açılış zili çalar. Ön kapı (giriş zili, müşteri sensörü gibi) değişmez.
 - Kalem IS-108 (oynanis; US-045 paketiyle). Kullanıcı onayladı (2026-10-04).
@@ -258,3 +263,4 @@ Kullanıcı 2026-10-02'de geri alınabilir tasarım kararlarında koordinatörü
 - 2026-10-03 (koordinatör, US-043 raporu): iş sürerken mahalleli yalnız örtüsü bozuk oyuncuyu kovalar (YÖNLENDİR uygulanabilsin diye; US-042 örtü fikriyle tutarlı) — kabul, test-2 sonrası Fable değerlendirmesine. mimari S3 ek kuralları ayrı satırlara yazıldı (tek uzun satır çakışması).
 - 2026-10-03 akşam (koordinatör): IS-095 sonrası tam ağ seti 2× yeşil; `--quit-at` duvar saati (b) gerekmedi, yarış denetimi + yeniden koşu yeterli (a). Deneme paketi faz2-int 7a6e233'ten (debug). Devir noktası: durum.md yeniden yazıldı, durum panosu güncel.
 - 2026-10-06 (koordinatör, IS-032 Fable protokolü `docs/tasarim/danisma/test-2-protokol.md`): test-2 tur planı T1 Çevresel → T2 Yönlü → T3 Çevresel (A/B = T2↔T3) → T4 store_b → T5 isteğe bağlı sessiz taban turu; oyunda ping yok → IS-032'nin asıl kıyası (sessiz+araçlı temiz ≥ sesli %60) US-017..019 sonrası test-3'e; süre yetmezse önce T5, sonra T4 düşer. Kayıt (Discord/OBS) izni kullanıcıda. IS-082 2.6'dan 2.3'e (IS-028 önkoşulu).
+- 2026-10-06 (kullanıcı): KR-040 — ortam sesi v0 (ayak sesi, iç mırıltı, sokak arka planı, hafif müzik) test-2'den ÖNCE gelir, kaynak yalnız CC0 hazır sesler (indirme izni verildi); AI/kayıt sonra (KR-024/025). Sonuç: US-047 dilim 2.3'e, ardından yeni test-2 paketi. Tasarım notu: ses-ve-sfx §6(3) 'yürüme adımı yok' önerisi değişir — yürüme kısık/kısa menzilli ve yalnız kozmetik (NPC duymaz), koşu belirgin yüksek kalır.
