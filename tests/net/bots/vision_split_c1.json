@@ -1,0 +1,11 @@
+{
+  "_doc": "vision_split_{peripheral,directional}.json c1 botu (IS-028): backroom_door_c1 rotasının ilk kısmı — kaldırımdan doğuya, yan sokaktan kuzeye ara sokağa çıkar ve arka kapının (B) önünde durur; kapıyı AÇMAZ (arka kapı zili tezgâhtaki sakin sahibi arka odaya çeker, KR-034). Döküm anında sahiple arasında dükkânın kuzey duvarı ve arka oda var: sahibi görmez.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 6.771, "move": [0, -1]},
+    {"t": 10.2, "move": [-1, 0]},
+    {"t": 11.0, "move": [0, 1]},
+    {"t": 11.229, "move": [0, 0]}
+  ]
+}

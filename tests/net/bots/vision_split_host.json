@@ -1,0 +1,10 @@
+{
+  "_doc": "vision_split_{peripheral,directional}.json host botu (IS-028): bir adım kuzeye kaldırımın vitrin sırasına (y≈496) çık, batı sınır duvarına hizalan (x≈44), doğuya WindowLook2'nin bir karo doğusuna (x≈496, ön vitrin camının 16 px önü) yürü, dur ve kuzeydoğuya (−45°) bak: tezgâhtaki sahip camın arkasında ~160 px, bakış merkezinden ~8° (yönlü kipte net konide).",
+  "steps": [
+    {"t": 0.2, "move": [0, -1]},
+    {"t": 0.43, "move": [-1, 0]},
+    {"t": 1.43, "move": [1, 0]},
+    {"t": 4.659, "move": [0, 0]},
+    {"t": 4.8, "look": [1, -1]}
+  ]
+}

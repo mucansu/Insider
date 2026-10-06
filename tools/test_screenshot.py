@@ -227,7 +227,7 @@ class PlanTest(TempDirCase):
         sc = {
             "_doc": "x", "level": "res://levels/test_arena.tscn", "player_scene": "res://p.tscn", "clients": 2,
             "start_delay": {"c2": 1.0}, "bots": {"host": "res://h.json", "c1": "res://c1.json"},
-            "names": {"c1": "Ayşe"}, "expect": [{"eq": ["x", 1]}],
+            "names": {"c1": "Ayşe"}, "args": {"host": ["--vision-mode=directional"]}, "expect": [{"eq": ["x", 1]}],
         }
         path = os.path.join(self.dir, "walk_demo.json")
         with open(path, "w", encoding="utf-8") as f:
@@ -239,6 +239,7 @@ class PlanTest(TempDirCase):
         self.assertEqual(plan.bots, {"host": "res://h.json", "c1": "res://other.json"})
         self.assertEqual(plan.start_delay, {"c2": 1.0})
         self.assertEqual(plan.display_names, {"c1": "Ayşe"})
+        self.assertEqual(plan.extra_args, {"host": ["--vision-mode=directional"], "c1": [], "c2": []})
         self.assertEqual(plan.peers, ["c1"])
         self.assertEqual(plan.out_dir, os.path.join(self.dir, "walk_demo"))
 

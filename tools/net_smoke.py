@@ -36,6 +36,10 @@ Scenario (JSON; "_doc" is a free comment):
                   lap ends on the bot clock at quit_after - BOT_LOOP_END_MARGIN, and passes the expanded copy (temp dir,
                   absolute path) (expand_bot_loop; endurance run; lap times must not fall on a frame boundary, see expand_bot_loop)
     names         {"c1": "name"} (--name)                               [process name]
+    args          {"host": ["--vision-mode=directional"], "c1": [...]}: extra user args (after `--`) per process, appended
+                  after the harness's own; key = process name (host | c1..cN), a missing key = none (IS-082). Every item is
+                  a "--flag[=value]" string; flags net_smoke manages itself (MANAGED_ARGS: --host --join --port --level
+                  --name --player-scene --bot --dump --quit-after) are rejected                     [none]
     exit_codes    {"c1": 0} expected exit codes                         [all 0]
     allow_log     ["regex", ...] allowed ERROR (/WARNING) lines          [none]
     deny_warnings if true a WARNING line in the log is a failure too    [false]
@@ -130,8 +134,10 @@ RACE_RETRY = -1  # _run return: the run is invalid because of a timing race, re-
 BOT_LOOP_END_MARGIN = 4.0
 SCENARIO_KEYS = {
     "_doc", "level", "player_scene", "clients", "duration", "start_delay", "quit_after", "bots", "names",
-    "exit_codes", "allow_log", "timeout", "expect", "deny_warnings", "mem_sample_sec",
+    "exit_codes", "allow_log", "timeout", "expect", "deny_warnings", "mem_sample_sec", "args",
 }
+# Scenario "args" (IS-082): flags the harness sets itself; a scenario may not pass them (they would break the run layout).
+MANAGED_ARGS = ("--host", "--join", "--port", "--level", "--name", "--player-scene", "--bot", "--dump", "--quit-after")
 # Proof the delay was really applied when --latency-ms > 0: measured ping >= this ratio x delay.
 LATENCY_PROOF_RATIO = 0.8
 ERROR_LINE = re.compile(r"^\s*(SCRIPT |USER )?ERROR:")
@@ -839,7 +845,38 @@ def load_scenario(path: str) -> tuple[dict | None, str]:
         return None, "'level' zorunlu"
     if not isinstance(sc.get("expect"), list) or not sc["expect"]:
         return None, "'expect' boş olmayan bir liste olmalı"
+    problem = args_problem(sc)
+    if problem:
+        return None, problem
     return sc, ""
+
+
+def args_problem(sc: dict) -> str:
+    """Validates the scenario's "args" (IS-082); "" if valid or absent, else the error."""
+    raw = sc.get("args", {})
+    if not isinstance(raw, dict):
+        return "'args' bir nesne olmalı: {\"host\": [\"--x=y\"], ...}"
+    try:
+        clients = int(sc.get("clients", 2))
+    except (TypeError, ValueError):
+        return "'clients' bir tamsayı olmalı"
+    valid = {"host"} | {f"c{i}" for i in range(1, clients + 1)}
+    for name, items in raw.items():
+        if name not in valid:
+            return f"'args': bilinmeyen süreç {name} (geçerli: {', '.join(sorted(valid))})"
+        if not isinstance(items, list) or not all(isinstance(a, str) for a in items):
+            return f"'args.{name}' bir metin listesi olmalı"
+        for a in items:
+            if not a.startswith("--"):
+                return f"'args.{name}': {a!r} '--' ile başlamalı"
+            if a.split("=", 1)[0] in MANAGED_ARGS:
+                return f"'args.{name}': {a.split('=', 1)[0]} net_smoke tarafından verilir"
+    return ""
+
+
+def process_args(sc: dict, name: str) -> list[str]:
+    """Extra user args of process `name` from the scenario's "args" (IS-082; validated by args_problem); [] if none."""
+    return [str(a) for a in sc.get("args", {}).get(name, [])]
 
 
 def latency_proof(
@@ -978,6 +1015,7 @@ def _run(
             user.append(f"--bot={bot_arg(name, quit_after)}")
         dump = os.path.join(tmp, f"{name}.json")
         user += [f"--dump={dump}", f"--quit-after={quit_after:.2f}"]
+        user += process_args(sc, name)
         cmd = [godot, "--headless", "--path", ROOT, "--log-file", os.path.join(tmp, f"{name}.godot.log"), "--"]
         return Proc(name=name, cmd=cmd + user, dump_path=dump, quit_after=quit_after)
 

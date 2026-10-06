@@ -1674,15 +1674,11 @@ func _heist_apply_hook(step: Dictionary) -> void:
 # - Exposure (`player_exposure`, 0 hidden / 1 visible / 2 seen): host only, 10 Hz, from NPC perception/suspicion summaries (duck typing: components with `last_observations()` + `value_of(peer)` — Suspicion):
 #   1 = in an observer's cone and line of sight (last observation: band ≠ NONE ∧ line of sight clear), 2 = suspicion ≥ 30. On change the full table goes to all by reliable RPC (call_local);
 #   `player_exposure_changed` on every peer. The table empties on level change and session end (when the local player goes away); the host republishes next round.
-# - Test hook (automation only, when `--vision-mode` is not given): a `--bot` step {"t": 0, "vision_mode": "directional"} is applied at start like `--vision-mode`
-#   (net_smoke cannot pass process args; the host's applies and is replicated to clients).
 # Dump (S6 base key "vision"): {mode, fog, visible_tiles, peripheral_tiles, memory_tiles, visible_npcs:[name], look_deg, exposure:{peer: level},
 # exposure_history:{peer: [levels]}, remote_look_deg:{peer: degrees}}.
 # =====================================================================================================================
 
 signal player_exposure_changed(peer: int, level: int)
-
-const VISION_HOOK_KEY := "vision_mode"
 
 var _vision: VisionRules.Session = null
 var _vision_elapsed: float = 0.0
@@ -1725,14 +1721,10 @@ func _vision_session() -> VisionRules.Session:
 	return _vision
 
 
-## Startup mode: --vision-mode > (in automation) bot hook > data/vision_tuning.tres.
+## Startup mode: --vision-mode > data/vision_tuning.tres (net scenarios pass it per process via net_smoke "args", IS-082).
 func _vision_default_mode() -> int:
 	if Args.vision_mode_given:
 		return VisionGrid.mode_from_name(StringName(Args.vision_mode))
-	if Args.is_automated():
-		for step: Dictionary in Args.bot_steps():
-			if step.has(VISION_HOOK_KEY) and float(step["t"]) <= 0.0:
-				return VisionGrid.mode_from_name(StringName(str(step[VISION_HOOK_KEY])))
 	var tuning: VisionTuning = load(VisionTuning.PATH) as VisionTuning
 	return tuning.default_mode if tuning != null else VisionGrid.Mode.PERIPHERAL
 

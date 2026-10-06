@@ -1,6 +1,0 @@
-{
-  "_doc": "look_sync.json host botu (US-011b): host doğma noktasında bekler. t=0 'vision_mode' adımı Game'in test kancasıdır (yalnız otomasyon, --vision-mode verilmemişse): net_smoke süreç argümanı veremediği için host'un --vision-mode=directional seçimi yerine geçer; kip seviye başlamadan seçilir ve istemcilere çoğaltılır.",
-  "steps": [
-    {"t": 0.0, "vision_mode": "directional"}
-  ]
-}
