@@ -1,0 +1,10 @@
+{
+  "_doc": "owner_search_cover.json c2 botu (US-048, örtüsü sağlam müşteri): misdirect botlarıyla aynı hizalama (sola, sağa ön kapı hizasına x≈368), c1'in arkasından 3 sn geç başlar; ön kapıdan girer (kuzeye y≈404), doğuya müşteri tarafına x≈514 (tezgâh ucunun batısı; c1'in tutulduğu noktaya ~35 px: sahip orada etrafına bakınarak ararken kol mesafesinde, 360° yakın bant) yürür ve durur. Koşmaz, sızmaz, personel tarafına geçmez: örtüsü sağlam kalır.",
+  "steps": [
+    {"t": 3.2, "move": [-1, 0]},
+    {"t": 4.6, "move": [1, 0]},
+    {"t": 7.0, "move": [0, -1]},
+    {"t": 7.9, "move": [1, 0]},
+    {"t": 8.99, "move": [0, 0]}
+  ]
+}

@@ -188,6 +188,7 @@ INTERACT_MISDIRECT,O tarafa kaçtı! (yönlendir),He went that way! (misdirect)
 OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
 OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
 OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
+OWNER_QUESTION_SEARCH,Sen de buradaydın! Kim aldı?,You were here too! Who took it?
 INTERACT_COUNTER_PAY,Öde {price},Pay {price}
 INTERACT_TAKE_BREAD,Ekmek al,Take bread
 INTERACT_TAKE_COLA,Kola al,Take a cola

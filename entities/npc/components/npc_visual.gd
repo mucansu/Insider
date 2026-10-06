@@ -59,6 +59,7 @@ const BALLOON_KEYS := {
 	&"owner_soothe_refused": "OWNER_SOOTHE_REFUSED",
 	&"owner_misdirect": "OWNER_MISDIRECT",
 	&"owner_question_window": "OWNER_QUESTION_WINDOW",
+	&"owner_question_search": "OWNER_QUESTION_SEARCH",
 	&"owner_order_ready": "OWNER_ORDER_READY",
 	&"owner_order_unpaid": "OWNER_ORDER_UNPAID",
 	&"owner_no_money": "OWNER_NO_MONEY",

@@ -50,6 +50,7 @@ const EVENT_LINES := {
 	&"owner_loiter": "bu ne istiyor?",
 	&"owner_soothe_refused": "OYALA tükendi",
 	&"owner_question_window": "vitrin sorgusu",
+	&"owner_question_search": "arama sorgusu (kim aldı?)",
 }
 
 var capacity: int = DEFAULT_CAPACITY

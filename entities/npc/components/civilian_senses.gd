@@ -300,6 +300,7 @@ func context_for(target: Node) -> CivilianRules.Context:
 	ctx.loiter_time = loiter_time(peer_id)
 	ctx.customers_inside = customers_inside()
 	ctx.window_stare = window_stare_of(peer_id)
+	ctx.cover_intact = cover_intact(peer_id)  # US-048: the ALARM row only for a broken cover
 	return ctx
 
 

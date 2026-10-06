@@ -1,0 +1,29 @@
+{
+  "_doc": "US-048 (GB-12, KR-041): bağırıştan sonra örtüsü sağlam müşteri tutulmaz, sorgulanır. store_a, nüfus kapalı, oyalanma eşiği 12 sn (tests/fixtures/store_a_search.tscn; VenueTuning ezmesi, kural aynı). c1 (misdirect_c1 rotası) personel tarafında sahibin önüne çıkar: örtüsü bozulur, sahip bağırır, tutar, yakalar; sonra ARA. c2 ön kapıdan girip tezgâhın batısında müşteri tarafında durur (örtüsü sağlam): alarmdayken ALARM satırı yok, oyalanma satırı (0,25) doldurur ama şüphe 90'da durur; 60'ta sahip ARA'dan c2'ye yürür, 64 px'te 'Sen de buradaydın! Kim aldı?' (owner_question_search olayı her peer'da aynı sırada), tanınır (+1), aramaya döner; c2 hiç tutulmaz. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_search.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 38,
+  "bots": {
+    "c1": "res://tests/net/bots/misdirect_c1.json",
+    "c2": "res://tests/net/bots/search_cover_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_search.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"has": ["*.owner.events", "owner_shout"]},
+    {"has": ["*.owner.events", "owner_question_search"]},
+    {"has": ["*.owner.event_peers", "$c2"]},
+    {"all_equal": "owner.events"},
+    {"all_equal": "owner.event_peers"},
+    {"same": ["host.owner.search_questions.0.peer", "c2.peer_id"]},
+    {"between": ["host.owner.search_questions.0.value", 60, 91]},
+    {"between": ["host.owner.peak.$c2", 60, 90.5]},
+    {"eq": ["host.heist.recognized.$c2", 1]},
+    {"eq": ["host.heist.cover.$c2", true]},
+    {"eq": ["host.heist.cover.$c1", false]},
+    {"eq": ["*.player_states.$c1.status", 2]},
+    {"eq": ["*.player_states.$c2.status", 0]},
+    {"eq": ["host.owner.state", "search"]}
+  ]
+}
