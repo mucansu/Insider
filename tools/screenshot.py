@@ -19,7 +19,8 @@ non-zero exit code is a failure too. A moment while the level is not yet loaded 
 `INSIDERS_SCREENSHOT skipped ... reason=level_not_loaded`) or before the process started is not a FAIL: it is reported as an
 "atlandı: <peer> <an> sn: <neden>" line.
 
-`--scenario`: level, player_scene, clients, bots, start_delay, names are read from a net_smoke scenario (expectations ignored);
+`--scenario`: level, player_scene, clients, bots, start_delay, names, args (per-process extra args, IS-082) are read from a net_smoke
+scenario (expectations ignored);
 command-line options override the scenario. Defaults: store_a level, the real player scene (entities/player/player.tscn), 2 clients, no bots.
 
 Godot: GUI exe `--godot-gui`, else the GODOT_GUI env var, else the sibling `*.exe` if GODOT is a `*_console.exe` (Windows), else GODOT
@@ -55,6 +56,8 @@ from net_smoke import (  # noqa: E402
     Proc,
     find_godot,
     free_udp_port,
+    args_problem,
+    process_args,
 )
 
 DEFAULT_LEVEL = "res://levels/store_a.tscn"
@@ -76,7 +79,7 @@ SAMPLE_STEP = 4
 # Windows open in a cascade (so one does not fully cover another).
 WINDOW_ORIGIN = (40, 40)
 WINDOW_CASCADE = (60, 40)
-SCENARIO_KEYS_USED = ("level", "player_scene", "clients", "bots", "start_delay", "names")
+SCENARIO_KEYS_USED = ("level", "player_scene", "clients", "bots", "start_delay", "names", "args")
 
 
 # --- pure helpers (tools/test_screenshot.py) ---
@@ -398,6 +401,7 @@ class Plan:
     bots: dict[str, str]
     start_delay: dict[str, float]
     display_names: dict[str, str]
+    extra_args: dict[str, list[str]]
     moments: list[float]
     peers: list[str]
     window: tuple[int, int]
@@ -424,6 +428,9 @@ def build_plan(args: argparse.Namespace) -> Plan:
         unknown = sorted(set(keys) - valid)
         if unknown:
             raise ValueError(f"{what}: bilinmeyen peer {', '.join(unknown)}")
+    problem = args_problem({"clients": clients, "args": sc.get("args", {})})
+    if problem:
+        raise ValueError(problem)
     if args.name:
         name = args.name
     elif args.scenario:
@@ -440,6 +447,7 @@ def build_plan(args: argparse.Namespace) -> Plan:
         bots=bots,
         start_delay=delays,
         display_names={str(k): str(v) for k, v in sc.get("names", {}).items()},
+        extra_args={n: process_args(sc, n) for n in peer_names(clients)},
         moments=parse_moments(args.at),
         peers=parse_peers(args.peers, clients),
         window=parse_window_size(args.window_size),
@@ -488,6 +496,7 @@ def run(plan: Plan, gui_godot: str, verbose: bool) -> int:
         if name in plan.bots:
             user.append(f"--bot={plan.bots[name]}")
         user.append(f"--quit-after={quit_after:.2f}")
+        user += plan.extra_args.get(name, [])
         log = ["--log-file", os.path.join(tmp, f"{name}.godot.log")]
         if name in plan.peers:
             shots = local_moments(plan.moments, offset)

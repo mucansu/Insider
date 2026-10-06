@@ -1,0 +1,37 @@
+{
+  "_doc": "IS-028 görüş A/B — YÖNLÜ kip (tasarım: docs/tasarim/arastirma/gorus-sis-hafiza.md §6 AC7/AC8; eşi vision_split_peripheral.json, iki kip × 0/150 ms). store_a, nüfus kapalı (tests/fixtures/store_a_nopop.tscn; sahip ajanda tohumu 3: ilk ~32 sn tezgâhta, batıya bakar). Kip host kuralı: yalnız host'a --vision-mode=directional verilir (senaryo args, IS-082), kabulde istemcilere çoğaltılır — her peer'da döküm vision.mode aynı ve yönlü, sis bağlı, çevresel karo (durum 3) var. host kaldırımda ön vitrin camının önünde kuzeydoğuya (−45°) bakar: sahibi camdan görür. c2 hemen yanında (~48 px batıda) vitrine sırtı dönük (90°): yönlü kipte sahibi görmez (aynı yerde çevresel kipte görür — eş senaryo). c1 ara sokakta, arka kapının önünde: duvar arkasında, sahibi görmez — görüş paylaşılmaz (host'un gördüğü c1/c2'nin dökümüne geçmez). Bakış istemci yetkili ve senkron: host'un ve c2'nin look_deg'i diğer peer'larda uzak kopyada hedefe yakınsar (döküm anında dönüşler ≥ 4 sn önce bitmiş; 2° = 8 bit adımı + pay). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 16,
+  "start_delay": {"c2": 5.0},
+  "args": {"host": ["--vision-mode=directional"]},
+  "bots": {
+    "host": "res://tests/net/bots/vision_split_host.json",
+    "c1": "res://tests/net/bots/vision_split_c1.json",
+    "c2": "res://tests/net/bots/vision_split_c2.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.vision.mode", "directional"]},
+    {"all_equal": "vision.mode"},
+    {"eq": ["*.vision.fog", true]},
+    {"ne": ["*.vision.peripheral_tiles", 0]},
+    {"ne": ["*.vision.visible_tiles", 0]},
+    {"has": ["host.vision.visible_npcs", "Owner"]},
+    {"lacks": ["c2.vision.visible_npcs", "Owner"]},
+    {"lacks": ["c1.vision.visible_npcs", "Owner"]},
+    {"eq": ["host.vision.look_deg", -45.0]},
+    {"eq": ["c2.vision.look_deg", 90.0]},
+    {"near": ["c1.vision.remote_look_deg.$host", -45.0, 2.0]},
+    {"near": ["c2.vision.remote_look_deg.$host", -45.0, 2.0]},
+    {"near": ["host.vision.remote_look_deg.$c2", 90.0, 2.0]},
+    {"near": ["c1.vision.remote_look_deg.$c2", 90.0, 2.0]},
+    {"eq": ["host.owner.agenda", ["counter"]]},
+    {"eq": ["*.alert.level", 0]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"eq": ["*.player_states.$c2.wall_frames", 0]}
+  ]
+}

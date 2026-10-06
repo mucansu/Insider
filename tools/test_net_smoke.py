@@ -453,6 +453,43 @@ class EvaluatorExtrasTest(unittest.TestCase):
             os.remove(path)
             os.rmdir(tmp)
 
+    def test_scenario_args(self) -> None:
+        """IS-082: per-process "args" are validated and appended after the harness's own args."""
+        ok = {"clients": 1, "args": {"host": ["--vision-mode=directional"], "c1": []}}
+        self.assertEqual(net_smoke.args_problem(ok), "")
+        self.assertEqual(net_smoke.process_args(ok, "host"), ["--vision-mode=directional"])
+        self.assertEqual(net_smoke.process_args(ok, "c1"), [])
+        self.assertEqual(net_smoke.process_args({}, "c2"), [], "anahtar yoksa boş")
+        for bad in (
+            {"args": ["--x"]},
+            {"clients": 1, "args": {"c2": ["--x"]}},
+            {"args": {"host": "--x"}},
+            {"args": {"host": [1]}},
+            {"args": {"host": ["x=1"]}},
+            {"args": {"c1": ["--port=1"]}},
+            {"args": {"host": ["--quit-after"]}},
+        ):
+            self.assertNotEqual(net_smoke.args_problem(bad), "", str(bad))
+        tmp = tempfile.mkdtemp(prefix="test_net_smoke_")
+        path = os.path.join(tmp, "s.json")
+        try:
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump({"level": "res://x.tscn", "args": {"c3": ["--x"]}, "expect": [{"eq": ["host.x", 1]}]}, f)
+            sc, problem = net_smoke.load_scenario(path)
+            self.assertIsNone(sc)
+            self.assertIn("c3", problem)
+        finally:
+            os.remove(path)
+            os.rmdir(tmp)
+
+    def test_repo_scenarios_load(self) -> None:
+        """Every tests/net/*.json scenario passes load_scenario (keys incl. "args")."""
+        net_dir = os.path.join(net_smoke.ROOT, "tests", "net")
+        for f in sorted(os.listdir(net_dir)):
+            if f.endswith(".json"):
+                sc, problem = net_smoke.load_scenario(os.path.join(net_dir, f))
+                self.assertIsNotNone(sc, f"{f}: {problem}")
+
     def test_repo_soak_scenario_loads(self) -> None:
         sc, problem = net_smoke.load_scenario(os.path.join(net_smoke.ROOT, "tests", "net", "soak", "store_a.json"))
         self.assertIsNotNone(sc, problem)

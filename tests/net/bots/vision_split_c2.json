@@ -1,0 +1,10 @@
+{
+  "_doc": "vision_split_{peripheral,directional}.json c2 botu (IS-028): window_stare_c1 rotası (batı sınır duvarına hizalan, kaldırımda doğuya WindowLook2'nin bir karo batısına x≈432, bir adım kuzeye y≈496; host ile arasında ~48 px) ama vitrine SIRTINI döner: güneye (90°) bakar. Sahip camın arkasında ~205 px, bakış yönüne 135°: yönlü kipte ne net konide ne çevresel yayda; çevresel (360°) kipte görüş yarıçapında.",
+  "steps": [
+    {"t": 0.2, "move": [-1, 0]},
+    {"t": 1.6, "move": [1, 0]},
+    {"t": 4.371, "move": [0, -1]},
+    {"t": 4.601, "move": [0, 0]},
+    {"t": 5.0, "look": [0, 1]}
+  ]
+}
