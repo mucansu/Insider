@@ -11,6 +11,11 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-043 — Öncelik: mekanik, yeni haritalar, akış; cila sonra (2026-10-11, kullanıcı)
+- Kullanıcı: "Bu çeşit efektlere şu an odaklanmasak da olur; amacım mekanikleri oturtmak, yeni keyifli haritalar ortaya çıkarmak, oyuncuyu akışa (flow) sokmak; efektler ilk başta mükemmel olmayabilir."
+- Sonuç: dilim 2.4 "His ve ses" (US-021, US-022, US-023, US-024, IS-033, IS-060 kalanı, IS-061, US-028, US-030) Havuz'a (cila, Faz 5 öncesi ya da okunurluğu bozan bir GB gelirse tek tek); US-046 raf görselleri mekanik/okunurluk yanıyla yeniden değerlendirilir. Faz 2'nin kalan dilimleri test-2 bulgularıyla birlikte mekanik + harita + akış ekseninde yeniden kesilir (Fable önerisi `docs/tasarim/danisma/faz2-yeniden-kesim.md`, kullanıcı onayıyla).
+- Kural: okunurluğu (oyuncunun ne olduğunu anlaması) bozan eksikler cila sayılmaz — mekaniğin parçasıdır (ör. IS-110).
+
 ### KR-042 — Model yönlendirme: mekanik işler Haiku 5.5'e (2026-10-11, kullanıcı isteği + koordinatör)
 - Kullanıcı: Haiku 5.5'in yapabileceği işler ona verilsin (tasarruf + paralel hız). Araştırma (ikincil kaynaklar, Anthropic tablosu aktarımı): Haiku 5.5 $0,10/$0,50 MTok (≤ 100K istem; üstü $0,50/$2,50), 1M bağlam, effort denetimi; Terminal-Bench 4.0 %39,2 (Sonnet 5.5 %70,6), SWE-bench Pro %64,8 (%81,3), SWE-bench Multilingual %83,7 (%90,3), OSWorld 2.1 %72,4 (%83,9); Anthropic konumlaması: yüksek hacimli, iyi tanımlı işler ve alt ajanlar; karmaşık ajan kodlamasında Sonnet/Opus.
 - Karar: yeni `kosucu` ajanı (haiku, salt okunur): test/CI/senaryo koşma, kayıt özetleme, ekran görüntüsü. Uzman ajanlar AC'si tam XS kalemlerde (ağ/yetki dışı) `model: "haiku"` ile çağrılır; Explore aramaları haiku. Ağ/yetki, NPC beyni, S/M çok dosyalı, denetci, tasarım ana modelde/Fable'da kalır. Ayrıntı: `docs/notes/ajanlar.md` "Model yönlendirme".
