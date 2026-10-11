@@ -169,6 +169,35 @@ func test_heist_end_fits() -> void:
 	, END_SIZES)
 
 
+func test_heist_end_scores_fits() -> void:
+	# US-051: a long session (12 runs, so the table is at its row cap) with the longest outcome/map/strategy texts and the largest
+	# amounts; the table view and the detail view both fit.
+	await _each_variant(func(size: Vector2i, label: String) -> void:
+		var ctx: Dictionary = await _open_hud(size)
+		var hud: Hud = ctx["hud"]
+		var game: Fakes.FakeGame = ctx["game"]
+		var level: Node = autofree(Node.new()) as Node
+		level.scene_file_path = "res://levels/test_arena.tscn"
+		game.level = level
+		var outcomes: Array[StringName] = [&"aborted", &"caught_all", &"shouted", &"police", &"hot", &"clean"]
+		for i: int in 12:
+			game.heist_finished.emit({"outcome": outcomes[i % outcomes.size()], "duration_s": 5999.0 - i, "payout": 0,
+				"loot_total": 0, "payout_ratio": 0.5, "players": {}, "notes": [], "max_alert": i % 4,
+				"cash_before": 1999999999 if i % 2 == 0 else -1999999999, "cash_after": -1999999999 if i % 2 == 0 else 1999999999,
+				"strategy": {"class": HeistRules.STRATEGY_BACK_DOOR, "cover_intact": {"1": i % 3 != 0}}})
+		await _settle()
+		var screen: HeistEnd = hud.get_node("%HeistEnd") as HeistEnd
+		(screen.get_node("%ScoresButton") as Button).pressed.emit()
+		await _settle()
+		is_true(screen.scores_shown(), label)
+		var what: String = "%s oturum skorları" % label
+		_check_fits(screen, size, what)
+		var box: String = "Center/Card/Box/"
+		_check_disjoint([screen.get_node(box + "Header"), screen.get_node("%ScoresBox"), screen.get_node(box + "Buttons")], what)
+		_check_fonts(screen, what)
+	, END_SIZES)
+
+
 # --- helpers ---
 
 ## Every visible text is readable on Steam Deck (>= 12 px); other than the secondary title (CaptionLabel) all are >= body (18 px).
