@@ -2322,8 +2322,6 @@ func _heist_on_start_used(peer_id: int) -> void:
 #   Team cash and the event history carry over like "Again"; the UI's session score table survives (Net stays online).
 # - `--level=` (Args, main.gd `--host`) and `start_level` itself stay unrestricted (automation and fixtures; Game.DEFAULT_LEVEL).
 # - Bot hook (automation + host only): {"t": SEC, "heist": "map", "data": {"level": "res://levels/<map>.tscn"}} = request_map_switch.
-# ==============================================================================================================
-
 # =====================================================================================================================
 
 var _map_registry: MapRegistry = null
@@ -2354,7 +2352,9 @@ func _maps() -> MapRegistry:
 	if _map_registry == null:
 		_map_registry = MapRegistry.load_default()
 	return _map_registry
-=======
+
+
+# =====================================================================================================================
 # US-052 — in-session heat and recognition (S3 addendum, KR-044). Rules and ledger are node-free in `SessionHeat` (core/session_heat.gd);
 # effects tuning data/heat_tuning.tres (`HeatTuning`, per-map overridable: VenueTuning id `heat`).
 # - Single source: this ledger. The host records every finished job (`_heist_finish`: result "heat" + players' "recognized") and stamps
