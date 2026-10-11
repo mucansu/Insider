@@ -78,3 +78,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-11 | IS-111 (cekirdek) | tools/kayit_ozet.py | owner/chasers/nüfus yalnız son yüklü seviyeye ait; çok koşulu tek host dosyasında önceki koşular yalnız sonuç + olaylar (protokol §4 tur başına kopya çözer) |
 | 2026-10-11 | IS-112 (cekirdek) | tools/net_smoke.py | YÜK taban ek yükü 2,5 sn bu makinede ölçüldü; GitHub Linux CI'da yanlış işaret görülürse ayarla |
 | 2026-10-11 | US-051 (arayuz) | ui/heist_end | Vurgulu hücreler büyük yazı → satır yükseklikleri hafif farklı; harita adları geçici ("Köşe bakkal"/"İkinci bakkal") — Fable'dan ad; ekran görüntüsü betiği tools/'a alınabilir |
+| 2026-10-11 | IS-113 (seviye) | data VenueTuning | Kasa değeri ezmesi sahne instance `def` ile (register_rush.tres); VenueTuning'e `register` id'si eklemek daha temiz (US-050 öncesi/sonrası). store_a_rush için bot senaryosu yok (smoke botsuz) |
+| 2026-10-11 | IS-113 (seviye) | tools/test_net_smoke.py | RaceRetryTest.test_persistent_race_fails bir kez FAIL (sahte koşu zamanlaması), yeniden koşuda PASS — kararsız |
