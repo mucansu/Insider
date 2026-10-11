@@ -70,6 +70,8 @@ const LINES := {
 		"func heist_prep_s() -> float",
 		"func heist_prep_locks(item: Node) -> bool",
 		"func request_heist_start() -> bool",
+		# S3 addition candidate (US-052, in-session heat; coordinator carries it to mimari.md): {heat, active, recognized, known}; read-only.
+		"func session_heat_state() -> Dictionary",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",

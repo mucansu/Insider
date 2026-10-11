@@ -42,7 +42,8 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## 7: US-048 owner event kind `owner_question_search` (search questioning balloon; old builds would drop it silently).
 ## 8: US-049 job phase RPC (`_rpc_heist_phase`), the runtime start point `Level/HeistStart/Trigger` (+ its synchronizer) and the
 ##    `heist_started` event.
-const PROTOCOL_VERSION := 8
+## 9: US-052 owner event kind `owner_recognize` ("You again?" balloon; old builds would drop it silently).
+const PROTOCOL_VERSION := 9
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 ## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by
@@ -323,6 +324,7 @@ func _sync_session() -> void:
 func _begin_session() -> void:
 	_host_lost = false
 	_run = 0
+	_session_heat_ledger.reset()  # US-052: heat/recognition carry within a session only
 	if Net.is_host():
 		_events.clear()
 		_set_team_cash(HeistTuning.load_default().start_cash)  # US-045 (KR-038): team allowance at session start
@@ -343,6 +345,7 @@ func _end_session() -> void:
 	_auth_names.clear()
 	_events.clear()
 	_run = 0
+	_session_heat_ledger.reset()  # US-052
 	_set_team_cash(0)
 	_apply_alert(0, -1.0, true)
 	players_changed.emit()
@@ -1533,12 +1536,14 @@ func _heist_finish(decision: StringName, views: Dictionary) -> void:
 	var cash_delta: int = int(result["cash_after"]) - _team_cash
 	if cash_delta != 0:
 		add_team_cash(cash_delta)
+	_session_heat_record(result)  # US-052: session totals into the result (clients adopt them)
 	_to_all(&"_rpc_heist_finished", [result])
 
 
 @rpc("authority", "call_local", "reliable")
 func _rpc_heist_finished(result: Dictionary) -> void:
 	_heist_result = result.duplicate(true)
+	_session_heat_ledger.adopt(result)  # US-052 (host: same totals it stamped)
 	_heist_history.append(_heist_result.duplicate(true))
 	if _heist_history.size() > HEIST_HISTORY_MAX:
 		_heist_history.pop_front()
@@ -1577,6 +1582,8 @@ func _heist_dump() -> Dictionary:
 		"events_main": _heist_events_main(),
 		"events_shared": _events_shared(),  # IS-102
 		"recognized": _heist_recognized_dump(),
+		"session_heat": _session_heat_ledger.heat,  # US-052
+		"recognized_session": _session_heat_ledger.recognized_dump(),
 	}
 
 
@@ -2300,3 +2307,48 @@ func _heist_start_offered(peer_id: int) -> bool:
 func _heist_on_start_used(peer_id: int) -> void:
 	if peer_id == HEIST_HOST_PEER:
 		request_heist_start()
+
+
+# =====================================================================================================================
+# US-052 — in-session heat and recognition (S3 addendum, KR-044). Rules and ledger are node-free in `SessionHeat` (core/session_heat.gd);
+# effects tuning data/heat_tuning.tres (`HeatTuning`, per-map overridable: VenueTuning id `heat`).
+# - Single source: this ledger. The host records every finished job (`_heist_finish`: result "heat" + players' "recognized") and stamps
+#   the session totals into the result ("session_heat", "recognized_session" {"<peer>": n}; a dict field, wire layout unchanged); every
+#   peer adopts them in `_rpc_heist_finished`, so clients mirror the host. Carries over "Again" (request_restart) and level changes;
+#   reset when the session begins and ends (menu, leave). Offline (no session) nothing is recorded (unit tests stay independent).
+# - Readers: StoreAlert (neighbour delay), population spawner (passer-by cap), StoreOwner (recognised player's start suspicion), HUD
+#   notice (`session_heat_state`). Dump `heist.session_heat`, `heist.recognized_session`.
+# =====================================================================================================================
+
+var _session_heat_ledger := SessionHeat.new()
+
+
+## US-052: session heat state - {"heat": int, "active": bool (later jobs are hot at the current level's heat tuning),
+## "recognized": {peer (int): n}, "known": Array[int] (peers the owner starts suspicious of, sorted)}. Host decides; a client mirrors
+## the last job result's totals.
+func session_heat_state() -> Dictionary:
+	var p: SessionHeat.Params = _session_heat_params()
+	var known: Array[int] = []
+	for peer: Variant in _session_heat_ledger.recognized:
+		if SessionHeat.recognition_start(p, int(_session_heat_ledger.recognized[peer])) > 0.0:
+			known.append(int(peer))
+	known.sort()
+	return {
+		"heat": _session_heat_ledger.heat,
+		"active": SessionHeat.is_hot(p, _session_heat_ledger.heat),
+		"recognized": _session_heat_ledger.recognized.duplicate(),
+		"known": known,
+	}
+
+
+func _session_heat_params() -> SessionHeat.Params:
+	var t: HeatTuning = VenueTuning.of(_level, VenueTuning.HEAT) as HeatTuning
+	return t.rules_params() if t != null else SessionHeat.Params.new()
+
+
+## Host: adds the finished job to the session ledger and stamps the totals into the result (online sessions only).
+func _session_heat_record(result: Dictionary) -> void:
+	if _session_peer == null:
+		return
+	_session_heat_ledger.record(result)
+	_session_heat_ledger.stamp(result)

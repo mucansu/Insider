@@ -1,0 +1,11 @@
+{
+  "_doc": "heat_carry.json host botu (US-052). 1. iş: heist_host 2. iş rotasıyla doğma noktasından doğrudan kaçış bölgesine yürür ve bekler (bölgede: polis gelişinde yakalanmaz, tanınmaz). 'heist' test kancası (Game, yalnız otomasyon + host): t=6,5 bağırış, t=8 polis (c1 dışarıda, örtüsü sağlam: tanık sorgusuyla serbest, tanındı 1; ısı 15 + 2 = 17), t=11 'Bir daha' (request_restart). 2. işte doğma noktasında bekler.",
+  "steps": [
+    {"t": 0.2, "move": [1, 0]},
+    {"t": 5.5, "move": [0, 1]},
+    {"t": 5.85, "move": [0, 0]},
+    {"t": 6.5, "heist": "shout"},
+    {"t": 8.0, "heist": "police"},
+    {"t": 11.0, "heist": "restart"}
+  ]
+}
