@@ -80,3 +80,8 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-11 | US-051 (arayuz) | ui/heist_end | Vurgulu hücreler büyük yazı → satır yükseklikleri hafif farklı; harita adları geçici ("Köşe bakkal"/"İkinci bakkal") — Fable'dan ad; ekran görüntüsü betiği tools/'a alınabilir |
 | 2026-10-11 | IS-113 (seviye) | data VenueTuning | Kasa değeri ezmesi sahne instance `def` ile (register_rush.tres); VenueTuning'e `register` id'si eklemek daha temiz (US-050 öncesi/sonrası). store_a_rush için bot senaryosu yok (smoke botsuz) |
 | 2026-10-11 | IS-113 (seviye) | tools/test_net_smoke.py | RaceRetryTest.test_persistent_race_fails bir kez FAIL (sahte koşu zamanlaması), yeniden koşuda PASS — kararsız |
+| 2026-10-11 | US-049 (denetci) | tests/unit/test_heist_phase.gd:188 | host_start(2,1) reddi NO_ACTOR'dan geliyor, peer kapısını sınamıyor — sahte aktörle 'peer' reddi testi (cekirdek) |
+| 2026-10-11 | US-049 (denetci) | entities/npc/components/npc_contact.gd:198 | Hazırlıktaki itmeler _history'ye yazılıyor → başlangıç sonrası ilk itme push_window içinde biraz pahalı |
+| 2026-10-11 | US-049 (denetci) | ui/hud.gd:545, autoload/game.gd:1173 | Koşul satırında literal sekme (biçim) |
+| 2026-10-11 | US-049 (denetci) | tests/contracts.gd | Interactable.prompt_key() / prep_locked() kontrat satırı yok |
+| 2026-10-11 | US-049 (cekirdek) | levels / ui | Başlangıç noktasının görsel işareti yok (yalnız istem); kilitli nesnede E → ilerleme çubuğu kısa görünüp 'Yarıda kaldı'; beklenen ekip sayısı m tutulmuyor |
