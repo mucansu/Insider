@@ -14,6 +14,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -602,7 +603,7 @@ class LeaveTimingTest(unittest.TestCase):
 # `fake_godot.py`: stands in for Godot; takes net_smoke's user arguments (--host/--join, --dump, --quit-after),
 # prints INSIDERS_READY, after --quit-after s writes a {"peer_id", "x": 1} dump and exits with 0. The host delays its dump by
 # FAKE_HOST_LATE s in the first FAKE_LATE_RUNS launches, counted via the FAKE_STATE counter file in the environment (a host whose
-# clock lags under load).
+# clock lags under load); with FAKE_EXIT_LATE the host exits that many s after its dump (IS-112 slow run).
 FAKE_GODOT_SCRIPT = r"""
 import json, os, sys, time
 args = dict((a.split("=", 1) + [""])[:2] for a in sys.argv[1:])
@@ -618,6 +619,8 @@ print("INSIDERS_READY", flush=True)
 time.sleep(delay)
 with open(args["--dump"], "w", encoding="utf-8") as f:
     json.dump({"peer_id": 1 if host else 2, "x": 1}, f)
+if host:
+    time.sleep(float(os.environ.get("FAKE_EXIT_LATE", "0")))  # IS-112: a slow exit (machine load)
 """
 
 
@@ -677,6 +680,158 @@ class RaceRetryTest(unittest.TestCase):
         code, text, starts = self.run_fake(late_runs=0, retries=2)
         self.assertEqual((code, starts), (0, 1), text)
         self.assertNotIn("zamanlama", text)
+
+
+class LoadHintTest(unittest.TestCase):
+    """IS-112: a FAILed run clearly slower than its schedule prints "YÜK:" and exits LOAD_FAIL_EXIT; a calm FAIL stays 1 and a
+    PASS stays 0 (expectation thresholds untouched)."""
+
+    def test_load_note_thresholds(self) -> None:
+        base = net_smoke.LOAD_BASE_OVERHEAD
+        # Calm: exactly the expected wall time -> no note.
+        self.assertEqual(net_smoke.load_note(22.6 + base, [1.6 + 21.0, 22.0]), "")
+        # Long run: the absolute 1.5 s slack applies (10% would be > 2 s).
+        expected, slow = net_smoke.load_slowdown(22.6 + base + 1.4, [22.6])
+        self.assertAlmostEqual(expected, 22.6 + base)
+        self.assertAlmostEqual(slow, 1.4)
+        self.assertEqual(net_smoke.load_note(22.6 + base + 1.4, [22.6]), "")
+        note = net_smoke.load_note(22.6 + base + 2.0, [22.6])
+        self.assertTrue(note.startswith("YÜK: koşu 2.0 sn yavaş"), note)
+        self.assertIn("makine yüklü olabilir, yeniden koş", note)
+        # Short run: 10% of the expected (< 1.5 s) applies.
+        short_expected = 6.6 + base
+        self.assertEqual(net_smoke.load_note(short_expected + 0.1 * short_expected - 0.05, [6.6]), "")
+        self.assertNotEqual(net_smoke.load_note(short_expected + 0.1 * short_expected + 0.05, [6.6]), "")
+        # Faster than expected / no processes -> nothing.
+        self.assertEqual(net_smoke.load_note(5.0, [22.6]), "")
+        self.assertEqual(net_smoke.load_note(0.0, []), "")
+
+    def run_fake(self, exit_late: float, value: int) -> tuple[int, str]:
+        tmp = tempfile.mkdtemp(prefix="test_net_smoke_")
+        script = os.path.join(tmp, "fake_godot.py")
+        with open(script, "w", encoding="utf-8") as f:
+            f.write(FAKE_GODOT_SCRIPT)
+        scenario = os.path.join(tmp, "load.json")
+        with open(scenario, "w", encoding="utf-8") as f:
+            json.dump({"level": "res://x.tscn", "clients": 1, "duration": 1.0, "expect": [{"eq": ["host.x", value]}]}, f)
+
+        class FakeProc(net_smoke.Proc):
+            def start(self) -> None:
+                self.cmd = [sys.executable, script] + self.cmd[self.cmd.index("--") + 1 :]
+                super().start()
+
+        out: list[str] = []
+        env = {"FAKE_STATE": os.path.join(tmp, "state.txt"), "FAKE_LATE_RUNS": "0", "FAKE_HOST_LATE": "0",
+               "FAKE_EXIT_LATE": str(exit_late)}
+        try:
+            with (
+                mock.patch.dict(os.environ, env),
+                mock.patch.object(net_smoke, "Proc", FakeProc),
+                # The fake process starts in ~0.1 s (Godot ~1.5 s): a smaller calm overhead, the same slack rule.
+                mock.patch.object(net_smoke, "LOAD_BASE_OVERHEAD", 1.0),
+                mock.patch.object(net_smoke, "find_godot", lambda: "godot-yerine-sahte-betik"),
+                mock.patch("builtins.print", lambda *a, **_k: out.append(" ".join(str(x) for x in a))),
+            ):
+                code = net_smoke.run(scenario, 0.0, 0.0, 0.0, False, False, False)
+            return code, "\n".join(out)
+        finally:
+            for name in os.listdir(tmp):
+                os.remove(os.path.join(tmp, name))
+            os.rmdir(tmp)
+
+    def test_slow_fail_flags_load(self) -> None:
+        code, text = self.run_fake(exit_late=3.0, value=2)
+        self.assertEqual(code, net_smoke.LOAD_FAIL_EXIT, text)
+        self.assertIn("FAIL load.json (0 ms)", text)
+        self.assertTrue(text.splitlines()[-1].strip().startswith("YÜK: koşu "), text)
+
+    def test_calm_fail_stays_plain(self) -> None:
+        code, text = self.run_fake(exit_late=0.0, value=2)
+        self.assertEqual(code, 1, text)
+        self.assertNotIn("YÜK", text)
+
+    def test_slow_pass_stays_pass(self) -> None:
+        code, text = self.run_fake(exit_late=3.0, value=1)
+        self.assertEqual(code, 0, text)
+        self.assertNotIn("YÜK", text)  # short mode: a passing run prints only its PASS line
+
+
+# ci_local.sh net_once (IS-112): exit 3 -> exactly one re-run whose result counts; any other FAIL -> no re-run. The function is cut out
+# of ci_local.sh and run with a fake PYTHON that pops exit codes from a file and counts calls.
+FAKE_NET_SMOKE = r"""
+import os, sys
+path = os.environ["FAKE_CODES"]
+codes = open(path).read().split()
+open(path, "w").write(" ".join(codes[1:]))
+with open(os.environ["FAKE_CALLS"], "a") as f:
+    f.write(" ".join(sys.argv[1:]) + "\n")
+sys.exit(int(codes[0]))
+"""
+
+
+class CiNetOnceTest(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bash = find_bash()
+        if self.bash is None:
+            self.skipTest("bash yok")
+        ci = os.path.join(os.path.dirname(os.path.abspath(__file__)), "ci_local.sh")
+        with open(ci, encoding="utf-8") as f:
+            m = re.search(r"^net_once\(\) \{\n.*?^\}\n", f.read(), re.S | re.M)
+        self.assertIsNotNone(m, "ci_local.sh net_once bulunamadı")
+        self.func = m.group(0) if m else ""
+
+    def run_codes(self, codes: str) -> tuple[int, list[str], str]:
+        tmp = tempfile.mkdtemp(prefix="test_net_once_")
+        try:
+            fake = os.path.join(tmp, "fake.py")
+            with open(fake, "w", encoding="utf-8") as f:
+                f.write(FAKE_NET_SMOKE)
+            for name, text in (("codes.txt", codes), ("calls.txt", "")):
+                with open(os.path.join(tmp, name), "w", encoding="utf-8") as f:
+                    f.write(text)
+            py = sys.executable.replace("\\", "/")
+            script = (
+                f'{self.func}\nPYTHON=("{py}" "{fake.replace(os.sep, "/")}")\n'
+                'net_once tests/net/x.json --latency-ms 150; echo "rc=$?"\n'
+            )
+            env = dict(os.environ, FAKE_CODES=os.path.join(tmp, "codes.txt"), FAKE_CALLS=os.path.join(tmp, "calls.txt"))
+            r = subprocess.run(
+                [self.bash, "-c", script], capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=60
+            )
+            with open(os.path.join(tmp, "calls.txt"), encoding="utf-8") as f:
+                calls = [ln for ln in f.read().splitlines() if ln]
+            rc = int(re.findall(r"rc=(\d+)", r.stdout)[-1])
+            return rc, calls, r.stdout
+        finally:
+            for name in os.listdir(tmp):
+                os.remove(os.path.join(tmp, name))
+            os.rmdir(tmp)
+
+    def test_load_fail_reruns_once(self) -> None:
+        rc, calls, out = self.run_codes("3 0")
+        self.assertEqual((rc, len(calls)), (0, 2), out)
+        self.assertIn("YÜK işareti: tests/net/x.json bir kez yeniden koşuluyor", out)
+        self.assertEqual(calls[1], "tools/net_smoke.py tests/net/x.json --latency-ms 150")
+        rc, calls, out = self.run_codes("3 3 0")
+        self.assertNotEqual(rc, 0, out)
+        self.assertEqual(len(calls), 2, "yalnız bir kez yeniden koşulmalı")
+
+    def test_plain_fail_and_pass_not_rerun(self) -> None:
+        self.assertEqual(self.run_codes("1 0")[:2], (1, ["tools/net_smoke.py tests/net/x.json --latency-ms 150"]))
+        self.assertEqual(len(self.run_codes("0 0")[1]), 1)
+
+
+def find_bash() -> str | None:
+    """bash for the ci_local snippet; on Windows the Git for Windows bash, never the WSL launcher in System32."""
+    found = shutil.which("bash")
+    if found and not (WINDOWS and "system32" in found.lower()):
+        return found
+    if WINDOWS:
+        for root in (os.environ.get("ProgramFiles", ""), os.environ.get("ProgramW6432", "")):
+            cand = os.path.join(root, "Git", "bin", "bash.exe") if root else ""
+            if cand and os.path.exists(cand):
+                return cand
+    return None
 
 
 class TimeoutPathTest(unittest.TestCase):

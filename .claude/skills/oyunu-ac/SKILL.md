@@ -19,7 +19,7 @@ Latest playable branch: `faz2-int` (worktree `.claude/worktrees/faz2-int`).
 
 ## Arguments (after `--`; `autoload/args.gd`)
 `--host` · `--join=ADDR` · `--port=N` (7777) · `--name=NAME` · `--level=res://...` · `--window-size=WxH` · `--camera-zoom=X` · `--vision-mode=peripheral|directional` · tests: `--bot= --dump= --quit-after= --screenshot-at= --screenshot-dir= --perf`.
-Playtest log (IS-102, not automation): `Insiders.exe -- --log-on-exit=insiders-kayit.json` -> on session end / window close each peer writes its own S6 dump (+ `log_reason`, host `events` split by `level_started {run}`, `owner.log[]`) beside the exe (dev run: project dir; unwritable -> `user://`). Give host and clients different file names; ask testers to send the file. Killed processes write nothing.
+Playtest log (IS-102, not automation): `Insiders.exe -- --log-on-exit=insiders-kayit.json` -> on session end / window close each peer writes its own S6 dump (+ `log_reason`, host `events` split by `level_started {run}`, `owner.log[]`) beside the exe (dev run: project dir; unwritable -> `user://`). Give host and clients different file names; ask testers to send the file. Killed processes write nothing. Summarise the returned files with `python tools/kayit_ozet.py kayit-host.json [kayit-*.json ...] [--md build/ozet.md]` (host found by `is_host`; per-run result, cover, merged owner timeline and the test-2 form §2 D answers; IS-111).
 
 ## Package for friends
 1. `bash tools/export.sh --debug windows` -> `build/windows/Insiders.exe` + `Insiders.console.exe` (first run downloads ~1.3 GB templates if missing).

@@ -112,7 +112,7 @@ find_python() {
 	return 1
 }
 
-# Tool tests: latency proxy, net_smoke process-tree kill, screenshot and warning-count helpers,
+# Tool tests: latency proxy, net_smoke process-tree kill, screenshot and warning-count helpers, playtest log summary (IS-111),
 # the agent hook guard .claude/hooks/agent_guard.py (IS-053) (no Godot needed). Then the GDScript warning count +
 # gate (IS-047; needs Godot, after import): the step is RED if a kind at level 2 in project.godot has warnings or the count
 # cannot be taken; counts of level 0/1 kinds are informational only (JSON: build/warn_count.json).
@@ -144,6 +144,7 @@ step_tools() {
 	py_test tools/test_screenshot.py || return 1
 	py_test tools/test_perf_run.py || return 1
 	py_test tools/test_heist_stats.py || return 1
+	py_test tools/test_kayit_ozet.py || return 1
 	py_test tools/test_warn_count.py || return 1
 	py_test tools/test_agent_guard.py || return 1
 	py_test tools/test_run_tests.py || return 1
@@ -181,10 +182,23 @@ step_net() {
 	if ((VERBOSE)); then net_v=(-v); fi
 	for s in "${scenarios[@]}"; do
 		if ((VERBOSE)); then echo "-- $s (0 ms)"; fi
-		"${PYTHON[@]}" tools/net_smoke.py "$s" "${net_v[@]}" || return 1
+		net_once "$s" "${net_v[@]}" || return 1
 		if ((VERBOSE)); then echo "-- $s (150 ms)"; fi
-		"${PYTHON[@]}" tools/net_smoke.py "$s" --latency-ms 150 "${net_v[@]}" || return 1
+		net_once "$s" --latency-ms 150 "${net_v[@]}" || return 1
 	done
+}
+
+# One net_smoke run. Exit 3 = FAIL with net_smoke's machine-load flag ("YÜK:" line, run clearly slower than expected; IS-112):
+# re-run exactly once, its result counts. Any other FAIL is final (no re-run: real errors are not hidden).
+net_once() {
+	local rc=0
+	"${PYTHON[@]}" tools/net_smoke.py "$@" || rc=$?
+	if ((rc == 3)); then
+		echo "YÜK işareti: $1 bir kez yeniden koşuluyor"
+		rc=0
+		"${PYTHON[@]}" tools/net_smoke.py "$@" || rc=$?
+	fi
+	return "$rc"
 }
 
 steps=("$@")

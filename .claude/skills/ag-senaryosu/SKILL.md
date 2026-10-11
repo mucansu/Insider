@@ -48,4 +48,4 @@ Providers (registered only when `--dump` or `--log-on-exit` is given): `heist`, 
 PYTHONUTF8=1 python tools/net_smoke.py tests/net/<name>.json
 PYTHONUTF8=1 python tools/net_smoke.py tests/net/<name>.json --latency-ms 150
 ```
-On FAIL only failed assertions + a log excerpt are printed; `--keep -v` keeps dumps and full logs. Ports are chosen free, so open game windows do not clash. `tools/ci_local.sh net` runs the `tests/net/*.json` glob at both latencies - adding a file is enough. One scenario takes ~15-100 s; iterate on one scenario, not the whole set.
+On FAIL only failed assertions + a log excerpt are printed; `--keep -v` keeps dumps and full logs. Ports are chosen free, so open game windows do not clash. `tools/ci_local.sh net` runs the `tests/net/*.json` glob at both latencies - adding a file is enough. One scenario takes ~15-100 s; iterate on one scenario, not the whole set. A FAIL that ends with `YÜK: koşu X sn yavaş` (exit 3) means the run was clearly slower than its schedule (machine load): ci_local re-runs it once, by hand just re-run it on a calm machine - never loosen a threshold for it (IS-112).
