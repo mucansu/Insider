@@ -87,3 +87,4 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-11 | US-049 (cekirdek) | levels / ui | Başlangıç noktasının görsel işareti yok (yalnız istem); kilitli nesnede E → ilerleme çubuğu kısa görünüp 'Yarıda kaldı'; beklenen ekip sayısı m tutulmuyor |
 | 2026-10-11 | US-050 (denetci) | ui/heist_end.gd | MainMenu.remembered_map'e doğrudan UI sınıfı bağımlılığı; "Başka bakkal" açılır listesi gamepad'le gerçek pencerede denenmeli |
 | 2026-10-11 | US-052 (oynanis) | ui/heist_end.gd | İş sonu ekranına ısı satırı (US-050 birleşti, artık yapılabilir); geç katılan istemci sonraki sonuca kadar oturum toplamını görmez |
+| 2026-10-11 | US-052 (denetci) | tests/unit/test_session_heat.gd | Hazırlıkta tanınma olmadığını gösteren negatif test yok (kodda iki kat koruma); harita değişimi için ayrı ısı taşıma testi yok; ayrılıp dönen oyuncunun tanınması yeni peer kimliğiyle sıfırlanır |
