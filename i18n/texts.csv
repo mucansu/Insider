@@ -233,3 +233,8 @@ END_STRATEGY_ORTU,Örtü,Cover
 MAP_STORE_A,Köşe bakkal,Corner shop
 MAP_STORE_B,İkinci bakkal,Second shop
 MAP_TEST_ARENA,Test odası,Test room
+HUD_HELD_ITEM,Elinde: %s,Holding: %s
+HUD_HELD_NONE,Elinde: boş,Holding: nothing
+PRODUCT_NAME_BREAD,Ekmek,Bread
+PRODUCT_NAME_COLA,Kola,Cola
+PRODUCT_NAME_WATER,Damacana,Water jug

@@ -95,6 +95,9 @@ var _prep_reminders: int = 0
 @onready var _escape_arrow: EscapeArrow = %EscapeArrow
 @onready var _held_countdown: Control = %HeldCountdown
 @onready var _held_countdown_label: Label = %HeldCountdownLabel
+## US-046 lite: the local player's held-item line and the hand it follows (null until a player is bound).
+var _held_label: Label = null
+var _hand: Node = null
 
 
 func _ready() -> void:
@@ -111,6 +114,7 @@ func _ready() -> void:
 	_ping_timer.wait_time = PING_INTERVAL_SEC
 	_ping_timer.timeout.connect(refresh_ping)
 	_ping_timer.start()
+	_held_label = _make_held_label()
 	_interaction.hide()
 	_prompt.hide()
 	_held_countdown_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
@@ -456,11 +460,54 @@ func _bind_player(player: Node) -> void:
 	_interaction_linger = 0.0
 	_interaction.hide()
 	_refresh_prompt()
+	_bind_hand(player)
 	if player == null:
 		return
 	for sig: StringName in handlers:
 		if player.has_signal(sig):
 			player.connect(sig, handlers[sig])
+
+
+## US-046 lite: "Elinde: Ekmek" centred just above the prompt (outside the top-corner coverage budget, US-013), from the local
+## player's hand (`PlayerHand.changed`, S7 hand state).
+func _bind_hand(player: Node) -> void:
+	if is_instance_valid(_hand) and _hand.is_connected(&"changed", _on_hand_changed):
+		_hand.disconnect(&"changed", _on_hand_changed)
+	_hand = player.get_node_or_null(^"Status/Hand") if player != null else null
+	if _hand == null:
+		_on_hand_changed(&"", false)
+		return
+	_hand.connect(&"changed", _on_hand_changed)
+	_on_hand_changed(_hand.get(&"item"), bool(_hand.get(&"paid")))
+
+
+func _on_hand_changed(item: StringName, _paid: bool) -> void:
+	_held_label.text = held_text(item)
+
+
+## Held-item line text: "Elinde: Ekmek", or "Elinde: boş" with empty hands (product names via PRODUCT_NAME_<ID>).
+func held_text(item: StringName) -> String:
+	if item.is_empty():
+		return tr(&"HUD_HELD_NONE")
+	return tr(&"HUD_HELD_ITEM") % tr(StringName("PRODUCT_NAME_%s" % String(item).to_upper()))
+
+
+func _make_held_label() -> Label:
+	# Same panel style as the interaction prompt (HudPanel, opaque) so the line stays readable over the vision overlay.
+	var panel := PanelContainer.new()
+	panel.name = "HeldPanel"
+	panel.theme_type_variation = &"HudPanel"
+	panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label := Label.new()
+	label.name = "HeldLabel"
+	label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	panel.add_child(label)
+	var layout := $Root/Frame/Layout as VBoxContainer
+	layout.add_child(panel)
+	layout.move_child(panel, ($Root/Frame/Layout/Prompt as Control).get_index())
+	return label
 
 
 func _on_interaction_target_changed(action_key: String) -> void:

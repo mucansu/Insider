@@ -469,3 +469,35 @@ func test_hud_uses_active_tone_theme() -> void:
 	await _open()
 	eq((_node("Root") as Control).theme, ThemeTokens.theme())
 	eq((hud as CanvasLayer).layer, 10)
+
+
+# --- US-046 lite: held item line ---
+
+func test_held_text_empty_and_product_names() -> void:
+	await _open()
+	eq(hud.held_text(&""), tr(&"HUD_HELD_NONE"), "boş eller")
+	eq(hud.held_text(&"bread"), tr(&"HUD_HELD_ITEM") % tr(&"PRODUCT_NAME_BREAD"), "ekmek adı")
+	eq(hud.held_text(&"water"), tr(&"HUD_HELD_ITEM") % tr(&"PRODUCT_NAME_WATER"), "damacana adı")
+
+
+func test_held_line_follows_local_hand() -> void:
+	await _open()
+	var player := autofree(Node2D.new()) as Node2D
+	var status := Node2D.new()
+	status.name = "Status"
+	player.add_child(status)
+	var hand := PlayerHand.new()
+	hand.name = "Hand"
+	var drop := Interactable.new()
+	drop.name = "Drop"
+	hand.add_child(drop)
+	status.add_child(hand)
+	viewport.add_child(player)
+	await tree().process_frame
+	hud._bind_player(player)
+	eq(hud._held_label.text, tr(&"HUD_HELD_NONE"), "başlangıçta boş")
+	hand.item = &"cola"
+	eq(hud._held_label.text, tr(&"HUD_HELD_ITEM") % tr(&"PRODUCT_NAME_COLA"), "kola alınca satır güncellenir")
+	hud._bind_player(null)
+	hand.item = &""
+	eq(hud._held_label.text, tr(&"HUD_HELD_NONE"), "oyuncu gidince boş")
