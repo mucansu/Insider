@@ -11,6 +11,10 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-045 — "BAŞLA" kaçış bölgesinde (minibüs) (2026-10-11, koordinatör; GB-13)
+- US-049'da başlangıç noktası host'un doğma yuvasındaydı (store_a'da haritanın sol ucu, kaçış sağ ucunda) ve görünmezdi; GB-13 denemesinde oyuncular sarı kaçış işaretinde (minibüs) toplandı, işi başlatamadı. Karar: başlangıç noktası kaçış bölgesinin merkezine taşınır (haritadan türetilir, KR-037; kaçış bölgesi yoksa host yuvası), görünür pembe "BAŞLA" işareti + HUD satırı + kenar oku (IS-114). Akış: ekip minibüste toplanır → host BAŞLA → iş; kaçış da aynı yere döner.
+- Fable'a bilgi (tasarım etkisi: hazırlıkta keşif turu minibüsten başlar; keşif ön testi 2.6 bununla uyumlu).
+
 ### KR-044 — Faz 2 yeniden kesimi (Fable önerisi aynen; 2026-10-11, kullanıcı)
 - Kullanıcı "Fable'ın planını aynen uygula" dedi → `docs/tasarim/danisma/faz2-yeniden-kesim.md` §6'daki öneriler kabul: (1) kesim A — 2.4 Akış ve harita, 2.5 Ekip ve iletişim, 2.6 Kapanış + keşif ön testi; (2) harita sırası A — "Kalabalık saat" varyantı + store_b kararı 2.4'te, ev-dükkân 2.6 (sığmazsa Faz 3 ilk şablon), iki kapılı köşe Faz 3 şablon havuzu; (3) Faz 3 tam değil, keşif ön testi 2.6'da; (4) ping'in yeri test-2 K5'e bağlı; (5) 2 kişi dengesi Faz 2 kapanış şartı, hedef fark ≤ 30 puan (GDD 15 şimdilik gevşer); (6) çanta yeri tohumla 2-3 nokta arasında değişir (2.6, keşif ön testiyle).
 - Havuz'dan geri çekilen okunurluk kalemleri: IS-033 kenar işareti (2.5), US-023 tutulma/ÇEK/sendeleme alt kümesi (2.5), US-046 lite (2.4).
