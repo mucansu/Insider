@@ -1,4 +1,4 @@
-# Durum (2026-10-11, dilim 2.3 Test-2 açık + dilim 2.4 Akış ve harita sürüyor)
+# Durum (2026-10-11 akşam, dilim 2.3 Test-2 açık + dilim 2.4 test-2'den bağımsız kalemleri Bitti)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde (hafif), çürütme kapalı, t2 yalnız blocker, nit'ler `docs/surec/nit-havuzu.md`, tam CI günde bir + test-N öncesi. Ajan tanımları/skill'ler İngilizce, raporlar Türkçe (KR-030). Dilim kuralı KR-033 (her dilim sonu durma noktası). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Kullanıcının durum panosu: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa (her geçişte ArtifactData ile güncelle).
 
@@ -9,18 +9,16 @@ Faz 2 — Gizlilik (bakkal). **Dilim 2.2 Hazırlık Bitti** (`dilim-2.2`, dev 69
 Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (harita başına ayar `Level.tuning_overrides` + VenueTuning, MapGrid türetmeleri, side_zone), IS-107 (ikinci deneme haritası store_b + ezmeler + brain senaryoları; ölçüm `docs/surec/olcum/20261004-2330-is107-store-a-vs-b.md`), US-045 (gerçek alışveriş v0: sakız/ekmek/kola/damacana, harçlık 50, damacana GÖNDER'in yerine, +20 koşullu, örtü yalnız görülünce + seen_by, witness kökü: geç katılana örtü yeniden gönderimi; denetci PASS), IS-108 (yaylı arka kapı, GB-11; komşu kapalı kapıyı açar). Kararlar: KR-038 (alışveriş v0 + örtü A), KR-039 (yaylı arka kapı, kullanıcı onayı). Fable danışması: `docs/tasarim/danisma/us-045-store-b.md`.
 
 ## Sürüyor / yarım kalan
-**Dilim 2.3 Test-2 açık** (kullanıcı test-2'yi oynayacak; paket `build/Insiders-faz2-eb5989e-windows.zip`, protokol 7). **Dilim 2.4 Akış ve harita da başladı** (KR-044, kullanıcı: "Fable'ın planını aynen uygula", dışarıdayken başlasın; plan `docs/tasarim/danisma/faz2-yeniden-kesim.md`). İki dilim paralel: test-2'ye bağlı 2.4 kalemleri (store_b kararı, IS-097/092/105) test-2 sonrasına.
-- 2.4 dalga 1 (2026-10-11, ajan worktree'leri faz2-int 000e367 tabanlı): US-049 iş-içi Başla (cekirdek; ağ → denetci), US-051 oturum skor tablosu (Bitti → faz2-int 7ab1d0c), IS-113 "Kalabalık saat" (Bitti → faz2-int 76b3f16, Haiku pilot 2 başarılı; faz2-int push'u US-049 birleşip doğrulanınca).
-- 2.4 dalga 1 tamam: faz2-int 4a5e99e (kosucu birleşik doğrulama 16/16 PASS, pilot 3). **Dalga 2 sürüyor (2026-10-11):** US-050 harita seçimi + "Başka bakkal" (arayuz + cekirdek; US-049 sonrası, game.gd çakışması), US-052 ısı/tanınma etkisi (oynanis), US-046 lite (seviye/arayuz, Haiku adayı). Dalga 3 (test-2 sonrası): store_b kararı (K3), IS-097/092/105 (K1/K4).
-- Birleşme doğrulamaları kosucu (Haiku) ile (KR-042). CPU ağırlıklı koşular aynı anda tek; YÜK işaretli FAIL bir kez yeniden.
-- Bitti (2026-10-06..11): US-047 ortam sesi, US-048 örtü/sorgu (denetci PASS, PROTOCOL 7), IS-110 tutma göstergesi, IS-082 + IS-028 görüş A/B, IS-111 kayıt özeti, IS-112 YÜK uyarısı; tam CI eb5989e yeşil (yük altında kararsızlar yeniden koşuda PASS).
-- KR-043 cila kalemleri Havuz'da (US-021, US-022, US-024, IS-060 kalanı, IS-061, US-028, US-030; US-023 ve IS-033'ün okunurluk alt kümeleri 2.5'te).
+**Dilim 2.3 Test-2 açık** — kullanıcı test-2'yi `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7) ile oynayacak (öneri: temiz ölçüm için eski paket). **Dilim 2.4 Akış ve harita** (KR-044): test-2'den bağımsız kalemler Bitti → faz2-int 7936ad5 (kosucu birleşik doğrulama: ci_local import unit tools + 12 senaryo × 0/150 = 24/24 PASS): US-049 Başla (denetci PASS, PROTOCOL 8), US-050 harita seçimi + Başka bakkal (denetci PASS), US-051 skor tablosu, US-052 ısı/tanınma (denetci PASS, PROTOCOL 9), IS-113 Kalabalık saat (Haiku), US-046 lite ürün okunurluğu (Haiku + 1 düzeltme).
+- **Test-3 paketi hazır:** `build/Insiders-faz2-7936ad5-windows.zip` (debug, 35,2 MB, **protokol 9**; duman PASS). Eski paketlerle bağlanamaz.
+- 2.4 kalan (test-2'ye bağlı, dalga 3): store_b kararı (protokol §5 K3), IS-097 / IS-092 / IS-105 (K1/K4). 2.4 çıkış kriteri: 3 kişi exe açmadan art arda 3 koşu (≥ 2 harita) — test-3 paketiyle oynanınca sağlanır.
+- KR-042 Haiku pilotu 5/5 tamam (1 dönüş: görsel yargı → görsel AC'li Haiku işinde koordinatör kare kontrolü). Ders (birleşme): çakışma çözümünde regex `=======` yorum satırıyla karıştı; elle çözülen birleşmeden sonra her zaman import + `grep -n '^=======$'`.
+- Çalışan ajan yok. Worktree: yalnız faz2-int. dev'e birleşme dilim sonunda (2.3 + 2.4 birlikte kapanabilir).
 
 ## Yeni sohbette ilk adımlar
-1. Çalışan ajan var mı bak (bu oturumda 3 ajan çalışıyordu; worktree'leri `.claude/worktrees/agent-*`). Bitenleri KR-028'e göre kapat (US-049 denetci; diğerleri koordinatör diff okuması + kosucu doğrulaması), faz2-int'e birleştir.
-2. Dalga 2'yi başlat (yukarıda).
-3. Kullanıcı test-2 kayıtlarını getirirse: `python tools/kayit_ozet.py kayit-*.json --md build/ozet.md` → GB-nn (`docs/surec/geri-bildirim.md`), protokol §5 karar kuralları (K1-K7) → dalga 3 + IS-018 Fable ara değerlendirmesi.
-4. 2.4 çıkış kriteri: 3 kişi exe'yi yeniden açmadan art arda 3 koşu (≥ 2 harita/varyant) + test-3 paketi. Dilim sonu: faz2-int → dev, `dilim-2.4` (2.3 de kapanmış olmalı; değilse 2.3'ü test-2 sonrası kapat).
+1. Kullanıcı test-2 kayıtlarını getirirse: `python tools/kayit_ozet.py kayit-*.json --md build/ozet.md` → GB-nn (`docs/surec/geri-bildirim.md`), protokol §5 karar kuralları (K1-K7) → 2.4 dalga 3 (store_b, IS-097/092/105) + IS-018 Fable ara değerlendirmesi + 2.3 kapanışı.
+2. Test-3 (yeni paketle): Başla, harita seçimi, skor tablosu, Kalabalık saat, ısı/tanınma — 2.4 çıkış kriteri.
+3. Dilim sonu: faz2-int → dev, `dilim-2.3` + `dilim-2.4` etiketleri, devir, kapanış mesajı.
 
 ## Kullanıcıdan bekleyen
 - Test-2: yeni paketi (58aaaa4) arkadaşlarla paylaşmak + Tailscale kurulumu/daveti; gözlemler + kayıt dosyaları.
