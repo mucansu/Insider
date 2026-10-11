@@ -11,9 +11,16 @@ Kullanıcı yalnızca koordinatörle muhatap olur. Koordinatör = Claude Code an
 | arayuz | Oyuncu arayüzü: `ui/**` (menü, bağlantı/lobi ekranı, HUD, ileride plan masası ve sığınak ekranları), tema token'ları ve ton altyapısı, `i18n/texts.csv` bakımı | inherit |
 | altyapi | Proje iskeleti ve teslim: `project.godot` (ayar, autoload kaydı, girdi haritası, katmanlar), `tests/{run_tests,t}.gd`, `tools/{get_godot,ci_local}.sh`, `.github/workflows/**`, `.gitignore`, export ön ayarları ve build; faz çıkış testleri | inherit |
 | denetci | Salt okunur bağımsız doğrulayıcı: kalemin AC'lerini sıfırdan tekrarlar, sınır/sözleşme denetimi, PASS/FAIL | inherit |
+| kosucu | Test koşucu ve kayıt okuyucu (salt okunur): ci_local adımları, net_smoke senaryoları 0/150 ms (FAIL'i bir kez yeniden koşar, YÜK işaretini ayırır), ekran görüntüsü alma, `kayit_ozet` ile oyun testi kayıtları, git/grep bakışları; kısa PASS/FAIL tablosu. Karar vermez, kod yazmaz (KR-042) | haiku |
 | tasarim | Tasarım danışmanı (Fable): oyun tasarımı soruları, denge, kapsam; belirli noktalarda gidişat değerlendirmesi ve öneri raporu (surec.md §5a); yalnız koordinatör isterse `docs/tasarim/**` yazar | fable |
 
 Ortak yüzeyler: `project.godot` yalnız altyapi'nin (başka ajanın ihtiyacı → "Karar gereken" ya da kalem); `i18n/texts.csv` satır ekleme herkese serbest, mevcut satırı değiştirmek arayuz'un; `data/` dosyası onu tanımlayan ajanın; seviyeye nesne yerleştirme kalemin Dokunulacak listesinde açıkça yazıyorsa içerik sahibi ajan yapabilir. Testler modül sahibine aittir. `docs/**` koordinatörün (tasarim/ hariç).
+
+Model yönlendirme (KR-042, 2026-10-11, kullanıcı isteği; Haiku 5.5 = en hızlı/en ucuz, Sonnet 5.5'in gerisinde: Terminal-Bench 4.0 %39 vs %71, SWE-bench Pro %65 vs %81):
+- **Haiku** (`kosucu` ajanı ya da Agent çağrısında `model: "haiku"`): test/CI koşma ve yeniden koşma, karşılaştırmalı koşular, ekran görüntüsü alma, oyun testi kaydı özetleme, geniş kod/doküman araması (Explore), dış kaynak/lisans toplama, AC'si tam yazılmış **XS** kalemler (metin anahtarı, tema token'ı, ses düzeyi/`.tres` sayı ayarı, doküman satırı, test ekleme, nit düzeltmesi) — yalnız ağ/yetki/kablo dışı ve tek ajanın alanında.
+- **Ana model (inherit)**: ağ/yetki/kablo düzeni, NPC beyni ve oynanış kuralları, çok dosyalı S/M kalemler, mimari/sözleşme değişikliği, bağımsız denetim (denetci), birleştirme çakışmaları. **Fable**: tasarım (tasarim), teknik araştırma (arastirmaci).
+- Haiku'nun teslimi aynı kapılardan geçer (ci_local + koordinatör diff okuması). İki kez kapıdan dönen Haiku işi ana modele yükseltilir; pilot ilk 5 Haiku kaleminde geri dönüş oranı ölçülür (kararlar.md KR-042).
+- Paralellik: LLM ağırlıklı işler (okuma, arama, doküman, özet) paralel Haiku ajanlarına bölünür; **CPU ağırlıklı işler (Godot/net_smoke/ekran görüntüsü) aynı anda en çok bir** — tek PC'de paralel koşu sahte zamanlama FAIL'i üretir (2026-10-06 tam CI).
 
 Düşünme seviyesi (2026-10-02, kullanıcı onayı): denetci, cekirdek ve tasarim `effort: high` (hata bulma, ağ/yetki kodu, tasarım derinliği); diğerleri varsayılan.
 

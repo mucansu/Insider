@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-042 — Model yönlendirme: mekanik işler Haiku 5.5'e (2026-10-11, kullanıcı isteği + koordinatör)
+- Kullanıcı: Haiku 5.5'in yapabileceği işler ona verilsin (tasarruf + paralel hız). Araştırma (ikincil kaynaklar, Anthropic tablosu aktarımı): Haiku 5.5 $0,10/$0,50 MTok (≤ 100K istem; üstü $0,50/$2,50), 1M bağlam, effort denetimi; Terminal-Bench 4.0 %39,2 (Sonnet 5.5 %70,6), SWE-bench Pro %64,8 (%81,3), SWE-bench Multilingual %83,7 (%90,3), OSWorld 2.1 %72,4 (%83,9); Anthropic konumlaması: yüksek hacimli, iyi tanımlı işler ve alt ajanlar; karmaşık ajan kodlamasında Sonnet/Opus.
+- Karar: yeni `kosucu` ajanı (haiku, salt okunur): test/CI/senaryo koşma, kayıt özetleme, ekran görüntüsü. Uzman ajanlar AC'si tam XS kalemlerde (ağ/yetki dışı) `model: "haiku"` ile çağrılır; Explore aramaları haiku. Ağ/yetki, NPC beyni, S/M çok dosyalı, denetci, tasarım ana modelde/Fable'da kalır. Ayrıntı: `docs/notes/ajanlar.md` "Model yönlendirme".
+- Sınır: tek PC'de CPU ağırlıklı koşular paralel çalıştırılmaz (sahte FAIL); paralellik yalnız LLM ağırlıklı işlerde.
+- Pilot: ilk 5 Haiku kalemi/koşusu — geri dönüş (kapıdan dönme, ana modele yükseltme) sayısı izlenir; ≥ 2 dönüşte kural daraltılır.
+
 ### KR-041 — Bağırıştan sonra örtüsü sağlam müşteri tutulmaz, sorgulanır (2026-10-06, kullanıcı; GB-12, Fable `docs/tasarim/danisma/gb-12-ortu-arama.md`)
 - Sahip alarmdayken (bağırış sonrası) ALARM çarpanı yalnız örtüsü bozuk oyuncuya; örtüsü sağlama normal satırlar + şüphe tavanı 90 + SORGU-2 ("Sen de buradaydın! Kim aldı?", tanınma +1, iş başına 1). Örtü bozan davranışta bugünkü tutma zinciri aynen. Gerekçe: örtü (US-042/043, KR-038) ana sosyal kaynak; bağırış onu sıfırlarsa müşteri rolü, ÇEK ve YÖNLENDİR boşa düşer; mahalleli ve polis örtüyü sayarken sahibin saymaması tutarsız.
 - Test-2 paketine girer (kullanıcı). Koordinatör: 90 tavanı + tanınma +1 kabul, SORGU-2 bu kalemde (US-048, oynanis); okunurluk XS'leri IS-110 (arayuz); kukla/kenar oku dilim 2.4.
