@@ -7,7 +7,7 @@ extends TestCase
 const STORE := "res://levels/store_a.tscn"
 const STORE_B := "res://levels/store_b.tscn"  # IS-107 (KR-037): generic level checks cover the second shop too
 const ARENA := "res://levels/test_arena.tscn"
-const LEVELS: Array[String] = [STORE, STORE_B, ARENA]
+const LEVELS: Array[String] = [STORE, STORE_B, "res://levels/store_a_rush.tscn", ARENA]
 const BUILDER := "res://levels/tools/build_levels.gd"
 const LAYOUT_DIR := "res://levels/layouts"
 const TMP_DIR := "user://test_levels_nav"

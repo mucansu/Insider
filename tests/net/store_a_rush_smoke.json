@@ -1,0 +1,20 @@
+{
+  "_doc": "IS-113 (KR-044) 'Kalabalık saat' kopyası (store_b_smoke biçimi): levels/store_a_rush.tscn (store_a geometrisi, nüfus ezmesi: müşteri ilk gelişi 5-10 sn, aralık 17.5 sn, kasa 250). Host + 1 katılan doğar, botsuz (store_b botları store_b geometrisine özeldir; store_a'da yürüyüş yoktur). Nüfus host'ta üretilir ve c1'e çoğaltılır; hiçbir kopya duvar içinde değil, ERROR satırı = FAIL. Beklentiler: en az 1 müşteri girer, yoldan geçen sınırları, kopyalar aynı olay akışı, sahte ya da koşumsuz NPC yok. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a_rush.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 40,
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a_rush.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"all_equal": "player_nodes"},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]},
+    {"between": ["host.population.customers_spawned", 1, 4]},
+    {"between": ["host.population.passersby_spawned", 1, 4]},
+    {"has": ["host.population.events", "customer_enter"]},
+    {"same": ["c1.population.events", "host.population.events"]},
+    {"all_equal": "population.names"},
+    {"eq": ["*.chasers.spawned", 0]}
+  ]
+}

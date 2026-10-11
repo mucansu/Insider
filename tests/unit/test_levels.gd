@@ -5,9 +5,10 @@ extends TestCase
 
 const STORE := "res://levels/store_a.tscn"
 const STORE_B := "res://levels/store_b.tscn"  # IS-107 second trial shop (KR-037)
+const STORE_RUSH := "res://levels/store_a_rush.tscn"  # IS-113 (KR-044): store_a geometry, "Kalabalık saat" rhythm
 const ARENA := "res://levels/test_arena.tscn"
-const LEVELS: Array[String] = [STORE, STORE_B, ARENA]
-const STORES: Array[String] = [STORE, STORE_B]
+const LEVELS: Array[String] = [STORE, STORE_B, STORE_RUSH, ARENA]
+const STORES: Array[String] = [STORE, STORE_B, STORE_RUSH]
 const BUILDER := "res://levels/tools/build_levels.gd"
 const LAYOUT_DIR := "res://levels/layouts"
 const TMP_DIR := "user://test_levels_roundtrip"  # the round-trip test does not touch scenes in the repo
