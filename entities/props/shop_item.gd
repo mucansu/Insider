@@ -5,7 +5,7 @@ extends Node2D
 ## a new map only needs the markers. Same name (`ShopItem<n>`) and position on every peer: RPC and sync paths match.
 ## `Take` Interactable (E, the product's `take_sec`, innocent): empty-handed players only (tag `free_hands`, no `holding`); host on
 ## completion puts the product into the player's hand (PlayerHand.host_give, unpaid) and emits `taken`. Stock is endless in v0 (shelf
-## fill visual US-046). Visual: a faded product glyph (ProductMark).
+## fill visual US-046). Visual: a full-strength product glyph (ProductMark) with its letter; `set_taken` dims it when a stock state exists.
 
 ## Host only: `peer_id` took a product here.
 signal taken(peer_id: int, product_id: StringName)
@@ -40,7 +40,7 @@ func setup(marker_index: int, product: StringName, at: Vector2) -> void:
 	add_child(_take)
 	var mark := ProductMark.new()
 	mark.name = "Mark"
-	mark.faded = true
+	mark.faded = false
 	mark.product_id = product
 	add_child(mark)
 
