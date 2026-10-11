@@ -6,7 +6,8 @@ Usage:
                                [--reorder] [--keep] [--verbose] [--duration SEC]
 --duration overrides the scenario's duration (tools/soak.sh). GDD §12 "hard network": --latency-ms 150 --jitter-ms 30
 --loss 0.01 (IS-013 AC2; not in ci_local's default step, a separate command).
-Godot: GODOT env var, else tools/get_godot.sh. Exit code 0 = all expectations passed.
+Godot: GODOT env var, else tools/get_godot.sh. Exit code 0 = all expectations passed; 1 = FAIL; 3 (LOAD_FAIL_EXIT) = FAIL while the
+run was clearly slower than expected ("YÜK:" line, machine load likely; IS-112 - ci_local re-runs it once).
 
 Flow: find free UDP ports -> start the host `--headless` and wait for `INSIDERS_READY` on stdout ->
 (if --latency-ms > 0 tools/latency_proxy.py is put in between: RTT/2 delay per direction) -> start clients after
@@ -128,6 +129,18 @@ LEAVE_STAGGER = 0.3
 # LINGER_SEC (real) after its dump, clocks only lag; if the spread is < LINGER_SEC every dump sees all the others in the session.
 RACE_RETRIES = 2
 RACE_RETRY = -1  # _run return: the run is invalid because of a timing race, re-run
+# IS-112 machine-load hint. Under load (parallel agents / CI) a run takes ~2 s longer and timing/position-sensitive expectations can
+# miss by a hair (2026-10-06 full CI: faz1_full samples_near 1-4 px over 32, noise_ring, rescue, owner_slipper, session_events,
+# register_empty FAIL at 150 ms; all PASS on a calm re-run). Expected wall time of a run = the latest process end on its own schedule
+# (start offset from the run start + quit_after) + LOAD_BASE_OVERHEAD (calm: startup to main + LINGER_SEC + shutdown; measured
+# 2.2-2.5 s). A FAILed run whose wall time exceeds that by more than min(LOAD_SLACK_SEC, LOAD_SLACK_RATIO x expected) prints a
+# "YÜK:" line and exits LOAD_FAIL_EXIT instead of 1; ci_local's net step re-runs such a scenario ONCE (a FAIL without the flag is
+# never re-run, real errors are not hidden). Thresholds of the expectations are never relaxed. A run with a timeout kill or a
+# process that did not start gets no flag (the slowness is the failure itself).
+LOAD_BASE_OVERHEAD = 2.5
+LOAD_SLACK_SEC = 1.5
+LOAD_SLACK_RATIO = 0.10
+LOAD_FAIL_EXIT = 3
 # With a bot file containing a lap ("loop") the last whole lap ends this long before the process's quit_after on the bot clock
 # (expand_bot_loop). The bot clock starts AFTER the process start (when the local player spawns: startup + connect, ~1-2 s), so the
 # real margin is this value minus the spawn delay.
@@ -525,6 +538,22 @@ def timing_race(dump_times: dict[str, float]) -> str:
         f"zamanlama yarışı: {last} dökümü {first} dökümünden {spread:.2f} sn sonra (>= {LINGER_SEC:g} sn bekleme "
         f"payı; {first} o anda oturumdan ayrılmış olabilir)"
     )
+
+
+def load_slowdown(elapsed: float, ends: Iterable[float]) -> tuple[float, float]:
+    """(expected wall time, seconds slower than it) of a run (IS-112). ends = each process's planned end relative to the run start
+    (start offset + quit_after)."""
+    planned = list(ends)
+    expected = (max(planned) if planned else 0.0) + LOAD_BASE_OVERHEAD
+    return expected, elapsed - expected
+
+
+def load_note(elapsed: float, ends: Iterable[float]) -> str:
+    """The "YÜK:" line if the run was clearly slower than expected (> min(LOAD_SLACK_SEC, LOAD_SLACK_RATIO x expected)), else ""."""
+    expected, slow = load_slowdown(elapsed, ends)
+    if expected <= 0.0 or slow <= min(LOAD_SLACK_SEC, LOAD_SLACK_RATIO * expected):
+        return ""
+    return f"YÜK: koşu {slow:.1f} sn yavaş (beklenen ~{expected:.1f} sn, gerçek {elapsed:.1f} sn) — makine yüklü olabilir, yeniden koş"
 
 
 def find_godot() -> str:
@@ -1145,7 +1174,12 @@ def _run(
 
     ok = not failures and not failed
     elapsed = time.monotonic() - t_begin
+    load = ""
+    if all(n in procs for n in all_names) and not any(p.killed for p in procs.values()):
+        load = load_note(elapsed, [p.started_at - t_begin + p.quit_after for p in procs.values()])
     print(f"{'PASS' if ok else 'FAIL'} {label}: {len(results) - len(failed)}/{len(results)} beklenti, {elapsed:.1f} sn")
+    if load and verbose and ok:
+        print(f"  {load}")  # informational only; on FAIL printed after the logs (below)
     if verbose or not ok:
         for passed, text in results:
             if verbose or not passed:
@@ -1179,7 +1213,11 @@ def _run(
                 print("\n".join(log_excerpt(proc.lines)))
         if not verbose:
             print("  (log'ların tamamı: --keep -v)")
-    return 0 if ok else 1
+        if load:
+            print(f"  {load}")  # last line, so ci_local's re-run notice follows it
+    if ok:
+        return 0
+    return LOAD_FAIL_EXIT if load else 1
 
 
 # Short-mode FAIL log (IS-090): error/warning lines and the "at:" lines right after them, at most `limit`;
