@@ -16,6 +16,7 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 - Karar: yeni `kosucu` ajanı (haiku, salt okunur): test/CI/senaryo koşma, kayıt özetleme, ekran görüntüsü. Uzman ajanlar AC'si tam XS kalemlerde (ağ/yetki dışı) `model: "haiku"` ile çağrılır; Explore aramaları haiku. Ağ/yetki, NPC beyni, S/M çok dosyalı, denetci, tasarım ana modelde/Fable'da kalır. Ayrıntı: `docs/notes/ajanlar.md` "Model yönlendirme".
 - Sınır: tek PC'de CPU ağırlıklı koşular paralel çalıştırılmaz (sahte FAIL); paralellik yalnız LLM ağırlıklı işlerde.
 - Pilot: ilk 5 Haiku kalemi/koşusu — geri dönüş (kapıdan dönme, ana modele yükseltme) sayısı izlenir; ≥ 2 dönüşte kural daraltılır.
+- Pilot günlüğü: (1) 2026-10-11 kosucu — faz2-int 000e367 birleşme doğrulaması (ci_local import unit tools + 3 senaryo × 0/150 + kayit_ozet kontrolü): eksiksiz, doğru, dönüş yok.
 
 ### KR-041 — Bağırıştan sonra örtüsü sağlam müşteri tutulmaz, sorgulanır (2026-10-06, kullanıcı; GB-12, Fable `docs/tasarim/danisma/gb-12-ortu-arama.md`)
 - Sahip alarmdayken (bağırış sonrası) ALARM çarpanı yalnız örtüsü bozuk oyuncuya; örtüsü sağlama normal satırlar + şüphe tavanı 90 + SORGU-2 ("Sen de buradaydın! Kim aldı?", tanınma +1, iş başına 1). Örtü bozan davranışta bugünkü tutma zinciri aynen. Gerekçe: örtü (US-042/043, KR-038) ana sosyal kaynak; bağırış onu sıfırlarsa müşteri rolü, ÇEK ve YÖNLENDİR boşa düşer; mahalleli ve polis örtüyü sayarken sahibin saymaması tutarsız.
