@@ -1,0 +1,501 @@
+{
+  "alert": {
+    "history": [
+      0
+    ],
+    "level": 0,
+    "timer_left": -1.0
+  },
+  "chasers": {
+    "catches": [],
+    "ladder": [
+      [
+        0,
+        0.0
+      ]
+    ],
+    "misled": 0,
+    "neighbour_delay_s": 8.0,
+    "session_heat": 0,
+    "spawned": 0,
+    "states": []
+  },
+  "contact": {
+    "calm": 0,
+    "count": 0,
+    "hot": 0,
+    "hot_chaser": 0,
+    "hot_cost": 0.0,
+    "npcs": [],
+    "pushes": [],
+    "slid": {},
+    "slides": []
+  },
+  "events": [],
+  "heist": {
+    "abort_peak_s": 0.0,
+    "active": false,
+    "cover": {
+      "1": true,
+      "2092129180": true
+    },
+    "cover_reason": {},
+    "elapsed": 0.0,
+    "events_main": [],
+    "events_shared": [],
+    "history": [],
+    "max_alert": 0,
+    "phase": "prep",
+    "prep_s": 128.63,
+    "recognized": {},
+    "recognized_session": {},
+    "result": {},
+    "seen_by": {},
+    "session_heat": 0,
+    "settle_peak_s": 0.0,
+    "started_at_s": -1.0,
+    "strategy": {}
+  },
+  "host_lost": true,
+  "interaction": {
+    "failures": 40,
+    "requests": 40,
+    "result_delay_ms": -1.0,
+    "successes": 0
+  },
+  "is_host": false,
+  "level": "res://levels/store_a.tscn",
+  "log_reason": "session_end",
+  "noise": {
+    "accepted": 0,
+    "delivered": 0,
+    "dispatched": 0,
+    "emitted": 14,
+    "rejected": {},
+    "rejected_total": 0,
+    "ring_kinds": {
+      "bell": 12,
+      "door": 10,
+      "run": 22,
+      "shelf": 3
+    },
+    "rings": 47
+  },
+  "owner": {
+    "agenda": [],
+    "agenda_noises": {},
+    "alarmed": false,
+    "bubbles": [],
+    "detections": [],
+    "discoveries": [],
+    "distractions": 0,
+    "event_peers": [],
+    "events": [],
+    "facing": [
+      -1.0,
+      0.0
+    ],
+    "log": [],
+    "log_dropped": 0,
+    "loiter_s": {},
+    "misdirected": false,
+    "misdirects": [],
+    "peak": {
+      "1": 0.0,
+      "2092129180": 0.0
+    },
+    "phones_found": 0,
+    "player_serves": 0,
+    "recognition_greets": [],
+    "register_opens": 0,
+    "rescues": [],
+    "search_questions": [],
+    "send_costs": [],
+    "sent_windows": [],
+    "serves": 0,
+    "shout_noises": 0,
+    "shouted": false,
+    "soothed": [],
+    "state": "agenda",
+    "states": [
+      [
+        "agenda",
+        0.0
+      ]
+    ],
+    "talk_gaze": 0.0,
+    "talk_peer": 0,
+    "task": "counter",
+    "window_questions": []
+  },
+  "peer_id": 0,
+  "peers": [],
+  "ping": {},
+  "ping_ms": {},
+  "player_nodes": [
+    1,
+    2092129180
+  ],
+  "player_states": {
+    "1": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 0
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -78.7,
+      "mode": 0,
+      "status": 0,
+      "underruns": 9,
+      "wall_frames": 0
+    },
+    "2092129180": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 0
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -153.0,
+      "mode": 0,
+      "status": 0,
+      "underruns": 0,
+      "wall_frames": 0
+    }
+  },
+  "players": {
+    "1": {
+      "name": "ass",
+      "pos": [
+        854.979614257813,
+        588.466430664063
+      ],
+      "slot": 0
+    },
+    "2092129180": {
+      "name": "ass",
+      "pos": [
+        850.460815429688,
+        569.689819335938
+      ],
+      "slot": 1
+    }
+  },
+  "population": {
+    "active": true,
+    "event_peers": [
+      0,
+      0,
+      0
+    ],
+    "events": [
+      "customer_enter",
+      "customer_enter",
+      "customer_enter"
+    ],
+    "names": [],
+    "npcs": [],
+    "seen": [
+      "Customer1",
+      "Passerby2",
+      "Passerby3",
+      "Passerby4",
+      "Customer5",
+      "Passerby6",
+      "Customer7",
+      "Passerby8",
+      "Passerby9",
+      "Customer10",
+      "Passerby11"
+    ]
+  },
+  "props": {
+    "BackDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "BackroomDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 8,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 8,
+        "silent": 0
+      },
+      "visible_delay_ms": 7.99989700317383
+    },
+    "Bag": {
+      "carrier": 0,
+      "drops": 0,
+      "handoff": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "pos": [
+        496.0,
+        240.0
+      ],
+      "seen_carriers": [],
+      "take": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "takes": 0,
+      "value": 450
+    },
+    "Counter": {
+      "buy": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "paid": 0,
+      "pickup": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "purchases": 0,
+      "send": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "sent_used": false
+    },
+    "FrontDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 2,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": true,
+      "sfx": {
+        "played": 2,
+        "silent": 0
+      },
+      "visible_delay_ms": 5.00011444091797
+    },
+    "Register": {
+      "emptied": false,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "ShelfProp1": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp2": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp3": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    }
+  },
+  "session_seed": 0,
+  "shop": {
+    "dropped": 0,
+    "held": {
+      "1": "",
+      "2092129180": ""
+    },
+    "items": [
+      "ShopItem1:bread",
+      "ShopItem2:cola"
+    ],
+    "order": "none",
+    "order_peer": 0,
+    "paid": 0,
+    "taken": 0
+  },
+  "team_cash": 50,
+  "vision": {
+    "exposure": {
+      "2092129180": 0
+    },
+    "exposure_history": {
+      "2092129180": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ]
+    },
+    "fog": true,
+    "look_deg": null,
+    "memory_tiles": 297,
+    "mode": "peripheral",
+    "peripheral_tiles": 0,
+    "remote_look_deg": {
+      "1": -78.7,
+      "2092129180": -153.0
+    },
+    "visible_npcs": [
+      "Passerby11"
+    ],
+    "visible_tiles": 111
+  }
+}

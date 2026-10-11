@@ -1,0 +1,1272 @@
+{
+  "alert": {
+    "history": [
+      0
+    ],
+    "level": 0,
+    "timer_left": -1.0
+  },
+  "chasers": {
+    "catches": [],
+    "ladder": [
+      [
+        0,
+        0.0
+      ]
+    ],
+    "misled": 0,
+    "neighbour_delay_s": 8.0,
+    "session_heat": 0,
+    "spawned": 0,
+    "states": []
+  },
+  "contact": {
+    "calm": 0,
+    "count": 0,
+    "hot": 0,
+    "hot_chaser": 0,
+    "hot_cost": 0.0,
+    "npcs": [],
+    "pushes": [],
+    "slid": {},
+    "slides": []
+  },
+  "events": [
+    {
+      "data": {
+        "level": "res://levels/store_a.tscn",
+        "run": 1,
+        "seed": 17803078
+      },
+      "kind": "level_started"
+    }
+  ],
+  "heist": {
+    "abort_peak_s": 0.0,
+    "active": false,
+    "cover": {
+      "1": true,
+      "2092129180": true
+    },
+    "cover_reason": {},
+    "elapsed": 0.0,
+    "events_main": [],
+    "events_shared": [],
+    "history": [],
+    "max_alert": 0,
+    "phase": "prep",
+    "prep_s": 154.22,
+    "recognized": {},
+    "recognized_session": {},
+    "result": {},
+    "seen_by": {},
+    "session_heat": 0,
+    "settle_peak_s": 0.0,
+    "started_at_s": -1.0,
+    "strategy": {}
+  },
+  "host_lost": false,
+  "interaction": {
+    "failures": 8,
+    "requests": 10,
+    "result_delay_ms": 0.754999999998063,
+    "successes": 2
+  },
+  "is_host": true,
+  "level": "res://levels/store_a.tscn",
+  "log_reason": "window_close",
+  "noise": {
+    "accepted": 14,
+    "delivered": 48,
+    "dispatched": 48,
+    "emitted": 34,
+    "rejected": {},
+    "rejected_total": 0,
+    "ring_kinds": {
+      "bell": 13,
+      "door": 10,
+      "run": 22,
+      "shelf": 3
+    },
+    "rings": 48
+  },
+  "owner": {
+    "agenda": [
+      "counter",
+      "bell",
+      "counter",
+      "backroom",
+      "bell",
+      "backroom",
+      "customer",
+      "backroom",
+      "bell",
+      "backroom",
+      "bell",
+      "backroom",
+      "counter",
+      "bell",
+      "counter",
+      "customer",
+      "counter",
+      "bell",
+      "counter",
+      "bell",
+      "counter",
+      "restock",
+      "bell",
+      "restock",
+      "customer",
+      "restock",
+      "bell",
+      "restock",
+      "counter",
+      "bell",
+      "counter",
+      "bell",
+      "counter"
+    ],
+    "agenda_noises": {
+      "bell": 13,
+      "shelf": 3
+    },
+    "alarmed": false,
+    "bubbles": [],
+    "detections": [],
+    "discoveries": [],
+    "distractions": 0,
+    "event_peers": [],
+    "events": [],
+    "facing": [
+      -1.0,
+      0.0
+    ],
+    "log": [
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 0.02,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 21.4,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.36
+        ],
+        "state": "agenda",
+        "t": 22.38,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 33.3,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: backroom"
+      },
+      {
+        "facing": [
+          -0.55,
+          -0.84
+        ],
+        "state": "agenda",
+        "t": 35.02,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "arka oda kontrolü: çanta yerinde"
+      },
+      {
+        "facing": [
+          -0.45,
+          -0.89
+        ],
+        "state": "agenda",
+        "t": 35.33,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.71,
+          0.7
+        ],
+        "state": "agenda",
+        "t": 36.32,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: backroom"
+      },
+      {
+        "facing": [
+          -0.9,
+          -0.43
+        ],
+        "state": "agenda",
+        "t": 36.93,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "arka oda kontrolü: çanta yerinde"
+      },
+      {
+        "facing": [
+          0.03,
+          1.0
+        ],
+        "state": "agenda",
+        "t": 40.17,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "müşteri #1 sırada -> servis"
+      },
+      {
+        "facing": [
+          0.12,
+          0.99
+        ],
+        "state": "agenda",
+        "t": 42.15,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (agenda/customer)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.06
+        ],
+        "state": "agenda",
+        "t": 44.27,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "dönüş kontrolü: kasa dolu"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.06
+        ],
+        "state": "agenda",
+        "t": 45.35,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "servis: kasa açıldı"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.09
+        ],
+        "state": "agenda",
+        "t": 49.35,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: backroom"
+      },
+      {
+        "facing": [
+          -0.01,
+          -1.0
+        ],
+        "state": "agenda",
+        "t": 51.43,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.88,
+          0.48
+        ],
+        "state": "agenda",
+        "t": 52.42,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: backroom"
+      },
+      {
+        "facing": [
+          -0.45,
+          -0.89
+        ],
+        "state": "agenda",
+        "t": 53.85,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "arka oda kontrolü: çanta yerinde"
+      },
+      {
+        "facing": [
+          -0.03,
+          1.0
+        ],
+        "state": "agenda",
+        "t": 61.38,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.6,
+          0.8
+        ],
+        "state": "agenda",
+        "t": 62.37,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: backroom"
+      },
+      {
+        "facing": [
+          -0.57,
+          0.82
+        ],
+        "state": "agenda",
+        "t": 62.38,
+        "target": 0,
+        "task": "backroom",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "arka oda kontrolü: çanta yerinde"
+      },
+      {
+        "facing": [
+          -0.03,
+          1.0
+        ],
+        "state": "agenda",
+        "t": 63.93,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 68.05,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "dönüş kontrolü: kasa dolu"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 69.8,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.38
+        ],
+        "state": "agenda",
+        "t": 70.78,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 78.08,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "müşteri #5 sırada -> servis"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.08
+        ],
+        "state": "agenda",
+        "t": 80.08,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "servis: kasa açıldı"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.04
+        ],
+        "state": "agenda",
+        "t": 84.08,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 86.17,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.38
+        ],
+        "state": "agenda",
+        "t": 87.15,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 98.25,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.38
+        ],
+        "state": "agenda",
+        "t": 99.23,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          -0.03
+        ],
+        "state": "agenda",
+        "t": 108.77,
+        "target": 0,
+        "task": "restock",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: restock"
+      },
+      {
+        "facing": [
+          -0.87,
+          0.5
+        ],
+        "state": "agenda",
+        "t": 109.07,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.96,
+          0.29
+        ],
+        "state": "agenda",
+        "t": 110.05,
+        "target": 0,
+        "task": "restock",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: restock"
+      },
+      {
+        "facing": [
+          -0.75,
+          -0.66
+        ],
+        "state": "agenda",
+        "t": 111.67,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "müşteri #7 sırada -> servis"
+      },
+      {
+        "facing": [
+          -0.58,
+          0.82
+        ],
+        "state": "agenda",
+        "t": 114.37,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "dönüş kontrolü: kasa dolu"
+      },
+      {
+        "facing": [
+          -1.0,
+          -0.09
+        ],
+        "state": "agenda",
+        "t": 115.43,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "servis: kasa açıldı"
+      },
+      {
+        "facing": [
+          -1.0,
+          -0.09
+        ],
+        "state": "agenda",
+        "t": 117.77,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (agenda/customer)"
+      },
+      {
+        "facing": [
+          -0.99,
+          -0.12
+        ],
+        "state": "agenda",
+        "t": 119.43,
+        "target": 0,
+        "task": "restock",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: restock"
+      },
+      {
+        "facing": [
+          -0.76,
+          -0.66
+        ],
+        "state": "agenda",
+        "t": 121.48,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.43,
+          0.9
+        ],
+        "state": "agenda",
+        "t": 122.47,
+        "target": 0,
+        "task": "restock",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: restock"
+      },
+      {
+        "facing": [
+          -0.03,
+          -1.0
+        ],
+        "state": "agenda",
+        "t": 132.63,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          1.0,
+          0.07
+        ],
+        "state": "agenda",
+        "t": 134.13,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          0.21,
+          0.98
+        ],
+        "state": "agenda",
+        "t": 135.12,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          0.24,
+          0.97
+        ],
+        "state": "agenda",
+        "t": 135.17,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          0.2,
+          0.98
+        ],
+        "state": "agenda",
+        "t": 136.15,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -0.77,
+          -0.64
+        ],
+        "state": "agenda",
+        "t": 141.02,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "dönüş kontrolü: kasa dolu"
+      }
+    ],
+    "log_dropped": 0,
+    "loiter_s": {
+      "1": 0.0,
+      "2092129180": 0.0
+    },
+    "misdirected": false,
+    "misdirects": [],
+    "peak": {
+      "1": 0.0,
+      "2092129180": 0.0
+    },
+    "phones_found": 0,
+    "player_serves": 0,
+    "recognition_greets": [],
+    "register_opens": 3,
+    "rescues": [],
+    "search_questions": [],
+    "send_costs": [],
+    "sent_windows": [],
+    "serves": 3,
+    "shout_noises": 0,
+    "shouted": false,
+    "soothed": [],
+    "state": "agenda",
+    "states": [
+      [
+        "agenda",
+        0.0
+      ]
+    ],
+    "talk_gaze": 0.0,
+    "talk_peer": 0,
+    "task": "counter",
+    "window_questions": []
+  },
+  "peer_id": 1,
+  "peers": [
+    1,
+    2092129180
+  ],
+  "ping": {
+    "2092129180": {
+      "samples": 16,
+      "source": "ping"
+    }
+  },
+  "ping_ms": {
+    "2092129180": 9
+  },
+  "player_nodes": [
+    1,
+    2092129180
+  ],
+  "player_states": {
+    "1": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 120
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -78.7,
+      "mode": 0,
+      "status": 0,
+      "underruns": 0,
+      "wall_frames": 0
+    },
+    "2092129180": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 0
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -153.3,
+      "mode": 0,
+      "status": 0,
+      "underruns": 43,
+      "wall_frames": 0
+    }
+  },
+  "players": {
+    "1": {
+      "name": "ass",
+      "pos": [
+        854.979614257813,
+        588.466430664063
+      ],
+      "slot": 0
+    },
+    "2092129180": {
+      "name": "ass",
+      "pos": [
+        850.460815429688,
+        569.689819335938
+      ],
+      "slot": 1
+    }
+  },
+  "population": {
+    "active": true,
+    "arrivals": [
+      [
+        "customer",
+        18.03
+      ],
+      [
+        "passerby",
+        23.67
+      ],
+      [
+        "passerby",
+        37.93
+      ],
+      [
+        "passerby",
+        56.77
+      ],
+      [
+        "customer",
+        58.02
+      ],
+      [
+        "passerby",
+        84.0
+      ],
+      [
+        "customer",
+        94.88
+      ],
+      [
+        "passerby",
+        110.32
+      ],
+      [
+        "passerby",
+        127.07
+      ],
+      [
+        "customer",
+        131.8
+      ],
+      [
+        "passerby",
+        147.2
+      ]
+    ],
+    "cancelled": 0,
+    "converted": 0,
+    "customers_inside": 1,
+    "customers_spawned": 4,
+    "event_peers": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "events": [
+      "customer_enter",
+      "customer_enter",
+      "customer_enter",
+      "customer_enter"
+    ],
+    "flees": 0,
+    "looks": 9,
+    "names": [
+      "Customer10",
+      "Passerby11"
+    ],
+    "npcs": [
+      {
+        "events": [
+          "customer_enter"
+        ],
+        "name": "Customer10",
+        "role": "customer",
+        "state": "route"
+      },
+      {
+        "events": [],
+        "name": "Passerby11",
+        "role": "passerby",
+        "state": "route"
+      }
+    ],
+    "passerby_max": 2,
+    "passersby_spawned": 7,
+    "seen": [
+      "Customer1",
+      "Passerby2",
+      "Passerby3",
+      "Passerby4",
+      "Customer5",
+      "Passerby6",
+      "Customer7",
+      "Passerby8",
+      "Passerby9",
+      "Customer10",
+      "Passerby11"
+    ],
+    "served": 3,
+    "tells": 0
+  },
+  "props": {
+    "BackDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "BackroomDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 8,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 8,
+        "rejected": {
+          "prep": 2
+        },
+        "rejected_total": 2,
+        "requests": 2
+      },
+      "open": false,
+      "sfx": {
+        "played": 8,
+        "silent": 0
+      },
+      "visible_delay_ms": 0.0
+    },
+    "Bag": {
+      "carrier": 0,
+      "drops": 0,
+      "handoff": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "pos": [
+        496.0,
+        240.0
+      ],
+      "seen_carriers": [],
+      "take": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "takes": 0,
+      "value": 450
+    },
+    "Counter": {
+      "buy": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "paid": 0,
+      "pickup": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "purchases": 0,
+      "send": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "sent_used": false
+    },
+    "FrontDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 2,
+      "interact": {
+        "accepted": 2,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 2,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 2
+      },
+      "open": true,
+      "sfx": {
+        "played": 2,
+        "silent": 0
+      },
+      "visible_delay_ms": 0.0
+    },
+    "Register": {
+      "emptied": false,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {
+          "prep": 4
+        },
+        "rejected_total": 4,
+        "requests": 4
+      },
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "ShelfProp1": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {
+          "prep": 23
+        },
+        "rejected_total": 23,
+        "requests": 23
+      },
+      "toppled": false
+    },
+    "ShelfProp2": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp3": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    }
+  },
+  "session_seed": 17803078,
+  "shop": {
+    "dropped": 0,
+    "held": {
+      "1": "",
+      "2092129180": ""
+    },
+    "items": [
+      "ShopItem1:bread",
+      "ShopItem2:cola"
+    ],
+    "order": "none",
+    "order_peer": 0,
+    "paid": 0,
+    "taken": 0
+  },
+  "team_cash": 50,
+  "vision": {
+    "exposure": {
+      "1": 0,
+      "2092129180": 0
+    },
+    "exposure_history": {
+      "1": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ],
+      "2092129180": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ]
+    },
+    "fog": true,
+    "look_deg": -78.7,
+    "memory_tiles": 294,
+    "mode": "peripheral",
+    "peripheral_tiles": 0,
+    "remote_look_deg": {
+      "2092129180": -153.3
+    },
+    "visible_npcs": [
+      "Passerby11"
+    ],
+    "visible_tiles": 106
+  }
+}
