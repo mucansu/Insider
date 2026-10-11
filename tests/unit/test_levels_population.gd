@@ -6,9 +6,10 @@ extends TestCase
 
 const STORE := "res://levels/store_a.tscn"
 const STORE_B := "res://levels/store_b.tscn"  # IS-107 (KR-037): same marker/zone names as store_a
+const STORE_RUSH := "res://levels/store_a_rush.tscn"  # IS-113 (KR-044)
 const ARENA := "res://levels/test_arena.tscn"
-const LEVELS: Array[String] = [STORE, STORE_B, ARENA]
-const STORES: Array[String] = [STORE, STORE_B]
+const LEVELS: Array[String] = [STORE, STORE_B, STORE_RUSH, ARENA]
+const STORES: Array[String] = [STORE, STORE_B, STORE_RUSH]
 
 const TILE := 32
 const CHAR_RADIUS := 12.0       # character diameter ~24 px (S4)
