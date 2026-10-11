@@ -28,6 +28,8 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 - Pilot: ilk 5 Haiku kalemi/koşusu — geri dönüş (kapıdan dönme, ana modele yükseltme) sayısı izlenir; ≥ 2 dönüşte kural daraltılır.
 - Pilot günlüğü: (1) 2026-10-11 kosucu — faz2-int 000e367 birleşme doğrulaması (ci_local import unit tools + 3 senaryo × 0/150 + kayit_ozet kontrolü): eksiksiz, doğru, dönüş yok.
 - (2) 2026-10-11 seviye (Haiku) — IS-113 Kalabalık saat varyantı: AC'ler tam, desteklenmeyen alanlar için kod yazmadan karar sordu, bot ölçümü + testler; dönüş yok (tek tools flake'i kendisi yeniden koştu).
+- (3) 2026-10-11 kosucu — faz2-int 4a5e99e birleşik doğrulama 16/16: dönüş yok.
+- (4) 2026-10-11 arayuz (Haiku) — US-046 lite: AC'ler ve testler tamam, ama ekran görüntüsünü "okunuyor" diye raporladı; koordinatör karesinde HUD satırı sisin altında soluk, raf işareti küçük → **1. dönüş** (okunurluk yargısı). Ders: Haiku görsel yargıda iyimser; görsel AC'li Haiku işinde kareye koordinatör bakar.
 
 ### KR-041 — Bağırıştan sonra örtüsü sağlam müşteri tutulmaz, sorgulanır (2026-10-06, kullanıcı; GB-12, Fable `docs/tasarim/danisma/gb-12-ortu-arama.md`)
 - Sahip alarmdayken (bağırış sonrası) ALARM çarpanı yalnız örtüsü bozuk oyuncuya; örtüsü sağlama normal satırlar + şüphe tavanı 90 + SORGU-2 ("Sen de buradaydın! Kim aldı?", tanınma +1, iş başına 1). Örtü bozan davranışta bugünkü tutma zinciri aynen. Gerekçe: örtü (US-042/043, KR-038) ana sosyal kaynak; bağırış onu sıfırlarsa müşteri rolü, ÇEK ve YÖNLENDİR boşa düşer; mahalleli ve polis örtüyü sayarken sahibin saymaması tutarsız.
