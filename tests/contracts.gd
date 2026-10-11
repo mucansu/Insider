@@ -64,6 +64,12 @@ const LINES := {
 		"func cover_state() -> int",
 		# S3 addition (IS-058b): session seed of the current job (host decides; a client reads 0).
 		"func session_seed() -> int",
+		# S3 addition candidate (US-049, in-job start; coordinator carries it to mimari.md): job prep phase, host start, prep lock.
+		"signal heist_phase_changed(phase: int)",
+		"func heist_in_prep() -> bool",
+		"func heist_prep_s() -> float",
+		"func heist_prep_locks(item: Node) -> bool",
+		"func request_heist_start() -> bool",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",
@@ -103,6 +109,8 @@ const LINES := {
 		# IS-102: playtest log on exit (not automation); the automation dump path without the log mirror.
 		"var log_on_exit: String",
 		"func dump_file() -> String",
+		# US-049: an automated host keeps the job prep phase.
+		"var heist_prep: bool",
 	],
 	# S6 addition (IS-015a): bot brain surface the statistics runner (IS-015b) relies on (entities/player/bot_brain.gd; checked in
 	# tests/unit/test_bot_brain.gd). Dump section "brain": strategy, seed, role, phase, phase_log, stuck_s (+ counters).

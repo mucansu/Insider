@@ -1,0 +1,26 @@
+{
+  "_doc": "US-049 hazırlıkta ceza yok (KR-044): store_a_nopop (sahip etkin, nüfus yok), host --heist-prep ile hazırlıkta açar ve hiç başlatmaz. c1 heist_start_c1.json kasa rotasıyla tezgâhın arkasına, sahibin yanına gider; kasa başında E'ye basar → en yakın hedef (kasa ya da tezgâhtaki sahibin konuşma bileşeni) host'ta 'prep' ile reddedilir, hiçbir etkileşim tamamlanmaz; sahibin önünde personel tarafında bekler. Hazırlıkta şüphe dolmaz (sahibin c1 tepesi 0), uyarı merdiveni 0'da kalır, iş süresi saymaz, sonuç yok; evre her peer'da prep. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 17,
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "c1": "res://tests/net/bots/heist_start_c1.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.phase", "prep"]},
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["*.heist.started_at_s", -1.0]},
+    {"between": ["host.heist.prep_s", 15.0, 30.0]},
+    {"eq": ["host.heist.elapsed", 0.0]},
+    {"eq": ["*.heist.result", {}]},
+    {"between": ["c1.interaction.requests", 1, 2]},
+    {"eq": ["c1.interaction.successes", 0]},
+    {"eq": ["*.props.Register.emptied", false]},
+    {"eq": ["host.owner.peak.$c1", 0.0]},
+    {"eq": ["*.alert.history", [0]]},
+    {"eq": ["*.alert.level", 0]}
+  ]
+}

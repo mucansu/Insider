@@ -56,9 +56,12 @@ HUD_HELD_COUNTDOWN,TUTULDUN — %d,HELD — %d
 HUD_HELD_COUNTDOWN_NO_TIME,TUTULDUN,HELD
 HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
+HUD_PREP_GATHERING,Ekip toplanıyor (%d),Crew gathering (%d)
+HUD_PREP_REMINDER,Herkes hazırsa başlangıç noktasında: %s,Everyone ready? At the start point: %s
 EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.
 EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
 EVENT_POLICE_ARRIVED,Polis geldi.,The police are here.
+EVENT_HEIST_STARTED,İş başladı!,The job is on!
 EVENT_SHOUT,Biri bağırdı.,Someone shouted.
 EVENT_PLAYER_HELD,"{name} tutuldu! {seconds} sn — yanına git, ÇEK ({key})","{name} is held! {seconds} s — get next to them, PULL ({key})"
 EVENT_PLAYER_HELD_SELF,TUTULDUN — arkadaşın çekebilir,YOU'RE HELD — a teammate can pull you free
@@ -73,6 +76,7 @@ PAUSE_LEAVE,Oturumdan ayrıl,Leave session
 INTERACT_REGISTER_EMPTY,Kasayı boşalt,Empty the register
 INTERACT_DOOR_OPEN,Kapıyı aç,Open the door
 INTERACT_DOOR_CLOSE,Kapıyı kapat,Close the door
+INTERACT_HEIST_START,Başla,Start
 INTERACT_BAG_TAKE,Çantayı al,Grab the bag
 INTERACT_BAG_HANDOFF,Çantayı devral,Take over the bag
 ALERT_GENERIC,Uyarı,Alert

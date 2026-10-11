@@ -1,0 +1,35 @@
+{
+  "_doc": "US-049 iş-içi Başla (KR-044): host --heist-prep ile hazırlıkta açar (otomasyonda varsayılan doğrudan başlama kapalı). store_a_quiet (sahip/uyarı etkin değil), host + c1 (hazırlıkta katılır) + c2 (iş başladıktan sonra katılır). c1 doğma noktasında E'ye basar: Başla yalnız host'a sunulur, iş başlamaz. c1 hazırlıkta kasaya E → host 'prep' ile reddeder (kasa dolu kalır). Host t=14'te başlangıç noktasında E → her peer'da evre active (güvenilir RPC), heist_started olayı (HUD 'İş başladı!'), başlama anı host'ta ~14 sn. c1 yeniden E → kasa boşalır (150). c2 iş başladıktan sonra katılır: evreyi active alır, mevcut geç katılma kuralıyla doğar. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_quiet.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 26,
+  "start_delay": {"c2": 19.0},
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "host": "res://tests/net/bots/heist_start_host.json",
+    "c1": "res://tests/net/bots/heist_start_c1.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 3]},
+    {"eq": ["*.heist.phase", "active"]},
+    {"eq": ["*.heist.active", true]},
+    {"between": ["host.heist.started_at_s", 13.8, 16.0]},
+    {"near": ["host.heist.prep_s", "host.heist.started_at_s", 0.01]},
+    {"between": ["c1.heist.started_at_s", 11.0, 16.5]},
+    {"between": ["c2.heist.started_at_s", 0.0, 2.0]},
+    {"eq": ["host.props.Register.interact.rejected.prep", 1]},
+    {"lacks": ["host.props.Register.interact.rejected", "peer"]},
+    {"eq": ["host.props.Register.interact.completed", 1]},
+    {"eq": ["*.props.Register.emptied", true]},
+    {"eq": ["host.heist.events_shared.0.kind", "heist_started"]},
+    {"eq": ["host.heist.events_shared.0.data.players", 2]},
+    {"same": ["host.heist.events_shared", "c1.events"]},
+    {"len": ["c2.events", 0]},
+    {"eq": ["c1.interaction.requests", 2]},
+    {"eq": ["c1.interaction.successes", 1]},
+    {"eq": ["host.heist.result", {}]},
+    {"eq": ["*.alert.level", 0]},
+    {"eq": ["*.team_cash", 200]}
+  ]
+}

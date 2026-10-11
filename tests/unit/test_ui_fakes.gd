@@ -162,6 +162,12 @@ class FakeGame extends FakeGameBase:
 	func cover_state() -> int:
 		return cover
 
+	## US-049 seconds of job prep so far; -1 if not in prep.
+	var prep_s: float = -1.0
+
+	func heist_prep_s() -> float:
+		return prep_s
+
 
 ## S3 + S3 addition + vision addition (mimari.md, US-011b/c): exposure, player world position, the host's vision mode.
 class FakeVisionGame extends FakeGame:

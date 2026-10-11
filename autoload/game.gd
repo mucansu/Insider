@@ -40,7 +40,9 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## 6: US-045 player hand synchronizer (`Status/Hand` item/paid + Drop component), counter order/shop counters, shelf item points and
 ##    the counter's Pickup component.
 ## 7: US-048 owner event kind `owner_question_search` (search questioning balloon; old builds would drop it silently).
-const PROTOCOL_VERSION := 7
+## 8: US-049 job phase RPC (`_rpc_heist_phase`), the runtime start point `Level/HeistStart/Trigger` (+ its synchronizer) and the
+##    `heist_started` event.
+const PROTOCOL_VERSION := 8
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 ## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by
@@ -386,6 +388,7 @@ func _try_start_pending_level() -> void:
 	_run_started(marker_at, level_path)  # IS-102: placed before any event raised while the level loaded
 	if Net.is_online():
 		_rpc_load_level.rpc(level_path)
+		_heist_send_phase(0)  # US-049: right behind the load on the same reliable channel
 	var ids: Array = _players.keys()
 	ids.sort()
 	for peer_id: int in ids:
@@ -421,6 +424,7 @@ func _host_admit_peer(peer_id: int) -> void:
 	_broadcast_players()
 	_rpc_team_cash.rpc_id(peer_id, _team_cash)
 	_rpc_alert.rpc_id(peer_id, _alert_level, _alert_timer)
+	_heist_send_phase(peer_id)  # US-049: prep or started (a late joiner follows the host's phase)
 	if _level != null:
 		_spawn_player(peer_id)
 		_heist_replay_cover(peer_id)
@@ -438,7 +442,7 @@ func _host_drop_peer(peer_id: int) -> void:
 		return
 	_catchup.erase(peer_id)
 	# IS-099: a player leaving mid-job still shows in the job result (`left: true`).
-	if _heist != null and _players.has(peer_id):
+	if _heist_running() and _players.has(peer_id):  # US-049: leaving during prep is not part of the job
 		_heist.note_left(peer_id, _players[peer_id] as Dictionary)
 	if _players.erase(peer_id):
 		_broadcast_players()
@@ -1045,7 +1049,7 @@ func venue_tier() -> int:
 ## US-040 (S3 addendum): time left on the empty-handed abort countdown (s); −1 if no counter or the job finished. On the host the deciding counter;
 ## on a client an estimate derived from the local copy (display only).
 func abort_left() -> float:
-	if _heist == null or _heist.finished:
+	if not _heist_running():
 		return -1.0
 	if _has_host_authority():
 		return _heist.abort.left()
@@ -1055,7 +1059,7 @@ func abort_left() -> float:
 ## IS-103 (S3 addendum): time left on the escape settle countdown ("van leaving… n", s); −1 if no countdown or the job finished. On the host the deciding counter;
 ## on a client an estimate derived from the local copy (display only). Never runs together with `abort_left()` (abort needs loot 0, settle loot > 0).
 func escape_settle_left() -> float:
-	if _heist == null or _heist.finished:
+	if not _heist_running():
 		return -1.0
 	if _has_host_authority():
 		return _heist.settle.left()
@@ -1099,8 +1103,11 @@ func _heist_setup() -> void:
 
 func _heist_physics(delta: float) -> void:
 	_heist_run_hook(delta)
-	if _heist == null or _heist.finished or _level == null:
+	if _heist == null or _level == null:
 		return
+	_heist_level_t += delta  # US-049: level clock (prep length, start moment)
+	if not _heist_running():
+		return  # finished, or prep (US-049: no observe/decision; elapsed starts at the start)
 	if not _has_host_authority():
 		_heist_client_abort(delta)
 		return
@@ -1192,11 +1199,15 @@ func _heist_on_level_loaded(level: Node) -> void:
 				node.connect(HEIST_SOCIAL_SIGNAL, _heist_on_social)
 			if node.has_signal(HEIST_RECOGNIZED_SIGNAL):
 				node.connect(HEIST_RECOGNIZED_SIGNAL, _heist_on_recognized)
+	_heist_prep_begin(lvl)  # US-049: after the interaction wiring above (the start point is not a job interaction)
 
 
 ## When the level goes away (restart, level change, session end): job and result reset, before loading so the new level's HUD does not see the old result.
 func _heist_on_level_exiting() -> void:
 	_heist = null
+	_heist_phase = HeistRules.PHASE_PREP
+	_heist_started_at = -1.0
+	_heist_level_t = 0.0
 	_heist_result = {}
 	_heist_abort_view = null
 	_heist_settle_view = null
@@ -1252,7 +1263,7 @@ func _heist_loot_locked() -> bool:
 
 
 func _heist_on_bag_taken(peer_id: int, bag: Node) -> void:
-	if _heist == null or _heist.finished:
+	if not _heist_running():
 		return
 	var previous: int = int(_heist_bag_carrier.get(bag.get_instance_id(), 0))
 	_heist_bag_carrier[bag.get_instance_id()] = peer_id
@@ -1265,7 +1276,7 @@ func _heist_on_bag_taken(peer_id: int, bag: Node) -> void:
 
 ## An interaction in the level completed (host; player > 0): strategy label counter and back door.
 func _heist_on_interaction(peer_id: int, prop: Node) -> void:
-	if _heist == null or _heist.finished or peer_id <= 0:
+	if not _heist_running() or peer_id <= 0:
 		return
 	_heist.note_interaction(peer_id)
 	if is_instance_valid(prop) and StringName(prop.name) == HEIST_BACK_DOOR:
@@ -1274,19 +1285,19 @@ func _heist_on_interaction(peer_id: int, prop: Node) -> void:
 
 ## Owner's player tool (host; US-010 BUY/STALL/SEND/DISTRACT, US-043 REDIRECT): "social" strategy.
 func _heist_on_social(peer_id: int, _kind: StringName) -> void:
-	if _heist != null and not _heist.finished and _has_host_authority():
+	if _heist_running() and _has_host_authority():
 		_heist.note_social(peer_id)
 
 
 ## The owner recognised a player (host; US-044 showcase query): `recognized` +1 in the result.
 func _heist_on_recognized(peer_id: int) -> void:
-	if _heist != null and not _heist.finished and _has_host_authority():
+	if _heist_running() and _has_host_authority():
 		_heist.note_recognized(peer_id)
 
 
 ## The owner shouted at / held a player (host): opens the association window.
 func _heist_on_marked(peer_id: int) -> void:
-	if _heist != null and not _heist.finished and _has_host_authority():
+	if _heist_running() and _has_host_authority():
 		_heist.mark_target(peer_id)
 
 
@@ -1320,7 +1331,7 @@ func _heist_associate(actor: int, other: int) -> void:
 
 ## Association (host): rule `Tracker.associate`; each observer that sees gives `actor` +60 suspicion (tuning). Returns how many observers gave suspicion (tests call it directly).
 func _heist_associate_at(actor: int, other: int, actor_pos: Vector2, other_pos: Vector2) -> int:
-	if _heist == null or _heist.finished or not _has_host_authority():
+	if not _heist_running() or not _has_host_authority():
 		return 0
 	var tuning: HeistTuning = HeistTuning.load_default()
 	var seeing: Array[Node] = _heist_observers_seeing(actor_pos)
@@ -1383,13 +1394,13 @@ static func _heist_position(node: Node2D) -> Vector2:
 
 
 func _heist_on_alert(level: int) -> void:
-	if _heist != null and _has_host_authority():
+	if _heist != null and _heist_phase == HeistRules.PHASE_ACTIVE and _has_host_authority():
 		_heist.set_alert(level)
 
 
 ## Police arrived (US-008 timer): everyone outside the escape zone is caught; decided on the next step.
 func _heist_on_police() -> void:
-	if _heist == null or _heist.finished or not _has_host_authority():
+	if not _heist_running() or not _has_host_authority():
 		return
 	_heist.arrive_police(_heist_views())
 
@@ -1399,7 +1410,7 @@ func _heist_on_caught(peer_id: int, by: StringName = &"") -> void:
 
 
 func _heist_mark_caught(peer_id: int, cause: StringName) -> void:
-	if _heist != null and not _heist.finished and _has_host_authority():
+	if _heist_running() and _has_host_authority():
 		_heist.mark_caught(peer_id, cause)
 
 
@@ -1407,7 +1418,7 @@ func _heist_on_session_event(kind: StringName, data: Dictionary) -> void:
 	if _heist != null and kind == HEIST_EVENT_COVER and typeof(data.get("peer")) == TYPE_INT:
 		_heist_cover_lost[int(data["peer"])] = StringName(str(data.get("reason", "")))
 		_heist_cover_by[int(data["peer"])] = str(data.get("by", ""))
-	if _heist == null or _heist.finished or not _has_host_authority():
+	if not _heist_running() or not _has_host_authority():
 		return
 	match kind:
 		HEIST_EVENT_ALERT:
@@ -1549,7 +1560,10 @@ func _heist_send_result(peer_id: int) -> void:
 
 func _heist_dump() -> Dictionary:
 	return {
-		"active": _heist != null and not _heist.finished,
+		"active": _heist_running(),  # US-049: false in prep
+		"phase": HeistRules.phase_name(_heist != null, _heist_phase, _heist != null and _heist.finished),
+		"started_at_s": snappedf(_heist_started_at, 0.01),
+		"prep_s": snappedf(_heist_prep_length(), 0.01),
 		"max_alert": _heist.max_alert if _heist != null else 0,
 		"elapsed": snappedf(_heist.elapsed, 0.01) if _heist != null else 0.0,
 		"result": _heist_result,
@@ -1658,6 +1672,8 @@ func _heist_apply_hook(step: Dictionary) -> void:
 					raise_session_event(HEIST_EVENT_CAUGHT, {"peer": peer_id, "by": by})
 		"restart":
 			request_restart()
+		"start":
+			request_heist_start()  # US-049: same path as the host's E on the start point
 		_:
 			push_warning("Game: bilinmeyen soygun test adımı: %s" % str(step[HEIST_HOOK_KEY]))
 
@@ -2119,3 +2135,168 @@ static func _exit_log_store(path: String, text: String) -> String:
 	file.store_string(text)
 	file.close()
 	return path
+
+
+# =====================================================================================================================
+# US-049 — in-job "Start" (S3 addendum; KR-044, Fable faz2-yeniden-kesim §1.1). A heist level (one with an EscapeZone) opens in PREP on
+# every peer: the owner's agenda and the population run, players walk around like customers, but every level interaction except the
+# customer door and the start point is locked (`heist_prep_locks`, rule HeistRules.prep_locks; Interactable rejects a player's start on
+# the host with "prep" and shows the HeistRules.PREP_PROMPT_KEY prompt). No penalty in prep: the Tracker does not observe (elapsed,
+# abort/settle, cover; caught/police/alert inputs are ignored), suspicion does not fill and the shop's alert ladder does not step (NPC
+# components ask `heist_in_prep()`).
+# - Start point: Game adds `Level/HeistStart/Trigger` (entities/props/interactable.gd, loaded at runtime — §6 duck typing) on every
+#   peer at the host's spawn slot 0 (escape point if the level has no spawn points). It is offered only to the host (peer 1) and only in
+#   prep (`peer_gate`); a client's request is rejected on the host with "peer". The host's E -> `request_heist_start()`.
+# - `request_heist_start()` (host only): PREP -> ACTIVE by reliable RPC `_rpc_heist_phase` (authority, call_local) on every peer, then
+#   session event `heist_started` {"players": n} (HUD toast). The job clock (Tracker.elapsed) counts from here.
+# - Phase sync: after the level load RPC on a level change, and to each admitted peer (prep -> the joiner lands in prep; started -> the
+#   existing late-join rule). A client's phase is PREP on level load until the host's RPC arrives.
+# - Automation (Game._session_seed_automated: bot/brain/dump/quit/script runs) starts ACTIVE at once, silently (no event: event
+#   histories of existing scenarios are unchanged), unless `--heist-prep` (Args). Bot hook step {"heist": "start"} = request_heist_start.
+# - Host HUD reminder every HeistRules.PREP_REMINDER_S of prep (HUD reads `heist_prep_s()`).
+# Dump (S6 "heist" additions): "phase" (none|prep|active|finished), "started_at_s" (level time of the start on this peer; -1 none),
+# "prep_s" (prep length so far / until the start); "active" = running (false in prep).
+# =====================================================================================================================
+
+## Every peer: the job phase changed (HeistRules.PHASE_PREP / PHASE_ACTIVE).
+signal heist_phase_changed(phase: int)
+
+const HEIST_START_NODE := &"HeistStart"
+const HEIST_START_ITEM := &"Trigger"
+const HEIST_START_SCRIPT := "res://entities/props/interactable.gd"
+const HEIST_START_KEY := "INTERACT_HEIST_START"
+const HEIST_START_RANGE := 48.0
+const HEIST_EVENT_STARTED := &"heist_started"
+## Only the host starts the job (SceneMultiplayer server id; the offline peer id is 1 too).
+const HEIST_HOST_PEER := 1
+
+var _heist_phase: int = HeistRules.PHASE_PREP
+## Seconds since this level loaded (physics clock while a job exists).
+var _heist_level_t: float = 0.0
+## Level time of the start on this peer; -1 = not started.
+var _heist_started_at: float = -1.0
+
+
+## S3 addendum (US-049): a job exists on this level and the crew is still gathering (not started).
+func heist_in_prep() -> bool:
+	return _heist != null and not _heist.finished and _heist_phase == HeistRules.PHASE_PREP
+
+
+## S3 addendum (US-049): seconds spent in prep so far (HUD reminder); -1 if not in prep.
+func heist_prep_s() -> float:
+	return _heist_level_t if heist_in_prep() else -1.0
+
+
+## S3 addendum (US-049): whether `item` (an Interactable; its parent is the prop) is locked now (prep, and not the customer door / start point).
+func heist_prep_locks(item: Node) -> bool:
+	if not heist_in_prep() or item == null or _level == null or not _level.is_ancestor_of(item):
+		return false
+	var prop: Node = item.get_parent()
+	return HeistRules.prep_locks(StringName(prop.name) if prop != null else &"", HEIST_START_NODE)
+
+
+## S3 addendum (US-049), host only: starts the job (prep -> active on every peer + `heist_started`). False if not host or not in prep.
+func request_heist_start() -> bool:
+	if not _has_host_authority():
+		push_warning("Game.request_heist_start: yalnız host çağırabilir")
+		return false
+	if not heist_in_prep():
+		return false
+	_to_all(&"_rpc_heist_phase", [HeistRules.PHASE_ACTIVE])
+	raise_session_event(HEIST_EVENT_STARTED, {"players": _players.size()})
+	return true
+
+
+## Whether the job is running (exists, started, not finished): the Tracker observes and job events count.
+func _heist_running() -> bool:
+	return _heist != null and not _heist.finished and _heist_phase == HeistRules.PHASE_ACTIVE
+
+
+## Level loaded with a job: prep on every peer, the start point, and the host's automation auto-start.
+func _heist_prep_begin(level: Level) -> void:
+	_heist_phase = HeistRules.PHASE_PREP
+	_heist_started_at = -1.0
+	_heist_level_t = 0.0
+	_heist_add_start_point(level)
+	if _has_host_authority() and _heist_auto_start():
+		_heist_apply_phase(HeistRules.PHASE_ACTIVE)
+
+
+## Automation starts the job at once (scenario/statistics timing unchanged) unless `--heist-prep`.
+func _heist_auto_start() -> bool:
+	return _session_seed_automated() and not Args.heist_prep
+
+
+## Host: sends the current phase to `peer_id` (0 = every connected client) when this level has a job.
+func _heist_send_phase(peer_id: int) -> void:
+	if _heist == null or not Net.is_host():
+		return
+	if peer_id == 0:
+		_rpc_heist_phase.rpc(_heist_phase)
+	elif multiplayer.get_peers().has(peer_id):
+		_rpc_heist_phase.rpc_id(peer_id, _heist_phase)
+
+
+@rpc("authority", "call_local", "reliable")
+func _rpc_heist_phase(phase: int) -> void:
+	if not HeistRules.is_phase(phase):
+		push_warning("Game: geçersiz iş evresi reddedildi: %s" % str(phase))
+		return
+	_heist_apply_phase(phase)
+
+
+func _heist_apply_phase(phase: int) -> void:
+	if _heist == null or phase == _heist_phase:
+		return
+	_heist_phase = phase
+	if phase == HeistRules.PHASE_PREP:
+		_heist_started_at = -1.0
+	elif _heist_started_at < 0.0:
+		_heist_started_at = _heist_level_t
+	heist_phase_changed.emit(phase)
+
+
+## Prep length: until the start, or so far.
+func _heist_prep_length() -> float:
+	if _heist == null:
+		return 0.0
+	return _heist_started_at if _heist_started_at >= 0.0 else _heist_level_t
+
+
+## Start point (every peer, same path): `Level/HeistStart/Trigger` at the host's spawn slot; offered to the host in prep only.
+func _heist_add_start_point(level: Level) -> void:
+	var at: Vector2 = _heist_start_position(level)
+	if not at.is_finite() or level.has_node(NodePath(String(HEIST_START_NODE))):
+		return
+	var script: GDScript = load(HEIST_START_SCRIPT) as GDScript
+	var item: Area2D = script.new() as Area2D if script != null else null
+	if item == null:
+		return
+	item.name = HEIST_START_ITEM
+	item.set(&"action_key", HEIST_START_KEY)
+	item.set(&"interact_range", HEIST_START_RANGE)
+	item.set(&"innocent", true)
+	item.set(&"peer_gate", _heist_start_offered)
+	var holder := Node2D.new()
+	holder.name = HEIST_START_NODE
+	holder.position = level.to_local(at)
+	holder.add_child(item)
+	level.add_child(holder)
+	item.connect(&"completed", _heist_on_start_used)
+
+
+func _heist_start_position(level: Level) -> Vector2:
+	if level.spawn_count() > 0 and level.players_root() != null:
+		return level.players_root().to_global(level.spawn_position(0))
+	return escape_point()
+
+
+## Start point peer gate (every peer): the host only, while in prep.
+func _heist_start_offered(peer_id: int) -> bool:
+	return peer_id == HEIST_HOST_PEER and heist_in_prep()
+
+
+## Host: the start point completed (the Interactable already rejected anyone but the host).
+func _heist_on_start_used(peer_id: int) -> void:
+	if peer_id == HEIST_HOST_PEER:
+		request_heist_start()

@@ -2,6 +2,8 @@ class_name Hud
 extends CanvasLayer
 ## In-game HUD (US-003 AC2, AC3): team cash, ping, player list, session event notices, interaction prompt ("[E] action", key name by active device) and progress, pause menu. Game adds it as Game.HUD_SCENE on level load (S3).
 ## Hosts the alert ladder (US-013), heist end screen (US-013), exposure badge and team markers (US-011c), escape panel and escape arrow (US-038), fed by the S3 addendum.
+## US-049 (job prep): a prep-locked target's prompt reads "crew gathering (n)" (PREP_PROMPT_KEY, n = players in the session,
+## no key hint); the host gets a reminder toast every PREP_REMINDER_S of prep (Game `heist_prep_s`).
 ## Reads only S1/S3 signals and functions plus the local player's S7 signals. Tests swap `net` and `game` for fakes before adding to the scene; time can be advanced with `advance()`.
 
 const PING_INTERVAL_SEC := 1.0
@@ -31,6 +33,10 @@ const CONDITIONAL_EVENTS := {&"npc_pushed": "calm"}
 ## Event data field naming the player (S3 addendum, US-008: player_held/caught/rescued {peer}); enters the text as {name}.
 const EVENT_PEER_FIELD := "peer"
 const EVENT_NAME_FIELD := "name"
+## US-049: prompt key of a prep-locked interaction (same value as the core rule's PREP_PROMPT_KEY; ui does not reference core, §6)
+## and the host's reminder period (core PREP_REMINDER_S); tests/unit/test_heist_phase.gd checks they match.
+const PREP_PROMPT_KEY := "HUD_PREP_GATHERING"
+const PREP_REMINDER_S := 30.0
 ## Action the prompt key name is taken from (S5).
 const INTERACT_ACTION := &"interact"
 ## Input action of the second prompt row (US-010 Q / gamepad X; IS-091).
@@ -65,6 +71,8 @@ var _leaving: bool = false
 var team_status := TeamStatus.new()
 ## peer -> badge Label in the crew list (rebuilt with the rows).
 var _badges: Dictionary = {}
+## US-049: prep reminders shown on this level (the HUD is rebuilt with every level).
+var _prep_reminders: int = 0
 
 @onready var _root: Control = %Root
 @onready var _cash_value: Label = %CashValue
@@ -162,6 +170,7 @@ func advance(delta: float) -> void:
 	_escape_arrow.advance(delta)
 	if team_status.advance(delta):
 		refresh_status()
+	_tick_prep_reminder()
 
 
 func toggle_pause() -> void:
@@ -272,6 +281,7 @@ func refresh_players() -> void:
 		label.custom_minimum_size.x = minf(ceilf(width), PLAYER_NAME_MAX_WIDTH)
 		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	refresh_status()
+	_refresh_prompt()  # US-049: the crew count in the prep prompt
 
 
 # --- session events ---
@@ -478,6 +488,9 @@ func _refresh_prompt() -> void:
 func _fill_prompt_row(label: Label, action_key: String, input_action: StringName) -> bool:
 	if action_key.is_empty():
 		return false
+	if action_key == PREP_PROMPT_KEY:
+		label.text = prep_prompt_text()  # US-049: no key hint, E does nothing yet
+		return true
 	var action: String = tr(action_key)
 	var hint: String = UiInput.action_hint(input_action)
 	label.text = action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]
@@ -485,7 +498,7 @@ func _fill_prompt_row(label: Label, action_key: String, input_action: StringName
 
 
 func _on_interaction_started(action_key: String, duration: float) -> void:
-	_interaction_label.text = tr(action_key)
+	_interaction_label.text = prep_prompt_text() if action_key == PREP_PROMPT_KEY else tr(action_key)
 	_interaction_label.theme_type_variation = &""
 	_interaction_duration = maxf(duration, 0.0)
 	_interaction_elapsed = 0.0
@@ -518,6 +531,26 @@ func _tick_interaction(delta: float) -> void:
 		if _interaction_linger <= 0.0:
 			_interaction.hide()
 			_refresh_prompt()
+
+
+# --- job prep (US-049) ---
+
+## "Crew gathering (n)": n = players in the session (the expected crew size is not known yet).
+func prep_prompt_text() -> String:
+	return tr(&"HUD_PREP_GATHERING") % (game.call(&"players") as Dictionary).size()
+
+
+## Host: reminder toast every PREP_REMINDER_S of prep ("everyone ready? [E] Start at the start point").
+func _tick_prep_reminder() -> void:
+	if not is_instance_valid(game) or not is_instance_valid(net) or not game.has_method(&"heist_prep_s") 			or not bool(net.call(&"is_host")):
+		return
+	var prep_s: float = float(game.call(&"heist_prep_s"))
+	if prep_s < 0.0 or prep_s < PREP_REMINDER_S * float(_prep_reminders + 1):
+		return
+	_prep_reminders += 1
+	var action: String = tr(&"INTERACT_HEIST_START")
+	var hint: String = UiInput.action_hint(INTERACT_ACTION)
+	show_toast(tr(&"HUD_PREP_REMINDER") % (action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]))
 
 
 # --- leaving the session ---
