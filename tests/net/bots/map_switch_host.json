@@ -1,0 +1,9 @@
+{
+  "_doc": "map_switch.json host botu (US-050). Hareket yok; yalnız Game test kancaları (otomasyon + host): t=5 'start' (hazırlık -> iş; iki istemci 150 ms'de de katılmış olur), t=7 'caught' all (iş biter: caught_all, sonuç herkese), t=10 'map' = request_map_switch(store_a_rush) (iş sonu 'Başka bakkal' ile aynı yol; kayıttaki harita), t=13 'map' kayıt dışı yol (fikstür) -> reddedilir, seviye değişmez.",
+  "steps": [
+    {"t": 5.0, "heist": "start"},
+    {"t": 7.0, "heist": "caught", "data": {"all": true}},
+    {"t": 10.0, "heist": "map", "data": {"level": "res://levels/store_a_rush.tscn"}},
+    {"t": 13.0, "heist": "map", "data": {"level": "res://tests/fixtures/empty_level.tscn"}}
+  ]
+}

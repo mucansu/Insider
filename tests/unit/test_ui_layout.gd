@@ -35,6 +35,7 @@ func test_main_menu_fits() -> void:
 		is_true((menu.get_node("%ErrorPanel") as Control).visible, label + ": hata görünür")
 		_check_fits(menu, size, label + " form+hata")
 		is_true((menu.get_node("%VisionOption") as Control).visible, label + ": görüş seçimi görünür")
+		is_true((menu.get_node("%MapOption") as Control).is_visible_in_tree(), label + ": harita seçimi görünür (US-050)")
 		_check_disjoint([menu.get_node("%NameEdit"), menu.get_node("Center/Column/Form/Cards/HostCard"),
 			menu.get_node("Center/Column/Form/Cards/JoinCard"), menu.get_node("%QuitButton"),
 			menu.get_node("%ErrorPanel")], label + " form")
@@ -150,6 +151,7 @@ func test_heist_end_fits() -> void:
 		var hud: Hud = ctx["hud"]
 		var game: Fakes.FakeGame = ctx["game"]
 		(ctx["net"] as Fakes.FakeNet).my_peer_id = 4
+		(ctx["net"] as Fakes.FakeNet).hosting = true  # host: Again + Another shop (US-050) both in the button row
 		var players: Dictionary = {}
 		for i: int in 4:
 			players[str(i + 1)] = {"name": "W".repeat(MainMenu.MAX_NAME_LENGTH), "slot": i, "escaped": i < 2,
@@ -161,6 +163,7 @@ func test_heist_end_fits() -> void:
 			var screen: Control = hud.get_node("%HeistEnd") as Control
 			is_true(screen.visible, label)
 			var what: String = "%s iş sonu %s" % [label, outcome]
+			is_true((screen.get_node("%MapButton") as Control).visible, what + ": Başka bakkal görünür")
 			_check_fits(screen, size, what)
 			var box: String = "Center/Card/Box/"
 			_check_disjoint([screen.get_node(box + "Header"), screen.get_node(box + "Body"), screen.get_node("%NotesBox"),
@@ -233,9 +236,10 @@ func _viewport(size: Vector2i) -> SubViewport:
 	return vp
 
 
-## The fake Game carries the vision addition (US-011c): the vision choice in the menu and the exposure badge in the HUD enter the layout.
+## The fake Game carries the vision addition (US-011c): the vision choice in the menu and the exposure badge in the HUD enter the layout;
+## and the map addition (US-050): the map row in the host card and "Another shop" on the end screen.
 func _open_menu(size: Vector2i) -> Dictionary:
-	var pair: Array = Fakes.make_pair(self, true)
+	var pair: Array = Fakes.make_pair(self, true, true, true)
 	var menu: MainMenu = (load("res://ui/main_menu.tscn") as PackedScene).instantiate() as MainMenu
 	menu.net = pair[0]
 	menu.game = pair[1]
@@ -247,7 +251,7 @@ func _open_menu(size: Vector2i) -> Dictionary:
 
 
 func _open_hud(size: Vector2i) -> Dictionary:
-	var pair: Array = Fakes.make_pair(self, true)
+	var pair: Array = Fakes.make_pair(self, true, true, true)
 	var hud: Hud = (load("res://ui/hud.tscn") as PackedScene).instantiate() as Hud
 	hud.net = pair[0]
 	hud.game = pair[1]

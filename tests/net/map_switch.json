@@ -1,0 +1,34 @@
+{
+  "_doc": "US-050 harita seçimi + iş sonu 'Başka bakkal' (KR-044, K6: harita değişimi exe yeniden açmadan). Host --heist-prep ile store_a'da hazırlıkta açar, c1 ve c2 katılır (botsuz, doğma noktasında durur). Host t=5 işi başlatır, t=7 herkes yakalanır (iş sonu: caught_all, sonuç her peer'a), t=10 request_map_switch(store_a_rush): mevcut oturum içi seviye değişim yolu — oyuncular kaldırılır, _rpc_load_level, yeni haritada yeniden doğar; harita hazırlık evresiyle açılır (US-049). t=13 kayıt dışı yol (fikstür) reddedilir (uyarı; seviye değişmez). Beklentiler: her peer'da seviye store_a_rush, evre prep, sonuç boş (yeni iş), 3 oyuncu düğümü ve aynı liste, iş geçmişinde önceki iş (caught_all) korunur, ekip kasası herkeste aynı; host'ta iki koşu işareti (level_started store_a -> store_a_rush). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 2,
+  "duration": 18,
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "host": "res://tests/net/bots/map_switch_host.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://levels/store_a_rush.tscn"]},
+    {"eq": ["*.heist.phase", "prep"]},
+    {"eq": ["*.heist.active", false]},
+    {"eq": ["*.heist.result", {}]},
+    {"len": ["*.player_nodes", 3]},
+    {"all_equal": "player_nodes"},
+    {"has": ["*.player_nodes", "$c1"]},
+    {"has": ["*.player_nodes", "$c2"]},
+    {"len": ["*.players", 3]},
+    {"near": ["*.players.$c1.pos", "c1.players.$c1.pos", 8]},
+    {"near": ["*.players.$c2.pos", "c2.players.$c2.pos", 8]},
+    {"len": ["*.heist.history", 1]},
+    {"eq": ["*.heist.history.0.outcome", "caught_all"]},
+    {"all_equal": "team_cash"},
+    {"between": ["host.heist.prep_s", 3.0, 9.0]},
+    {"eq": ["host.events.0.kind", "level_started"]},
+    {"eq": ["host.events.0.data.level", "res://levels/store_a.tscn"]},
+    {"eq": ["host.events.1.kind", "heist_started"]},
+    {"eq": ["host.events.5.kind", "level_started"]},
+    {"eq": ["host.events.5.data.run", 2]},
+    {"eq": ["host.events.5.data.level", "res://levels/store_a_rush.tscn"]}
+  ]
+}

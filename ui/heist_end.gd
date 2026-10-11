@@ -10,9 +10,14 @@ extends Control
 ## the header always shows the session's fastest clean escape, the "Session scores" button swaps the body (payout/crew/notes) for the
 ## table (no, map, outcome, time, clean, crew cash change, strategy; this job's row on a panel, bests highlighted). The store is reset
 ## when the screen leaves the tree with the session over (Net offline: menu, lost host, failed connection).
+## US-050 (KR-044): "Another shop" (host only, and only if Game has `map_list()` + `request_map_switch()`; S3 addendum) next to "Again":
+## a drop-down of the other registry maps (the one after the current map first); picking one calls Game.request_map_switch() — every
+## peer loads it in-session (prep), the score table survives (Net stays online).
 
 ## "Again" (host): request to restart the level; emitted after Game.request_restart() is called.
 signal retry_requested()
+## "Another shop" (host): emitted with the picked map after Game.request_map_switch() accepted it.
+signal map_switch_requested(level_path: String)
 ## "Menu": leave the session and return to the main menu.
 signal menu_requested()
 ## Screen opened (the HUD closes the pause menu).
@@ -63,6 +68,8 @@ var _result: Dictionary = {}
 var _caught_by: Dictionary = {}
 ## Whether a `police_arrived` event was seen this level.
 var _police_seen: bool = false
+## "Another shop" choices in drop-down order (popup item id = index): {"path", "name_key"}.
+var _map_choices: Array[Dictionary] = []
 
 @onready var _title: Label = %OutcomeTitle
 @onready var _outcome_note: Label = %OutcomeNote
@@ -73,6 +80,7 @@ var _police_seen: bool = false
 @onready var _notes_box: Control = %NotesBox
 @onready var _note_row: HBoxContainer = %NoteRow
 @onready var _retry_button: Button = %RetryButton
+@onready var _map_button: MenuButton = %MapButton
 @onready var _retry_hint: Label = %RetryHint
 @onready var _menu_button: Button = %MenuButton
 @onready var _scores_button: Button = %ScoresButton
@@ -89,6 +97,8 @@ func _ready() -> void:
 	hide()
 	UiInput.block_gameplay_while_visible(self)
 	_retry_button.pressed.connect(_on_retry_pressed)
+	_map_button.get_popup().auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED  # items are already translated map names
+	_map_button.get_popup().id_pressed.connect(_on_map_picked)
 	_menu_button.pressed.connect(func() -> void: menu_requested.emit())
 	_scores_button.pressed.connect(func() -> void: show_scores(not scores_shown()))
 	_link_buttons()
@@ -105,7 +115,7 @@ func _exit_tree() -> void:
 ## Left/right ring over the visible buttons (Retry is hidden on clients); up/down stay put; Tab ring.
 func _link_buttons() -> void:
 	var ring: Array[Control] = []
-	for b: Button in [_retry_button, _scores_button, _menu_button]:
+	for b: Button in [_retry_button, _map_button, _scores_button, _menu_button]:
 		if b.visible:
 			ring.append(b)
 	UiInput.tab_ring(ring)
@@ -153,6 +163,8 @@ func show_result(value: Dictionary) -> void:
 	show_scores(false)
 	var host: bool = _is_host()
 	_retry_button.visible = host and can_restart()
+	_fill_map_choices()
+	_map_button.visible = host and not _map_choices.is_empty()
 	_retry_hint.visible = not host
 	_link_buttons()
 	show()
@@ -176,6 +188,49 @@ func _on_retry_pressed() -> void:
 		return
 	game.call(&"request_restart")
 	retry_requested.emit()
+
+
+# --- "Another shop" (US-050) ---
+
+## Whether "Another shop" can be offered: Game has the S3 addendum map list + switch.
+func can_switch_map() -> bool:
+	return game != null and game.has_method(&"map_list") and game.has_method(&"request_map_switch")
+
+
+## Other registry maps, the one after the current map first (wraps); every map if the current one is not listed (fixture).
+func map_choices() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	if not can_switch_map():
+		return out
+	var maps: Array = game.call(&"map_list")
+	var current: String = _level_path()
+	var at: int = -1
+	for i: int in maps.size():
+		if str((maps[i] as Dictionary).get("path", "")) == current:
+			at = i
+	for i: int in maps.size():
+		if at >= 0 and i == 0:
+			continue  # skip the current map itself
+		out.append((maps[(maxi(at, 0) + i) % maps.size()] as Dictionary).duplicate())
+	return out
+
+
+func _fill_map_choices() -> void:
+	_map_choices = map_choices()
+	var popup: PopupMenu = _map_button.get_popup()
+	popup.clear()
+	for i: int in _map_choices.size():
+		popup.add_item(tr(StringName(str(_map_choices[i].get("name_key", "")))), i)
+
+
+## Popup pick: only the host may switch (S3 addendum: request_map_switch is host-only); the button is hidden on clients.
+func _on_map_picked(id: int) -> void:
+	if not (_is_host() and can_switch_map()) or id < 0 or id >= _map_choices.size():
+		return
+	var level_path: String = str(_map_choices[id]["path"])
+	if bool(game.call(&"request_map_switch", level_path)):
+		MainMenu.remembered_map = level_path
+		map_switch_requested.emit(level_path)
 
 
 # --- title ---

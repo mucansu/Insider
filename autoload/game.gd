@@ -940,8 +940,8 @@ static func _sanitize_name(value: Variant) -> String:
 # - US-008 hook points (skipped if absent): Game signals `alert_level_changed(level)`, `police_arrived()`, `player_caught(peer_id[, by])`; `alert_level()` (read every step);
 #   player `is_caught()` / `is_held()` (HeistRules.CAUGHT_METHODS / HELD_METHODS). The same events are also accepted as session_event:
 #   &"alert_level" {"level"}, &"police_arrived", &"player_caught" {"peer", "by"?: &"chaser"}, &"shout".
-# - Test hook (automation + host only, net scenario): `--bot` steps {"t": SEC, "heist": "<event>", "data": {...}} — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart" —
-#   applied through the session_events above (and request_restart); stands in for owner events until US-008. Time counts from the first local player's first physics step, like the bot timeline.
+# - Test hook (automation + host only, net scenario): `--bot` steps {"t": SEC, "heist": "<event>", "data": {...}} — "alert" {"level"}, "police", "caught" {"slot" | "all"}, "shout", "restart",
+#   "start" (US-049), "map" {"level"} (US-050 request_map_switch) — applied through the session_events above (and request_restart); stands in for owner events until US-008. Time counts from the first local player's first physics step, like the bot timeline.
 # - US-040 empty-handed abort: rule and clock in `HeistRules.AbortClock` (inside Tracker, host decides; duration data/heist_tuning.tres). `abort_left()` HUD countdown: on the host the Tracker's clock,
 #   on a client derived by the same class from the local copy (escape_status + replicated bag carrier / vault `emptied`) — no RPC; the result still arrives via heist_finished.
 # - IS-103 escape settle (KR-034): same pattern — rule and clock `Tracker.settle` (host decides; `escape_settle_s` in data/heist_tuning.tres), `escape_settle_left()` HUD countdown
@@ -1674,6 +1674,8 @@ func _heist_apply_hook(step: Dictionary) -> void:
 			request_restart()
 		"start":
 			request_heist_start()  # US-049: same path as the host's E on the start point
+		"map":
+			request_map_switch(str(data.get("level", "")))  # US-050: same path as the heist end "Another shop"
 		_:
 			push_warning("Game: bilinmeyen soygun test adımı: %s" % str(step[HEIST_HOOK_KEY]))
 
@@ -2300,3 +2302,46 @@ func _heist_start_offered(peer_id: int) -> bool:
 func _heist_on_start_used(peer_id: int) -> void:
 	if peer_id == HEIST_HOST_PEER:
 		request_heist_start()
+
+
+# =====================================================================================================================
+# US-050 — map choice (S3 addendum; KR-044, Fable faz2-yeniden-kesim §1 item 2 / K6: switching map must not mean restarting the exe).
+# - Playable maps live only in `data/map_registry.tres` (MapRegistry; test arenas and fixtures are not listed). `map_list()` gives
+#   them to the UI (main menu host card picker, heist end "Another shop").
+# - `request_map_switch(level_path)` (host only): the path must be in the registry (an unlisted path is refused with a warning; no
+#   arbitrary path loading from the UI or a bot step), then the existing in-session level change (`start_level`): players are
+#   despawned, `_rpc_load_level` goes to clients, players respawn on the new map, which opens in prep (US-049) like "Again". No new
+#   RPC and no client request path exists (a client call is a no-op with a warning) -> wire layout and PROTOCOL_VERSION unchanged.
+#   Team cash and the event history carry over like "Again"; the UI's session score table survives (Net stays online).
+# - `--level=` (Args, main.gd `--host`) and `start_level` itself stay unrestricted (automation and fixtures; Game.DEFAULT_LEVEL).
+# - Bot hook (automation + host only): {"t": SEC, "heist": "map", "data": {"level": "res://levels/<map>.tscn"}} = request_map_switch.
+# =====================================================================================================================
+
+var _map_registry: MapRegistry = null
+
+
+## S3 addendum (US-050): playable maps in registry order, [{"path": String, "name_key": String}] (copies).
+func map_list() -> Array[Dictionary]:
+	return _maps().to_list()
+
+
+## S3 addendum (US-050), host only: switches every peer to a registry map (same path as an in-session level change; the new map
+## opens in prep). False (warning) on a client, for an unlisted path or a missing scene.
+func request_map_switch(level_path: String) -> bool:
+	if not _has_host_authority():
+		push_warning("Game.request_map_switch: yalnız host çağırabilir")
+		return false
+	if not _maps().has_path(level_path):
+		push_warning("Game.request_map_switch: harita kayıtta yok, reddedildi: " + level_path)
+		return false
+	if not ResourceLoader.exists(level_path):
+		push_error("Game.request_map_switch: kayıttaki harita bulunamadı: " + level_path)
+		return false
+	start_level(level_path)
+	return true
+
+
+func _maps() -> MapRegistry:
+	if _map_registry == null:
+		_map_registry = MapRegistry.load_default()
+	return _map_registry

@@ -182,6 +182,15 @@ layout_mode = 2
 theme_type_variation = &"PrimaryButton"
 text = "END_RETRY"
 
+[node name="MapButton" type="MenuButton" parent="Center/Card/Box/Buttons"]
+unique_name_in_owner = true
+visible = false
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+focus_mode = 2
+text = "END_OTHER_MAP"
+flat = false
+
 [node name="RetryHint" type="Label" parent="Center/Card/Box/Buttons"]
 unique_name_in_owner = true
 visible = false
