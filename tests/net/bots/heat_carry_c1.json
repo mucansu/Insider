@@ -1,0 +1,11 @@
+{
+  "_doc": "heat_carry.json c1 botu (US-052). 1. iş: doğma noktasında (kaldırım, dışarıda) bekler: polis gelince tanık sorgusuyla serbest (tanındı 1). Polis olayını bekler (saat durur); host'un 'Bir daha'sından (polisten 3 sn sonra) sonra 2. işte witness_c1 rotası: sınıra yaslan, ön kapıdan gir, kapı içinden doğuya ~130 px yürüyüp müşteri tarafında, sahibin konisinde (ClerkSpot'a ~115 px; kapı eşiği 224 px menzilin dışında kalıyordu) durur (koşmaz, dokunmaz: örtü sağlam) — sahip onu görünce şüphe 30'dan başlar ('Sen yine mi?').",
+  "steps": [
+    {"t": 1.0, "wait": "police_arrived", "max": 30},
+    {"t": 5.0, "move": [-1, 0]},
+    {"t": 6.4, "move": [1, 0]},
+    {"t": 8.8, "move": [0, -1]},
+    {"t": 9.472, "move": [1, 0]},
+    {"t": 10.4, "move": [0, 0]}
+  ]
+}

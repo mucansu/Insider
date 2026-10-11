@@ -60,6 +60,8 @@ signal owner_misdirect(peer_id: int)
 signal owner_question_window(peer_id: int)
 ## US-048 SORGU-2 (every peer): an intact-cover player questioned during the search ("Sen de buradaydın! Kim aldı?").
 signal owner_question_search(peer_id: int)
+## US-052: a player recognised earlier this session was seen again ("Sen yine mi?" balloon; suspicion head start 30).
+signal owner_recognize(peer_id: int)
 ## Host only (US-044): the owner recognised the player (window questioning); Game counts `recognized` +1 at heist result.
 signal recognized(peer_id: int)
 
@@ -70,7 +72,7 @@ const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"own
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
 	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
 	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money",
-	&"owner_question_search"]
+	&"owner_question_search", &"owner_recognize"]
 ## Prompt key of the REDIRECT component, required tag (player's cover intact; Player.interaction_tags) and session
 ## event (HUD text EVENT_MISDIRECT).
 const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
@@ -171,6 +173,8 @@ func _ready() -> void:
 		_brain.civilian_tuning = civilian_tuning
 		_brain.agenda_seed = agenda_seed()
 		_brain.talk_item = _talk
+		_brain.recognition = OwnerRecognition.from_state(Game.session_heat_state(),
+			(VenueTuning.of(self, VenueTuning.HEAT) as HeatTuning).rules_params())  # US-052: session recognition head starts
 		_brain.peer_social_action.connect(social_action.emit)  # US-048: renamed like `recognized` (was counted twice by Game)
 		_brain.peer_recognized.connect(recognized.emit)  # US-048: not `recognized` (Game connects every NPC node with that signal: counted twice)
 		_brain.setup(self, _perception, _suspicion, _agenda, _mover, _senses)
@@ -530,6 +534,7 @@ func dump_state() -> Dictionary:
 		out["misdirects"] = misdirects.duplicate(true)
 		out["window_questions"] = _brain.window_questions.duplicate()
 		out["search_questions"] = _brain.search_questions.duplicate(true)  # US-048 SORGU-2 {peer, t, value}
+		out["recognition_greets"] = _brain.recognition.greets.duplicate(true) if _brain.recognition != null else []  # US-052
 		out["log"] = _brain.event_log.rows()  # IS-081: event log (OwnerLog; refers to the records above by index)
 		out["log_dropped"] = _brain.event_log.dropped
 	return out

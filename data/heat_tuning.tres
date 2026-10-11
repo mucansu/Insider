@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="HeatTuning" format=3]
+
+[ext_resource type="Script" path="res://data/heat_tuning.gd" id="1_heat"]
+
+[resource]
+script = ExtResource("1_heat")
+heat_threshold = 10
+neighbour_delay_cut_s = 2.0
+passerby_bonus = 1
+recognized_min = 1
+recognized_start = 30.0

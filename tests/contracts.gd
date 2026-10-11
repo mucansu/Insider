@@ -70,9 +70,11 @@ const LINES := {
 		"func heist_prep_s() -> float",
 		"func heist_prep_locks(item: Node) -> bool",
 		"func request_heist_start() -> bool",
-		# S3 addition candidate (US-050, map choice; coordinator carries it to mimari.md): registry maps, host-only switch.
+		# S3 addition candidate (US-050, map choice; mimari.md US-050 ekleri): registry maps, host-only switch.
 		"func map_list() -> Array[Dictionary]",
 		"func request_map_switch(level_path: String) -> bool",
+		# S3 addition candidate (US-052, in-session heat; mimari.md US-052 ekleri): {heat, active, recognized, known}; read-only.
+		"func session_heat_state() -> Dictionary",
 	],
 	"NoiseBus": [
 		"func emit_noise(pos: Vector2, radius: float, kind: StringName, source_peer: int = 0) -> void",

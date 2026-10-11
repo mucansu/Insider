@@ -12,6 +12,9 @@ extends Node
 ## - US-016 additions: NPC cap (`room_query`, population spawner connects it; unlimited if empty): a due neighbour waits for room when full;
 ##   passerby -> neighbour conversion `spawn_chaser_at` (population spawner calls it on a shout; not counted in neighbours). Neighbour names use
 ##   a single counter (`Chaser<n>`). Dump "chasers": {spawned, states, catches (host)}.
+## - US-052 (KR-044): the neighbour delay comes from `SessionHeat.neighbour_delay` with the session heat taken when the level loads
+##   (Game `session_heat_state`; a hot session -> `heat_tuning.neighbour_delay_cut_s` sooner, per-map VenueTuning id `heat`). Dump
+##   (host) `neighbour_delay_s` (effective) and `session_heat`.
 
 ## On every peer: neighbour spawned (AC10).
 signal chaser_spawn(chaser: Node)
@@ -47,10 +50,15 @@ var _converted: int = 0
 var _seen_spawns: int = 0
 var _calm_for: float = 0.0
 var _shout_at: Vector2 = Vector2.INF
+## US-052: heat rule parameters and the session heat this job started with.
+var _heat: SessionHeat.Params = null
+var _session_heat: int = 0
 
 
 func _ready() -> void:
 	tuning = VenueTuning.of(self, VenueTuning.OWNER, tuning) as OwnerTuning  # IS-106: global default + per-map overrides
+	_heat = (VenueTuning.of(self, VenueTuning.HEAT) as HeatTuning).rules_params()  # US-052
+	_session_heat = int(Game.session_heat_state().get("heat", 0))
 	_owner = get_node_or_null(owner_path) as StoreOwner
 	_spawner = get_node_or_null(spawner_path) as MultiplayerSpawner
 	_chaser_scene = load(CHASER_SCENE) as PackedScene
@@ -117,6 +125,8 @@ func dump_state() -> Dictionary:
 			misled += c.brain().misled_count
 		out["misled"] = misled  # US-043: neighbours running the wrong way via REDIRECT
 		out["ladder"] = ladder.history_rows()  # [tier, entry time]; I4 evidence (on a client Game "alert.history")
+		out["neighbour_delay_s"] = snappedf(neighbour_delay(), 0.01)  # US-052
+		out["session_heat"] = _session_heat
 	return out
 
 
@@ -148,7 +158,12 @@ func _enter(next: int) -> void:
 func _on_shouted(_recheck: bool) -> void:
 	_shout_at = _owner.global_position
 	if _spawned + _pending.size() < tuning.max_neighbours:
-		_pending.append(tuning.neighbour_delay_sec)
+		_pending.append(neighbour_delay())
+
+
+## US-052: shout -> neighbour delay (s) of this job: the tuning's, shortened in a hot session.
+func neighbour_delay() -> float:
+	return SessionHeat.neighbour_delay(_heat, _session_heat, tuning.neighbour_delay_sec)
 
 
 func _spawn_neighbour() -> void:

@@ -168,6 +168,12 @@ class FakeGame extends FakeGameBase:
 	func heist_prep_s() -> float:
 		return prep_s
 
+	## US-052 in-session heat: {"heat": int, "active": bool, "recognized": {peer: n}, "known": [peer]}.
+	var heat_state: Dictionary = {"heat": 0, "active": false, "recognized": {}, "known": []}
+
+	func session_heat_state() -> Dictionary:
+		return heat_state
+
 
 ## S3 + S3 addition + vision addition (mimari.md, US-011b/c): exposure, player world position, the host's vision mode.
 class FakeVisionGame extends FakeGame:

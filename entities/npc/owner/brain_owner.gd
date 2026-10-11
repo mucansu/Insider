@@ -50,6 +50,9 @@ extends Node
 ## which is evidence). SORGU-2 (in SEARCH, OwnerReaction): an intact-cover free player at >= `search_question_at` (60) is walked to and asked
 ## "Sen de buradaydın! Kim aldı?" (`owner_question_search`), then the search goes on; first time per job `recognized` +1, the same player not
 ## again within the cooldown (20 s). Questioning does not break cover; breaking it (run, staff side, bag, seen RESCUE ...) -> ALARM -> chase.
+## In-session recognition (US-052, KR-044): `recognition` (OwnerRecognition, set by StoreOwner) - a player recognised earlier in the
+## session is raised to the head-start suspicion (30) the first time the owner sees them once the job runs ("?"; `owner_recognize`
+## "You again?" balloon unless alarmed); only the start value, cover untouched.
 
 ## Host only: shout (first, after discovery, or discovery while alarmed = neighbour +1); `late` = from discovery (alert manager spawns the
 ## neighbour).
@@ -210,6 +213,8 @@ var _door_question: int = 0
 var search_questions: Array[Dictionary] = []
 var _search_started_at: Dictionary = {}
 var _search_recognized: Dictionary = {}
+## US-052: session recognition head starts (null/empty = none).
+var recognition: OwnerRecognition = null
 
 
 ## Connects components (StoreOwner `_ready`, on the host).
@@ -285,6 +290,7 @@ func step(delta: float) -> Vector2:
 func _step_layers(delta: float) -> Vector2:
 	senses.step(delta)
 	suspicion.tick(delta)
+	_recognition_step()  # US-052
 	mover.close_enabled = not is_alarmed()  # IS-087 AC2: closes the inner door behind it only when calm
 	_record_peaks()
 	_track_counter_distance()
@@ -1057,6 +1063,18 @@ func _noise() -> void:
 func _agenda_noise(kind: StringName, at: Vector2) -> void:
 	agenda_noises[kind] = int(agenda_noises.get(kind, 0)) + 1
 	NoiseBus.emit_noise(at, NoiseProfile.load_default().radius_for(kind), kind)
+
+
+## US-052: recognised players seen for the first time this job (job running, not prep) start at their head-start suspicion.
+func _recognition_step() -> void:
+	if recognition == null or recognition.starts.is_empty() or Game.heist_in_prep() or not _heist_running():
+		return
+	for peer_id: int in recognition.due(suspicion.last_observations()):
+		suspicion.apply_delta(peer_id, SessionHeat.start_delta(suspicion.value_of(peer_id), recognition.start_of(peer_id)))
+		recognition.mark(peer_id, fsm.clock, suspicion.value_of(peer_id))
+		event_log.note("tanıdı p%d" % peer_id)
+		if not is_alarmed():
+			event(OwnerRecognition.EVENT, peer_id)
 
 
 func _record_peaks() -> void:

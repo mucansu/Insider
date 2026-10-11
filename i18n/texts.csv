@@ -60,6 +60,8 @@ HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
 HUD_PREP_GATHERING,Ekip toplanıyor (%d),Crew gathering (%d)
 HUD_PREP_REMINDER,Herkes hazırsa başlangıç noktasında: %s,Everyone ready? At the start point: %s
+HUD_HEAT_HOT,Mahalle tetikte (ısı %d): komşu daha hızlı gelir,The neighbourhood is on edge (heat %d): neighbours come sooner
+HUD_HEAT_KNOWN,Bakkal tanıyor: %s,The shopkeeper remembers: %s
 EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.
 EVENT_POLICE_CALLED,Polis arandı.,The police have been called.
 EVENT_POLICE_ARRIVED,Polis geldi.,The police are here.
@@ -196,6 +198,7 @@ OWNER_MISDIRECT,O tarafa kaçmış! Koşun!,He ran that way! Go!
 OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
 OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
 OWNER_QUESTION_SEARCH,Sen de buradaydın! Kim aldı?,You were here too! Who took it?
+OWNER_RECOGNIZE,Sen yine mi?,You again?
 INTERACT_COUNTER_PAY,Öde {price},Pay {price}
 INTERACT_TAKE_BREAD,Ekmek al,Take bread
 INTERACT_TAKE_COLA,Kola al,Take a cola

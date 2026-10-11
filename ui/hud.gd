@@ -4,6 +4,7 @@ extends CanvasLayer
 ## Hosts the alert ladder (US-013), heist end screen (US-013), exposure badge and team markers (US-011c), escape panel and escape arrow (US-038), fed by the S3 addendum.
 ## US-049 (job prep): a prep-locked target's prompt reads "crew gathering (n)" (PREP_PROMPT_KEY, n = players in the session,
 ## no key hint); the host gets a reminder toast every PREP_REMINDER_S of prep (Game `heist_prep_s`).
+## US-052: when a level opens, the in-session heat notice (`HeatNotice.lines`: hot neighbourhood, recognised players) shows as toasts.
 ## Reads only S1/S3 signals and functions plus the local player's S7 signals. Tests swap `net` and `game` for fakes before adding to the scene; time can be advanced with `advance()`.
 
 const PING_INTERVAL_SEC := 1.0
@@ -143,6 +144,7 @@ func _ready() -> void:
 	_alert_ladder.refresh_timer()
 	_escape_arrow.avoid = blocks
 	_escape_arrow.bind(game)
+	show_heat_notice()  # US-052
 
 
 func _process(delta: float) -> void:
@@ -598,6 +600,12 @@ func _tick_prep_reminder() -> void:
 	var action: String = tr(&"INTERACT_HEIST_START")
 	var hint: String = UiInput.action_hint(INTERACT_ACTION)
 	show_toast(tr(&"HUD_PREP_REMINDER") % (action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]))
+
+
+## US-052: in-session heat lines (hot neighbourhood, recognised players) as toasts; nothing in a cool session.
+func show_heat_notice() -> void:
+	for line: String in HeatNotice.lines(game, self):
+		show_toast(line)
 
 
 # --- leaving the session ---

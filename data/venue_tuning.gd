@@ -15,6 +15,8 @@ const PERCEPTION := &"perception"
 const POPULATION := &"population"
 const STORE_TOOLS := &"store_tools"
 const CHASER := &"chaser"
+## US-052: in-session heat/recognition effects (threshold, neighbour delay cut, passer-by bonus, recognised start).
+const HEAT := &"heat"
 ## id -> global default resource.
 const PATHS: Dictionary = {
 	OWNER: "res://data/npc/owner_tuning.tres",
@@ -23,6 +25,7 @@ const PATHS: Dictionary = {
 	POPULATION: "res://data/npc/population.tres",
 	STORE_TOOLS: "res://data/props/store_tools.tres",
 	CHASER: "res://data/npc/chaser_tuning.tres",
+	HEAT: "res://data/heat_tuning.tres",
 }
 ## Property of the level root holding the overrides.
 const HOLDER_PROPERTY := &"tuning_overrides"

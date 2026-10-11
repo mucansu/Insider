@@ -1,0 +1,42 @@
+{
+  "_doc": "US-052 (KR-044) oturum içi ısı/tanınma taşıma: store_a, nüfus kapalı, gerçek sahip (tests/fixtures/store_a_nopop.tscn), host + c1. 1. iş bağırış + polisle biter (host test kancası): host kaçış bölgesinde (yakalanmaz, tanınmaz), c1 dışarıda örtüsü sağlam -> tanık sorgusuyla serbest, tanındı 1; ısı 15 + 2 = 17. Sonuçta oturum toplamı (session_heat 17, recognized_session {c1: 1}); istemci host'un toplamını sonuçtan alır. Host 'Bir daha' der: 2. işte ısı taşınır (>= 10: sıcak) -> komşu gecikmesi 8 -> 6 sn (heat_tuning neighbour_delay_cut_s 2; döküm chasers.neighbour_delay_s); c1 ön kapıdan girip müşteri tarafında durur, sahip onu ilk görüşünde şüpheyi 30'dan başlatır ('?' + `owner_recognize` 'Sen yine mi?' balonu, iki peer'da aynı olay); örtü bozulmaz. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 24,
+  "bots": {
+    "host": "res://tests/net/bots/heat_carry_host.json",
+    "c1": "res://tests/net/bots/heat_carry_c1.json"
+  },
+  "expect": [
+    {"eq": ["*.level", "res://tests/fixtures/store_a_nopop.tscn"]},
+    {"len": ["*.player_nodes", 2]},
+    {"len": ["host.heist.history", 1]},
+    {"same": ["host.heist.history", "c1.heist.history"]},
+    {"eq": ["host.heist.history.0.outcome", "police"]},
+    {"eq": ["host.heist.history.0.players.$c1.witness_released", true]},
+    {"eq": ["host.heist.history.0.players.$c1.recognized", 1]},
+    {"eq": ["host.heist.history.0.players.$host.recognized", 0]},
+    {"eq": ["host.heist.history.0.heat", 17]},
+    {"eq": ["host.heist.history.0.session_heat", 17]},
+    {"eq": ["host.heist.history.0.recognized_session.$c1", 1]},
+    {"len": ["host.heist.history.0.recognized_session", 1]},
+    {"eq": ["*.heist.session_heat", 17]},
+    {"all_equal": "heist.recognized_session"},
+    {"eq": ["*.heist.recognized_session.$c1", 1]},
+    {"len": ["*.heist.recognized_session", 1]},
+    {"eq": ["*.heist.result", {}]},
+    {"eq": ["*.heist.active", true]},
+    {"eq": ["host.chasers.session_heat", 17]},
+    {"eq": ["host.chasers.neighbour_delay_s", 6.0]},
+    {"len": ["host.owner.recognition_greets", 1]},
+    {"same": ["host.owner.recognition_greets.0.peer", "c1.peer_id"]},
+    {"eq": ["host.owner.recognition_greets.0.value", 30.0]},
+    {"has": ["*.owner.events", "owner_recognize"]},
+    {"all_equal": "owner.events"},
+    {"has": ["*.owner.event_peers", "$c1"]},
+    {"eq": ["*.heist.cover.$c1", true]},
+    {"eq": ["*.player_states.$host.wall_frames", 0]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}

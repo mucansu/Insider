@@ -16,6 +16,8 @@ extends Node
 ## - Off: `active = false` (fixture; e.g. tests/fixtures/store_a_quiet.tscn, store_a_nopop.tscn) or an inactive owner spawns nothing.
 ## Dump "population" (S6 addendum): on every peer {npcs: [{name, role, state, events}], names (ordered), seen, events, event_peers}; on the host also
 ## {customers_inside, customers_spawned, passersby_spawned, served, tells, flees, looks, converted, cancelled, arrivals}.
+## US-052 (KR-044): in a hot session (Game `session_heat_state` when the level loads; `SessionHeat.passerby_cap`, heat_tuning per map) the
+## passer-by cap is `passerby_bonus` higher for the whole job; host dump `passerby_max` (effective).
 
 const CIVILIAN_SCENE := "res://entities/npc/civilian/civilian.tscn"
 const TUNING_PATH := "res://data/npc/population.tres"
@@ -65,8 +67,10 @@ func _ready() -> void:
 	if not _enabled():
 		return
 	var windows: int = _owner.senses().marker_names(tuning.window_prefix).size()
-	schedule = PopulationRules.Schedule.new(tuning.rules_params(windows, _owner.owner_tuning.customer_sec),
-		PopulationRules.schedule_seed(Game.session_seed(), tuning.population_seed))
+	var params: PopulationRules.Params = tuning.rules_params(windows, _owner.owner_tuning.customer_sec)
+	var heat: SessionHeat.Params = (VenueTuning.of(self, VenueTuning.HEAT) as HeatTuning).rules_params()  # US-052
+	params.passerby_max = SessionHeat.passerby_cap(heat, int(Game.session_heat_state().get("heat", 0)), params.passerby_max)
+	schedule = PopulationRules.Schedule.new(params, PopulationRules.schedule_seed(Game.session_seed(), tuning.population_seed))
 	_owner.senses().customers_query = customers_inside
 	_owner.brain().shouted.connect(_on_owner_shouted)
 	if _alert != null:
@@ -189,6 +193,7 @@ func dump_state() -> Dictionary:
 				out["served"] = int(out["served"]) + 1  # served, not yet left
 		out["customers_inside"] = customers_inside()
 		out["cancelled"] = schedule.cancelled.size()
+		out["passerby_max"] = schedule.params.passerby_max  # US-052: effective cap (heat)
 		var arrivals: Array = []
 		for o: PopulationRules.Order in schedule.spawned:
 			arrivals.append([PopulationRules.role_name(o.role), snappedf(o.at, 0.01)])
