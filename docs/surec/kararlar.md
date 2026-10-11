@@ -11,6 +11,11 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-044 — Faz 2 yeniden kesimi (Fable önerisi aynen; 2026-10-11, kullanıcı)
+- Kullanıcı "Fable'ın planını aynen uygula" dedi → `docs/tasarim/danisma/faz2-yeniden-kesim.md` §6'daki öneriler kabul: (1) kesim A — 2.4 Akış ve harita, 2.5 Ekip ve iletişim, 2.6 Kapanış + keşif ön testi; (2) harita sırası A — "Kalabalık saat" varyantı + store_b kararı 2.4'te, ev-dükkân 2.6 (sığmazsa Faz 3 ilk şablon), iki kapılı köşe Faz 3 şablon havuzu; (3) Faz 3 tam değil, keşif ön testi 2.6'da; (4) ping'in yeri test-2 K5'e bağlı; (5) 2 kişi dengesi Faz 2 kapanış şartı, hedef fark ≤ 30 puan (GDD 15 şimdilik gevşer); (6) çanta yeri tohumla 2-3 nokta arasında değişir (2.6, keşif ön testiyle).
+- Havuz'dan geri çekilen okunurluk kalemleri: IS-033 kenar işareti (2.5), US-023 tutulma/ÇEK/sendeleme alt kümesi (2.5), US-046 lite (2.4).
+- Kullanıcı ayrıca 2.4'ün kendisi dışarıdayken başlamasını istedi; dilim 2.3 (test-2) açık kalır, test-2'ye bağlı 2.4 kalemleri (store_b kararı, IS-097/092/105) test-2 sonrasına sıralanır.
+
 ### KR-043 — Öncelik: mekanik, yeni haritalar, akış; cila sonra (2026-10-11, kullanıcı)
 - Kullanıcı: "Bu çeşit efektlere şu an odaklanmasak da olur; amacım mekanikleri oturtmak, yeni keyifli haritalar ortaya çıkarmak, oyuncuyu akışa (flow) sokmak; efektler ilk başta mükemmel olmayabilir."
 - Sonuç: dilim 2.4 "His ve ses" (US-021, US-022, US-023, US-024, IS-033, IS-060 kalanı, IS-061, US-028, US-030) Havuz'a (cila, Faz 5 öncesi ya da okunurluğu bozan bir GB gelirse tek tek); US-046 raf görselleri mekanik/okunurluk yanıyla yeniden değerlendirilir. Faz 2'nin kalan dilimleri test-2 bulgularıyla birlikte mekanik + harita + akış ekseninde yeniden kesilir (Fable önerisi `docs/tasarim/danisma/faz2-yeniden-kesim.md`, kullanıcı onayıyla).
