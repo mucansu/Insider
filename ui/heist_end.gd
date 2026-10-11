@@ -6,6 +6,10 @@ extends Control
 ## Blocks gameplay input while open (S5). HUD calls `bind(game, net)`; a late joiner gets `heist_result()`.
 ## US-040: `aborted` (empty-handed retreat) is not a loss: normal title. US-041 (KR-029): caught row shows bail, "- Bail" under the payout (if total > 0) and "Team cash a -> b" (if the result has `cash_before`/`cash_after`); negatives in the alert colour.
 ## US-042: a player released after witness questioning (`witness_released`) gets END_STATUS_WITNESS on their row; for the local player END_WITNESS_RELEASED (dim) under the title.
+## US-051 (KR-044): session score table. Every shown result is recorded in `scores` (SessionScores, per process, local to this peer);
+## the header always shows the session's fastest clean escape, the "Session scores" button swaps the body (payout/crew/notes) for the
+## table (no, map, outcome, time, clean, crew cash change, strategy; this job's row on a panel, bests highlighted). The store is reset
+## when the screen leaves the tree with the session over (Net offline: menu, lost host, failed connection).
 
 ## "Again" (host): request to restart the level; emitted after Game.request_restart() is called.
 signal retry_requested()
@@ -37,11 +41,22 @@ const EVENT_CAUGHT := &"player_caught"
 const EVENT_POLICE := &"police_arrived"
 const STATUS_CAUGHT_PREFIX := "END_STATUS_CAUGHT_"
 const CAUSE_KEY_PREFIX := "END_CAUSE_"
+## Score table column widths (px; map/outcome/strategy stretch by these ratios and ellipsise). CASH_COLUMN is right-aligned.
+const COL_NO := 64.0
+const COL_TIME := 96.0
+const COL_CLEAN := 96.0
+const COL_CASH := 176.0
+const COL_MAP_RATIO := 1.0
+const COL_OUTCOME_RATIO := 1.5
+const COL_STRATEGY_RATIO := 0.9
+const CASH_COLUMN := 5
 
 var net: Object = null
 var game: Object = null
 ## Missing-text-key notification (HUD binds; tests catch it); push_warning if unhandled.
 var warn: Callable
+## Session score store (US-051); tests inject their own.
+var scores: SessionScores = SessionScores.shared()
 
 var _result: Dictionary = {}
 ## peer -> catcher (&"chaser" | &"owner"), from `player_caught` events (first record stays).
@@ -60,6 +75,12 @@ var _police_seen: bool = false
 @onready var _retry_button: Button = %RetryButton
 @onready var _retry_hint: Label = %RetryHint
 @onready var _menu_button: Button = %MenuButton
+@onready var _scores_button: Button = %ScoresButton
+@onready var _best_value: Label = %BestValue
+@onready var _body: Control = $Center/Card/Box/Body
+@onready var _scores_box: Control = %ScoresBox
+@onready var _scores_table: VBoxContainer = %ScoresTable
+@onready var _scores_best: Label = %ScoresBest
 
 
 func _ready() -> void:
@@ -69,14 +90,31 @@ func _ready() -> void:
 	UiInput.block_gameplay_while_visible(self)
 	_retry_button.pressed.connect(_on_retry_pressed)
 	_menu_button.pressed.connect(func() -> void: menu_requested.emit())
-	UiInput.tab_ring([_retry_button, _menu_button])
-	for pair: Array in [[_retry_button, _menu_button], [_menu_button, _retry_button]]:
-		var from: Control = pair[0]
-		var to: Control = pair[1]
-		UiInput.link(from, SIDE_RIGHT, to)
-		UiInput.link(from, SIDE_LEFT, to)
-		UiInput.link(from, SIDE_TOP, from)
-		UiInput.link(from, SIDE_BOTTOM, from)
+	_scores_button.pressed.connect(func() -> void: show_scores(not scores_shown()))
+	_link_buttons()
+	_fill_scores_button()
+
+
+func _exit_tree() -> void:
+	# Session over (menu / host lost / connection failed: Net offline) -> the next session starts with an empty table.
+	# A level restart re-creates the HUD while still online: the table survives.
+	if net != null and net.has_method(&"is_online") and not bool(net.call(&"is_online")):
+		scores.reset()
+
+
+## Left/right ring over the visible buttons (Retry is hidden on clients); up/down stay put; Tab ring.
+func _link_buttons() -> void:
+	var ring: Array[Control] = []
+	for b: Button in [_retry_button, _scores_button, _menu_button]:
+		if b.visible:
+			ring.append(b)
+	UiInput.tab_ring(ring)
+	var n: int = ring.size()
+	for i: int in n:
+		UiInput.link(ring[i], SIDE_RIGHT, ring[(i + 1) % n])
+		UiInput.link(ring[i], SIDE_LEFT, ring[(i - 1 + n) % n])
+		UiInput.link(ring[i], SIDE_TOP, ring[i])
+		UiInput.link(ring[i], SIDE_BOTTOM, ring[i])
 
 
 ## Binds to Game (S3 addendum); if the heist already ended (late join) shows the result immediately.
@@ -105,14 +143,18 @@ func result() -> Dictionary:
 
 func show_result(value: Dictionary) -> void:
 	_result = value
+	scores.record(value, _level_path())
 	_fill_header()
 	_fill_payout()
 	_fill_players()
 	_fill_cause()
 	_fill_notes()
+	_fill_scores()
+	show_scores(false)
 	var host: bool = _is_host()
 	_retry_button.visible = host and can_restart()
 	_retry_hint.visible = not host
+	_link_buttons()
 	show()
 	opened.emit()
 	(_retry_button if _retry_button.visible else _menu_button).grab_focus()
@@ -161,6 +203,8 @@ func _fill_header() -> void:
 	_outcome_note.text = note if note != note_key else ""
 	_outcome_note.visible = not _outcome_note.text.is_empty()
 	_duration.text = Hud.format_clock(float(_result.get("duration_s", 0.0)))
+	var best_no: int = int(scores.best()[SessionScores.BEST_FASTEST_CLEAN])
+	_best_value.text = tr(&"END_LOOT_NONE") if best_no == 0 else _best_text(scores.run_by_no(best_no))
 
 
 # --- payout ---
@@ -366,6 +410,154 @@ func _fill_notes() -> void:
 			box.add_child(desc)
 		_note_row.add_child(panel)
 	_notes_box.visible = _note_row.get_child_count() > 0
+
+
+# --- session scores (US-051) ---
+
+func scores_shown() -> bool:
+	return _scores_box.visible
+
+
+## Swaps the body (payout, crew, notes) for the session table and back; the header and buttons stay.
+func show_scores(on: bool) -> void:
+	_scores_box.visible = on
+	_body.visible = not on
+	_notes_box.visible = not on and _note_row.get_child_count() > 0
+	_fill_scores_button()
+
+
+func _fill_scores_button() -> void:
+	_scores_button.text = tr(&"END_SHOW_RUN") if scores_shown() else tr(&"END_SHOW_SCORES") % scores.size()
+
+
+## Map name of a level path: the MAP_<NAME> text, else the file name; "—" without a path.
+func map_name(level_path: String) -> String:
+	var key: String = SessionScores.map_key(level_path)
+	if key.is_empty():
+		return tr(&"END_LOOT_NONE")
+	var text: String = tr(key)
+	return level_path.get_file().get_basename() if text == key else text
+
+
+## Strategy label text (END_STRATEGY_<CLASS>); "—" without a class, generic dash + developer warning for an unknown class.
+func strategy_name(strategy_class: String) -> String:
+	var key: String = SessionScores.strategy_key(strategy_class)
+	if key.is_empty():
+		return tr(&"END_LOOT_NONE")
+	var text: String = tr(key)
+	if text == key:
+		_warn(key)
+		return tr(&"END_LOOT_NONE")
+	return text
+
+
+## "0:38 (job 2)".
+func _best_text(run: Dictionary) -> String:
+	return tr(&"END_BEST_VALUE") % [Hud.format_clock(float(run["duration_s"])), int(run["no"])]
+
+
+func _level_path() -> String:
+	if game == null or not game.has_method(&"current_level"):
+		return ""
+	var level: Node = game.call(&"current_level")
+	return "" if level == null else level.scene_file_path
+
+
+func _fill_scores() -> void:
+	_clear(_scores_table)
+	var bests: Dictionary = scores.best()
+	var current: int = int(scores.latest().get("no", 0))
+	var header: Array[Label] = []
+	for key: StringName in [&"END_COL_NO", &"END_COL_MAP", &"END_COL_OUTCOME", &"END_COL_TIME", &"END_COL_CLEAN",
+			&"END_COL_CASH", &"END_COL_STRATEGY"]:
+		header.append(_label(tr(key), &"CaptionLabel"))
+	_scores_table.add_child(_score_row(header, false))
+	for run: Dictionary in scores.visible_rows():
+		var no: int = int(run["no"])
+		var is_current: bool = no == current
+		var outcome_kind := StringName(str(run["outcome"]))
+		var fast: bool = no == int(bests[SessionScores.BEST_FASTEST]) or no == int(bests[SessionScores.BEST_FASTEST_CLEAN])
+		var cash: int = int(run["cash"])
+		var cash_style: StringName = &""
+		if no == int(bests[SessionScores.BEST_TOP_CASH]):
+			cash_style = &"CashLabel"
+		elif cash < 0:
+			cash_style = &"AlertLabel"
+		var clean: bool = bool(run["clean"])
+		var strategy_text: String = strategy_name(str(run["strategy"]))
+		var cells: Array[Label] = [
+			_label(tr(&"END_ROW_CURRENT") % no if is_current else str(no), &"HeadingLabel" if is_current else &""),
+			_label(map_name(str(run["level"])), &""),
+			_label(_outcome_title(outcome_kind), &"AlertLabel" if LOSS_OUTCOMES.has(outcome_kind) else &""),
+			_label(Hud.format_clock(float(run["duration_s"])), &"HeadingLabel" if fast else &""),
+			_label(tr(&"END_CLEAN_YES") if clean else tr(&"END_CLEAN_NO"), &"" if clean else &"MutedLabel"),
+			_label(_signed_cash(cash), cash_style),
+			_label(strategy_text, &"MutedLabel"),
+		]
+		_scores_table.add_child(_score_row(cells, is_current))
+	_scores_best.text = best_summary()
+
+
+## Session bests line: "Fastest clean: 0:38 (job 2) · Fastest: … · Most cash: …"; only the kinds that exist.
+func best_summary() -> String:
+	var bests: Dictionary = scores.best()
+	var parts: PackedStringArray = []
+	var fastest_clean: int = int(bests[SessionScores.BEST_FASTEST_CLEAN])
+	var fastest: int = int(bests[SessionScores.BEST_FASTEST])
+	var top_cash: int = int(bests[SessionScores.BEST_TOP_CASH])
+	if fastest_clean > 0:
+		parts.append(tr(&"END_BEST_FASTEST_CLEAN") % _best_text(scores.run_by_no(fastest_clean)))
+	if fastest > 0 and fastest != fastest_clean:
+		parts.append(tr(&"END_BEST_FASTEST") % _best_text(scores.run_by_no(fastest)))
+	if top_cash > 0:
+		parts.append(tr(&"END_BEST_TOP_CASH") % [_signed_cash(int(scores.run_by_no(top_cash)["cash"])), top_cash])
+	return tr(&"END_BEST_NONE") if parts.is_empty() else tr(&"END_BEST_SEPARATOR").join(parts)
+
+
+func _outcome_title(kind: StringName) -> String:
+	var key: String = OUTCOME_KEY_PREFIX + String(kind).to_upper()
+	var title: String = tr(key)
+	return tr(&"END_OUTCOME_GENERIC") if title == key or String(kind).is_empty() else title
+
+
+## One table row: fixed widths for no/time/clean/cash, map/outcome/strategy stretch and ellipsise. The current job's row sits on a
+## panel (ToastPanel); the others sit in a margin box with the panel's content margins so the columns line up.
+func _score_row(cells: Array[Label], current: bool) -> Control:
+	var panel: Container
+	if current:
+		panel = PanelContainer.new()
+		panel.theme_type_variation = &"ToastPanel"
+	else:
+		panel = MarginContainer.new()
+		var source: StyleBox = get_theme_stylebox(&"panel", &"ToastPanel")
+		# Only the side margins (column alignment); no vertical padding so a long session fits 1280x720.
+		var names: Array[StringName] = [&"margin_left", &"margin_right"]
+		var sides: Array[Side] = [SIDE_LEFT, SIDE_RIGHT]
+		for i: int in names.size():
+			panel.add_theme_constant_override(names[i], roundi(source.get_content_margin(sides[i])) if source != null else 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(row)
+	var widths: Array[float] = [COL_NO, -COL_MAP_RATIO, -COL_OUTCOME_RATIO, COL_TIME, COL_CLEAN, COL_CASH, -COL_STRATEGY_RATIO]
+	for i: int in cells.size():
+		var cell: Label = cells[i]
+		var width: float = widths[i]
+		if width > 0.0:
+			cell.custom_minimum_size.x = width
+		else:
+			cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			cell.size_flags_stretch_ratio = -width
+			cell.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		if i == CASH_COLUMN:
+			cell.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(cell)
+	return panel
+
+
+## Crew cash change with a sign: "+$1,200" / "-$300" / "$0".
+func _signed_cash(value: int) -> String:
+	return tr(&"END_CASH_GAIN") % _cash(value) if value > 0 else _cash(value)
 
 
 # --- helpers ---

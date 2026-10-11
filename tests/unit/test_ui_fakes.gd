@@ -41,6 +41,8 @@ class FakeNet extends Node:
 	var ping_ms: int = -1
 	var ping_calls: int = 0
 	var my_peer_id: int = 1
+	## is_online() return; leave() takes the peer offline (US-051: the job-end screen resets the session table when offline).
+	var online: bool = true
 
 	func host(port: int = 7777, _max_peers: int = 4) -> Error:
 		journal.add(["host", port])
@@ -52,12 +54,13 @@ class FakeNet extends Node:
 
 	func leave() -> void:
 		journal.add(["leave"])
+		online = false
 
 	func is_host() -> bool:
 		return hosting
 
 	func is_online() -> bool:
-		return true
+		return online
 
 	func local_peer_id() -> int:
 		return my_peer_id
@@ -95,6 +98,12 @@ class FakeGameBase extends Node:
 
 	func team_cash() -> int:
 		return cash
+
+	## US-051: the job-end score table reads the map name from the level's scene path.
+	var level: Node = null
+
+	func current_level() -> Node:
+		return level
 
 
 ## S3 + S3 addition (alert ladder, job result). Signal emission in the test: `alert_level_changed.emit(2)` etc.
@@ -206,6 +215,7 @@ static func make_pair(test: TestCase, vision: bool = false, fresh_settings: bool
 		reset_connect_settings()
 	else:
 		ConnectInfo.settings_path = TEST_SETTINGS_PATH
+	SessionScores.reset_shared()  # US-051: every UI test starts with an empty session score table
 	var journal := CallLog.new()
 	var net: FakeNet = test.autofree(FakeNet.new()) as FakeNet
 	var game: FakeGame = test.autofree(FakeVisionGame.new() if vision else FakeGame.new()) as FakeGame

@@ -82,6 +82,20 @@ layout_mode = 2
 theme_type_variation = &"HeadingLabel"
 horizontal_alignment = 2
 
+[node name="BestCaption" type="Label" parent="Center/Card/Box/Header/DurationBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_BEST_CLEAN_LABEL"
+horizontal_alignment = 2
+
+[node name="BestValue" type="Label" parent="Center/Card/Box/Header/DurationBox"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"HeadingLabel"
+horizontal_alignment = 2
+
 [node name="TopRule" type="HSeparator" parent="Center/Card/Box"]
 layout_mode = 2
 theme_type_variation = &"AccentSeparator"
@@ -132,6 +146,27 @@ text = "END_NOTES_LABEL"
 unique_name_in_owner = true
 layout_mode = 2
 
+[node name="ScoresBox" type="VBoxContainer" parent="Center/Card/Box"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+
+[node name="ScoresCaption" type="Label" parent="Center/Card/Box/ScoresBox"]
+layout_mode = 2
+theme_type_variation = &"CaptionLabel"
+text = "END_SCORES_LABEL"
+
+[node name="ScoresTable" type="VBoxContainer" parent="Center/Card/Box/ScoresBox"]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="ScoresBest" type="Label" parent="Center/Card/Box/ScoresBox"]
+unique_name_in_owner = true
+auto_translate_mode = 2
+layout_mode = 2
+theme_type_variation = &"MutedLabel"
+autowrap_mode = 3
+
 [node name="BottomRule" type="HSeparator" parent="Center/Card/Box"]
 layout_mode = 2
 
@@ -154,6 +189,12 @@ layout_mode = 2
 theme_type_variation = &"MutedLabel"
 text = "END_RETRY_HOST_ONLY"
 vertical_alignment = 1
+
+[node name="ScoresButton" type="Button" parent="Center/Card/Box/Buttons"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+auto_translate_mode = 2
 
 [node name="MenuButton" type="Button" parent="Center/Card/Box/Buttons"]
 unique_name_in_owner = true

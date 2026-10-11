@@ -200,3 +200,32 @@ OWNER_ORDER_UNPAID,Nereye gitti bu?,Where did that one go?
 OWNER_NO_MONEY,Para yetmiyor,That's not enough money
 EVENT_MISDIRECT,{name} mahalleliyi yanlış yöne yolladı.,{name} sent the neighbours the wrong way.
 EVENT_NPC_PUSHED,{name} birine omuz attı.,{name} shoved someone.
+END_BEST_CLEAN_LABEL,EN HIZLI TEMİZ,FASTEST CLEAN
+END_BEST_VALUE,%s (%d. iş),%s (job %d)
+END_SHOW_SCORES,Oturum skorları (%d),Session scores (%d)
+END_SHOW_RUN,Bu iş,This job
+END_SCORES_LABEL,BU OTURUM,THIS SESSION
+END_COL_NO,#,#
+END_COL_MAP,HARİTA,MAP
+END_COL_OUTCOME,SONUÇ,RESULT
+END_COL_TIME,SÜRE,TIME
+END_COL_CLEAN,TEMİZ,CLEAN
+END_COL_CASH,KASA,CASH
+END_COL_STRATEGY,STRATEJİ,STRATEGY
+END_ROW_CURRENT,» %d,» %d
+END_CLEAN_YES,Temiz,Clean
+END_CLEAN_NO,—,—
+END_CASH_GAIN,+%s,+%s
+END_BEST_FASTEST_CLEAN,En hızlı temiz: %s,Fastest clean: %s
+END_BEST_FASTEST,En hızlı: %s,Fastest: %s
+END_BEST_TOP_CASH,En çok kazanç: %s (%d. iş),Biggest haul: %s (job %d)
+END_BEST_NONE,Henüz kaçış yok; bir daha dene.,No getaway yet; go again.
+END_BEST_SEPARATOR, · , · 
+END_STRATEGY_ZAMAN,Zaman,Timing
+END_STRATEGY_SOSYAL,Sosyal,Social
+END_STRATEGY_GURULTU,Gürültü,Noise
+END_STRATEGY_ARKA_KAPI,Arka kapı,Back door
+END_STRATEGY_ORTU,Örtü,Cover
+MAP_STORE_A,Köşe bakkal,Corner shop
+MAP_STORE_B,İkinci bakkal,Second shop
+MAP_TEST_ARENA,Test odası,Test room
