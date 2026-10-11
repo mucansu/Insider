@@ -430,6 +430,52 @@ class AbortClock:
 		return maxf(hold_s - held_s, 0.0) if running() else -1.0
 
 
+# --- US-049 job phase (KR-044; Fable faz2-yeniden-kesim §1.1) ---
+# A heist level opens in PREP: the owner's agenda and the population run, players walk around like customers, but every level
+# interaction except the customer door (`PREP_OPEN_PROPS`) and the host's start point is locked (host rejects "prep"; the prompt
+# reads "crew gathering n"). No penalty in prep: the Tracker does not observe (elapsed, abort/settle, cover), suspicion does not fill
+# and the alert ladder does not step. The host's E on the start point -> ACTIVE on every peer (reliable RPC), `heist_started` event,
+# elapsed counts from there. Automation (Game: bot/brain/dump/quit/script runs) starts ACTIVE at once unless `--heist-prep`.
+
+const PHASE_PREP := 0
+const PHASE_ACTIVE := 1
+## Dump names (S6 heist.phase); "finished" = ACTIVE with a result, "none" = no job on this level.
+const PHASE_NAME_NONE := "none"
+const PHASE_NAME_PREP := "prep"
+const PHASE_NAME_ACTIVE := "active"
+const PHASE_NAME_FINISHED := "finished"
+## Prop (parent of the Interactable) names still usable in prep: the customer door.
+const PREP_OPEN_PROPS: Array[StringName] = [&"FrontDoor"]
+## Host HUD reminder period while the job has not been started (AC4).
+const PREP_REMINDER_S := 30.0
+## Prompt key of a locked interaction in prep (Interactable.prompt_key; the HUD fills in the crew count).
+const PREP_PROMPT_KEY := "HUD_PREP_GATHERING"
+
+
+## Whether `value` is a valid wire phase (client-side RPC validation).
+static func is_phase(value: Variant) -> bool:
+	return typeof(value) == TYPE_INT and (int(value) == PHASE_PREP or int(value) == PHASE_ACTIVE)
+
+
+## Whether a level interaction whose prop is named `prop_name` is locked in prep (`start_prop` = the start point, always usable).
+static func prep_locks(prop_name: StringName, start_prop: StringName) -> bool:
+	return prop_name != start_prop and not PREP_OPEN_PROPS.has(prop_name)
+
+
+## Dump name of the phase: no job -> "none"; a finished job -> "finished".
+static func phase_name(has_job: bool, phase: int, finished: bool) -> String:
+	if not has_job:
+		return PHASE_NAME_NONE
+	if finished:
+		return PHASE_NAME_FINISHED
+	return PHASE_NAME_ACTIVE if phase == PHASE_ACTIVE else PHASE_NAME_PREP
+
+
+## Whether the next prep reminder is due: `shown` reminders were given, one every `period` s of prep (none if period <= 0).
+static func prep_reminder_due(prep_s: float, shown: int, period: float) -> bool:
+	return period > 0.0 and prep_s >= period * float(maxi(shown, 0) + 1)
+
+
 ## Per-job counters and decision on the host. Game calls `observe` + `evaluate` every physics step; events (alert, police,
 ## caught, register cash, bag pickup) come in through the matching methods. View (`views`):
 ## peer -> {"in_zone": bool, "caught": bool, "held": bool, "bag_value": int, "sprinting": bool}.

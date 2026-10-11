@@ -28,6 +28,8 @@ extends Area2D
 ## US-045 additions: `peer_gate` (`func(peer_id) -> bool`, every peer: false hides the prompt for that peer and the host rejects with
 ## `peer`) for per-player offers on one shared component (the counter's E: pay / take the order / buy); `self_only` marks a component
 ## of the actor itself (the hand's Q "Bırak"): only that actor sees and may use it (host: `self` reject otherwise), other players never.
+## US-049 (job prep lock): while the job is in prep `Game.heist_prep_locks(self)` decides (every peer); the host rejects a player's start
+## with `prep` (NPC use unaffected) and `prompt_key()` returns HeistRules.PREP_PROMPT_KEY instead of `action_key` (the prompt stays).
 
 ## Host only.
 signal completed(peer_id: int)
@@ -137,6 +139,16 @@ func can_start(peer_id: int, actor_pos: Vector2, actor_tags: Dictionary = {}) ->
 	return InteractionRules.check(_spec(), peer_id, actor_pos, actor_tags) == InteractionRules.Result.OK
 
 
+## US-049: whether the job's prep phase locks this component now (every peer; Game decides which props stay usable).
+func prep_locked() -> bool:
+	return Game.heist_prep_locks(self)
+
+
+## US-049: prompt key for the player (the crew-gathering key while prep-locked, else `action_key`).
+func prompt_key() -> String:
+	return HeistRules.PREP_PROMPT_KEY if prep_locked() else action_key
+
+
 ## Whether the component is offered to `peer_id` (`peer_gate`; true without a gate).
 func offered_to(peer_id: int) -> bool:
 	return not peer_gate.is_valid() or bool(peer_gate.call(peer_id))
@@ -216,6 +228,8 @@ func host_start(peer_id: int, seq: int) -> void:
 	_requests += 1
 	var actor: Node = _actor(peer_id)
 	var refusal: String = _actor_refusal(peer_id, actor)
+	if refusal.is_empty() and prep_locked():
+		refusal = "prep"  # US-049: the crew is still gathering (job not started)
 	if not refusal.is_empty():
 		_rejected[refusal] = int(_rejected.get(refusal, 0)) + 1
 		_send_result(peer_id, seq, false)

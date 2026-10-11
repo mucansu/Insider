@@ -1,0 +1,16 @@
+{
+  "_doc": "heist_start.json c1 botu (US-049). t=0,5: doğma noktasında (host'un başlangıç noktasına 32 px) E — Başla yalnız host'a sunulur, istek gitmez. Sonra heist_host.json'daki kasa rotası (+1 sn kaydırılmış): sınıra yaslan, ön kapıdan gir, tezgâh ucundan personel tarafına dolan, kasada dur. t=11,2: kasaya E 3,5 sn — hazırlıkta host 'prep' ile reddeder (host'un Başla'sı t=14). t=17: yeniden E 3,5 sn — iş başladı, kasa boşalır. Zamanlar bu sürecin ilk yerel oyuncusundan (istemci host'tan ~0,3-1,5 sn geç başlar).",
+  "steps": [
+    {"t": 0.5, "hold": "interact", "dur": 0.3},
+    {"t": 1.2, "move": [-1, 0]},
+    {"t": 2.6, "move": [1, 0]},
+    {"t": 5.0, "move": [0, -1]},
+    {"t": 5.8, "move": [1, 0]},
+    {"t": 8.3, "move": [0, -1]},
+    {"t": 9.4, "move": [-1, 0]},
+    {"t": 10.4, "move": [0, 1]},
+    {"t": 10.88, "move": [0, 0]},
+    {"t": 11.2, "hold": "interact", "dur": 3.5},
+    {"t": 17.0, "hold": "interact", "dur": 3.5}
+  ]
+}

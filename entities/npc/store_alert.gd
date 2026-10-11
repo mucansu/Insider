@@ -69,9 +69,9 @@ func _physics_process(delta: float) -> void:
 		step(delta)
 
 
-## One step (host only): neighbour counters, requested tier, police timer.
+## One step (host only): neighbour counters, requested tier, police timer. US-049: idle while the job is in prep (no penalty).
 func step(delta: float) -> void:
-	if not active or not _host_side() or _owner == null or not _owner.active:
+	if not active or not _host_side() or _owner == null or not _owner.active or Game.heist_in_prep():
 		return
 	for i: int in range(_pending.size() - 1, -1, -1):
 		_pending[i] -= delta

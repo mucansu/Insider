@@ -123,14 +123,14 @@ func _select_target(actor_pos: Vector2, peer_id: int, actor_tags: Dictionary) ->
 				positions.append(item.global_position)
 	var index: int = InteractionRules.nearest(actor_pos, positions)
 	var target: Interactable = candidates[index] if index >= 0 else null
-	var key: String = target.action_key if target != null else ""
+	var key: String = target.prompt_key() if target != null else ""  # US-049: crew-gathering key while prep-locked
 	_target = target
 	if key != _target_key:
 		_target_key = key
 		target_changed.emit(key)
 	var alt_index: int = InteractionRules.nearest(actor_pos, alt_positions)
 	var alt_target: Interactable = alt_candidates[alt_index] if alt_index >= 0 else null
-	var alt_key: String = alt_target.action_key if alt_target != null else ""
+	var alt_key: String = alt_target.prompt_key() if alt_target != null else ""
 	_alt_target = alt_target
 	if alt_key != _alt_target_key:
 		_alt_target_key = alt_key
@@ -148,7 +148,7 @@ func _start(target: Interactable, alt: bool) -> void:
 	_started_at = Time.get_ticks_usec() / 1_000_000.0
 	_requests += 1
 	target.request_finished.connect(_on_verdict)
-	started.emit(target.action_key, maxf(target.hold_time, 0.0))
+	started.emit(target.prompt_key(), maxf(target.hold_time, 0.0))  # US-049: a prep-locked try shows the gathering text
 	target.request_start(_seq)  # on the host the decision can come in the same call (instant action)
 
 

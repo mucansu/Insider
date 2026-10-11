@@ -4,7 +4,8 @@ extends Node
 ## · --quit-after=SEC · --player-scene=res://... (test only) · --screenshot-at=SEC[,SEC…] · --screenshot-dir=PATH · --window-size=WxH (IS-022)
 ## · --camera-zoom=X (dev; IS-027) · --perf · --perf-seconds=N (dev; IS-067: "render" section in the dump)
 ## · --brain=STRATEGY · --seed=N · --quit-on-heist-end=SEC (test/statistics; IS-015a, block at the end of the file) · --brain-loop=SEC (IS-058b)
-## · --log-on-exit=PATH.json (IS-102: playtest diagnostics; NOT automation, block at the end of the file).
+## · --log-on-exit=PATH.json (IS-102: playtest diagnostics; NOT automation, block at the end of the file)
+## · --heist-prep (US-049 test flag: an automated host still opens the job in prep; block at the end of the file).
 ## Parsed from `OS.get_cmdline_user_args()` at startup (tests may call `parse()` with their own list). Unknown args go to `unknown`
 ## without a warning (e.g. the test runner's --filter); a recognised key with a bad value warns and keeps the default.
 
@@ -130,6 +131,7 @@ func parse(args: PackedStringArray) -> void:
 	_parse_perf_args()  # IS-067
 	_parse_brain_args()  # IS-015a
 	_parse_log_args()  # IS-102
+	_parse_heist_prep_args()  # US-049
 
 
 ## Whether the args start a session directly (host or join).
@@ -461,3 +463,30 @@ static func resolve_log_path(path: String, base_dir: String) -> String:
 	if path.is_empty() or path.is_absolute_path():
 		return path
 	return base_dir.path_join(path).simplify_path()
+
+
+# =====================================================================================================================
+# US-049 — `--heist-prep` (S6 test flag). Game starts a heist level in prep (crew gathering; the host's E on the start point starts the
+# job) only in a normal game; automation runs (bot/brain/dump/quit/script) start the job at once so scenarios and statistics keep their
+# timing. With this flag an automated host keeps the prep phase too (tests/net/heist_start.json). Flag only; a value is ignored with a
+# warning. Clients ignore it (the host decides the phase).
+# =====================================================================================================================
+
+## Whether `--heist-prep` was given.
+var heist_prep: bool = false
+
+
+func _parse_heist_prep_args() -> void:
+	heist_prep = false
+	var rest: PackedStringArray = []
+	for raw: String in unknown:
+		var arg: String = raw.strip_edges()
+		var eq: int = arg.find("=")
+		var key: String = arg.substr(0, eq) if eq >= 0 else arg
+		if key != "--heist-prep":
+			rest.append(raw)
+			continue
+		if eq >= 0:
+			push_warning("Args: --heist-prep değer almaz (bayrak); '%s' yok sayıldı" % arg)
+		heist_prep = true
+	unknown = rest

@@ -14,6 +14,8 @@ extends Node
 ##   `threshold_reached`.
 ## - `latch_level`: the brain locks the summary level after detection (replicated `max_level` does not flicker during brief hiding).
 ## - `last_observations()`: last step's observations (for brain target choice and dump).
+## US-049: while the job is in prep (`Game.heist_in_prep()`; crew gathering, no penalty) meters do not fill: observations are still taken,
+## `apply_delta` ignores increases.
 
 ## Host only: the `level` threshold of `peer_id` was crossed upward.
 signal threshold_reached(peer_id: int, level: int)
@@ -79,6 +81,9 @@ func tick(delta: float) -> void:
 		_innocent.decay_per_sec = innocent_decay_per_sec
 	var observations: Dictionary = perception.observe()
 	_observations = observations
+	if Game.heist_in_prep():
+		_update_summary()
+		return  # US-049: no suspicion while the crew gathers
 	var reached: Array = []
 	for peer_id: int in observations:
 		var obs: Perception.Observation = observations[peer_id]
@@ -121,8 +126,8 @@ func level_of(peer_id: int) -> int:
 ## Host API (US-008 AC4): changes a meter by `delta` (0..MAX). Upward crossings emit signals;
 ## the last seen position does not change (suspicion given unseen leaks no position).
 func apply_delta(peer_id: int, delta: float) -> void:
-	if perception == null or not multiplayer.is_server():
-		return
+	if perception == null or not multiplayer.is_server() or (delta > 0.0 and Game.heist_in_prep()):
+		return  # US-049: no suspicion while the crew gathers
 	if _params == null:
 		if perception.tuning == null:
 			perception.refresh()
