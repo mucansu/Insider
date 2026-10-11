@@ -5,6 +5,8 @@ extends Control
 ## on the host, if the level does not load within START_TIMEOUT_SEC the session is closed and the form returns with an error (Cancel takes the same path).
 ## US-011c: the host card has a vision-mode picker (host game rule, GDD §6.5), visible if Game has the S3 addendum (vision_mode(), set_vision_mode()); the choice is sent to Game after hosting, before the level starts.
 ## US-026: name and last joined address come from the ConnectInfo settings file and are written on host/join; the host card shows the invite address (Copy); the join card has Paste and the port under "Advanced".
+## US-050: the host card has a map picker (registry maps from `Game.map_list()`, S3 addendum; hidden if Game lacks it); hosting loads the
+## picked map. A `--level=` argument wins (picker disabled, shows it). The last pick is remembered for this process only (`remembered_map`).
 
 const SCENE_PATH := "res://ui/main_menu.tscn"
 const DEFAULT_PORT := ConnectInfo.DEFAULT_PORT
@@ -23,6 +25,9 @@ enum State { IDLE, CONNECTING, CONNECTED, STARTING }
 
 ## Error key to show when the menu opens (e.g. the HUD leaves it when the host drops in-game); cleared once shown.
 static var pending_error: StringName = &""
+## US-050: the map last picked in the menu (or switched to at the heist end) in this process; "" = registry's first. Memory only,
+## not a settings file (until US-025).
+static var remembered_map: String = ""
 
 var net: Object = Net
 var game: Object = Game
@@ -30,6 +35,8 @@ var game: Object = Game
 var quit_override: Callable
 ## For tests: () -> String; if set, Paste reads this instead of the system clipboard.
 var clipboard_getter: Callable
+## US-050: the `--level=` argument (wins over the picker); tests set it before adding to the scene.
+var level_arg: String = Args.level
 
 var state: State = State.IDLE
 ## Time (s) spent in STARTING.
@@ -42,6 +49,8 @@ var _starting_elapsed: float = 0.0
 @onready var _vision_label: Label = %VisionLabel
 @onready var _vision_option: OptionButton = %VisionOption
 @onready var _vision_hint: Label = %VisionHint
+@onready var _map_label: Label = %MapLabel
+@onready var _map_option: OptionButton = %MapOption
 @onready var _host_button: Button = %HostButton
 @onready var _join_address_edit: LineEdit = %JoinAddressEdit
 @onready var _join_port_edit: LineEdit = %JoinPortEdit
@@ -87,6 +96,7 @@ func _ready() -> void:
 	net.connect(&"host_disconnected", _on_host_disconnected)
 	game.connect(&"level_loaded", _on_level_loaded)
 	_setup_vision()
+	_setup_maps()
 	for edit: LineEdit in [_name_edit, _host_port_edit, _join_address_edit, _join_port_edit]:
 		UiInput.arrows_move_focus(edit)
 	_setup_focus()
@@ -119,9 +129,11 @@ func _on_host_pressed() -> void:
 		game.call(&"set_vision_mode", vision_mode())
 	ConnectInfo.hosted_port = port
 	ConnectInfo.save_settings({ConnectInfo.KEY_NAME: player_name})
+	if level_arg.is_empty() and not selected_map().is_empty():
+		remembered_map = selected_map()
 	_set_state(State.STARTING)
 	_connecting_label.text = tr(&"MENU_STARTING")
-	game.call(&"start_level", Game.DEFAULT_LEVEL)
+	game.call(&"start_level", host_level())
 
 
 func _process(delta: float) -> void:
@@ -160,6 +172,57 @@ func _setup_vision() -> void:
 	# Default from Game (data/vision_tuning.tres); first option on an unknown value.
 	var index: int = _vision_option.get_item_index(int(game.call(&"vision_mode")))
 	_vision_option.select(maxi(index, 0))
+
+
+## Whether Game offers the registry maps (S3 addendum, US-050); the picker is hidden if not (or the registry is empty).
+func supports_maps() -> bool:
+	return game.has_method(&"map_list") and not (game.call(&"map_list") as Array).is_empty()
+
+
+## Level the host loads: the `--level=` argument if given, else the picked map, else Game.DEFAULT_LEVEL.
+func host_level() -> String:
+	if not level_arg.is_empty():
+		return level_arg
+	var picked: String = selected_map()
+	return picked if not picked.is_empty() else Game.DEFAULT_LEVEL
+
+
+## Path of the picked map; "" if the picker is hidden.
+func selected_map() -> String:
+	if not _map_option.visible or _map_option.selected < 0:
+		return ""
+	return str(_map_option.get_item_metadata(_map_option.selected))
+
+
+func _setup_maps() -> void:
+	var shown: bool = supports_maps()
+	_map_label.visible = shown
+	_map_option.visible = shown
+	if not shown:
+		return
+	for entry: Dictionary in (game.call(&"map_list") as Array):
+		var at: int = _map_option.item_count
+		_map_option.add_item(str(entry["name_key"]))
+		_map_option.set_item_metadata(at, str(entry["path"]))
+	var wanted: String = level_arg if not level_arg.is_empty() else remembered_map
+	var index: int = _map_index(wanted)
+	if index < 0 and not level_arg.is_empty():
+		# An unlisted --level (automation/fixture) is shown by its file name.
+		index = _map_option.item_count
+		_map_option.add_item(level_arg.get_file().get_basename())
+		_map_option.set_item_auto_translate_mode(index, Node.AUTO_TRANSLATE_MODE_DISABLED)
+		_map_option.set_item_metadata(index, level_arg)
+	_map_option.select(maxi(index, 0))
+	_map_option.disabled = not level_arg.is_empty()
+	_map_option.tooltip_text = tr(&"MENU_MAP_ARG_HINT") if _map_option.disabled else ""
+	_map_option.item_selected.connect(func(_i: int) -> void: remembered_map = selected_map())
+
+
+func _map_index(level_path: String) -> int:
+	for i: int in _map_option.item_count:
+		if str(_map_option.get_item_metadata(i)) == level_path:
+			return i
+	return -1
 
 
 func _on_join_pressed() -> void:
@@ -339,6 +402,9 @@ func _setup_focus() -> void:
 	var invite: Array[Control] = _host_invite.focus_controls()
 	var invite_last: Control = invite[invite.size() - 1]
 	var vision: bool = _vision_option.visible
+	# US-050: the map picker shares the Host row (left of Host; space at 720p), reached by left/right and Tab like vision;
+	# skipped while --level disables it.
+	var map: bool = _map_option.visible and not _map_option.disabled
 	# Right end of the host-port row: vision if visible, else the port.
 	var port_row_end: Control = _vision_option if vision else _host_port_edit
 	var left: Array[Control] = [_name_edit]
@@ -353,6 +419,8 @@ func _setup_focus() -> void:
 	ring.append(_host_port_edit)
 	if vision:
 		ring.append(_vision_option)
+	if map:
+		ring.append(_map_option)
 	ring.append_array([_host_button, _join_address_edit, _paste_button, _advanced_button] as Array[Control])
 	if _advanced_grid.visible:
 		ring.append(_join_port_edit)
@@ -379,6 +447,13 @@ func _setup_focus() -> void:
 		UiInput.link(_vision_option, SIDE_RIGHT, _advanced_button)
 		UiInput.link(_vision_option, SIDE_TOP, invite_last)
 		UiInput.link(_vision_option, SIDE_BOTTOM, _host_button)
+	# Host row: [map ->] Host -> Join; same path in reverse.
+	if map:
+		UiInput.link(_host_button, SIDE_LEFT, _map_option)
+		UiInput.link(_map_option, SIDE_RIGHT, _host_button)
+		UiInput.link(_map_option, SIDE_LEFT, _map_option)
+		UiInput.link(_map_option, SIDE_TOP, _host_port_edit)
+		UiInput.link(_map_option, SIDE_BOTTOM, _quit_button)
 	UiInput.link(_host_button, SIDE_RIGHT, _join_button)
 	UiInput.link(_join_button, SIDE_LEFT, _host_button)
 	UiInput.vertical([_cancel_button])

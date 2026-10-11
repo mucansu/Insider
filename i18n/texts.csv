@@ -18,6 +18,8 @@ MENU_VISION_LABEL,GÖRÜŞ,VISION
 MENU_VISION_OMNI,Çevresel 360°,All-round 360°
 MENU_VISION_DIRECTIONAL,Yönlü,Directional
 MENU_VISION_HINT,Herkese aynı. Yönlü: fare / sağ çubuk.,Same for all. Directional: your aim.
+MENU_MAP_LABEL,HARİTA,MAP
+MENU_MAP_ARG_HINT,Harita komut satırından (--level).,Map set on the command line (--level).
 MENU_QUIT_BUTTON,Çıkış,Quit
 MENU_CANCEL_BUTTON,Vazgeç,Cancel
 MENU_CONNECTING,%s:%d adresine bağlanılıyor…,Connecting to %s:%d…
@@ -126,6 +128,7 @@ END_WITNESS_RELEASED,"Tanık olarak sorgulandın, serbest bırakıldın (tanınd
 END_NOTES_LABEL,NOTLAR,NOTES
 END_NOTE_TEAM,Ekip,Crew
 END_RETRY,Bir daha,Again
+END_OTHER_MAP,Başka bakkal,Another shop
 END_RETRY_HOST_ONLY,Yeni işi host başlatır.,The host starts the next job.
 END_MENU,Menü,Menu
 END_OUTCOME_GENERIC,İŞ BİTTİ,JOB OVER
@@ -231,5 +234,6 @@ END_STRATEGY_GURULTU,Gürültü,Noise
 END_STRATEGY_ARKA_KAPI,Arka kapı,Back door
 END_STRATEGY_ORTU,Örtü,Cover
 MAP_STORE_A,Köşe bakkal,Corner shop
+MAP_STORE_A_RUSH,Kalabalık saat,Rush hour
 MAP_STORE_B,İkinci bakkal,Second shop
 MAP_TEST_ARENA,Test odası,Test room

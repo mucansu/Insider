@@ -194,6 +194,25 @@ class FakeVisionGame extends FakeGame:
 		vision = mode
 
 
+## S3 addition (US-050): registry maps and the host's map switch (on top of the vision addition: the fullest host card / end screen).
+class FakeMapGame extends FakeVisionGame:
+	## map_list() return: [{"path", "name_key"}].
+	var maps: Array[Dictionary] = [
+		{"path": "res://levels/store_a.tscn", "name_key": "MAP_STORE_A"},
+		{"path": "res://levels/store_a_rush.tscn", "name_key": "MAP_STORE_A_RUSH"},
+		{"path": "res://levels/store_b.tscn", "name_key": "MAP_STORE_B"},
+	]
+	## request_map_switch() return.
+	var switch_ok: bool = true
+
+	func map_list() -> Array[Dictionary]:
+		return maps.duplicate(true)
+
+	func request_map_switch(level_path: String) -> bool:
+		journal.add(["request_map_switch", level_path])
+		return switch_ok
+
+
 ## S7 player signals (HUD contract); emitted only on the local player.
 class FakePlayer extends Node:
 	signal interaction_target_changed(action_key: String)
@@ -216,7 +235,8 @@ const TEST_SETTINGS_PATH := "user://test_ui_connect.cfg"
 ## Builds the Net and Game fakes with a shared log and registers them to be freed at test end.
 ## If `vision` the Game fake also carries the vision addition (FakeVisionGame). Redirects the settings file path to the test file;
 ## if `fresh_settings` the file is deleted (screens do not open with remembered values), otherwise values the test wrote earlier remain.
-static func make_pair(test: TestCase, vision: bool = false, fresh_settings: bool = true) -> Array:
+## If `maps` the Game fake is a FakeMapGame (US-050 map list + switch, vision addition included).
+static func make_pair(test: TestCase, vision: bool = false, fresh_settings: bool = true, maps: bool = false) -> Array:
 	if fresh_settings:
 		reset_connect_settings()
 	else:
@@ -224,14 +244,21 @@ static func make_pair(test: TestCase, vision: bool = false, fresh_settings: bool
 	SessionScores.reset_shared()  # US-051: every UI test starts with an empty session score table
 	var journal := CallLog.new()
 	var net: FakeNet = test.autofree(FakeNet.new()) as FakeNet
-	var game: FakeGame = test.autofree(FakeVisionGame.new() if vision else FakeGame.new()) as FakeGame
+	var game: FakeGame = null
+	if maps:
+		game = FakeMapGame.new()
+	elif vision:
+		game = FakeVisionGame.new()
+	else:
+		game = FakeGame.new()
+	game = test.autofree(game) as FakeGame
 	net.journal = journal
 	game.journal = journal
 	return [net, game, journal]
 
 
 func test_fakes_match_real_autoload_signatures() -> void:
-	var pairs: Array = [["Net", FakeNet], ["Game", FakeGame], ["Game", FakeVisionGame]]
+	var pairs: Array = [["Net", FakeNet], ["Game", FakeGame], ["Game", FakeVisionGame], ["Game", FakeMapGame]]
 	for pair: Array in pairs:
 		var autoload_name: String = pair[0]
 		var real: Script = load(REAL_SCRIPTS[autoload_name]) as Script
