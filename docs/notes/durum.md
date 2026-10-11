@@ -10,7 +10,7 @@ Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (ha
 
 ## Sürüyor / yarım kalan
 **Dilim 2.3 Test-2 açık** (kullanıcı test-2'yi oynayacak; paket `build/Insiders-faz2-eb5989e-windows.zip`, protokol 7). **Dilim 2.4 Akış ve harita da başladı** (KR-044, kullanıcı: "Fable'ın planını aynen uygula", dışarıdayken başlasın; plan `docs/tasarim/danisma/faz2-yeniden-kesim.md`). İki dilim paralel: test-2'ye bağlı 2.4 kalemleri (store_b kararı, IS-097/092/105) test-2 sonrasına.
-- 2.4 dalga 1 (2026-10-11, ajan worktree'leri faz2-int 000e367 tabanlı): US-049 iş-içi Başla (cekirdek; ağ → denetci), US-051 oturum skor tablosu (arayuz; yerel biriktirme, ağ yok), IS-113 "Kalabalık saat" varyantı (seviye, **Haiku** — KR-042 pilot 2).
+- 2.4 dalga 1 (2026-10-11, ajan worktree'leri faz2-int 000e367 tabanlı): US-049 iş-içi Başla (cekirdek; ağ → denetci), US-051 oturum skor tablosu (Bitti → faz2-int 7ab1d0c), IS-113 "Kalabalık saat" varyantı (seviye, **Haiku** — KR-042 pilot 2).
 - 2.4 dalga 2 (dalga 1 birleşince): US-050 harita seçimi + "Başka bakkal" (arayuz + cekirdek; US-049 sonrası, game.gd çakışması), US-052 ısı/tanınma etkisi (oynanis), US-046 lite (seviye/arayuz, Haiku adayı). Dalga 3 (test-2 sonrası): store_b kararı (K3), IS-097/092/105 (K1/K4).
 - Birleşme doğrulamaları kosucu (Haiku) ile (KR-042). CPU ağırlıklı koşular aynı anda tek; YÜK işaretli FAIL bir kez yeniden.
 - Bitti (2026-10-06..11): US-047 ortam sesi, US-048 örtü/sorgu (denetci PASS, PROTOCOL 7), IS-110 tutma göstergesi, IS-082 + IS-028 görüş A/B, IS-111 kayıt özeti, IS-112 YÜK uyarısı; tam CI eb5989e yeşil (yük altında kararsızlar yeniden koşuda PASS).
