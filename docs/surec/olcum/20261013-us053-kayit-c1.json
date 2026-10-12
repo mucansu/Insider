@@ -1,0 +1,913 @@
+{
+  "alert": {
+    "history": [
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      2,
+      3
+    ],
+    "level": 3,
+    "timer_left": 44.0923848484807
+  },
+  "chasers": {
+    "spawned": 2,
+    "states": [
+      "search",
+      "chase"
+    ]
+  },
+  "contact": {
+    "calm": 0,
+    "count": 0,
+    "hot": 0,
+    "hot_chaser": 0,
+    "hot_cost": 0.0,
+    "npcs": [],
+    "pushes": [],
+    "slid": {
+      "Chaser2": 8.8,
+      "Customer2": 24.0
+    },
+    "slides": [
+      {
+        "moved": 24.0,
+        "npc": "Customer2",
+        "peer": 1
+      },
+      {
+        "moved": 8.8,
+        "npc": "Chaser2",
+        "peer": 1863114836
+      }
+    ]
+  },
+  "events": [
+    {
+      "data": {
+        "peer": 1
+      },
+      "kind": "prep_recognized"
+    },
+    {
+      "data": {
+        "players": 2
+      },
+      "kind": "heist_started"
+    },
+    {
+      "data": {
+        "calm": true,
+        "npc": "Customer2",
+        "peer": 1
+      },
+      "kind": "npc_pushed"
+    },
+    {
+      "data": {
+        "by": "Owner",
+        "peer": 1,
+        "reason": "run"
+      },
+      "kind": "cover_broken"
+    },
+    {
+      "data": {
+        "kind": "bottle"
+      },
+      "kind": "owner_distracted"
+    },
+    {
+      "data": {
+        "peer": 1
+      },
+      "kind": "owner_sent"
+    },
+    {
+      "data": {
+        "source": "register"
+      },
+      "kind": "owner_discover"
+    },
+    {
+      "data": {
+        "peer": 1863114836
+      },
+      "kind": "misdirect"
+    },
+    {
+      "data": {
+        "by": "Chaser2",
+        "peer": 1863114836,
+        "reason": "run"
+      },
+      "kind": "cover_broken"
+    },
+    {
+      "data": {
+        "by": "chaser",
+        "peer": 1
+      },
+      "kind": "player_caught"
+    },
+    {
+      "data": {
+        "calm": false,
+        "npc": "Chaser2",
+        "peer": 1863114836
+      },
+      "kind": "npc_pushed"
+    }
+  ],
+  "heist": {
+    "abort_peak_s": 0.0,
+    "active": false,
+    "cover": {
+      "1": false,
+      "1863114836": false
+    },
+    "cover_reason": {
+      "1": "run",
+      "1863114836": "run"
+    },
+    "elapsed": 0.0,
+    "escape_armed": true,
+    "escape_armed_at_s": -1.0,
+    "events_main": [
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "prep_recognized"
+      },
+      {
+        "data": {
+          "players": 2
+        },
+        "kind": "heist_started"
+      },
+      {
+        "data": {
+          "calm": true,
+          "npc": "Customer2",
+          "peer": 1
+        },
+        "kind": "npc_pushed"
+      },
+      {
+        "data": {
+          "kind": "bottle"
+        },
+        "kind": "owner_distracted"
+      },
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "owner_sent"
+      },
+      {
+        "data": {
+          "source": "register"
+        },
+        "kind": "owner_discover"
+      },
+      {
+        "data": {
+          "peer": 1863114836
+        },
+        "kind": "misdirect"
+      },
+      {
+        "data": {
+          "by": "chaser",
+          "peer": 1
+        },
+        "kind": "player_caught"
+      },
+      {
+        "data": {
+          "calm": false,
+          "npc": "Chaser2",
+          "peer": 1863114836
+        },
+        "kind": "npc_pushed"
+      }
+    ],
+    "events_shared": [
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "prep_recognized"
+      },
+      {
+        "data": {
+          "players": 2
+        },
+        "kind": "heist_started"
+      },
+      {
+        "data": {
+          "calm": true,
+          "npc": "Customer2",
+          "peer": 1
+        },
+        "kind": "npc_pushed"
+      },
+      {
+        "data": {
+          "by": "Owner",
+          "peer": 1,
+          "reason": "run"
+        },
+        "kind": "cover_broken"
+      },
+      {
+        "data": {
+          "kind": "bottle"
+        },
+        "kind": "owner_distracted"
+      },
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "owner_sent"
+      },
+      {
+        "data": {
+          "source": "register"
+        },
+        "kind": "owner_discover"
+      },
+      {
+        "data": {
+          "peer": 1863114836
+        },
+        "kind": "misdirect"
+      },
+      {
+        "data": {
+          "by": "Chaser2",
+          "peer": 1863114836,
+          "reason": "run"
+        },
+        "kind": "cover_broken"
+      },
+      {
+        "data": {
+          "by": "chaser",
+          "peer": 1
+        },
+        "kind": "player_caught"
+      },
+      {
+        "data": {
+          "calm": false,
+          "npc": "Chaser2",
+          "peer": 1863114836
+        },
+        "kind": "npc_pushed"
+      }
+    ],
+    "history": [
+      {
+        "bail": 100,
+        "cash_after": 55,
+        "cash_before": 50,
+        "duration_s": 58.23,
+        "heat": 10,
+        "loot_total": 150,
+        "max_alert": 3,
+        "notes": [
+          {
+            "kind": "slipper",
+            "peer": 1
+          },
+          {
+            "kind": "bail",
+            "peer": 1
+          }
+        ],
+        "outcome": "hot",
+        "payout": 105,
+        "payout_ratio": 0.7,
+        "players": {
+          "1": {
+            "bail": 100,
+            "caught": true,
+            "escaped": false,
+            "left": false,
+            "loot": 0,
+            "name": "Mustafa",
+            "recognized": 1,
+            "slot": 0,
+            "witness_released": false
+          },
+          "1863114836": {
+            "bail": 0,
+            "caught": false,
+            "escaped": true,
+            "left": false,
+            "loot": 0,
+            "name": "Ikinci",
+            "recognized": 0,
+            "slot": 1,
+            "witness_released": false
+          }
+        },
+        "purchases": 0,
+        "recognized_session": {
+          "1": 1
+        },
+        "session_heat": 10,
+        "strategy": {
+          "back_door_used": false,
+          "cash_bag_taken_at_s": -1.0,
+          "class": "gürültü",
+          "cover_intact": {
+            "1": false,
+            "1863114836": false
+          },
+          "interactions": 4,
+          "max_alert": 3,
+          "register_emptied_at_s": 36.22
+        }
+      }
+    ],
+    "max_alert": 0,
+    "phase": "finished",
+    "prep_recognized": {},
+    "prep_s": 35.07,
+    "recognized": {},
+    "recognized_session": {
+      "1": 1
+    },
+    "result": {
+      "bail": 100,
+      "cash_after": 55,
+      "cash_before": 50,
+      "duration_s": 58.23,
+      "heat": 10,
+      "loot_total": 150,
+      "max_alert": 3,
+      "notes": [
+        {
+          "kind": "slipper",
+          "peer": 1
+        },
+        {
+          "kind": "bail",
+          "peer": 1
+        }
+      ],
+      "outcome": "hot",
+      "payout": 105,
+      "payout_ratio": 0.7,
+      "players": {
+        "1": {
+          "bail": 100,
+          "caught": true,
+          "escaped": false,
+          "left": false,
+          "loot": 0,
+          "name": "Mustafa",
+          "recognized": 1,
+          "slot": 0,
+          "witness_released": false
+        },
+        "1863114836": {
+          "bail": 0,
+          "caught": false,
+          "escaped": true,
+          "left": false,
+          "loot": 0,
+          "name": "Ikinci",
+          "recognized": 0,
+          "slot": 1,
+          "witness_released": false
+        }
+      },
+      "purchases": 0,
+      "recognized_session": {
+        "1": 1
+      },
+      "session_heat": 10,
+      "strategy": {
+        "back_door_used": false,
+        "cash_bag_taken_at_s": -1.0,
+        "class": "gürültü",
+        "cover_intact": {
+          "1": false,
+          "1863114836": false
+        },
+        "interactions": 4,
+        "max_alert": 3,
+        "register_emptied_at_s": 36.22
+      }
+    },
+    "seen_by": {
+      "1": "Owner",
+      "1863114836": "Chaser2"
+    },
+    "session_heat": 10,
+    "settle_peak_s": 0.0,
+    "started_at_s": 35.07,
+    "strategy": {
+      "back_door_used": false,
+      "cash_bag_taken_at_s": -1.0,
+      "class": "gürültü",
+      "cover_intact": {
+        "1": false,
+        "1863114836": false
+      },
+      "interactions": 4,
+      "max_alert": 3,
+      "register_emptied_at_s": 36.22
+    }
+  },
+  "host_lost": false,
+  "interaction": {
+    "failures": 0,
+    "requests": 1,
+    "result_delay_ms": 27.9700000000105,
+    "successes": 1
+  },
+  "is_host": false,
+  "level": "res://levels/store_a.tscn",
+  "log_reason": "window_close",
+  "noise": {
+    "accepted": 0,
+    "delivered": 0,
+    "dispatched": 0,
+    "emitted": 6,
+    "rejected": {},
+    "rejected_total": 0,
+    "ring_kinds": {
+      "bell": 12,
+      "bottle": 1,
+      "door": 4,
+      "register": 3,
+      "run": 21,
+      "shout": 4
+    },
+    "rings": 45
+  },
+  "owner": {
+    "alarmed": true,
+    "bubbles": [
+      1,
+      0,
+      1,
+      0,
+      2
+    ],
+    "event_peers": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1863114836
+    ],
+    "events": [
+      "owner_question",
+      "owner_noticed_prep",
+      "owner_recognize",
+      "owner_talk",
+      "owner_listen",
+      "owner_sent",
+      "owner_order_ready",
+      "owner_discover_register",
+      "owner_shout",
+      "owner_misdirect"
+    ],
+    "facing": [
+      -1.0,
+      0.0
+    ],
+    "misdirected": true,
+    "shouted": true,
+    "state": "search",
+    "talk_gaze": 0.0,
+    "talk_peer": 0,
+    "task": ""
+  },
+  "peer_id": 1863114836,
+  "peers": [
+    1,
+    1863114836
+  ],
+  "ping": {
+    "1": {
+      "samples": 16,
+      "source": "ping"
+    }
+  },
+  "ping_ms": {
+    "1": 6
+  },
+  "player_nodes": [
+    1,
+    1863114836
+  ],
+  "player_states": {
+    "1": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 0
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -154.7,
+      "mode": 0,
+      "status": 2,
+      "underruns": 0,
+      "wall_frames": 0
+    },
+    "1863114836": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 109
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": 0.0,
+      "mode": 0,
+      "status": 0,
+      "underruns": 0,
+      "wall_frames": 0
+    }
+  },
+  "players": {
+    "1": {
+      "name": "Mustafa",
+      "pos": [
+        866.48388671875,
+        579.705078125
+      ],
+      "slot": 0
+    },
+    "1863114836": {
+      "name": "Ikinci",
+      "pos": [
+        815.800476074219,
+        574.14404296875
+      ],
+      "slot": 1
+    }
+  },
+  "population": {
+    "active": true,
+    "event_peers": [
+      0,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    "events": [
+      "customer_enter",
+      "customer_enter",
+      "customer_flee",
+      "passerby_flee",
+      "customer_enter",
+      "customer_flee"
+    ],
+    "names": [],
+    "npcs": [],
+    "seen": [
+      "Passerby1",
+      "Customer2",
+      "Passerby3",
+      "Passerby4",
+      "Customer5",
+      "Passerby6",
+      "Customer7",
+      "Passerby8"
+    ]
+  },
+  "props": {
+    "BackDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "BackroomDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 4,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 4,
+        "silent": 0
+      },
+      "visible_delay_ms": 4.99987602233887
+    },
+    "Bag": {
+      "carrier": 0,
+      "drops": 0,
+      "handoff": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "pos": [
+        496.0,
+        240.0
+      ],
+      "seen_carriers": [],
+      "take": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "takes": 0,
+      "value": 450
+    },
+    "Counter": {
+      "buy": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "paid": 0,
+      "pickup": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "purchases": 0,
+      "send": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "sent_used": true
+    },
+    "FrontDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": true,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "Register": {
+      "emptied": true,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "sfx": {
+        "played": 10,
+        "silent": 0
+      },
+      "visible_delay_ms": 7.00020790100098
+    },
+    "ShelfProp1": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp2": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp3": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    }
+  },
+  "shop": {
+    "dropped": 1,
+    "held": {
+      "1": "",
+      "1863114836": ""
+    },
+    "items": [
+      "ShopItem1:bread",
+      "ShopItem2:cola"
+    ],
+    "order": "ready",
+    "order_peer": 1,
+    "paid": 0,
+    "taken": 1
+  },
+  "team_cash": 55,
+  "vision": {
+    "exposure": {
+      "1": 0,
+      "1863114836": 0
+    },
+    "exposure_history": {
+      "1": [
+        0,
+        1,
+        0,
+        1,
+        2,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        2,
+        1,
+        2,
+        1,
+        0,
+        1,
+        2,
+        0
+      ],
+      "1863114836": [
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0
+      ]
+    },
+    "fog": true,
+    "look_deg": 0.0,
+    "memory_tiles": 247,
+    "mode": "peripheral",
+    "peripheral_tiles": 0,
+    "remote_look_deg": {
+      "1": -154.7
+    },
+    "visible_npcs": [
+      "Chaser2"
+    ],
+    "visible_tiles": 117
+  }
+}

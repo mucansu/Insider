@@ -1,0 +1,1617 @@
+{
+  "alert": {
+    "history": [
+      0,
+      1,
+      0,
+      1,
+      0,
+      1,
+      2,
+      3
+    ],
+    "level": 3,
+    "timer_left": 43.405954545454
+  },
+  "chasers": {
+    "catches": [
+      1
+    ],
+    "ladder": [
+      [
+        0,
+        0.0
+      ],
+      [
+        1,
+        3.833
+      ],
+      [
+        0,
+        9.833
+      ],
+      [
+        1,
+        14.3
+      ],
+      [
+        0,
+        20.617
+      ],
+      [
+        1,
+        46.317
+      ],
+      [
+        2,
+        47.833
+      ],
+      [
+        3,
+        48.75
+      ]
+    ],
+    "misled": 1,
+    "neighbour_delay_s": 8.0,
+    "session_heat": 0,
+    "spawned": 2,
+    "states": [
+      "search",
+      "search"
+    ]
+  },
+  "contact": {
+    "calm": 1,
+    "count": 2,
+    "hot": 1,
+    "hot_chaser": 1,
+    "hot_cost": 0.0,
+    "npcs": [
+      "Customer2",
+      "Chaser2"
+    ],
+    "pushes": [
+      {
+        "calm": true,
+        "chaser": false,
+        "n": 1,
+        "npc": "Customer2",
+        "observers": {
+          "Owner": 15.0
+        },
+        "peer": 1,
+        "rescue": false,
+        "suspicion": 30.0,
+        "t": 55.27
+      },
+      {
+        "calm": false,
+        "chaser": true,
+        "n": 1,
+        "npc": "Chaser2",
+        "observers": {},
+        "peer": 1863114836,
+        "rescue": false,
+        "suspicion": 0.0,
+        "t": 101.39
+      }
+    ],
+    "slid": {
+      "Chaser2": 24.0,
+      "Customer2": 24.0
+    },
+    "slides": [
+      {
+        "moved": 24.0,
+        "npc": "Customer2",
+        "peer": 1
+      },
+      {
+        "moved": 24.0,
+        "npc": "Chaser2",
+        "peer": 1863114836
+      }
+    ]
+  },
+  "events": [
+    {
+      "data": {
+        "level": "res://levels/store_a.tscn",
+        "run": 1,
+        "seed": 1867116438
+      },
+      "kind": "level_started"
+    },
+    {
+      "data": {
+        "peer": 1
+      },
+      "kind": "prep_recognized"
+    },
+    {
+      "data": {
+        "players": 2
+      },
+      "kind": "heist_started"
+    },
+    {
+      "data": {
+        "calm": true,
+        "npc": "Customer2",
+        "peer": 1
+      },
+      "kind": "npc_pushed"
+    },
+    {
+      "data": {
+        "by": "Owner",
+        "peer": 1,
+        "reason": "run"
+      },
+      "kind": "cover_broken"
+    },
+    {
+      "data": {
+        "kind": "bottle"
+      },
+      "kind": "owner_distracted"
+    },
+    {
+      "data": {
+        "peer": 1
+      },
+      "kind": "owner_sent"
+    },
+    {
+      "data": {
+        "source": "register"
+      },
+      "kind": "owner_discover"
+    },
+    {
+      "data": {
+        "peer": 1863114836
+      },
+      "kind": "misdirect"
+    },
+    {
+      "data": {
+        "by": "Chaser2",
+        "peer": 1863114836,
+        "reason": "run"
+      },
+      "kind": "cover_broken"
+    },
+    {
+      "data": {
+        "by": "chaser",
+        "peer": 1
+      },
+      "kind": "player_caught"
+    },
+    {
+      "data": {
+        "calm": false,
+        "npc": "Chaser2",
+        "peer": 1863114836
+      },
+      "kind": "npc_pushed"
+    }
+  ],
+  "heist": {
+    "abort_peak_s": 0.0,
+    "active": false,
+    "cover": {
+      "1": false
+    },
+    "cover_reason": {
+      "1": "run",
+      "1863114836": "run"
+    },
+    "elapsed": 58.23,
+    "escape_armed": true,
+    "escape_armed_at_s": 0.02,
+    "events_main": [
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "prep_recognized"
+      },
+      {
+        "data": {
+          "players": 2
+        },
+        "kind": "heist_started"
+      },
+      {
+        "data": {
+          "calm": true,
+          "npc": "Customer2",
+          "peer": 1
+        },
+        "kind": "npc_pushed"
+      },
+      {
+        "data": {
+          "kind": "bottle"
+        },
+        "kind": "owner_distracted"
+      },
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "owner_sent"
+      },
+      {
+        "data": {
+          "source": "register"
+        },
+        "kind": "owner_discover"
+      },
+      {
+        "data": {
+          "peer": 1863114836
+        },
+        "kind": "misdirect"
+      },
+      {
+        "data": {
+          "by": "chaser",
+          "peer": 1
+        },
+        "kind": "player_caught"
+      },
+      {
+        "data": {
+          "calm": false,
+          "npc": "Chaser2",
+          "peer": 1863114836
+        },
+        "kind": "npc_pushed"
+      }
+    ],
+    "events_shared": [
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "prep_recognized"
+      },
+      {
+        "data": {
+          "players": 2
+        },
+        "kind": "heist_started"
+      },
+      {
+        "data": {
+          "calm": true,
+          "npc": "Customer2",
+          "peer": 1
+        },
+        "kind": "npc_pushed"
+      },
+      {
+        "data": {
+          "by": "Owner",
+          "peer": 1,
+          "reason": "run"
+        },
+        "kind": "cover_broken"
+      },
+      {
+        "data": {
+          "kind": "bottle"
+        },
+        "kind": "owner_distracted"
+      },
+      {
+        "data": {
+          "peer": 1
+        },
+        "kind": "owner_sent"
+      },
+      {
+        "data": {
+          "source": "register"
+        },
+        "kind": "owner_discover"
+      },
+      {
+        "data": {
+          "peer": 1863114836
+        },
+        "kind": "misdirect"
+      },
+      {
+        "data": {
+          "by": "Chaser2",
+          "peer": 1863114836,
+          "reason": "run"
+        },
+        "kind": "cover_broken"
+      },
+      {
+        "data": {
+          "by": "chaser",
+          "peer": 1
+        },
+        "kind": "player_caught"
+      },
+      {
+        "data": {
+          "calm": false,
+          "npc": "Chaser2",
+          "peer": 1863114836
+        },
+        "kind": "npc_pushed"
+      }
+    ],
+    "history": [
+      {
+        "bail": 100,
+        "cash_after": 55,
+        "cash_before": 50,
+        "duration_s": 58.23,
+        "heat": 10,
+        "loot_total": 150,
+        "max_alert": 3,
+        "notes": [
+          {
+            "kind": "slipper",
+            "peer": 1
+          },
+          {
+            "kind": "bail",
+            "peer": 1
+          }
+        ],
+        "outcome": "hot",
+        "payout": 105,
+        "payout_ratio": 0.7,
+        "players": {
+          "1": {
+            "bail": 100,
+            "caught": true,
+            "escaped": false,
+            "left": false,
+            "loot": 0,
+            "name": "Mustafa",
+            "recognized": 1,
+            "slot": 0,
+            "witness_released": false
+          },
+          "1863114836": {
+            "bail": 0,
+            "caught": false,
+            "escaped": true,
+            "left": false,
+            "loot": 0,
+            "name": "Ikinci",
+            "recognized": 0,
+            "slot": 1,
+            "witness_released": false
+          }
+        },
+        "purchases": 0,
+        "recognized_session": {
+          "1": 1
+        },
+        "session_heat": 10,
+        "strategy": {
+          "back_door_used": false,
+          "cash_bag_taken_at_s": -1.0,
+          "class": "gürültü",
+          "cover_intact": {
+            "1": false,
+            "1863114836": false
+          },
+          "interactions": 4,
+          "max_alert": 3,
+          "register_emptied_at_s": 36.22
+        }
+      }
+    ],
+    "max_alert": 3,
+    "phase": "finished",
+    "prep_recognized": {
+      "1": 13.87
+    },
+    "prep_s": 41.12,
+    "recognized": {},
+    "recognized_session": {
+      "1": 1
+    },
+    "result": {
+      "bail": 100,
+      "cash_after": 55,
+      "cash_before": 50,
+      "duration_s": 58.23,
+      "heat": 10,
+      "loot_total": 150,
+      "max_alert": 3,
+      "notes": [
+        {
+          "kind": "slipper",
+          "peer": 1
+        },
+        {
+          "kind": "bail",
+          "peer": 1
+        }
+      ],
+      "outcome": "hot",
+      "payout": 105,
+      "payout_ratio": 0.7,
+      "players": {
+        "1": {
+          "bail": 100,
+          "caught": true,
+          "escaped": false,
+          "left": false,
+          "loot": 0,
+          "name": "Mustafa",
+          "recognized": 1,
+          "slot": 0,
+          "witness_released": false
+        },
+        "1863114836": {
+          "bail": 0,
+          "caught": false,
+          "escaped": true,
+          "left": false,
+          "loot": 0,
+          "name": "Ikinci",
+          "recognized": 0,
+          "slot": 1,
+          "witness_released": false
+        }
+      },
+      "purchases": 0,
+      "recognized_session": {
+        "1": 1
+      },
+      "session_heat": 10,
+      "strategy": {
+        "back_door_used": false,
+        "cash_bag_taken_at_s": -1.0,
+        "class": "gürültü",
+        "cover_intact": {
+          "1": false,
+          "1863114836": false
+        },
+        "interactions": 4,
+        "max_alert": 3,
+        "register_emptied_at_s": 36.22
+      }
+    },
+    "seen_by": {
+      "1": "Owner",
+      "1863114836": "Chaser2"
+    },
+    "session_heat": 10,
+    "settle_peak_s": 0.0,
+    "started_at_s": 41.12,
+    "strategy": {
+      "back_door_used": false,
+      "cash_bag_taken_at_s": -1.0,
+      "class": "gürültü",
+      "cover_intact": {
+        "1": false,
+        "1863114836": false
+      },
+      "interactions": 4,
+      "max_alert": 3,
+      "register_emptied_at_s": 36.22
+    }
+  },
+  "host_lost": false,
+  "interaction": {
+    "failures": 12,
+    "requests": 18,
+    "result_delay_ms": 1.17699999999843,
+    "successes": 6
+  },
+  "is_host": true,
+  "level": "res://levels/store_a.tscn",
+  "log_reason": "window_close",
+  "noise": {
+    "accepted": 6,
+    "delivered": 45,
+    "dispatched": 45,
+    "emitted": 39,
+    "rejected": {},
+    "rejected_total": 0,
+    "ring_kinds": {
+      "bell": 12,
+      "bottle": 1,
+      "door": 4,
+      "register": 3,
+      "run": 21,
+      "shout": 4
+    },
+    "rings": 45
+  },
+  "owner": {
+    "agenda": [
+      "counter",
+      "bell",
+      "counter",
+      "counter",
+      "counter",
+      "counter",
+      "bell",
+      "counter",
+      "customer",
+      "counter",
+      "counter",
+      "bell",
+      "talk",
+      "counter",
+      "listen",
+      "customer",
+      "sent",
+      "counter",
+      "counter"
+    ],
+    "agenda_noises": {
+      "bell": 12
+    },
+    "alarmed": true,
+    "bubbles": [
+      1,
+      0,
+      1,
+      0,
+      1,
+      0,
+      2
+    ],
+    "detections": [],
+    "discoveries": [
+      {
+        "full": true,
+        "source": "register",
+        "t": 87.42,
+        "trigger": "return"
+      }
+    ],
+    "distractions": 1,
+    "event_peers": [
+      1,
+      1,
+      1,
+      1,
+      0,
+      1,
+      1,
+      0,
+      0,
+      1863114836
+    ],
+    "events": [
+      "owner_question",
+      "owner_noticed_prep",
+      "owner_recognize",
+      "owner_talk",
+      "owner_listen",
+      "owner_sent",
+      "owner_order_ready",
+      "owner_discover_register",
+      "owner_shout",
+      "owner_misdirect"
+    ],
+    "facing": [
+      -1.0,
+      0.0
+    ],
+    "log": [
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 0.02,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 6.63,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.36
+        ],
+        "state": "agenda",
+        "t": 7.62,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "look",
+        "t": 12.93,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 30.0,
+        "why": "şüphe eşiği ? p1"
+      },
+      {
+        "facing": [
+          -0.99,
+          -0.14
+        ],
+        "state": "question",
+        "t": 13.45,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 68.7,
+        "why": "şüphe -> SORGULA p1"
+      },
+      {
+        "facing": [
+          -0.98,
+          -0.17
+        ],
+        "state": "question",
+        "t": 13.47,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 70.0,
+        "why": "soru p1"
+      },
+      {
+        "facing": [
+          -0.88,
+          -0.47
+        ],
+        "ref": "prep_detections[0]",
+        "state": "look",
+        "t": 13.87,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 100.0,
+        "why": "hazırlıkta tanıdı p1; owner_noticed_prep p1"
+      },
+      {
+        "facing": [
+          -0.87,
+          0.5
+        ],
+        "state": "look",
+        "t": 21.27,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 100.0,
+        "why": "zil, tepki yok (look/counter)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 36.35,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (look/counter)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "look",
+        "t": 44.93,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 30.0,
+        "why": "şüphe eşiği ? p1; tanıdı p1; owner_recognize p1"
+      },
+      {
+        "facing": [
+          -0.82,
+          0.57
+        ],
+        "state": "agenda",
+        "t": 45.93,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 15.7,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 46.87,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.36
+        ],
+        "state": "agenda",
+        "t": 47.85,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 49.15,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "müşteri #2 sırada -> servis"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 51.15,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "servis: kasa açıldı"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 53.27,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 1,
+        "top_value": 15.0,
+        "why": "ses 'run' duyuldu, tepki yok (agenda/customer)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 55.15,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 23.8,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "look",
+        "t": 55.4,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 30.0,
+        "why": "şüphe eşiği ? p1"
+      },
+      {
+        "facing": [
+          -0.99,
+          0.14
+        ],
+        "state": "look",
+        "t": 55.48,
+        "target": 1,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 32.1,
+        "why": "ses 'run' duyuldu, tepki yok (look/counter)"
+      },
+      {
+        "facing": [
+          -0.92,
+          -0.38
+        ],
+        "state": "agenda",
+        "t": 56.72,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 1,
+        "top_value": 30.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.03
+        ],
+        "state": "agenda",
+        "t": 57.05,
+        "target": 0,
+        "task": "bell",
+        "top_peer": 1,
+        "top_value": 26.6,
+        "why": "zil -> kapıya bakış"
+      },
+      {
+        "facing": [
+          -0.93,
+          0.36
+        ],
+        "state": "agenda",
+        "t": 57.88,
+        "target": 0,
+        "task": "talk",
+        "top_peer": 1,
+        "top_value": 18.3,
+        "why": "OYALA sohbeti p1"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 65.9,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "görev: counter"
+      },
+      {
+        "facing": [
+          -1.0,
+          -0.02
+        ],
+        "state": "agenda",
+        "t": 67.97,
+        "target": 0,
+        "task": "listen",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "ses 'bottle' -> DİNLE (dikkat dağıtma)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "agenda",
+        "t": 70.87,
+        "target": 0,
+        "task": "customer",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "müşteri #5 sırada -> servis"
+      },
+      {
+        "facing": [
+          -1.0,
+          -0.03
+        ],
+        "state": "agenda",
+        "t": 71.8,
+        "target": 0,
+        "task": "sent",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "GÖNDER: arka odaya gidiyor (isteyen p1); GÖNDER isteği p1"
+      },
+      {
+        "facing": [
+          -0.42,
+          -0.91
+        ],
+        "state": "agenda",
+        "t": 75.42,
+        "target": 0,
+        "task": "sent",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (agenda/sent)"
+      },
+      {
+        "facing": [
+          -0.42,
+          -0.91
+        ],
+        "state": "agenda",
+        "t": 76.02,
+        "target": 0,
+        "task": "sent",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "arka oda kontrolü: çanta yerinde"
+      },
+      {
+        "facing": [
+          -0.42,
+          -0.91
+        ],
+        "state": "agenda",
+        "t": 79.12,
+        "target": 0,
+        "task": "sent",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (agenda/sent)"
+      },
+      {
+        "facing": [
+          -0.45,
+          -0.89
+        ],
+        "state": "agenda",
+        "t": 82.03,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "sipariş: depodan alındı, tezgâha taşıyor"
+      },
+      {
+        "facing": [
+          -0.48,
+          0.88
+        ],
+        "ref": "sent_windows[0]",
+        "state": "agenda",
+        "t": 86.55,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "GÖNDER dönüşü: tezgâhta; owner_order_ready p1"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "ref": "discoveries[0]",
+        "state": "discover",
+        "t": 87.42,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "kasa boş, dönüş kontrolü (register); balon: kasa boş"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "discover",
+        "t": 87.8,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "zil, tepki yok (discover/counter)"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "shout",
+        "t": 88.93,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "bağırdı"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "chase",
+        "t": 89.45,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "KOVALA"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "search",
+        "t": 89.47,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 0,
+        "top_value": 0.0,
+        "why": "hedef kayıp -> ARA"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "search",
+        "t": 94.38,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 1863114836,
+        "top_value": 29.8,
+        "why": "şüphe eşiği ? p1863114836"
+      },
+      {
+        "facing": [
+          -1.0,
+          0.0
+        ],
+        "state": "search",
+        "t": 96.57,
+        "target": 0,
+        "task": "counter",
+        "top_peer": 1863114836,
+        "top_value": 6.7,
+        "why": "zil, tepki yok (search/counter)"
+      }
+    ],
+    "log_dropped": 0,
+    "loiter_s": {
+      "1": 0.0,
+      "1863114836": 0.0
+    },
+    "misdirected": true,
+    "misdirects": [
+      {
+        "chasers": 1,
+        "peer": 1863114836,
+        "point": [
+          191.0,
+          172.0
+        ]
+      }
+    ],
+    "peak": {
+      "1": 100.0,
+      "1863114836": 29.83
+    },
+    "phones_found": 0,
+    "player_serves": 0,
+    "prep_detections": [
+      {
+        "peer": 1,
+        "t": 13.85
+      }
+    ],
+    "prep_watch": 0,
+    "recognition_greets": [
+      {
+        "peer": 1,
+        "t": 44.92,
+        "value": 30.0
+      }
+    ],
+    "register_opens": 1,
+    "rescues": [],
+    "search_questions": [],
+    "send_costs": [],
+    "sent_windows": [
+      14.77
+    ],
+    "serves": 1,
+    "shout_noises": 4,
+    "shouted": true,
+    "soothed": [],
+    "state": "search",
+    "states": [
+      [
+        "agenda",
+        0.0
+      ],
+      [
+        "look",
+        12.933
+      ],
+      [
+        "question",
+        13.45
+      ],
+      [
+        "agenda",
+        13.85
+      ],
+      [
+        "look",
+        13.85
+      ],
+      [
+        "agenda",
+        36.35
+      ],
+      [
+        "look",
+        44.933
+      ],
+      [
+        "agenda",
+        45.933
+      ],
+      [
+        "look",
+        55.4
+      ],
+      [
+        "agenda",
+        56.717
+      ],
+      [
+        "discover",
+        87.417
+      ],
+      [
+        "shout",
+        88.933
+      ],
+      [
+        "chase",
+        89.45
+      ],
+      [
+        "search",
+        89.467
+      ]
+    ],
+    "talk_gaze": 0.0,
+    "talk_peer": 0,
+    "task": "",
+    "window_questions": []
+  },
+  "peer_id": 1,
+  "peers": [
+    1
+  ],
+  "ping": {},
+  "ping_ms": {},
+  "player_nodes": [
+    1
+  ],
+  "player_states": {
+    "1": {
+      "contact": {
+        "predicted": 0,
+        "slow_frames": 607
+      },
+      "facing": [
+        1.0,
+        0.0
+      ],
+      "look_deg": -155.0,
+      "mode": 0,
+      "status": 2,
+      "underruns": 0,
+      "wall_frames": 0
+    }
+  },
+  "players": {
+    "1": {
+      "name": "Mustafa",
+      "pos": [
+        866.48388671875,
+        579.705078125
+      ],
+      "slot": 0
+    }
+  },
+  "population": {
+    "active": true,
+    "arrivals": [
+      [
+        "passerby",
+        12.38
+      ],
+      [
+        "customer",
+        17.9
+      ],
+      [
+        "passerby",
+        28.02
+      ],
+      [
+        "passerby",
+        49.93
+      ],
+      [
+        "customer",
+        53.82
+      ],
+      [
+        "passerby",
+        64.52
+      ],
+      [
+        "customer",
+        84.43
+      ],
+      [
+        "passerby",
+        85.43
+      ]
+    ],
+    "cancelled": 1,
+    "converted": 1,
+    "customers_inside": 0,
+    "customers_spawned": 3,
+    "event_peers": [
+      0,
+      0,
+      1,
+      1,
+      0,
+      0
+    ],
+    "events": [
+      "customer_enter",
+      "customer_enter",
+      "customer_flee",
+      "passerby_flee",
+      "customer_enter",
+      "customer_flee"
+    ],
+    "flees": 3,
+    "looks": 6,
+    "names": [],
+    "npcs": [],
+    "passerby_max": 2,
+    "passersby_spawned": 5,
+    "seen": [
+      "Passerby1",
+      "Customer2",
+      "Passerby3",
+      "Passerby4",
+      "Customer5",
+      "Passerby6",
+      "Customer7",
+      "Passerby8"
+    ],
+    "served": 1,
+    "tells": 0
+  },
+  "props": {
+    "BackDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": false,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "BackroomDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 4,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 4,
+        "rejected": {
+          "prep": 1
+        },
+        "rejected_total": 1,
+        "requests": 1
+      },
+      "open": false,
+      "sfx": {
+        "played": 4,
+        "silent": 0
+      },
+      "visible_delay_ms": 0.0
+    },
+    "Bag": {
+      "carrier": 0,
+      "drops": 0,
+      "handoff": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "pos": [
+        496.0,
+        240.0
+      ],
+      "seen_carriers": [],
+      "take": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "takes": 0,
+      "value": 450
+    },
+    "Counter": {
+      "buy": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "paid": 0,
+      "pickup": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "purchases": 0,
+      "send": {
+        "accepted": 2,
+        "busy_by": 0,
+        "cancelled": 1,
+        "completed": 1,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 2
+      },
+      "sent_used": true
+    },
+    "FrontDoor": {
+      "autocloses": 0,
+      "consistent": true,
+      "flips": 0,
+      "interact": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "open": true,
+      "sfx": {
+        "played": 0,
+        "silent": 0
+      },
+      "visible_delay_ms": -1.0
+    },
+    "Register": {
+      "emptied": true,
+      "interact": {
+        "accepted": 1,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 1,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 1
+      },
+      "sfx": {
+        "played": 10,
+        "silent": 0
+      },
+      "visible_delay_ms": 0.0
+    },
+    "ShelfProp1": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    },
+    "ShelfProp2": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {
+          "prep": 3
+        },
+        "rejected_total": 3,
+        "requests": 3
+      },
+      "toppled": false
+    },
+    "ShelfProp3": {
+      "phone": "none",
+      "phone_drop": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "rings": 0,
+      "topple": {
+        "accepted": 0,
+        "busy_by": 0,
+        "cancelled": 0,
+        "completed": 0,
+        "npc_uses": 0,
+        "rejected": {},
+        "rejected_total": 0,
+        "requests": 0
+      },
+      "toppled": false
+    }
+  },
+  "session_seed": 1867116438,
+  "shop": {
+    "dropped": 1,
+    "held": {
+      "1": ""
+    },
+    "items": [
+      "ShopItem1:bread",
+      "ShopItem2:cola"
+    ],
+    "order": "ready",
+    "order_peer": 1,
+    "paid": 0,
+    "taken": 1
+  },
+  "team_cash": 55,
+  "vision": {
+    "exposure": {
+      "1": 0
+    },
+    "exposure_history": {
+      "1": [
+        0,
+        1,
+        0,
+        1,
+        2,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        0,
+        1,
+        2,
+        1,
+        2,
+        1,
+        0,
+        1,
+        2,
+        0
+      ]
+    },
+    "fog": true,
+    "look_deg": -155.0,
+    "memory_tiles": 314,
+    "mode": "peripheral",
+    "peripheral_tiles": 0,
+    "remote_look_deg": {},
+    "visible_npcs": [
+      "Chaser2"
+    ],
+    "visible_tiles": 109
+  }
+}

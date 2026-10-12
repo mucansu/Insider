@@ -13,7 +13,7 @@ Faz 2 — Gizlilik (bakkal). faz2-int **69830ad** (dev'e henüz birleşmedi; dil
 - Tam ci_local faz2-int fe56fbc **yeşil** (2026-10-12; 59 net senaryo × 0/150, FAIL 0; net adımı ~80 dk, toplam 83 dk). US-053 sonrası birleşik ağaç denetlenen ağaçla aynı (yalnız mimari.md boş satır) → yeniden koşulmadı.
 
 ## Yeni sohbette ilk adımlar
-1. Kullanıcı test-3 paketini (69830ad) kendisi/arkadaşlarla denerse: GB-14 doğrulaması (personel tarafında "Hım?" + "Bakkal seni fark etti", bağırış yok; BAŞLA sonrası "Sen yine mi?").
+1. US-053 kullanıcı denemesi (2026-10-13, faz2-int 69830ad yerel, kayıt `docs/surec/olcum/20261013-us053-kayit-*.json`): kayıtta hazırlık tanıma 13,9 sn, uyarı hazırlıkta 0, BAŞLA 41,1 sn, ilk görüş 30 ("Sen yine mi?") — kurala uygun; kullanıcının his yorumu bekleniyor.
 2. Faz2-int'e yeni kod birleşmeden önce tam ci_local gerekmez (69830ad = denetlenen ağaç); sonraki birleşmelerden sonra test-N öncesi tam CI.
 3. Kullanıcı test-2 kayıtlarını getirirse: `python tools/kayit_ozet.py kayit-*.json --md build/ozet.md` (not: hazırlık ofseti nit'i — zamanlar seviye başından) → GB-nn, protokol §5 K1-K7 → 2.4 dalga 3 + IS-018 Fable ara değerlendirmesi + 2.3 kapanışı.
 4. 2.4 çıkış kriteri: 3 kişi exe açmadan art arda 3 koşu (≥ 2 harita) — test-3 paketiyle; sonra dilim sonu: faz2-int → dev, `dilim-2.3` + `dilim-2.4`, devir.
