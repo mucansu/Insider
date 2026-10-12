@@ -24,6 +24,8 @@ extends CharacterBody2D
 ## skipped (slide via physics, out of walls); while it HOLDs a player a teammate's shove is the PULL result (the held player's `Rescue`
 ## Interactable completes: free, `rescued`, owner STAGGER - the existing rescue path).
 ## IS-096: a `TaskGlyph` under `Visual` (created in `_ready` when active) draws the task badge from `net_state`/`net_task`.
+## US-053 (KR-046): in the job's prep a detection is a recognition - event `owner_noticed_prep` ("?" balloon), host signal
+## `prep_recognized` (Game), indicator held at "?" in prep; dump (host) `prep_detections` [{peer, t}], `prep_watch` (watched peer).
 ## US-045 (KR-036/KR-038): SEND is the damacana order - host API `order_phase()` (ShopRules.Order; the counter follows it),
 ## `order_paid(peer)`, `refuse_sale(peer)`; events `owner_order_ready` ("Buyrun, {price} lira." - `balloon_args`), `owner_order_unpaid`
 ## ("Nereye gitti bu?"), `owner_no_money` ("Para yetmiyor"); `owner_sent` now says "Hemen getiriyorum!".
@@ -64,6 +66,11 @@ signal owner_question_search(peer_id: int)
 signal owner_recognize(peer_id: int)
 ## Host only (US-044): the owner recognised the player (window questioning); Game counts `recognized` +1 at heist result.
 signal recognized(peer_id: int)
+## US-053 (KR-046, every peer): the owner noticed a player in the job's prep ("?" balloon; recognition, no alarm).
+signal owner_noticed_prep(peer_id: int)
+## Host only (US-053): the owner recognised the player in prep (OwnerBrain.peer_prep_recognized relay); Game records it (once per
+## player per prep) and tells that player.
+signal prep_recognized(peer_id: int)
 
 const OWNER_TUNING_PATH := "res://data/npc/owner_tuning.tres"
 const CIVILIAN_TUNING_PATH := "res://data/npc/civilian_tuning.tres"
@@ -72,7 +79,7 @@ const EVENT_KINDS: Array[StringName] = [&"owner_question", &"owner_shrug", &"own
 	&"owner_stagger", &"owner_discover_register", &"owner_discover_cash", &"owner_serve", &"owner_talk",
 	&"owner_sent", &"owner_listen", &"owner_again", &"owner_phone_found", &"owner_loiter", &"owner_soothe_refused",
 	&"owner_misdirect", &"owner_question_window", &"owner_order_ready", &"owner_order_unpaid", &"owner_no_money",
-	&"owner_question_search", &"owner_recognize"]
+	&"owner_question_search", &"owner_recognize", &"owner_noticed_prep"]
 ## Prompt key of the REDIRECT component, required tag (player's cover intact; Player.interaction_tags) and session
 ## event (HUD text EVENT_MISDIRECT).
 const MISDIRECT_ACTION_KEY := "INTERACT_MISDIRECT"
@@ -177,6 +184,7 @@ func _ready() -> void:
 			(VenueTuning.of(self, VenueTuning.HEAT) as HeatTuning).rules_params())  # US-052: session recognition head starts
 		_brain.peer_social_action.connect(social_action.emit)  # US-048: renamed like `recognized` (was counted twice by Game)
 		_brain.peer_recognized.connect(recognized.emit)  # US-048: not `recognized` (Game connects every NPC node with that signal: counted twice)
+		_brain.peer_prep_recognized.connect(prep_recognized.emit)  # US-053: same relay rule
 		_brain.setup(self, _perception, _suspicion, _agenda, _mover, _senses)
 		_bind_hearing()
 	if not Args.dump_path.is_empty():
@@ -204,7 +212,9 @@ func step(delta: float) -> void:
 	last_event_age += delta
 	_refresh_talk()
 	_refresh_misdirect()
-	var next: int = CivilianRules.bubble(_rules, net_meter, net_alarmed, bubble)
+	# US-053: in prep a detection is no alarm, so the indicator stays "?" (visual only, every peer).
+	var shown: float = HeistRules.prep_indicator_meter(net_meter, _rules.detect_at, Game.heist_in_prep())
+	var next: int = CivilianRules.bubble(_rules, shown, net_alarmed, bubble)
 	if next != bubble:
 		bubble = next
 		_bubbles.append(next)
@@ -535,6 +545,8 @@ func dump_state() -> Dictionary:
 		out["window_questions"] = _brain.window_questions.duplicate()
 		out["search_questions"] = _brain.search_questions.duplicate(true)  # US-048 SORGU-2 {peer, t, value}
 		out["recognition_greets"] = _brain.recognition.greets.duplicate(true) if _brain.recognition != null else []  # US-052
+		out["prep_detections"] = _brain.prep_detections.duplicate(true)  # US-053 {peer, t}
+		out["prep_watch"] = _brain.prep_watch_peer()
 		out["log"] = _brain.event_log.rows()  # IS-081: event log (OwnerLog; refers to the records above by index)
 		out["log_dropped"] = _brain.event_log.dropped
 	return out

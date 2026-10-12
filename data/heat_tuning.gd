@@ -17,6 +17,9 @@ const PATH := "res://data/heat_tuning.tres"
 @export_range(0, 10) var recognized_min: int = 0
 ## Suspicion the owner starts a recognised player at when first seeing them in a new job ("You again?").
 @export_range(0.0, 100.0, 1.0) var recognized_start: float = 0.0
+## US-053 (KR-046): suspicion a player the owner detected in this job's prep starts the job at (0 = none; KR-046 calibration: 30 -> 20
+## if test-3 shows >= 2 prep recognitions in >= half of the runs).
+@export_range(0.0, 100.0, 1.0) var prep_recognized_start: float = 0.0
 
 
 ## Rule parameters (SessionHeat.Params).
@@ -27,4 +30,5 @@ func rules_params() -> SessionHeat.Params:
 	p.passerby_bonus = passerby_bonus
 	p.recognized_min = recognized_min
 	p.recognized_start = recognized_start
+	p.prep_start = prep_recognized_start
 	return p

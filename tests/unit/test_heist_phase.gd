@@ -1,6 +1,6 @@
 extends TestCase
 ## US-049 in-job "Start" (KR-044): a heist level opens in prep (interactions except the customer door locked with the "prep" reject and
-## the crew-gathering prompt; no Tracker observation, no suspicion, no alert step), the host's E on the start point (the van, KR-045) starts the
+## the crew-gathering prompt; no Tracker observation, no alert step; US-053: the owner's suspicion does fill), the host's E on the start point (the van, KR-045) starts the
 ## job (phase active + `heist_started`), "Again" opens in prep again; automation starts at once unless `--heist-prep` (Args.heist_prep).
 ## HUD: crew-gathering prompt text and the host's 30 s reminder (fakes). Multi-process: tests/net/heist_start.json, heist_prep_owner.json.
 
@@ -171,7 +171,8 @@ func test_no_penalty_in_prep_then_start() -> void:
 		return
 	me.position = STAFF
 	await _frames(90)
-	eq(meter.value_of(1), 0.0, "hazırlıkta şüphe dolmaz (sahibin önünde personel tarafı)")
+	# US-053 (KR-046): the owner's suspicion works in prep (detection = recognition, tests/unit/test_heist_prep_recon.gd); no job penalty.
+	is_true(meter.value_of(1) > 0.0, "US-053: hazırlıkta sahibin şüphesi dolar")
 	eq(Game.alert_level(), 0, "uyarı merdiveni adım atmaz")
 	eq(Game.cover_state(), 1, "hazırlıkta örtü izlenmez")
 	eq(_heist_dump()["elapsed"], 0.0, "iş süresi hazırlıkta saymaz")

@@ -6,6 +6,7 @@ extends Control
 ## Blocks gameplay input while open (S5). HUD calls `bind(game, net)`; a late joiner gets `heist_result()`.
 ## US-040: `aborted` (empty-handed retreat) is not a loss: normal title. US-041 (KR-029): caught row shows bail, "- Bail" under the payout (if total > 0) and "Team cash a -> b" (if the result has `cash_before`/`cash_after`); negatives in the alert colour.
 ## US-042: a player released after witness questioning (`witness_released`) gets END_STATUS_WITNESS on their row; for the local player END_WITNESS_RELEASED (dim) under the title.
+## US-053: otherwise a local player with `recognized` > 0 (including the owner's prep recognition, KR-046) reads END_RECOGNIZED (dim) there.
 ## US-051 (KR-044): session score table. Every shown result is recorded in `scores` (SessionScores, per process, local to this peer);
 ## the header always shows the session's fastest clean escape, the "Session scores" button swaps the body (payout/crew/notes) for the
 ## table (no, map, outcome, time, clean, crew cash change, strategy; this job's row on a panel, bests highlighted). The store is reset
@@ -306,6 +307,7 @@ func player_entries() -> Array[Dictionary]:
 			"loot": int(info.get("loot", 0)),
 			"bail": int(info.get("bail", 0)),
 			"witness": bool(info.get("witness_released", false)),
+			"recognized": int(info.get("recognized", 0)),
 			"left": bool(info.get("left", false)),
 		})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
@@ -391,11 +393,24 @@ func local_witness() -> bool:
 	return false
 
 
+## US-053: the local player's recognitions in this job (result `recognized`: witness questioning, window/search questioning and the
+## owner's prep detection, KR-046).
+func local_recognized() -> int:
+	var local_id: int = int(net.call(&"local_peer_id")) if net != null else 0
+	for p: Dictionary in player_entries():
+		if int(p["peer"]) == local_id:
+			return int(p["recognized"])
+	return 0
+
+
 func _fill_cause() -> void:
 	_cause_note.text = local_cause_text()
 	_cause_note.theme_type_variation = &"AlertLabel"
 	if _cause_note.text.is_empty() and local_witness():
 		_cause_note.text = tr(&"END_WITNESS_RELEASED")
+		_cause_note.theme_type_variation = &"MutedLabel"
+	elif _cause_note.text.is_empty() and local_recognized() > 0:
+		_cause_note.text = tr(&"END_RECOGNIZED")  # US-053: the recognition line counts the prep recognition too
 		_cause_note.theme_type_variation = &"MutedLabel"
 	_cause_note.visible = not _cause_note.text.is_empty()
 

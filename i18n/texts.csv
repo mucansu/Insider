@@ -74,6 +74,7 @@ EVENT_HEIST_STARTED,İş başladı!,The job is on!
 EVENT_SHOUT,Biri bağırdı.,Someone shouted.
 EVENT_PLAYER_HELD,"{name} tutuldu! {seconds} sn — yanına git, ÇEK ({key})","{name} is held! {seconds} s — get next to them, PULL ({key})"
 EVENT_PLAYER_HELD_SELF,TUTULDUN — arkadaşın çekebilir,YOU'RE HELD — a teammate can pull you free
+EVENT_PREP_RECOGNIZED,Bakkal seni fark etti — işe tanınmış başlarsın,The shopkeeper noticed you — you start the job recognised
 EVENT_PLAYER_CAUGHT,{name} yakalandı — kurtarılamaz.,{name} got caught — no rescue.
 EVENT_PLAYER_CAUGHT_SELF,YAKALANDIN — kurtarılamaz.,YOU GOT CAUGHT — no rescue.
 EVENT_PLAYER_RESCUED,{name} kurtarıldı.,{name} was pulled free.
@@ -132,6 +133,7 @@ END_CAUSE_POLICE,Polis geldiğinde kaçış noktasında değildin.,You weren't a
 END_CAUSE_CHASER,Mahalleli seni yakaladı.,A neighbour caught you.
 END_CAUSE_OWNER,Dükkân sahibi seni tuttu; kimse çekip kurtarmadı.,The shopkeeper held you and nobody pulled you free.
 END_WITNESS_RELEASED,"Tanık olarak sorgulandın, serbest bırakıldın (tanındın).","You were questioned as a witness and released (you were recognised)."
+END_RECOGNIZED,Bakkal seni tanıdı: bu oturumda seni hatırlayacak.,The shopkeeper recognised you: he will remember you this session.
 END_NOTES_LABEL,NOTLAR,NOTES
 END_NOTE_TEAM,Ekip,Crew
 END_RETRY,Bir daha,Again
@@ -204,6 +206,7 @@ OWNER_SOOTHE_REFUSED,Bu numarayı yemem.,Not buying it twice.
 OWNER_QUESTION_WINDOW,Bir şey mi arıyorsun?,Looking for something?
 OWNER_QUESTION_SEARCH,Sen de buradaydın! Kim aldı?,You were here too! Who took it?
 OWNER_RECOGNIZE,Sen yine mi?,You again?
+OWNER_NOTICED_PREP,Hım?,Hm?
 INTERACT_COUNTER_PAY,Öde {price},Pay {price}
 INTERACT_TAKE_BREAD,Ekmek al,Take bread
 INTERACT_TAKE_COLA,Kola al,Take a cola

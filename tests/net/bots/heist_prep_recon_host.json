@@ -1,0 +1,6 @@
+{
+  "_doc": "heist_prep_recon.json host botu (US-053, KR-046). Doğma yerinde (dükkân dışı) kıpırdamaz; t=27'de test kancasıyla işi başlatır (heist start = request_heist_start; kanca saati botun bekleme adımlarıyla kaymaz). O ana kadar c1 hazırlıkta tanınmış (~13-16 sn), dükkândan çıkmış (~23 sn) ve şüphesi dışarıda sönmüştür.",
+  "steps": [
+    {"t": 27.0, "heist": "start"}
+  ]
+}

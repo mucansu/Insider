@@ -53,6 +53,12 @@ extends Node
 ## In-session recognition (US-052, KR-044): `recognition` (OwnerRecognition, set by StoreOwner) - a player recognised earlier in the
 ## session is raised to the head-start suspicion (30) the first time the owner sees them once the job runs ("?"; `owner_recognize`
 ## "You again?" balloon unless alarmed); only the start value, cover untouched.
+## Recon cost in prep (US-053, KR-046; HeistRules "US-053"): the owner's suspicion works in prep (`suspicion.prep_open`), but a
+## detection there never shouts, holds, questions or chases: the first one per player is a recognition (`prep_recognized`,
+## `prep_detections` dump, "?" balloon `HeistRules.PREP_NOTICED_EVENT`, `peer_prep_recognized` -> StoreOwner `prep_recognized` -> Game
+## records it and tells that player) and their job head start (`recognition.add_prep`, 30); the owner then stands and watches that
+## player (gaze on their last seen spot, LOOK state, no reaction layer) until they leave the shop or the job starts. A player
+## recognised in prep is not walked to and questioned again during prep. No latch: the meter drains outside as usual.
 
 ## Host only: shout (first, after discovery, or discovery while alarmed = neighbour +1); `late` = from discovery (alert manager spawns the
 ## neighbour).
@@ -68,6 +74,8 @@ signal peer_social_action(peer_id: int, kind: StringName)
 ## Host only (US-044): a player gazing through the window was questioned from the door (recognised); US-048: the first search questioning.
 ## StoreOwner relays it as `recognized` (Game connects every NPC node with a `recognized` signal; the same name here counted twice).
 signal peer_recognized(peer_id: int)
+## Host only (US-053): the owner detected the player in prep (first time this prep). StoreOwner relays it as `prep_recognized`.
+signal peer_prep_recognized(peer_id: int)
 
 enum State { AGENDA, LOOK, QUESTION, SHOUT, CHASE, HOLD, STAGGER, SEARCH, DISCOVER }
 ## Discovery source (US-039).
@@ -215,6 +223,11 @@ var _search_started_at: Dictionary = {}
 var _search_recognized: Dictionary = {}
 ## US-052: session recognition head starts (null/empty = none).
 var recognition: OwnerRecognition = null
+## US-053: players recognised in this prep (peer -> brain clock) and the dump rows [{peer, t}].
+var prep_recognized: Dictionary = {}
+var prep_detections: Array[Dictionary] = []
+## US-053: player the owner watches after a prep detection (0 = none).
+var _prep_watch: int = 0
 
 
 ## Connects components (StoreOwner `_ready`, on the host).
@@ -232,6 +245,7 @@ func setup(owner_body: CharacterBody2D, owner_perception: Perception, owner_susp
 	perception.factor_query = _factor_for
 	senses.track_window_stare = true  # US-044: window gazing only in the owner's context
 	suspicion.innocent_decay_per_sec = civilian_tuning.innocent_decay_per_sec
+	suspicion.prep_open = true  # US-053 (KR-046): the owner's suspicion works in prep too
 	suspicion.threshold_reached.connect(_on_threshold)
 	# IS-106 (KR-037): a task's facing is a hint; at the spot the owner faces the adjacent shelf/counter/wall (no "faces west").
 	agenda.facing_resolver = _face_at
@@ -297,11 +311,16 @@ func _step_layers(delta: float) -> Vector2:
 	fsm.step(delta)
 	_tick_shouts(delta)
 	var level: int = _top_level()
-	if CALM_STATES.has(fsm.state) and level >= Suspicion.Level.DETECT:
-		shout(top_peer(), false)
+	if _prep_watch != 0 and not _prep_watch_holds():
+		_end_prep_watch()  # US-053: the watched player left the shop, or the job started (a detection now shouts below)
+	if CALM_STATES.has(fsm.state) and level >= Suspicion.Level.DETECT and not Game.heist_in_prep():
+		shout(top_peer(), false)  # US-053: in prep a detection is a recognition (`_on_threshold`), never a shout
 	if fsm.state == State.DISCOVER:
 		_end_talk()
 		return _discover_step()
+	if _prep_watch != 0:
+		_end_talk()
+		return _prep_watch_step()
 	if fsm.state == State.AGENDA:
 		return _agenda_step(delta, level)
 	if (fsm.state == State.LOOK or fsm.state == State.QUESTION) and _soothe_step():
@@ -1077,6 +1096,69 @@ func _recognition_step() -> void:
 			event(OwnerRecognition.EVENT, peer_id)
 
 
+## --- US-053: recon cost in prep (KR-046) ---
+
+## Prep detection of `peer_id`: the first one this prep is a recognition (dump row, "?" balloon, job head start, Game told); every one
+## turns the owner to watch that player. Never a shout, hold, question or chase.
+func _prep_detect(peer_id: int) -> void:
+	if peer_id == 0 or senses.player(peer_id) == null or is_alarmed():
+		return
+	if not prep_recognized.has(peer_id):
+		prep_recognized[peer_id] = fsm.clock
+		prep_detections.append({"peer": peer_id, "t": snappedf(fsm.clock, 0.01)})
+		event_log.note("hazırlıkta tanıdı p%d" % peer_id, "prep_detections[%d]" % (prep_detections.size() - 1))
+		if recognition != null:
+			recognition.add_prep(peer_id)
+		event(HeistRules.PREP_NOTICED_EVENT, peer_id)
+		peer_prep_recognized.emit(peer_id)
+	if fsm.state == State.QUESTION:
+		back_to_agenda()  # no shrug balloon: the question is simply dropped
+	if fsm.state == State.AGENDA:
+		_end_talk()
+		fsm.go(State.LOOK)
+	if fsm.state != State.LOOK:
+		return
+	_reaction.reset()
+	mover.stop()
+	target = peer_id
+	_prep_watch = peer_id
+
+
+## Whether the watch goes on: still prep, the owner still in LOOK, the player free and inside the shop.
+func _prep_watch_holds() -> bool:
+	if not Game.heist_in_prep() or fsm.state != State.LOOK:
+		return false
+	var player: Node2D = senses.player(_prep_watch)
+	if player == null or (player.has_method(&"is_free") and not bool(player.call(&"is_free"))):
+		return false
+	return CivilianRules.is_inside(senses.zone_of(CivilianSenses.position_of(player)))
+
+
+func _end_prep_watch() -> void:
+	var watched: int = _prep_watch
+	_prep_watch = 0
+	if fsm.state == State.LOOK and target == watched:
+		back_to_agenda()
+
+
+## Watching: stands, full cone, faces the player's last seen spot (an unseen player's position does not leak).
+func _prep_watch_step() -> Vector2:
+	mover.stop()
+	restore_cone()
+	target = _prep_watch
+	return face(seen_at(_prep_watch))
+
+
+## Player the owner watches after a prep detection (0 = none; tests, dump).
+func prep_watch_peer() -> int:
+	return _prep_watch
+
+
+## Reaction layer (LOOK -> QUESTION): a player recognised in this prep is not walked to and questioned again while the prep lasts.
+func may_question(peer_id: int) -> bool:
+	return not (prep_recognized.has(peer_id) and Game.heist_in_prep())
+
+
 func _record_peaks() -> void:
 	for peer_id: int in suspicion.peers():
 		peaks[peer_id] = maxf(float(peaks.get(peer_id, 0.0)), suspicion.value_of(peer_id))
@@ -1087,6 +1169,8 @@ func _on_threshold(peer_id: int, level: int) -> void:
 	if level == Suspicion.Level.NOTICE:
 		_notice_at[peer_id] = fsm.clock
 		event_log.note("şüphe eşiği ? p%d" % peer_id)
+	elif level == Suspicion.Level.DETECT and Game.heist_in_prep():
+		_prep_detect(peer_id)  # US-053: recognition, not a job detection
 	elif level == Suspicion.Level.DETECT and detections.size() < MAX_DETECTIONS:
 		var obs: Perception.Observation = suspicion.last_observations().get(peer_id) as Perception.Observation
 		detections.append(senses.detection_record(peer_id, obs, perception.global_position,

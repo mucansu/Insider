@@ -7,6 +7,7 @@ extends CanvasLayer
 ## IS-114 (GB-13): in prep a start marker (HeistStartMarker: ring + "START" tag on every peer, edge arrow for the host) and a
 ## permanent prep line under the escape panel (KR-045: the start point is the van; wording in `prep_line_key`).
 ## US-052: when a level opens, the in-session heat notice (`HeatNotice.lines`: hot neighbourhood, recognised players) shows as toasts.
+## US-053: `SELF_ONLY_EVENTS` (prep recognition) toast only on that player's screen (EVENT_PREP_RECOGNIZED, 4 s).
 ## Reads only S1/S3 signals and functions plus the local player's S7 signals. Tests swap `net` and `game` for fakes before adding to the scene; time can be advanced with `advance()`.
 
 const PING_INTERVAL_SEC := 1.0
@@ -48,6 +49,8 @@ const INTERACT_ACTION := &"interact"
 const ALT_ACTION := &"intimidate"
 ## IS-110 (GB-12): own-screen variants of player events (the held/caught player reads "you", not their own name).
 const SELF_EVENT_KEYS := {&"player_held": "EVENT_PLAYER_HELD_SELF", &"player_caught": "EVENT_PLAYER_CAUGHT_SELF"}
+## US-053 (KR-046): events shown only on the named player's own screen (others get no toast): the owner recognised you in prep.
+const SELF_ONLY_EVENTS: Array[StringName] = [&"prep_recognized"]
 ## Event whose text carries the rescue window ({seconds}) and the PULL key ({key}, UiInput.action_hint).
 const HELD_EVENT := &"player_held"
 const HELD_WINDOW_FIELD := "window"
@@ -374,6 +377,8 @@ func _on_session_event(kind: StringName, data: Dictionary) -> void:
 	if team_status.apply_event(kind, data):
 		refresh_status()
 	if not wants_toast(kind, data):
+		return
+	if kind in SELF_ONLY_EVENTS and not _is_local_peer(data):
 		return
 	if _is_local_peer(data) and SELF_EVENT_KEYS.has(kind):
 		show_toast(tr(str(SELF_EVENT_KEYS[kind])))
