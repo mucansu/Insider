@@ -1,0 +1,67 @@
+{
+  "alert": {
+    "history": [
+      0
+    ],
+    "level": 0,
+    "timer_left": -1.0
+  },
+  "events": [],
+  "heist": {
+    "abort_peak_s": 0.0,
+    "active": false,
+    "cover": {},
+    "cover_reason": {},
+    "elapsed": 0.0,
+    "escape_armed": false,
+    "escape_armed_at_s": -1.0,
+    "events_main": [],
+    "events_shared": [],
+    "history": [],
+    "max_alert": 0,
+    "phase": "none",
+    "prep_s": 0.0,
+    "recognized": {},
+    "recognized_session": {},
+    "result": {},
+    "seen_by": {},
+    "session_heat": 0,
+    "settle_peak_s": 0.0,
+    "started_at_s": -1.0,
+    "strategy": {}
+  },
+  "host_lost": false,
+  "is_host": false,
+  "level": "",
+  "log_reason": "window_close",
+  "noise": {
+    "accepted": 0,
+    "delivered": 0,
+    "dispatched": 0,
+    "emitted": 0,
+    "rejected": {},
+    "rejected_total": 0,
+    "ring_kinds": {},
+    "rings": 0
+  },
+  "peer_id": 0,
+  "peers": [],
+  "ping": {},
+  "ping_ms": {},
+  "player_nodes": [],
+  "players": {},
+  "session_seed": 0,
+  "team_cash": 0,
+  "vision": {
+    "exposure": {},
+    "exposure_history": {},
+    "fog": false,
+    "look_deg": null,
+    "memory_tiles": 0,
+    "mode": "peripheral",
+    "peripheral_tiles": 0,
+    "remote_look_deg": {},
+    "visible_npcs": [],
+    "visible_tiles": 0
+  }
+}
