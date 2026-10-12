@@ -118,6 +118,7 @@ func test_bag_and_shout_is_shouted_win() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
+	await _frames()  # KR-045 addendum (IS-114): one step at the spawn (outside the zone) arms the escape, as in play
 	Game.raise_session_event(&"alert_level", {"level": 2})
 	var bag: Bag = _level().props_root().get_node("Bag") as Bag
 	me.position = NEAR_BAG
@@ -144,6 +145,7 @@ func test_escape_settle_cancel_and_shout() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
+	await _frames()  # KR-045 addendum (IS-114): one step at the spawn (outside the zone) arms the escape, as in play
 	me.position = STAFF
 	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
 	me.position = IN_ZONE
@@ -301,6 +303,7 @@ func test_empty_handed_abort() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
+	await _frames()  # KR-045 addendum (IS-114): one step at the spawn (outside the zone) arms the escape, as in play
 	eq(Game.abort_left(), -1.0, "bölge dışında: sayaç yok")
 	me.position = IN_ZONE
 	await _frames(90)
@@ -334,6 +337,7 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	if not is_true(me != null, "yerel oyuncu"):
 		await _stop()
 		return
+	await _frames()  # KR-045 addendum (IS-114): one step at the spawn (outside the zone) arms the escape, as in play
 	me.position = STAFF  # staff side next to the owner: cover breaks (US-042; seen, US-045), police catch
 	await _frames()
 	Game.raise_session_event(&"police_arrived")
@@ -348,6 +352,7 @@ func test_bail_debt_closed_by_next_payout() -> void:
 	Game.start_level(STORE)
 	me = Game.local_player() as Player
 	eq(Game.team_cash(), START - 100, "borç sonraki işe taşınır")
+	await _frames()  # KR-045 addendum (IS-114): one step at the spawn (outside the zone) arms the escape, as in play
 	me.position = STAFF
 	_complete(_level().props_root().get_node("Register/Interactable") as Interactable, 1, 3.05)
 	eq(Game.team_cash(), START + 50, "kasa nakdi anında (-100 + 150)")

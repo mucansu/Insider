@@ -1,0 +1,30 @@
+{
+  "_doc": "IS-114 AC6 (GB-13, KR-045 + eki): gerçek oyun haritası store_a (sahip + nüfus etkin), host --heist-prep ile hazırlıkta açar; iş otomasyon kancasıyla DEĞİL host oyuncunun E'siyle başlar. Host minibüse (kaçış bölgesi = başlangıç noktası) yürür, biraz batıya çekilip E'ye basar (menzil dışı: iş başlamaz), minibüse dönüp E'ye basar → her peer'da evre active, heist_started. c1 heist_start_host.json ile minibüse yürüyüp bekler (~7 sn'de orada), t=14'te E — istek göndermez (Başla yalnız host'a sunulur). İş başladığında ikisi de minibüste: kimse bölgeden çıkmadığı için kaçış kurulmaz (escape_armed false), eli boş çekilme sayacı çalışmaz, iş sürer. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 17,
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "host": "res://tests/net/bots/heist_start_walk_host.json",
+    "c1": "res://tests/net/bots/heist_start_host.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.phase", "active"]},
+    {"eq": ["*.heist.active", true]},
+    {"between": ["host.heist.started_at_s", 10.3, 12.0]},
+    {"near": ["host.heist.prep_s", "host.heist.started_at_s", 0.01]},
+    {"eq": ["host.heist.events_shared.0.kind", "heist_started"]},
+    {"same": ["host.heist.events_shared", "c1.events"]},
+    {"eq": ["c1.interaction.requests", 0]},
+    {"eq": ["host.interaction.requests", 1]},
+    {"eq": ["host.interaction.successes", 1]},
+    {"eq": ["host.heist.escape_armed", false]},
+    {"eq": ["host.heist.escape_armed_at_s", -1.0]},
+    {"eq": ["c1.heist.escape_armed", false]},
+    {"eq": ["host.heist.abort_peak_s", 0.0]},
+    {"eq": ["*.heist.result", {}]},
+    {"eq": ["*.alert.level", 0]}
+  ]
+}

@@ -58,8 +58,13 @@ HUD_HELD_COUNTDOWN,TUTULDUN — %d,HELD — %d
 HUD_HELD_COUNTDOWN_NO_TIME,TUTULDUN,HELD
 HUD_INTERACT_CANCELLED,Yarıda kaldı,Interrupted
 HUD_PROMPT,[%s] %s,[%s] %s
-HUD_PREP_GATHERING,Ekip toplanıyor (%d),Crew gathering (%d)
-HUD_PREP_REMINDER,Herkes hazırsa başlangıç noktasında: %s,Everyone ready? At the start point: %s
+HUD_PREP_GATHERING,Kilitli — iş başlayınca açılır (host: minibüste BAŞLA) · ekip %d,Locked — opens once the job starts (host: START at the van) · crew %d
+HUD_PREP_REMINDER,Herkes minibüsteyse BAŞLA işaretinde: %s,Crew at the van? At the START marker: %s
+HUD_PREP_HOST,Herkes minibüste toplanınca [%s] ile BAŞLA,Once the crew is at the van: [%s] to START
+HUD_PREP_CLIENT,Minibüste toplanın — host BAŞLA'ya basınca iş başlar,Gather at the van — the job starts when the host presses START
+HUD_PREP_AT_ESCAPE,Host BAŞLA'ya basınca iş başlar,The job starts when the host presses START
+HUD_PREP_AT_ESCAPE_HOST,Herkes burada mı? [%s] BAŞLA,Everyone here? [%s] START
+HUD_START_MARKER,BAŞLA,START
 HUD_HEAT_HOT,Mahalle tetikte (ısı %d): komşu daha hızlı gelir,The neighbourhood is on edge (heat %d): neighbours come sooner
 HUD_HEAT_KNOWN,Bakkal tanıyor: %s,The shopkeeper remembers: %s
 EVENT_GENERIC,Oturumda bir şey oldu.,Something happened in the session.

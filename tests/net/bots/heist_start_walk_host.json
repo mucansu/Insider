@@ -1,0 +1,14 @@
+{
+  "_doc": "heist_start_walk.json host botu (IS-114 AC6, KR-045). abort_walk.json rotasıyla minibüse (kaçış bölgesi) yürür; t=6,5 batıya 1,2 sn çekilir, t=8 E — Başla menzili dışında: iş başlamaz. t=8,5 doğuya 1,2 sn dönüp minibüste t=10,5 E — host'ta iş başlar.",
+  "steps": [
+    {"t": 0.2, "move": [0, 1]},
+    {"t": 0.543, "move": [1, 0]},
+    {"t": 5.886, "move": [0, 0]},
+    {"t": 6.5, "move": [-1, 0]},
+    {"t": 7.7, "move": [0, 0]},
+    {"t": 8.0, "hold": "interact", "dur": 0.3},
+    {"t": 8.5, "move": [1, 0]},
+    {"t": 9.7, "move": [0, 0]},
+    {"t": 10.5, "hold": "interact", "dur": 0.3}
+  ]
+}

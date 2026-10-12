@@ -293,6 +293,28 @@ static func decide(players: Dictionary, police: bool, abort_due: bool = false, s
 	return DECISION_NONE
 
 
+## Escape arming (KR-045 addendum, IS-114): the crew gathers at the van and the host presses Start there, so right after the start the
+## escape zone must not end the job. The empty-handed abort (US-040) and the escape settle / win (IS-103) are evaluated only once
+## the escape is armed: one team-wide flag, set the first time any uncaught player is outside the zone (`free` uncaught players,
+## `in_zone` of them in the zone) and never cleared for the job. A crew that starts away from the zone is armed at once (as before).
+static func escape_arms(armed: bool, free: int, in_zone: int) -> bool:
+	return armed or (free > 0 and in_zone < free)
+
+
+## (`free`, `in_zone`) of a `decide`-shaped players dict: uncaught (and not witness-released) players and how many are in the zone.
+static func zone_counts(players: Dictionary) -> Vector2i:
+	var free: int = 0
+	var in_zone: int = 0
+	for peer: Variant in players:
+		var p: Dictionary = players[peer]
+		if bool(p.get("caught", false)) or bool(p.get("released", false)):
+			continue
+		free += 1
+		if bool(p.get("in_zone", false)):
+			in_zone += 1
+	return Vector2i(free, in_zone)
+
+
 ## Escape settle condition (IS-103, instant): the win condition holds (at least one uncaught player, all in the escape zone, loot > 0), police aside.
 ## Same `players`/`secured` shape as `decide`.
 static func settle_ready(players: Dictionary, secured: int = -1) -> bool:
@@ -499,6 +521,11 @@ class Tracker:
 	var abort: HeistRules.AbortClock = HeistRules.AbortClock.new()
 	## Escape settle counter (IS-103); Game sets `settle.hold_s` from data/heist_tuning.tres `escape_settle_s`. 0 = no countdown (instant win).
 	var settle: HeistRules.AbortClock = HeistRules.AbortClock.new(0.0)
+	## Escape armed (KR-045 addendum, `HeistRules.escape_arms`): until then neither counter runs and the zone does not end the job.
+	## Game creates every job's Tracker with `disarm_escape()` (online and automation alike); a bare Tracker (rule tests) starts armed.
+	var escape_armed: bool = true
+	## `elapsed` when the escape armed; -1 not yet.
+	var escape_armed_at_s: float = -1.0
 	## Cover (US-042): peer -> breaking reason (absent = intact). Once broken it never returns.
 	var cover_broken: Dictionary = {}
 	## US-045 (GB-08 A): peer -> name of the NPC that saw the breaking state (&"" if not an observer case).
@@ -524,6 +551,11 @@ class Tracker:
 	## Players who left the session mid-job (IS-099): peer -> {"name", "slot"} (roster entry at the moment they left).
 	## They appear in the result's `players` with `left: true`; economy is unchanged (no share, no bail).
 	var departed: Dictionary = {}
+
+	## KR-045 addendum: the job starts with the escape unarmed (armed by `observe` once someone is outside the zone).
+	func disarm_escape() -> void:
+		escape_armed = false
+		escape_armed_at_s = -1.0
 
 	func set_alert(level: int) -> void:
 		max_alert = maxi(max_alert, level)
@@ -656,8 +688,13 @@ class Tracker:
 					break_cover(int(peer), reason, seen_by)
 		var state: Dictionary = players_state(views)
 		var secured: int = secured_loot(views)
-		abort.step(not police and HeistRules.abort_ready(state, secured), delta, caught.size())
-		settle.step(settle_applies() and HeistRules.settle_ready(state, secured), delta, caught.size())
+		if not escape_armed:
+			var counts: Vector2i = HeistRules.zone_counts(state)
+			if HeistRules.escape_arms(false, counts.x, counts.y):
+				escape_armed = true
+				escape_armed_at_s = snappedf(elapsed, 0.01)
+		abort.step(escape_armed and not police and HeistRules.abort_ready(state, secured), delta, caught.size())
+		settle.step(escape_armed and settle_applies() and HeistRules.settle_ready(state, secured), delta, caught.size())
 
 	## Escape settle can run (IS-103): a countdown is configured, police have not arrived and nobody has shouted yet (max alert < ALERT_SHOUTED);
 	## otherwise the win is instant.
@@ -686,7 +723,9 @@ class Tracker:
 	func evaluate(views: Dictionary) -> StringName:
 		if finished:
 			return HeistRules.DECISION_NONE
-		return HeistRules.decide(players_state(views), police, abort.done(), secured_loot(views), settle_pending())
+		# KR-045 addendum: before the escape arms the zone cannot win (police still ends the job as before).
+		var hold: bool = settle_pending() or (not escape_armed and not police)
+		return HeistRules.decide(players_state(views), police, abort.done(), secured_loot(views), hold)
 
 	## Loot the team secured (IS-094): register cash that entered team cash during the job (stays even if the emptier is caught later)
 	## plus bags carried by uncaught (and not witness-released) players (a caught player's bag is lost).

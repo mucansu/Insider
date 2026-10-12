@@ -1,0 +1,19 @@
+{
+  "_doc": "IS-114 AC6 (GB-13, KR-045): gerçek oyun haritası store_a (sahip + nüfus etkin), host --heist-prep ile hazırlıkta açar. İş otomasyon kancasıyla DEĞİL host oyuncunun E'siyle başlar: doğduğu yerde E başlatmaz (başlangıç noktası minibüste, orada hedef yok), minibüse yürüyüp E → her peer'da evre active, heist_started. İstemci hazırlıkta katılır, evreyi active alır. Biçim: tools/net_smoke.py docstring.",
+  "level": "res://levels/store_a.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 11,
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "host": "res://tests/net/bots/heist_start_spawn.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.phase", "active"]},
+    {"between": ["host.heist.started_at_s", 7.3, 9.0]},
+    {"eq": ["host.heist.events_shared.0.kind", "heist_started"]},
+    {"eq": ["host.interaction.requests", 1]},
+    {"eq": ["host.interaction.successes", 1]}
+  ]
+}

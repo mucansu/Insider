@@ -72,6 +72,9 @@ const GAMEPLAY_ALERT := Color("#d8453a")
 const GAMEPLAY_CASH := Color("#58b368")
 ## Escape point (US-038): world marker, HUD edge arrow and escape rows. Yellow: distinct from cash green, alert red and player colours; high contrast on the noir ground (BG).
 const GAMEPLAY_ESCAPE := Color("#e9dd4f")
+## Job start point in prep (IS-114, GB-13): world ring + "START" tag, host edge arrow and the HUD prep line. Pink: distinct from the
+## escape yellow (players gathered at the escape point thinking it was the start), cash green, alert red and player colours.
+const GAMEPLAY_START := Color("#f27ac8")
 
 # --- vision fog (US-011a; GDD §6.5): tile tones, levels/fog/fog_layer ---
 ## Fog tone = BG overlaid with alpha; the saturation multiplier applies to the image below first.

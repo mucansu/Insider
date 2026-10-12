@@ -5,7 +5,7 @@ extends RefCounted
 ##
 ## Type variations (`theme_type_variation` in scenes):
 ##   Label: TitleLabel, AlertTitleLabel, HeadingLabel, CaptionLabel, MutedLabel, AlertLabel, CashLabel,
-##          EscapeLabel, EscapeBadgeLabel
+##          EscapeLabel, EscapeBadgeLabel, StartLabel
 ##   Button: PrimaryButton · HSeparator: AccentSeparator · MarginContainer: HudFrame
 ##   PanelContainer: CardPanel, HudPanel, HudChip, ToastPanel, AlertPanel, LadderStep, LadderStepActive
 ##   Panel: BackgroundPanel, DimPanel · VBoxContainer: LooseVBox · HBoxContainer: LooseHBox
@@ -72,6 +72,10 @@ static func _labels(t: Theme, tone: Tone) -> void:
 	# Crew list "escaped" badge (IS-110): body size, escape colour.
 	_variation(t, &"EscapeBadgeLabel", &"Label")
 	t.set_color(&"font_color", &"EscapeBadgeLabel", ThemeTokens.GAMEPLAY_ESCAPE)
+	# Job prep line (IS-114 HUD "[E] START" row): heading size, start colour.
+	_variation(t, &"StartLabel", &"Label")
+	t.set_font_size(&"font_size", &"StartLabel", tone.font_size_heading)
+	t.set_color(&"font_color", &"StartLabel", ThemeTokens.GAMEPLAY_START)
 
 
 static func _buttons(t: Theme, tone: Tone) -> void:

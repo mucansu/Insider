@@ -1,0 +1,10 @@
+{
+  "_doc": "heist_start_spawn.json host botu (IS-114 AC6, KR-045). t=0,5 doğduğu yerde E — başlangıç noktası artık minibüste (kaçış bölgesi): orada hedef yok, iş başlamaz. Sonra abort_walk.json rotasıyla caddeye inip doğuya, minibüse yürür (x≈860-892, y≈576) ve t=7,5'te E (Başla) — iş hazırlıktan başlar.",
+  "steps": [
+    {"t": 0.5, "hold": "interact", "dur": 0.3},
+    {"t": 1.0, "move": [0, 1]},
+    {"t": 1.343, "move": [1, 0]},
+    {"t": 6.686, "move": [0, 0]},
+    {"t": 7.5, "hold": "interact", "dur": 0.3}
+  ]
+}

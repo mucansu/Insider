@@ -1025,6 +1025,8 @@ var _heist_abort_view: HeistRules.AbortClock = null
 var _heist_cash_props: Array[Node] = []
 ## IS-103: client's local escape settle counter (HUD only; the decision is the host's Tracker.settle).
 var _heist_settle_view: HeistRules.AbortClock = null
+## Client: escape armed estimate (KR-045 addendum, HeistRules.escape_arms) for the HUD counters; the host uses `_heist.escape_armed`.
+var _heist_escape_armed_view: bool = false
 
 
 ## Result of a finished job (S3 addendum; late joiners get it too); empty if the job is running or absent.
@@ -1160,6 +1162,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 	if lvl == null or lvl.zone(HEIST_ESCAPE_ZONE) == null:
 		return
 	_heist = HeistRules.Tracker.new()
+	_heist.disarm_escape()  # KR-045 addendum (IS-114): the zone counts only after someone has left it
 	var tuning: HeistTuning = HeistTuning.load_default()
 	_heist.abort.hold_s = tuning.abort_hold_s
 	_heist.cover_mark_window_s = tuning.cover_mark_window_s
@@ -1167,6 +1170,7 @@ func _heist_on_level_loaded(level: Node) -> void:
 	_heist_abort_view = HeistRules.AbortClock.new(tuning.abort_hold_s)
 	_heist.settle.hold_s = tuning.escape_settle_s
 	_heist_settle_view = HeistRules.AbortClock.new(tuning.escape_settle_s)
+	_heist_escape_armed_view = false
 	_heist_cash_props.clear()
 	if not level.tree_exiting.is_connected(_heist_on_level_exiting):
 		level.tree_exiting.connect(_heist_on_level_exiting, CONNECT_ONE_SHOT)
@@ -1225,6 +1229,9 @@ func _heist_client_abort(delta: float) -> void:
 	var status: Dictionary = escape_status()
 	var free: int = int(status.get("free", 0))
 	var together: bool = free > 0 and int(status.get("in_zone", 0)) >= free
+	# KR-045 addendum: same arming as the host's Tracker (display only; no counter before someone has left the zone).
+	_heist_escape_armed_view = HeistRules.escape_arms(_heist_escape_armed_view, free, int(status.get("in_zone", 0)))
+	together = together and _heist_escape_armed_view
 	var loot_seen: bool = _heist_loot_seen()
 	_heist_abort_view.step(together and not loot_seen, delta, free)  # free count changed (a catch): restart
 	# IS-103: escape settle estimate — together with loot and nobody shouted this level (alert peak < ALERT_SHOUTED; police is alert 5).
@@ -1575,6 +1582,9 @@ func _heist_dump() -> Dictionary:
 		"history": _heist_history,
 		"abort_peak_s": snappedf(_heist_abort_peak(), 0.01),
 		"settle_peak_s": snappedf(_heist_settle_peak(), 0.01),
+		# KR-045 addendum (IS-114): escape armed (host: Tracker; client: HUD estimate) and when (job `elapsed`; host only, -1 none).
+		"escape_armed": _heist.escape_armed if _heist != null and _has_host_authority() else _heist_escape_armed_view,
+		"escape_armed_at_s": _heist.escape_armed_at_s if _heist != null and _has_host_authority() else -1.0,
 		"cover": _heist_cover_dump(),
 		"cover_reason": _heist_cover_detail(_heist_cover_lost),  # US-045: why / who saw it (GB-08 A)
 		"seen_by": _heist_cover_detail(_heist_cover_by),
@@ -2154,7 +2164,7 @@ static func _exit_log_store(path: String, text: String) -> String:
 # abort/settle, cover; caught/police/alert inputs are ignored), suspicion does not fill and the shop's alert ladder does not step (NPC
 # components ask `heist_in_prep()`).
 # - Start point: Game adds `Level/HeistStart/Trigger` (entities/props/interactable.gd, loaded at runtime — §6 duck typing) on every
-#   peer at the host's spawn slot 0 (escape point if the level has no spawn points). It is offered only to the host (peer 1) and only in
+#   peer at the escape point (KR-045: the crew gathers at the van; the host's spawn slot 0 if the level has no EscapeZone). It is offered only to the host (peer 1) and only in
 #   prep (`peer_gate`); a client's request is rejected on the host with "peer". The host's E -> `request_heist_start()`.
 # - `request_heist_start()` (host only): PREP -> ACTIVE by reliable RPC `_rpc_heist_phase` (authority, call_local) on every peer, then
 #   session event `heist_started` {"players": n} (HUD toast). The job clock (Tracker.elapsed) counts from here.
@@ -2194,6 +2204,13 @@ func heist_in_prep() -> bool:
 ## S3 addendum (US-049): seconds spent in prep so far (HUD reminder); -1 if not in prep.
 func heist_prep_s() -> float:
 	return _heist_level_t if heist_in_prep() else -1.0
+
+
+## S3 addendum (IS-114, read-only): world position of the start point (`Level/HeistStart`, every peer); Vector2.INF if the level has none.
+## The HUD draws the start marker there during prep.
+func heist_start_position() -> Vector2:
+	var holder: Node2D = _level.get_node_or_null(NodePath(String(HEIST_START_NODE))) as Node2D if _level != null else null
+	return holder.global_position if holder != null and holder.is_inside_tree() else Vector2.INF
 
 
 ## S3 addendum (US-049): whether `item` (an Interactable; its parent is the prop) is locked now (prep, and not the customer door / start point).
@@ -2272,7 +2289,7 @@ func _heist_prep_length() -> float:
 	return _heist_started_at if _heist_started_at >= 0.0 else _heist_level_t
 
 
-## Start point (every peer, same path): `Level/HeistStart/Trigger` at the host's spawn slot; offered to the host in prep only.
+## Start point (every peer, same path): `Level/HeistStart/Trigger` at the escape point (KR-045); offered to the host in prep only.
 func _heist_add_start_point(level: Level) -> void:
 	var at: Vector2 = _heist_start_position(level)
 	if not at.is_finite() or level.has_node(NodePath(String(HEIST_START_NODE))):
@@ -2294,10 +2311,15 @@ func _heist_add_start_point(level: Level) -> void:
 	item.connect(&"completed", _heist_on_start_used)
 
 
+## KR-045 (IS-114, GB-13): the crew gathers at the van, so the start point is the escape point (EscapeZone centre, derived from the
+## level's node — KR-037, no per-map constant); a level without an escape zone keeps the old spot (the host's spawn slot 0).
 func _heist_start_position(level: Level) -> Vector2:
+	var escape: Vector2 = escape_point()
+	if escape.is_finite():
+		return escape
 	if level.spawn_count() > 0 and level.players_root() != null:
 		return level.players_root().to_global(level.spawn_position(0))
-	return escape_point()
+	return Vector2.INF
 
 
 ## Start point peer gate (every peer): the host only, while in prep.

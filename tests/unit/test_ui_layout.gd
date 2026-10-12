@@ -142,6 +142,35 @@ func test_hud_fits() -> void:
 	)
 
 
+## IS-114: job prep - the host's prep line (longest wording), the start marker, the alert ladder and a toast fit and do not overlap the
+## corner blocks.
+func test_hud_prep_line_fits() -> void:
+	await _each_variant(func(size: Vector2i, label: String) -> void:
+		var ctx: Dictionary = await _open_hud(size)
+		var hud: Hud = ctx["hud"]
+		var game: Fakes.FakeGame = ctx["game"]
+		var net: Fakes.FakeNet = ctx["net"]
+		var roster: Dictionary = {}
+		for i: int in 4:
+			roster[i + 1] = {"name": LONG_NAME, "slot": i}
+		game.roster = roster
+		game.players_changed.emit()
+		net.hosting = true
+		game.prep_s = 31.0  # also the 30 s reminder toast
+		game.start_at = Vector2(size) * 0.25
+		hud.advance(0.016)
+		await _settle()
+		is_true(hud.prep_label().is_visible_in_tree(), label + ": hazırlık satırı görünür")
+		_check_fits(hud.get_node("%Root"), size, label + " HUD hazırlık")
+		_check_fonts(hud.get_node("%Root"), label + " HUD hazırlık")
+		var top: String = "Root/Frame/Layout/Top/"
+		_check_disjoint([hud.get_node(top + "CashPanel"), hud.get_node(top + "Right"), hud.get_node("%AlertLadder"),
+			hud.prep_label().get_parent(), hud.get_node("%Toasts")], label + " HUD hazırlık blokları")
+		near((hud.prep_label().get_parent() as Control).get_global_rect().get_center().x, size.x / 2.0, 2.0,
+			label + ": hazırlık satırı ortada")
+	)
+
+
 func test_heist_end_fits() -> void:
 	# Longest content: 4 players with maximum names, the largest amounts, 3 notes with the longest descriptions; win and loss.
 	var longest_notes: Array = [{"kind": &"pulled_free", "peer": 1}, {"kind": &"window_star", "peer": 2},
