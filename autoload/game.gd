@@ -43,7 +43,8 @@ const DEFAULT_PLAYER_SCENE := "res://entities/player/player.tscn"
 ## 8: US-049 job phase RPC (`_rpc_heist_phase`), the runtime start point `Level/HeistStart/Trigger` (+ its synchronizer) and the
 ##    `heist_started` event.
 ## 9: US-052 owner event kind `owner_recognize` ("You again?" balloon; old builds would drop it silently).
-const PROTOCOL_VERSION := 9
+## 10: US-053 owner event kind `owner_noticed_prep` (prep recognition "?" balloon; old builds would drop it silently).
+const PROTOCOL_VERSION := 10
 const AUTH_TIMEOUT_SEC := 10.0
 const MAX_NAME_LENGTH := 24
 ## Event history cap (oldest dropped). IS-102: the history spans every run of the session ("Again" keeps it; runs are separated by
@@ -991,6 +992,9 @@ const HEIST_MARK_SIGNALS: Array[StringName] = [&"owner_shout", &"owner_held"]
 ## (cost deducted from end-of-job cash).
 const HEIST_SOCIAL_SIGNAL := &"social_action"
 const HEIST_RECOGNIZED_SIGNAL := &"recognized"
+## US-053 (KR-046): an NPC (the owner) recognised a player in prep; recorded once per player per prep, told to that player.
+const HEIST_PREP_RECOGNIZED_SIGNAL := &"prep_recognized"
+const HEIST_EVENT_PREP_RECOGNIZED := &"prep_recognized"
 const HEIST_EVENT_PURCHASE := &"purchase"
 ## Staff-side zones that break cover (S4 addendum).
 const HEIST_STAFF_ZONES: Array[StringName] = [&"StaffArea", &"Backroom"]
@@ -1206,6 +1210,8 @@ func _heist_on_level_loaded(level: Node) -> void:
 				node.connect(HEIST_SOCIAL_SIGNAL, _heist_on_social)
 			if node.has_signal(HEIST_RECOGNIZED_SIGNAL):
 				node.connect(HEIST_RECOGNIZED_SIGNAL, _heist_on_recognized)
+			if node.has_signal(HEIST_PREP_RECOGNIZED_SIGNAL):
+				node.connect(HEIST_PREP_RECOGNIZED_SIGNAL, _heist_on_prep_recognized)
 	_heist_prep_begin(lvl)  # US-049: after the interaction wiring above (the start point is not a job interaction)
 
 
@@ -1303,6 +1309,13 @@ func _heist_on_social(peer_id: int, _kind: StringName) -> void:
 func _heist_on_recognized(peer_id: int) -> void:
 	if _heist_running() and _has_host_authority():
 		_heist.note_recognized(peer_id)
+
+
+## US-053 (host): the owner recognised a player in prep -> `recognized` +1 in this job's result (once per player per prep) and only
+## that player's HUD is told (session event {"peer"}). Ignored outside prep (in the job a detection is the normal alarm path).
+func _heist_on_prep_recognized(peer_id: int) -> void:
+	if heist_in_prep() and _has_host_authority() and _heist.note_prep_recognized(peer_id, _heist_level_t):
+		raise_session_event(HEIST_EVENT_PREP_RECOGNIZED, {"peer": peer_id})
 
 
 ## The owner shouted at / held a player (host): opens the association window.
@@ -1592,6 +1605,7 @@ func _heist_dump() -> Dictionary:
 		"events_main": _heist_events_main(),
 		"events_shared": _events_shared(),  # IS-102
 		"recognized": _heist_recognized_dump(),
+		"prep_recognized": _heist_prep_recognized_dump(),  # US-053
 		"session_heat": _session_heat_ledger.heat,  # US-052
 		"recognized_session": _session_heat_ledger.recognized_dump(),
 	}
@@ -1603,6 +1617,15 @@ func _heist_recognized_dump() -> Dictionary:
 	if _heist != null:
 		for peer: Variant in _heist.recognized_extra:
 			out[str(int(peer))] = int(_heist.recognized_extra[peer])
+	return out
+
+
+## Dump (US-053): players recognised in this job's prep, peer -> level time (s) of the recognition (host; empty on a client).
+func _heist_prep_recognized_dump() -> Dictionary:
+	var out: Dictionary = {}
+	if _heist != null:
+		for peer: Variant in _heist.prep_recognized:
+			out[str(int(peer))] = float(_heist.prep_recognized[peer])
 	return out
 
 
@@ -2160,9 +2183,14 @@ static func _exit_log_store(path: String, text: String) -> String:
 # US-049 — in-job "Start" (S3 addendum; KR-044, Fable faz2-yeniden-kesim §1.1). A heist level (one with an EscapeZone) opens in PREP on
 # every peer: the owner's agenda and the population run, players walk around like customers, but every level interaction except the
 # customer door and the start point is locked (`heist_prep_locks`, rule HeistRules.prep_locks; Interactable rejects a player's start on
-# the host with "prep" and shows the HeistRules.PREP_PROMPT_KEY prompt). No penalty in prep: the Tracker does not observe (elapsed,
-# abort/settle, cover; caught/police/alert inputs are ignored), suspicion does not fill and the shop's alert ladder does not step (NPC
-# components ask `heist_in_prep()`).
+# the host with "prep" and shows the HeistRules.PREP_PROMPT_KEY prompt). No job penalty in prep: the Tracker does not observe (elapsed,
+# abort/settle, cover; caught/police/alert inputs are ignored), civilians' suspicion does not fill and the shop's alert ladder does not
+# step (NPC components ask `heist_in_prep()`).
+# US-053 (KR-046, recon cost): the owner's suspicion does work in prep; his detection there is a recognition (owner signal
+# `prep_recognized` -> `_heist_on_prep_recognized`: Tracker.note_prep_recognized, once per player; result `recognized` +1 -> session
+# ledger; session event `prep_recognized` {"peer"} shown only on that player's HUD); the player starts the job at the prep head start.
+# Shopping stays open in prep (HeistRules.prep_locks item rule: `Counter/Buy`, `ShopItem<n>/Take`). Dump `heist.prep_recognized`
+# {"<peer>": level time}.
 # - Start point: Game adds `Level/HeistStart/Trigger` (entities/props/interactable.gd, loaded at runtime — §6 duck typing) on every
 #   peer at the escape point (KR-045: the crew gathers at the van; the host's spawn slot 0 if the level has no EscapeZone). It is offered only to the host (peer 1) and only in
 #   prep (`peer_gate`); a client's request is rejected on the host with "peer". The host's E -> `request_heist_start()`.
@@ -2218,7 +2246,7 @@ func heist_prep_locks(item: Node) -> bool:
 	if not heist_in_prep() or item == null or _level == null or not _level.is_ancestor_of(item):
 		return false
 	var prop: Node = item.get_parent()
-	return HeistRules.prep_locks(StringName(prop.name) if prop != null else &"", HEIST_START_NODE)
+	return HeistRules.prep_locks(StringName(prop.name) if prop != null else &"", HEIST_START_NODE, StringName(item.name))
 
 
 ## S3 addendum (US-049), host only: starts the job (prep -> active on every peer + `heist_started`). False if not host or not in prep.

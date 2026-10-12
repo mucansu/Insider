@@ -1,0 +1,25 @@
+{
+  "_doc": "heist_prep_recon.json c1 botu (US-053, KR-046). heist_start_c1.json rotasıyla (E'siz) hazırlıkta ön kapıdan girip tezgâh ucundan personel tarafına, sahibin yanına gider ve durur; sahip tespit eder (tanınma). prep_recognized olayını bekler, kuzeye + doğu duvarına + güney duvarına yaslanır, güneybatıya kayarak ön kapının batı pervazından dışarı süzülür (zamana değil duvara dayalı çıkış) ve caddenin güney sınırına yaslanıp bekler. heist_started olayını bekler (host'un BAŞLA kancası), batı sınırına yaslanır, giriş rotasının (t=2,6-5,8) aynısıyla ön kapıdan müşteri tarafına girer ve durur: sahibin ilk görüşü hazırlık tanınma başlangıcından (>= 30).",
+  "steps": [
+    {"t": 1.2, "move": [-1, 0]},
+    {"t": 2.6, "move": [1, 0]},
+    {"t": 5.0, "move": [0, -1]},
+    {"t": 5.8, "move": [1, 0]},
+    {"t": 8.3, "move": [0, -1]},
+    {"t": 9.4, "move": [-1, 0]},
+    {"t": 10.4, "move": [0, 1]},
+    {"t": 10.88, "move": [0, 0]},
+    {"t": 11.0, "wait": "prep_recognized", "max": 20},
+    {"t": 11.5, "move": [0, -1]},
+    {"t": 11.98, "move": [1, 0]},
+    {"t": 12.98, "move": [0, 1]},
+    {"t": 14.08, "move": [-1, 1]},
+    {"t": 18.58, "move": [0, 0]},
+    {"t": 18.7, "wait": "heist_started", "max": 30},
+    {"t": 19.2, "move": [-1, 0]},
+    {"t": 20.7, "move": [0, -1]},
+    {"t": 21.186, "move": [1, 0]},
+    {"t": 23.586, "move": [0, -1]},
+    {"t": 24.6, "move": [0, 0]}
+  ]
+}

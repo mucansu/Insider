@@ -9,3 +9,4 @@ neighbour_delay_cut_s = 2.0
 passerby_bonus = 1
 recognized_min = 1
 recognized_start = 30.0
+prep_recognized_start = 30.0

@@ -72,7 +72,8 @@ func _look(level: int) -> Vector2:
 	var t: OwnerTuning = _b.owner_tuning
 	_b.restore_cone()
 	_investigate = _investigate or level >= Suspicion.Level.INVESTIGATE
-	if _investigate and level >= Suspicion.Level.NOTICE and _b.fsm.time_in_state >= t.look_min_sec:
+	if _investigate and level >= Suspicion.Level.NOTICE and _b.fsm.time_in_state >= t.look_min_sec \
+			and _b.may_question(_b.top_peer()):  # US-053: not a player already recognised in this prep
 		_b.target = _b.top_peer()
 		_asked = false
 		_b.fsm.go(OwnerBrain.State.QUESTION)

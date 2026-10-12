@@ -1,5 +1,5 @@
 {
-  "_doc": "US-049 hazırlıkta ceza yok (KR-044): store_a_nopop (sahip etkin, nüfus yok), host --heist-prep ile hazırlıkta açar ve hiç başlatmaz. c1 heist_start_c1.json kasa rotasıyla tezgâhın arkasına, sahibin yanına gider; kasa başında E'ye basar → en yakın hedef (kasa ya da tezgâhtaki sahibin konuşma bileşeni) host'ta 'prep' ile reddedilir, hiçbir etkileşim tamamlanmaz; sahibin önünde personel tarafında bekler. Hazırlıkta şüphe dolmaz (sahibin c1 tepesi 0), uyarı merdiveni 0'da kalır, iş süresi saymaz, sonuç yok; evre her peer'da prep. Biçim: tools/net_smoke.py docstring.",
+  "_doc": "US-049 hazırlıkta ceza yok (KR-044): store_a_nopop (sahip etkin, nüfus yok), host --heist-prep ile hazırlıkta açar ve hiç başlatmaz. c1 heist_start_c1.json kasa rotasıyla tezgâhın arkasına, sahibin yanına gider; kasa başında E'ye basar → en yakın hedef (kasa ya da tezgâhtaki sahibin konuşma bileşeni) host'ta 'prep' ile reddedilir, hiçbir etkileşim tamamlanmaz; sahibin önünde personel tarafında bekler. US-053 (KR-046) ile: hazırlıkta sahibin şüphesi dolar (c1 tepesi 100) ama tespit bedeli tanınmadır — bağırış/tutma yok ('?' balonu owner_noticed_prep, heist.prep_recognized), örtü izlenmez; uyarı merdiveni 0'da kalır, iş süresi saymaz, sonuç yok; evre her peer'da prep. Biçim: tools/net_smoke.py docstring.",
   "level": "res://tests/fixtures/store_a_nopop.tscn",
   "player_scene": "res://entities/player/player.tscn",
   "clients": 1,
@@ -19,7 +19,14 @@
     {"between": ["c1.interaction.requests", 1, 2]},
     {"eq": ["c1.interaction.successes", 0]},
     {"eq": ["*.props.Register.emptied", false]},
-    {"eq": ["host.owner.peak.$c1", 0.0]},
+    {"eq": ["host.owner.peak.$c1", 100.0]},
+    {"has": ["*.owner.events", "owner_noticed_prep"]},
+    {"lacks": ["*.owner.events", "owner_shout"]},
+    {"lacks": ["*.owner.events", "owner_held"]},
+    {"eq": ["*.owner.shouted", false]},
+    {"len": ["host.heist.prep_recognized", 1]},
+    {"has": ["host.heist.prep_recognized", "$c1"]},
+    {"eq": ["*.heist.cover.$c1", true]},
     {"eq": ["*.alert.history", [0]]},
     {"eq": ["*.alert.level", 0]}
   ]

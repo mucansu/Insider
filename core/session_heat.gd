@@ -27,6 +27,8 @@ class Params:
 	var recognized_min: int = 0
 	## Suspicion the owner starts a recognised player at (0-100).
 	var recognized_start: float = 0.0
+	## US-053 (KR-046): suspicion a player recognised in this job's prep starts the job at (0-100; 0 = no head start).
+	var prep_start: float = 0.0
 
 
 ## Session heat total.
@@ -107,6 +109,11 @@ static func recognition_start(p: Params, count: int) -> float:
 	if p == null or p.recognized_min <= 0 or count < p.recognized_min:
 		return 0.0
 	return clampf(p.recognized_start, 0.0, 100.0)
+
+
+## US-053: the owner's starting suspicion in this job for a player recognised in its prep (0 = none).
+static func prep_recognition_start(p: Params) -> float:
+	return clampf(p.prep_start, 0.0, 100.0) if p != null else 0.0
 
 
 ## Raise needed to bring a meter at `current` up to `start` (never lowers it).

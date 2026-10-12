@@ -455,8 +455,8 @@ class AbortClock:
 # --- US-049 job phase (KR-044; Fable faz2-yeniden-kesim §1.1) ---
 # A heist level opens in PREP: the owner's agenda and the population run, players walk around like customers, but every level
 # interaction except the customer door (`PREP_OPEN_PROPS`) and the host's start point is locked (host rejects "prep"; the prompt
-# reads "crew gathering n"). No penalty in prep: the Tracker does not observe (elapsed, abort/settle, cover), suspicion does not fill
-# and the alert ladder does not step. The host's E on the start point -> ACTIVE on every peer (reliable RPC), `heist_started` event,
+# reads "crew gathering n"). No job penalty in prep: the Tracker does not observe (elapsed, abort/settle, cover) and the alert ladder
+# does not step; civilians' suspicion does not fill (US-053, KR-046: the owner's does - detection costs recognition, see below). The host's E on the start point -> ACTIVE on every peer (reliable RPC), `heist_started` event,
 # elapsed counts from there. Automation (Game: bot/brain/dump/quit/script runs) starts ACTIVE at once unless `--heist-prep`.
 
 const PHASE_PREP := 0
@@ -468,6 +468,12 @@ const PHASE_NAME_ACTIVE := "active"
 const PHASE_NAME_FINISHED := "finished"
 ## Prop (parent of the Interactable) names still usable in prep: the customer door.
 const PREP_OPEN_PROPS: Array[StringName] = [&"FrontDoor"]
+## US-053 (KR-046 AC5): shopping stays open in prep - the counter's pay/buy component (`Counter/Buy`) and every shelf item point's
+## take component (`ShopItem<n>/Take`, prefix ShopRules.ITEM_MARKER_PREFIX). Other components of those props (counter `Send`/`Pickup`)
+## stay locked like every job interaction.
+const PREP_OPEN_COUNTER := &"Counter"
+const PREP_OPEN_COUNTER_ITEM := &"Buy"
+const PREP_OPEN_SHELF_ITEM := &"Take"
 ## Host HUD reminder period while the job has not been started (AC4).
 const PREP_REMINDER_S := 30.0
 ## Prompt key of a locked interaction in prep (Interactable.prompt_key; the HUD fills in the crew count).
@@ -480,8 +486,13 @@ static func is_phase(value: Variant) -> bool:
 
 
 ## Whether a level interaction whose prop is named `prop_name` is locked in prep (`start_prop` = the start point, always usable).
-static func prep_locks(prop_name: StringName, start_prop: StringName) -> bool:
-	return prop_name != start_prop and not PREP_OPEN_PROPS.has(prop_name)
+## `item_name` = the Interactable's own name (US-053: the shopping components stay open; empty = judged by the prop alone).
+static func prep_locks(prop_name: StringName, start_prop: StringName, item_name: StringName = &"") -> bool:
+	if prop_name == start_prop or PREP_OPEN_PROPS.has(prop_name):
+		return false
+	if prop_name == PREP_OPEN_COUNTER and item_name == PREP_OPEN_COUNTER_ITEM:
+		return false
+	return not (item_name == PREP_OPEN_SHELF_ITEM and String(prop_name).begins_with(String(ShopRules.ITEM_MARKER_PREFIX)))
 
 
 ## Dump name of the phase: no job -> "none"; a finished job -> "finished".
@@ -496,6 +507,28 @@ static func phase_name(has_job: bool, phase: int, finished: bool) -> String:
 ## Whether the next prep reminder is due: `shown` reminders were given, one every `period` s of prep (none if period <= 0).
 static func prep_reminder_due(prep_s: float, shown: int, period: float) -> bool:
 	return period > 0.0 and prep_s >= period * float(maxi(shown, 0) + 1)
+
+
+# --- US-053 recon cost in prep (KR-046, GB-14; GDD §4.3 "the cost of recon") ---
+# In prep the owner's suspicion works as in the job (loiter grace, staff zone), but detection costs recognition, not a hold: the owner
+# does not shout, hold, question or chase; the alert ladder stays 0 (StoreAlert and the Tracker's observation stay closed in prep);
+# the detected player is recognised at most once per prep (`Tracker.note_prep_recognized`; result `recognized` +1 -> session ledger,
+# US-052) and starts the job at the prep head start (data/heat_tuning.tres `prep_recognized_start`, 30); the owner shows a "?"
+# balloon (`PREP_NOTICED_EVENT`) and keeps his gaze on that player until they leave the shop or the job starts; only that player's
+# HUD reads "the shopkeeper noticed you" (session event `PREP_RECOGNIZED_EVENT` {"peer"}). NOTICE/INVESTIGATE cost nothing; looking
+# in from outside is free. Other civilians' suspicion stays closed in prep (`Suspicion.prep_open` is set by the owner only).
+
+## Owner event (balloon "?") when he notices a player in prep.
+const PREP_NOTICED_EVENT := &"owner_noticed_prep"
+## Session event (host -> every peer; the HUD shows it to that player only): {"peer": int}.
+const PREP_RECOGNIZED_EVENT := &"prep_recognized"
+## The owner's meter shown in prep is held just under detection, so the indicator stays "?" (no red "!" without an alarm).
+const PREP_INDICATOR_MARGIN := 1.0
+
+
+## Indicator meter on every peer (visual only): in prep at most `detect_at - PREP_INDICATOR_MARGIN`.
+static func prep_indicator_meter(meter: float, detect_at: float, in_prep: bool) -> float:
+	return minf(meter, detect_at - PREP_INDICATOR_MARGIN) if in_prep else meter
 
 
 ## Per-job counters and decision on the host. Game calls `observe` + `evaluate` every physics step; events (alert, police,
@@ -548,6 +581,9 @@ class Tracker:
 	var purchases_paid: int = 0
 	## Extra recognition (US-044: player questioned by the owner at the door while staring at the window): peer -> count.
 	var recognized_extra: Dictionary = {}
+	## US-053: recognised in prep (owner detection before the start): peer -> level time (s) of the recognition; once per player;
+	## counted in the result's `recognized`.
+	var prep_recognized: Dictionary = {}
 	## Players who left the session mid-job (IS-099): peer -> {"name", "slot"} (roster entry at the moment they left).
 	## They appear in the result's `players` with `left: true`; economy is unchanged (no share, no bail).
 	var departed: Dictionary = {}
@@ -609,6 +645,14 @@ class Tracker:
 	func note_recognized(peer: int) -> void:
 		if peer > 0:
 			recognized_extra[peer] = int(recognized_extra.get(peer, 0)) + 1
+
+	## US-053: the owner detected the player in prep (`at_s` = level time). False (nothing recorded) for an invalid peer or one already
+	## recognised this prep (once per player).
+	func note_prep_recognized(peer: int, at_s: float) -> bool:
+		if peer <= 0 or prep_recognized.has(peer):
+			return false
+		prep_recognized[peer] = snappedf(maxf(at_s, 0.0), 0.01)
+		return true
 
 	func note_social(peer: int) -> void:
 		if peer > 0:
@@ -776,7 +820,7 @@ class Tracker:
 				"loot": loot,
 				"bail": bail,
 				"witness_released": witness,
-				"recognized": (1 if witness else 0) + int(recognized_extra.get(id, 0)),
+				"recognized": (1 if witness else 0) + int(recognized_extra.get(id, 0)) + (1 if prep_recognized.has(id) else 0),
 				"left": false,
 			}
 		# IS-099: players who left mid-job are listed with `left: true` and zero share/bail (economy as before: they are not

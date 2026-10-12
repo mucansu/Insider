@@ -14,11 +14,14 @@ var starts: Dictionary = {}
 var greeted: Dictionary = {}
 ## Dump rows {peer, t, value} (value = meter after the head start).
 var greets: Array[Dictionary] = []
+## US-053 (KR-046): head start of a player the owner detected in this job's prep (`SessionHeat.prep_recognition_start`; 0 = none).
+var prep_start: float = 0.0
 
 
 ## From Game's session heat state ({"recognized": {peer: n}}) and the heat rule parameters.
 static func from_state(state: Dictionary, p: SessionHeat.Params) -> OwnerRecognition:
 	var r := OwnerRecognition.new()
+	r.prep_start = SessionHeat.prep_recognition_start(p)
 	var table: Dictionary = state.get("recognized", {}) as Dictionary
 	for key: Variant in table:
 		var start: float = SessionHeat.recognition_start(p, int(table[key]))
@@ -43,6 +46,13 @@ func due(observations: Dictionary) -> Array[int]:
 
 func start_of(peer: int) -> float:
 	return float(starts.get(peer, 0.0))
+
+
+## US-053: the owner recognised `peer` in this job's prep - once the job runs, his first sight of them starts at the prep head start
+## (never lowers a larger session head start; not before the start: OwnerBrain steps recognition only while the job runs).
+func add_prep(peer: int) -> void:
+	if peer > 0 and prep_start > 0.0 and not greeted.has(peer):
+		starts[peer] = maxf(start_of(peer), prep_start)
 
 
 ## Records the greeting (once per job).

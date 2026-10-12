@@ -1,0 +1,38 @@
+{
+  "_doc": "US-053 hazırlıkta keşif bedeli (KR-046, GB-14): store_a_nopop (sahip etkin, nüfus yok), host --heist-prep ile hazırlıkta açar. c1 hazırlıkta personel tarafına, sahibin yanına girer: sahip tespit eder ama bağırmaz/tutmaz/kovalamaz ('?' balonu owner_noticed_prep), c1 tanınır (heist.prep_recognized, olay prep_recognized BAŞLA'dan önce: events_shared sırası), uyarı merdiveni bağırış basamağına çıkmaz. c1 dükkândan çıkar, şüphe dışarıda söner; host t=27'de kancayla BAŞLA. c1 ön kapıdan müşteri tarafına girer: sahibin ilk görüşü hazırlık tanınma başlangıcından (>= 30, US-052 yolu, recognition_greets). Örtü sağlam (hazırlıkta izlenmez). Biçim: tools/net_smoke.py docstring.",
+  "level": "res://tests/fixtures/store_a_nopop.tscn",
+  "player_scene": "res://entities/player/player.tscn",
+  "clients": 1,
+  "duration": 38,
+  "args": {"host": ["--heist-prep"]},
+  "bots": {
+    "host": "res://tests/net/bots/heist_prep_recon_host.json",
+    "c1": "res://tests/net/bots/heist_prep_recon_c1.json"
+  },
+  "expect": [
+    {"len": ["*.player_nodes", 2]},
+    {"eq": ["*.heist.phase", "active"]},
+    {"eq": ["*.heist.result", {}]},
+    {"len": ["host.owner.prep_detections", 1]},
+    {"same": ["host.owner.prep_detections.0.peer", "c1.peer_id"]},
+    {"len": ["host.heist.prep_recognized", 1]},
+    {"has": ["host.heist.prep_recognized", "$c1"]},
+    {"eq": ["host.heist.events_shared.0.kind", "prep_recognized"]},
+    {"same": ["host.heist.events_shared.0.data.peer", "c1.peer_id"]},
+    {"eq": ["host.heist.events_shared.1.kind", "heist_started"]},
+    {"same": ["host.heist.events_shared", "c1.events"]},
+    {"has": ["*.owner.events", "owner_noticed_prep"]},
+    {"all_equal": "owner.events"},
+    {"lacks": ["*.owner.events", "owner_shout"]},
+    {"lacks": ["*.owner.events", "owner_held"]},
+    {"eq": ["*.owner.shouted", false]},
+    {"lacks": ["*.alert.history", 2]},
+    {"lacks": ["*.alert.history", 3]},
+    {"len": ["host.owner.recognition_greets", 1]},
+    {"same": ["host.owner.recognition_greets.0.peer", "c1.peer_id"]},
+    {"between": ["host.owner.recognition_greets.0.value", 30.0, 100.0]},
+    {"has": ["*.owner.events", "owner_recognize"]},
+    {"eq": ["*.heist.cover.$c1", true]},
+    {"eq": ["*.player_states.$c1.wall_frames", 0]}
+  ]
+}
