@@ -4,6 +4,8 @@ extends CanvasLayer
 ## Hosts the alert ladder (US-013), heist end screen (US-013), exposure badge and team markers (US-011c), escape panel and escape arrow (US-038), fed by the S3 addendum.
 ## US-049 (job prep): a prep-locked target's prompt reads "crew gathering (n)" (PREP_PROMPT_KEY, n = players in the session,
 ## no key hint); the host gets a reminder toast every PREP_REMINDER_S of prep (Game `heist_prep_s`).
+## IS-114 (GB-13): in prep a start marker (HeistStartMarker: ring + "START" tag on every peer, edge arrow for the host) and a
+## permanent prep line under the escape panel (KR-045: the start point is the van; wording in `prep_line_key`).
 ## US-052: when a level opens, the in-session heat notice (`HeatNotice.lines`: hot neighbourhood, recognised players) shows as toasts.
 ## Reads only S1/S3 signals and functions plus the local player's S7 signals. Tests swap `net` and `game` for fakes before adding to the scene; time can be advanced with `advance()`.
 
@@ -38,6 +40,8 @@ const EVENT_NAME_FIELD := "name"
 ## and the host's reminder period (core PREP_REMINDER_S); tests/unit/test_heist_phase.gd checks they match.
 const PREP_PROMPT_KEY := "HUD_PREP_GATHERING"
 const PREP_REMINDER_S := 30.0
+## IS-114: action key of the start point's prompt (Game HEIST_START_KEY; same value, checked in test_ui_heist_start.gd).
+const START_ACTION_KEY := "INTERACT_HEIST_START"
 ## Action the prompt key name is taken from (S5).
 const INTERACT_ACTION := &"interact"
 ## Input action of the second prompt row (US-010 Q / gamepad X; IS-091).
@@ -99,6 +103,10 @@ var _prep_reminders: int = 0
 ## US-046 lite: the local player's held-item line and the hand it follows (null until a player is bound).
 var _held_label: Label = null
 var _hand: Node = null
+## IS-114: start marker (world ring / host edge arrow) and the prep line panel + label (built in code).
+var _start_marker: HeistStartMarker = null
+var _prep_panel: PanelContainer = null
+var _prep_label: Label = null
 
 
 func _ready() -> void:
@@ -133,9 +141,10 @@ func _ready() -> void:
 	_heist_end.menu_requested.connect(_on_leave_requested)
 	_heist_end.bind(game, net)
 	_exposure_badge.bind(game, net)
+	_make_prep_line()
 	var blocks: Array[Control] = [$Root/Frame/Layout/Top/CashPanel as Control,
 		$Root/Frame/Layout/Top/Right as Control, _alert_ladder, _escape_panel, _exposure_badge, _prompt, _interaction,
-		_held_countdown]
+		_held_countdown, _prep_panel]
 	_team_markers.avoid = blocks
 	_team_markers.bind(game, net)
 	# US-038: the escape panel shows the police timer large; the ladder's small timer only when there is no panel.
@@ -144,6 +153,8 @@ func _ready() -> void:
 	_alert_ladder.refresh_timer()
 	_escape_arrow.avoid = blocks
 	_escape_arrow.bind(game)
+	_make_start_marker(blocks)
+	refresh_prep_line()
 	show_heat_notice()  # US-052
 
 
@@ -174,6 +185,8 @@ func advance(delta: float) -> void:
 	_team_markers.advance(delta)
 	_escape_panel.advance(delta)
 	_escape_arrow.advance(delta)
+	_start_marker.advance(delta)
+	refresh_prep_line()
 	if team_status.advance(delta):
 		refresh_status()
 	_tick_prep_reminder()
@@ -600,6 +613,82 @@ func _tick_prep_reminder() -> void:
 	var action: String = tr(&"INTERACT_HEIST_START")
 	var hint: String = UiInput.action_hint(INTERACT_ACTION)
 	show_toast(tr(&"HUD_PREP_REMINDER") % (action if hint.is_empty() else tr(&"HUD_PROMPT") % [hint, action]))
+
+
+## IS-114 / KR-045: key of the prep line; empty = hidden (not in prep). The start point is the van (escape point).
+## Host: at the start (its E prompt is "Start") -> "everyone here? [E] START" (same as the prompt, no contradiction); else "once the
+## crew is at the van, [E] START". Client: anyone at the escape point -> "the job starts when the host presses START" (AC7: the
+## escape countdown does not run in prep, which is correct, but has to read so); else "gather at the van".
+static func prep_line_key(in_prep: bool, host: bool, at_escape: bool, at_start: bool = false) -> String:
+	if not in_prep:
+		return ""
+	if host:
+		return "HUD_PREP_AT_ESCAPE_HOST" if at_start else "HUD_PREP_HOST"
+	return "HUD_PREP_AT_ESCAPE" if at_escape else "HUD_PREP_CLIENT"
+
+
+## IS-114: prep line text now (empty = hidden).
+func prep_line_text() -> String:
+	if not is_instance_valid(game) or not game.has_method(&"heist_prep_s"):
+		return ""
+	var in_prep: bool = float(game.call(&"heist_prep_s")) >= 0.0
+	var at_escape: bool = false
+	if in_prep and game.has_method(&"escape_status"):
+		at_escape = int((game.call(&"escape_status") as Dictionary).get("in_zone", 0)) > 0
+	var key: String = prep_line_key(in_prep, is_instance_valid(net) and bool(net.call(&"is_host")), at_escape,
+		_target_key == START_ACTION_KEY)
+	if key.is_empty():
+		return ""
+	if key == "HUD_PREP_HOST" or key == "HUD_PREP_AT_ESCAPE_HOST":
+		return tr(key) % UiInput.action_hint(INTERACT_ACTION)
+	return tr(key)
+
+
+## IS-114: the permanent prep line (not a toast) under the escape panel.
+func refresh_prep_line() -> void:
+	var text: String = prep_line_text()
+	_prep_label.text = text
+	_prep_panel.visible = not text.is_empty()
+
+
+## IS-114: the prep line label (tests).
+func prep_label() -> Label:
+	return _prep_label
+
+
+## IS-114: the start marker (tests).
+func start_marker() -> HeistStartMarker:
+	return _start_marker
+
+
+func _make_prep_line() -> void:
+	_prep_panel = PanelContainer.new()
+	_prep_panel.name = "PrepPanel"
+	_prep_panel.theme_type_variation = &"HudChip"
+	_prep_panel.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	_prep_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prep_panel.visible = false
+	_prep_label = Label.new()
+	_prep_label.name = "PrepLabel"
+	_prep_label.auto_translate_mode = Node.AUTO_TRANSLATE_MODE_DISABLED
+	_prep_label.theme_type_variation = &"StartLabel"
+	_prep_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_prep_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_prep_panel.add_child(_prep_label)
+	var top: Control = _escape_panel.get_parent() as Control
+	top.add_child(_prep_panel)
+	top.move_child(_prep_panel, _escape_panel.get_index() + 1)
+
+
+func _make_start_marker(blocks: Array[Control]) -> void:
+	_start_marker = HeistStartMarker.new()
+	_start_marker.name = "StartMarker"
+	_start_marker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_root.add_child(_start_marker)
+	_root.move_child(_start_marker, _escape_arrow.get_index() + 1)
+	_start_marker.avoid = blocks
+	_start_marker.arrow_enabled = is_instance_valid(net) and bool(net.call(&"is_host"))
+	_start_marker.bind(game)
 
 
 ## US-052: in-session heat lines (hot neighbourhood, recognised players) as toasts; nothing in a cool session.

@@ -1,6 +1,6 @@
 extends TestCase
 ## US-049 in-job "Start" (KR-044): a heist level opens in prep (interactions except the customer door locked with the "prep" reject and
-## the crew-gathering prompt; no Tracker observation, no suspicion, no alert step), the host's E on the start point (spawn slot 0) starts the
+## the crew-gathering prompt; no Tracker observation, no suspicion, no alert step), the host's E on the start point (the van, KR-045) starts the
 ## job (phase active + `heist_started`), "Again" opens in prep again; automation starts at once unless `--heist-prep` (Args.heist_prep).
 ## HUD: crew-gathering prompt text and the host's 30 s reminder (fakes). Multi-process: tests/net/heist_start.json, heist_prep_owner.json.
 
@@ -175,7 +175,7 @@ func test_no_penalty_in_prep_then_start() -> void:
 	eq(Game.alert_level(), 0, "uyarı merdiveni adım atmaz")
 	eq(Game.cover_state(), 1, "hazırlıkta örtü izlenmez")
 	eq(_heist_dump()["elapsed"], 0.0, "iş süresi hazırlıkta saymaz")
-	# Start: host E on the start point (spawn slot 0).
+	# Start: host E on the start point (the van, KR-045).
 	var start: Interactable = _item("HeistStart/Trigger")
 	if not is_true(start != null, "başlangıç noktası"):
 		await _stop()

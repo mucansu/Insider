@@ -70,6 +70,8 @@ const LINES := {
 		"func heist_prep_s() -> float",
 		"func heist_prep_locks(item: Node) -> bool",
 		"func request_heist_start() -> bool",
+		# S3 addition candidate (IS-114, start marker; coordinator carries it to mimari.md): start point world position, read-only.
+		"func heist_start_position() -> Vector2",
 		# S3 addition candidate (US-050, map choice; mimari.md US-050 ekleri): registry maps, host-only switch.
 		"func map_list() -> Array[Dictionary]",
 		"func request_map_switch(level_path: String) -> bool",

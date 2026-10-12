@@ -1,7 +1,9 @@
 {
-  "_doc": "heist_start.json host botu (US-049). Doğma noktasında (yuva 0 = başlangıç noktası, Level/HeistStart) bekler; t=14'te E (Başla) — iş hazırlıktan başlar. Sonra kıpırdamaz.",
+  "_doc": "heist_start.json host botu (US-049; IS-114/KR-045: başlangıç noktası minibüste = kaçış bölgesi). abort_walk.json rotasıyla caddeye inip doğuya, minibüse yürür ve bekler; t=14'te E (Başla) — iş hazırlıktan başlar. Sonra kıpırdamaz.",
   "steps": [
-    {"t": 0.0, "move": [0, 0]},
+    {"t": 0.2, "move": [0, 1]},
+    {"t": 0.543, "move": [1, 0]},
+    {"t": 5.886, "move": [0, 0]},
     {"t": 14.0, "hold": "interact", "dur": 0.3}
   ]
 }

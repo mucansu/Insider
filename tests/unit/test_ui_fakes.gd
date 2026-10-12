@@ -168,6 +168,12 @@ class FakeGame extends FakeGameBase:
 	func heist_prep_s() -> float:
 		return prep_s
 
+	## IS-114 start point world position; Vector2.INF if the level has none.
+	var start_at: Vector2 = Vector2.INF
+
+	func heist_start_position() -> Vector2:
+		return start_at
+
 	## US-052 in-session heat: {"heat": int, "active": bool, "recognized": {peer: n}, "known": [peer]}.
 	var heat_state: Dictionary = {"heat": 0, "active": false, "recognized": {}, "known": []}
 
