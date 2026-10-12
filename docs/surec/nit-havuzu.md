@@ -88,3 +88,5 @@ KR-028 (hafif kontrol kipi): blocker olmayan bulgular burada toplanır; ayrı IS
 | 2026-10-11 | US-050 (denetci) | ui/heist_end.gd | MainMenu.remembered_map'e doğrudan UI sınıfı bağımlılığı; "Başka bakkal" açılır listesi gamepad'le gerçek pencerede denenmeli |
 | 2026-10-11 | US-052 (oynanis) | ui/heist_end.gd | İş sonu ekranına ısı satırı (US-050 birleşti, artık yapılabilir); geç katılan istemci sonraki sonuca kadar oturum toplamını görmez |
 | 2026-10-11 | US-052 (denetci) | tests/unit/test_session_heat.gd | Hazırlıkta tanınma olmadığını gösteren negatif test yok (kodda iki kat koruma); harita değişimi için ayrı ısı taşıma testi yok; ayrılıp dönen oyuncunun tanınması yeni peer kimliğiyle sıfırlanır |
+| 2026-10-12 | IS-114 (arayuz) | tests/net/heist_start.json | 150 ms'de c1 kasa E'si zaman zaman kaçıyor (2/5, sonra 6/6 PASS); süreye bağlı rota botu yük altında kayıyor olabilir — doğrulama sinyaline göre bekleyen bot |
+| 2026-10-12 | IS-114 (arayuz) | autoload/game.gd | EscapeZone'suz seviyede BAŞLA'nın yuva 0'a düşmesi test edilmedi; istemcinin kaçış kurulma tahmini (HUD) uzak konuma dayanır |

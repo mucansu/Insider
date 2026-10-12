@@ -10,7 +10,7 @@ Dilim 2.2'de biten: IS-102 (`level_started {run}` + `--log-on-exit`), IS-106 (ha
 
 ## Sürüyor / yarım kalan
 **Dilim 2.3 Test-2 açık** — kullanıcı test-2'yi `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7) ile oynayacak (öneri: temiz ölçüm için eski paket). **Dilim 2.4 Akış ve harita** (KR-044): test-2'den bağımsız kalemler Bitti → faz2-int 7936ad5 (kosucu birleşik doğrulama: ci_local import unit tools + 12 senaryo × 0/150 = 24/24 PASS): US-049 Başla (denetci PASS, PROTOCOL 8), US-050 harita seçimi + Başka bakkal (denetci PASS), US-051 skor tablosu, US-052 ısı/tanınma (denetci PASS, PROTOCOL 9), IS-113 Kalabalık saat (Haiku), US-046 lite ürün okunurluğu (Haiku + 1 düzeltme).
-- **Test-3 paketi hazır:** `build/Insiders-faz2-7936ad5-windows.zip` (debug, 35,2 MB, **protokol 9**; duman PASS). Eski paketlerle bağlanamaz.
+- **Test-3 paketi:** `build/Insiders-faz2-fe56fbc-windows.zip` (debug, 35,2 MB, protokol 9; duman PASS) — GB-13 düzeltmesi (IS-114, KR-045) dahil. 7936ad5 paketi KULLANILMAZ (BAŞLA bulunamıyor).
 - 2.4 kalan (test-2'ye bağlı, dalga 3): store_b kararı (protokol §5 K3), IS-097 / IS-092 / IS-105 (K1/K4). 2.4 çıkış kriteri: 3 kişi exe açmadan art arda 3 koşu (≥ 2 harita) — test-3 paketiyle oynanınca sağlanır.
 - KR-042 Haiku pilotu 5/5 tamam (1 dönüş: görsel yargı → görsel AC'li Haiku işinde koordinatör kare kontrolü). Ders (birleşme): çakışma çözümünde regex `=======` yorum satırıyla karıştı; elle çözülen birleşmeden sonra her zaman import + `grep -n '^=======$'`.
 - Çalışan ajan yok. Worktree: yalnız faz2-int. dev'e birleşme dilim sonunda (2.3 + 2.4 birlikte kapanabilir).
