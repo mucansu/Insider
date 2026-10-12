@@ -6,10 +6,10 @@
 Faz 2 — Gizlilik (bakkal). faz2-int **fe56fbc** (dev'e henüz birleşmedi; dilim-2.2 sonrası tüm iş faz2-int'te). **PROTOCOL_VERSION 9.** Paketler: test-2 `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7, arkadaşlarla test-2 için), test-3 `build/Insiders-faz2-fe56fbc-windows.zip` (protokol 9; Başla minibüste, harita seçimi + Başka bakkal, skor tablosu, Kalabalık saat, ısı/tanınma, ürün işaretleri). 7936ad5 paketi kullanılmaz. Faz 2 planı KR-044 (Fable `docs/tasarim/danisma/faz2-yeniden-kesim.md`): 2.4 Akış ve harita → 2.5 Ekip ve iletişim → 2.6 Kapanış + keşif ön testi; cila Havuz'da (KR-043).
 
 ## Sürüyor / yarım kalan
-Çalışan ajan yok; worktree yalnız `.claude/worktrees/faz2-int`.
+Çalışan ajanlar (2026-10-12 18:00): tasarim (GB-14 danışması), kosucu (tam ci_local faz2-int fe56fbc). Worktree yalnız `.claude/worktrees/faz2-int`.
 - Dilim 2.3 Test-2: kullanıcı arkadaşlarla test-2'yi henüz oynamadı (protokol `docs/tasarim/danisma/test-2-protokol.md`).
 - Dilim 2.4 Bitti olanlar: US-049 Başla (denetci PASS), US-050 harita seçimi (denetci PASS), US-051 skor tablosu, US-052 ısı/tanınma (denetci PASS), IS-113 Kalabalık saat, US-046 lite, IS-114 BAŞLA minibüste (GB-13, KR-045 + eki). Kalan (test-2'ye bağlı): store_b kararı (K3), IS-097/IS-092/IS-105 (K1/K4).
-- **GB-14 (karar bekliyor, kullanıcı "düzeltme yapma, yeni sohbette" dedi):** hazırlıkta içeride serbestçe takılınıp yanlış hareket cezasız — US-049 tasarımı, kullanıcı bozukluk olarak yaşadı. Seçenekler (a) hazırlıkta dükkân kapısı kilitli, (b) hazırlıkta şüphe işler ama tutma yok, (c) hazırlık yalnız minibüste toplanma. Fable'a danış → kullanıcıya sor → kalem.
+- **GB-14 → KR-046 → US-053 (Sürüyor):** kullanıcı "fark eder, tutmaz" seçti (Fable önerisi): hazırlıkta şüphe işler, DETECT = tanınma, tutma/bağırış yok. Paket oynanis'e tam CI bitince (CPU çakışmasın).
 - Bugünkü birleşmelerden sonra **tam ci_local koşulmadı** (test-3 arkadaşlarla oynanmadan önce şart, KR-028).
 
 ## Yeni sohbette ilk adımlar

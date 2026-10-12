@@ -11,6 +11,12 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-046 — Hazırlıkta keşif bedeli: şüphe işler, tespit = tanınma (2026-10-12, kullanıcı; GB-14, Fable)
+- GB-14: hazırlıkta (US-049) şüphe dolmuyordu; kullanıcı "içeride takılıp yanlış hareket etsem de bir şey olmuyor" diye bozukluk olarak yaşadı. Fable: US-049'daki "hazırlıkta ceza yok" GDD §4.3 "keşfin bedeli"nden sapmaydı. Kullanıcı önerilen seçeneği seçti (diğerleri: hazırlıkta kapı kilitli; hazırlık yok).
+- Kural: hazırlıkta şüphe normal işler (oyalanma, personel bölgesi); DETECT'te sahip tutmaz, bağırmaz, kovalamaz; uyarı merdiveni 0 kalır; o oyuncu `recognized` +1 alır (US-052 yolu → iş başlayınca sahip ona 30'dan başlar), sahip bakışını o oyuncu dükkândan çıkana kadar üstünde tutar; oyuncuya HUD satırı "Bakkal seni fark etti — işe tanınmış başlarsın". NOTICE/INVESTIGATE bedelsiz; dışarıdan/camdan bakmak bedava. Hazırlık kendisi keşif evresidir (2.6 keşif ön testi ek evre istemez).
+- Kalibrasyon (test-3 verisi): koşuların ≥ %50'sinde ≥ 2 hazırlık tanınması olursa hazırlık tanınma başlangıcı 30 → 20 (Fable).
+- Uygulama: US-053.
+
 ### KR-045 — "BAŞLA" kaçış bölgesinde (minibüs) (2026-10-11, koordinatör; GB-13)
 - US-049'da başlangıç noktası host'un doğma yuvasındaydı (store_a'da haritanın sol ucu, kaçış sağ ucunda) ve görünmezdi; GB-13 denemesinde oyuncular sarı kaçış işaretinde (minibüs) toplandı, işi başlatamadı. Karar: başlangıç noktası kaçış bölgesinin merkezine taşınır (haritadan türetilir, KR-037; kaçış bölgesi yoksa host yuvası), görünür pembe "BAŞLA" işareti + HUD satırı + kenar oku (IS-114). Akış: ekip minibüste toplanır → host BAŞLA → iş; kaçış da aynı yere döner.
 - Fable'a bilgi (tasarım etkisi: hazırlıkta keşif turu minibüsten başlar; keşif ön testi 2.6 bununla uyumlu).
