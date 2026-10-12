@@ -1,26 +1,25 @@
-# Durum (2026-10-12, dilim 2.3 Test-2 açık + dilim 2.4 Akış ve harita: test-2'den bağımsız 7 kalem Bitti; GB-14 kararı bekliyor — DEVİR NOKTASI)
+# Durum (2026-10-12 akşam, dilim 2.3 Test-2 açık + dilim 2.4 Akış ve harita: test-2'den bağımsız 8 kalem Bitti, test-3 paketi 69830ad hazır — kullanıcı testleri bekleniyor)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde; tam CI günde bir + test-N öncesi. Model yönlendirme KR-042 (kosucu = Haiku test koşucu; XS kalemler haiku; görsel AC'li Haiku işinde koordinatör kareye bakar). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Pano: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa.
 
 ## Aktif faz
-Faz 2 — Gizlilik (bakkal). faz2-int **fe56fbc** (dev'e henüz birleşmedi; dilim-2.2 sonrası tüm iş faz2-int'te). **PROTOCOL_VERSION 9.** Paketler: test-2 `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7, arkadaşlarla test-2 için), test-3 `build/Insiders-faz2-fe56fbc-windows.zip` (protokol 9; Başla minibüste, harita seçimi + Başka bakkal, skor tablosu, Kalabalık saat, ısı/tanınma, ürün işaretleri). 7936ad5 paketi kullanılmaz. Faz 2 planı KR-044 (Fable `docs/tasarim/danisma/faz2-yeniden-kesim.md`): 2.4 Akış ve harita → 2.5 Ekip ve iletişim → 2.6 Kapanış + keşif ön testi; cila Havuz'da (KR-043).
+Faz 2 — Gizlilik (bakkal). faz2-int **69830ad** (dev'e henüz birleşmedi; dilim-2.2 sonrası tüm iş faz2-int'te). **PROTOCOL_VERSION 10.** Paketler: test-2 `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7, arkadaşlarla test-2 için), test-3 `build/Insiders-faz2-69830ad-windows.zip` (protokol 10; Başla minibüste, harita seçimi + Başka bakkal, skor tablosu, Kalabalık saat, ısı/tanınma, ürün işaretleri, hazırlıkta keşif bedeli). 7936ad5 ve fe56fbc paketleri kullanılmaz. Faz 2 planı KR-044 (Fable `docs/tasarim/danisma/faz2-yeniden-kesim.md`): 2.4 Akış ve harita → 2.5 Ekip ve iletişim → 2.6 Kapanış + keşif ön testi; cila Havuz'da (KR-043).
 
 ## Sürüyor / yarım kalan
-Çalışan ajanlar (2026-10-12 18:00): tasarim (GB-14 danışması), kosucu (tam ci_local faz2-int fe56fbc). Worktree yalnız `.claude/worktrees/faz2-int`.
+Çalışan ajan yok; worktree `.claude/worktrees/faz2-int` (+ birleşmiş agent-afc504e12f07f1d6e, silinebilir). Worktree yalnız `.claude/worktrees/faz2-int`.
 - Dilim 2.3 Test-2: kullanıcı arkadaşlarla test-2'yi henüz oynamadı (protokol `docs/tasarim/danisma/test-2-protokol.md`).
 - Dilim 2.4 Bitti olanlar: US-049 Başla (denetci PASS), US-050 harita seçimi (denetci PASS), US-051 skor tablosu, US-052 ısı/tanınma (denetci PASS), IS-113 Kalabalık saat, US-046 lite, IS-114 BAŞLA minibüste (GB-13, KR-045 + eki). Kalan (test-2'ye bağlı): store_b kararı (K3), IS-097/IS-092/IS-105 (K1/K4).
-- **GB-14 → KR-046 → US-053 (Sürüyor):** kullanıcı "fark eder, tutmaz" seçti (Fable önerisi): hazırlıkta şüphe işler, DETECT = tanınma, tutma/bağırış yok. Paket oynanis'e tam CI bitince (CPU çakışmasın).
-- Bugünkü birleşmelerden sonra **tam ci_local koşulmadı** (test-3 arkadaşlarla oynanmadan önce şart, KR-028).
+- **GB-14 → KR-046 → US-053 Bitti** (faz2-int 69830ad, denetci PASS, PROTOCOL 10): hazırlıkta sahibin şüphesi işler, DETECT = tanınma (işe 30'dan), tutma/bağırış yok; raf + ödeme hazırlıkta açık. **Yeni test-3 paketi `build/Insiders-faz2-69830ad-windows.zip`** (fe56fbc paketinin yerine; protokol 10).
+- Tam ci_local faz2-int fe56fbc **yeşil** (2026-10-12; 59 net senaryo × 0/150, FAIL 0; net adımı ~80 dk, toplam 83 dk). US-053 sonrası birleşik ağaç denetlenen ağaçla aynı (yalnız mimari.md boş satır) → yeniden koşulmadı.
 
 ## Yeni sohbette ilk adımlar
-1. GB-14: tasarim (Fable) kısa danışma (seçenekler a/b/c, keşif ön testi ve KR-034 ile ilişkisi) → kullanıcıya tek soru → kalem (oynanis/cekirdek; ağ değişirse denetci).
-2. Tam `tools/ci_local.sh` (kosucu, Haiku; tek seferde, CPU ağır iş başka yokken) faz2-int üzerinde; kararsızlar YÜK kuralıyla.
+1. Kullanıcı test-3 paketini (69830ad) kendisi/arkadaşlarla denerse: GB-14 doğrulaması (personel tarafında "Hım?" + "Bakkal seni fark etti", bağırış yok; BAŞLA sonrası "Sen yine mi?").
+2. Faz2-int'e yeni kod birleşmeden önce tam ci_local gerekmez (69830ad = denetlenen ağaç); sonraki birleşmelerden sonra test-N öncesi tam CI.
 3. Kullanıcı test-2 kayıtlarını getirirse: `python tools/kayit_ozet.py kayit-*.json --md build/ozet.md` (not: hazırlık ofseti nit'i — zamanlar seviye başından) → GB-nn, protokol §5 K1-K7 → 2.4 dalga 3 + IS-018 Fable ara değerlendirmesi + 2.3 kapanışı.
 4. 2.4 çıkış kriteri: 3 kişi exe açmadan art arda 3 koşu (≥ 2 harita) — test-3 paketiyle; sonra dilim sonu: faz2-int → dev, `dilim-2.3` + `dilim-2.4`, devir.
 
 ## Kullanıcıdan bekleyen
-- GB-14 kararı (hazırlıkta içeride serbest/cezasız mı? a/b/c) — yeni sohbette Fable danışmasından sonra.
-- Test-2: `eb5989e` paketini arkadaşlarla oynamak (Tailscale), kayıt dosyaları + gözlemler. Test-3 (`fe56fbc`) arkadaşlara gönderilmeden önce koordinatöre haber (tam CI).
+- Test-2: `eb5989e` paketini arkadaşlarla oynamak (Tailscale), kayıt dosyaları + gözlemler. Test-3 (`69830ad`) arkadaşlara gönderilmeden önce koordinatöre haber (tam CI).
 - KR-034 ilke kararı test-2 sonrası ("araç para verir, sabır/ekip temizlik verir").
 - Bekleyen KR: KR-013 ad (öneri Mapless), KR-014 Steamworks (sona), KR-024 AI ses hesabı, KR-025 Türkçe ses satırları.
 - Fable değerlendirmesine (test-2 sonrası): mahallelinin yalnız örtüsü bozuk oyuncuyu kovalaması (US-043), tezgâh görüşü/tanık sönümü, KR-034 C hedef kalibrasyonu, B kilidi (6 sn), örtü zamanla dönüş (GB-08 B), şişe fırlatma, arka kapıyı dışarıdan çalma.
