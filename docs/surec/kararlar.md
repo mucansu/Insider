@@ -11,6 +11,10 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-047 — Test-2 ayrı oynanmaz, test-3 ile birleşir; beklerken 2.5'in teste bağlı olmayan kalemleri (2026-10-22, kullanıcı)
+- Test-2 paketi (eb5989e, protokol 7) 16 gündür oynanmadı ve eskidi. Arkadaş testi doğrudan test-3 paketiyle (69830ad, protokol 10) yapılır; test-2 protokolünün soruları (K1-K7, T5 sessiz tur tabanı) bu testte sorulur. 2.3 ve 2.4 bu testten sonra birlikte kapanır.
+- Test beklenirken dilim 2.5'in test verisine bağlı olmayan kalemleri başlar: US-027 (bağlantı hataları + build kimliği), US-025 (Ayarlar v0), US-031 (Lobi v0; kapsam Fable danışmasıyla). US-017/018/019 (ping/mesaj) test verisini bekler. Test-3'ten önce yeni birleşmeler için tam ci_local + yeni paket.
+
 ### KR-046 — Hazırlıkta keşif bedeli: şüphe işler, tespit = tanınma (2026-10-12, kullanıcı; GB-14, Fable)
 - GB-14: hazırlıkta (US-049) şüphe dolmuyordu; kullanıcı "içeride takılıp yanlış hareket etsem de bir şey olmuyor" diye bozukluk olarak yaşadı. Fable: US-049'daki "hazırlıkta ceza yok" GDD §4.3 "keşfin bedeli"nden sapmaydı. Kullanıcı önerilen seçeneği seçti (diğerleri: hazırlıkta kapı kilitli; hazırlık yok).
 - Kural: hazırlıkta şüphe normal işler (oyalanma, personel bölgesi); DETECT'te sahip tutmaz, bağırmaz, kovalamaz; uyarı merdiveni 0 kalır; o oyuncu `recognized` +1 alır (US-052 yolu → iş başlayınca sahip ona 30'dan başlar), sahip bakışını o oyuncu dükkândan çıkana kadar üstünde tutar; oyuncuya HUD satırı "Bakkal seni fark etti — işe tanınmış başlarsın". NOTICE/INVESTIGATE bedelsiz; dışarıdan/camdan bakmak bedava. Hazırlık kendisi keşif evresidir (2.6 keşif ön testi ek evre istemez).

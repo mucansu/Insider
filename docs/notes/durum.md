@@ -1,4 +1,4 @@
-# Durum (2026-10-12 akşam, dilim 2.3 Test-2 açık + dilim 2.4 Akış ve harita: test-2'den bağımsız 8 kalem Bitti, test-3 paketi 69830ad hazır — kullanıcı testleri bekleniyor)
+# Durum (2026-10-22, KR-047: test-2 test-3 paketiyle birleşti; beklerken dilim 2.5'in teste bağlı olmayan kalemleri sürüyor)
 
 **Kontrol kipi: KR-028 hafif** — denetci yalnız ağ/yetki/kablo kaleminde; tam CI günde bir + test-N öncesi. Model yönlendirme KR-042 (kosucu = Haiku test koşucu; XS kalemler haiku; görsel AC'li Haiku işinde koordinatör kareye bakar). Reçeteler `.claude/skills/`, ortak giriş `AGENTS.md`. Pano: https://claude.ai/artifact/8scTa6h86mFhGjxg2txoJa.
 
@@ -6,6 +6,7 @@
 Faz 2 — Gizlilik (bakkal). faz2-int **69830ad** (dev'e henüz birleşmedi; dilim-2.2 sonrası tüm iş faz2-int'te). **PROTOCOL_VERSION 10.** Paketler: test-2 `build/Insiders-faz2-eb5989e-windows.zip` (protokol 7, arkadaşlarla test-2 için), test-3 `build/Insiders-faz2-69830ad-windows.zip` (protokol 10; Başla minibüste, harita seçimi + Başka bakkal, skor tablosu, Kalabalık saat, ısı/tanınma, ürün işaretleri, hazırlıkta keşif bedeli). 7936ad5 ve fe56fbc paketleri kullanılmaz. Faz 2 planı KR-044 (Fable `docs/tasarim/danisma/faz2-yeniden-kesim.md`): 2.4 Akış ve harita → 2.5 Ekip ve iletişim → 2.6 Kapanış + keşif ön testi; cila Havuz'da (KR-043).
 
 ## Sürüyor / yarım kalan
+- **2026-10-22 KR-047:** kullanıcı test-2'yi ayrı oynamayacak; arkadaş testi test-3 paketiyle (69830ad), test-2 soruları (K1-K7) orada. Beklerken dilim 2.5: **US-027** bağlantı hataları + build kimliği (cekirdek, worktree, denetci gerekir), **US-025** Ayarlar v0 (arayuz, worktree), **US-031** Lobi v0 kapsamı Fable'a danışıldı (`docs/tasarim/danisma/lobi-v0.md`). Bu birleşmelerden sonra test-3 öncesi tam ci_local + yeni paket.
 Çalışan ajan yok; worktree `.claude/worktrees/faz2-int` (+ birleşmiş agent-afc504e12f07f1d6e, silinebilir). Worktree yalnız `.claude/worktrees/faz2-int`.
 - Dilim 2.3 Test-2: kullanıcı arkadaşlarla test-2'yi henüz oynamadı (protokol `docs/tasarim/danisma/test-2-protokol.md`).
 - Dilim 2.4 Bitti olanlar: US-049 Başla (denetci PASS), US-050 harita seçimi (denetci PASS), US-051 skor tablosu, US-052 ısı/tanınma (denetci PASS), IS-113 Kalabalık saat, US-046 lite, IS-114 BAŞLA minibüste (GB-13, KR-045 + eki). Kalan (test-2'ye bağlı): store_b kararı (K3), IS-097/IS-092/IS-105 (K1/K4).
