@@ -11,6 +11,15 @@ Yalnız koordinatör yazar. Bekleyen KR'ler kullanıcıya faz plan mesajında to
 | KR-014 | Steamworks hesabı ve 100 $ uygulama ücreti | Faz 5'te, MVP keyif verdiğinde [öneri] / daha erken | Faz 5 | Hayır (para) |
 
 ## Verilen
+### KR-049 — Test-3 öncesi paralel dalga (2026-10-22, kullanıcı; Fable IS-018 dalga gözden geçirmesi)
+- Kullanıcı bu oturum için ajan sayısını en yükseğe çıkardı ve her adımın Fable'dan geçmesini istedi (oturumluk). Fable onayıyla test-3 öncesine çekilenler: US-015 (30 Hz; tampon 100 ms kalır, NPC 15 Hz), IS-075 (sis lite + `--low-gfx`; varsayılan test-3 dökümüyle), IS-043 (US-027 sonrası; "Sorun bildir (F8)" duraklat ilk satırı, F8 her ekranda), IS-057 (US-015 sonrası), US-023a (tutulma/kurtarma okunurluğu alt kümesi). IS-040 ve IS-064 test-3 paketi kesildikten sonra.
+- IS-057: GDD §12 sabit 0,2 sn pay → oyuncu başına `max(0,2; ölçülen bayatlık + 0,05)`, tavan 0,35 sn; ölü hesap yalnız yakalamada, ≤ 0,2 sn ileri, duvarda net_position'a düşer; sayılar `tres`'te.
+- 2.5 çıkış kriteri "araçlı sessiz tur ≥ sesli temizin %60'ı" test-4'e kayar; test-3'te T5 tabanı alınır. US-017/018/019 test-3 verisini bekler.
+- Ağ testleri aynı PC'de paralel koşmasın diye ajanlar ortak dizin kilidiyle (scratchpad `net.lock`) sırayla koşar.
+
+### KR-048 — Lobi v0 = hazırlık cilası; iş ortası katılan ekibe katılır; test-3'te görüş A/B (2026-10-22, kullanıcı; Fable `docs/tasarim/danisma/lobi-v0.md`)
+- Ayrı bekleme odası yok (Faz 5 Steam lobisine kadar); hazırlık evresi lobinin yerini tutar. US-031 → US-031a (minibüste n/m + "Ekip tamam", duraklat menüsünde Kontroller) + US-031b (iş sonunda host görüş kipini seçer, sonraki yüklemede herkese; iş sürerken gelen ekibe katılır: yuvada doğar, örtü sağlam, sonuçta satırı var, izleyici yok). Hazır düğmesi, geri sayım, izleyici, aynı slota yeniden bağlanma → Havuz.
+
 ### KR-047 — Test-2 ayrı oynanmaz, test-3 ile birleşir; beklerken 2.5'in teste bağlı olmayan kalemleri (2026-10-22, kullanıcı)
 - Test-2 paketi (eb5989e, protokol 7) 16 gündür oynanmadı ve eskidi. Arkadaş testi doğrudan test-3 paketiyle (69830ad, protokol 10) yapılır; test-2 protokolünün soruları (K1-K7, T5 sessiz tur tabanı) bu testte sorulur. 2.3 ve 2.4 bu testten sonra birlikte kapanır.
 - Test beklenirken dilim 2.5'in test verisine bağlı olmayan kalemleri başlar: US-027 (bağlantı hataları + build kimliği), US-025 (Ayarlar v0), US-031 (Lobi v0; kapsam Fable danışmasıyla). US-017/018/019 (ping/mesaj) test verisini bekler. Test-3'ten önce yeni birleşmeler için tam ci_local + yeni paket.
